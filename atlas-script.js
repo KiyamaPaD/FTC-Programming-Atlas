@@ -791,56 +791,12 @@ async function updateNodeRemote(node) {
 }
 
 async function deleteNodeRemote(nodeId) {
-  const id = Number(nodeId)
+  const { error } = await supabase.rpc('delete_atlas_node', {
+    p_project_id: PROJECT_ID,
+    p_node_id: Number(nodeId),
+  })
 
-  console.log('deleteNodeRemote: checking existence', id)
-
-  const { data: existing, error: existingError } = await supabase
-    .from('atlas_nodes')
-    .select('id, title')
-    .eq('project_id', PROJECT_ID)
-    .eq('id', id)
-    .maybeSingle()
-
-  if (existingError) throw existingError
-  if (!existing) {
-    throw new Error('Nodul nu există în atlas_nodes sau nu este vizibil prin RLS.')
-  }
-
-  console.log('deleteNodeRemote: found node', existing)
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 10000)
-
-  try {
-    const { error: deleteError } = await supabase
-      .from('atlas_nodes')
-      .delete()
-      .eq('project_id', PROJECT_ID)
-      .eq('id', id)
-      .abortSignal(controller.signal)
-
-    if (deleteError) throw deleteError
-  } finally {
-    clearTimeout(timeout)
-  }
-
-  console.log('deleteNodeRemote: delete sent, verifying...')
-
-  const { data: afterDelete, error: verifyError } = await supabase
-    .from('atlas_nodes')
-    .select('id')
-    .eq('project_id', PROJECT_ID)
-    .eq('id', id)
-    .maybeSingle()
-
-  if (verifyError) throw verifyError
-  if (afterDelete) {
-    throw new Error('Delete query s-a executat, dar nodul încă există în baza de date.')
-  }
-
-  console.log('deleteNodeRemote: verified deleted')
-  return existing
+  if (error) throw error
 }
 
 async function insertEdgeRemote(sourceId, targetId, label) {
@@ -864,94 +820,24 @@ async function insertEdgeRemote(sourceId, targetId, label) {
 }
 
 async function updateEdgeRemote(sourceId, targetId, label) {
-  const { data, error } = await supabase
-    .from('atlas_edges')
-    .update({ label })
-    .eq('project_id', PROJECT_ID)
-    .eq('source_id', Number(sourceId))
-    .eq('target_id', Number(targetId))
-    .select('id, source_id, target_id, label')
+  const { error } = await supabase.rpc('update_atlas_edge_label', {
+    p_project_id: PROJECT_ID,
+    p_source_id: Number(sourceId),
+    p_target_id: Number(targetId),
+    p_label: label,
+  })
 
   if (error) throw error
-
-  if (!data || data.length === 0) {
-    throw new Error('Update edge matched 0 rows. Muchia nu a fost actualizată.')
-  }
-
-  return data[0]
 }
 
 async function deleteEdgeRemote(sourceId, targetId) {
-  const s = Number(sourceId)
-  const t = Number(targetId)
+  const { error } = await supabase.rpc('delete_atlas_edge', {
+    p_project_id: PROJECT_ID,
+    p_source_id: Number(sourceId),
+    p_target_id: Number(targetId),
+  })
 
-  const { data: existing, error: existingError } = await supabase
-    .from('atlas_edges')
-    .select('id, source_id, target_id, label')
-    .eq('project_id', PROJECT_ID)
-    .eq('source_id', s)
-    .eq('target_id', t)
-    .maybeSingle()
-
-  if (existingError) throw existingError
-  if (!existing) {
-    throw new Error('Muchia nu există în atlas_edges sau nu este vizibilă prin RLS.')
-  }
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 10000)
-
-  try {
-    const { error: deleteError } = await supabase
-      .from('atlas_edges')
-      .delete()
-      .eq('project_id', PROJECT_ID)
-      .eq('source_id', s)
-      .eq('target_id', t)
-      .abortSignal(controller.signal)
-
-    if (deleteError) throw deleteError
-  } finally {
-    clearTimeout(timeout)
-  }
-
-  const { data: afterDelete, error: verifyError } = await supabase
-    .from('atlas_edges')
-    .select('id')
-    .eq('project_id', PROJECT_ID)
-    .eq('source_id', s)
-    .eq('target_id', t)
-    .maybeSingle()
-
-  if (verifyError) throw verifyError
-  if (afterDelete) {
-    throw new Error('Muchia încă există în baza de date după delete.')
-  }
-}
-
-async function nudgeSelectedNode(dx, dy) {
-  if (!canEdit) return
-  const node = selectedNode()
-  if (!node) return
-
-  pushHistory()
-
-  const desiredX = clamp(node.x + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20)
-  const desiredY = clamp(node.y + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
-  const free = findNearestFreeSpot(node.id, desiredX, desiredY)
-
-  node.x = free.x
-  node.y = free.y
-  saveCachedNodes()
-  renderAll()
-
-  try {
-    await updateNodeRemote(node)
-  } catch (error) {
-    console.error('Move node failed:', error)
-    alert(error.message || 'Eroare la mutarea nodului.')
-    await fetchAllData()
-  }
+  if (error) throw error
 }
 
 function updateAuthUI() {
