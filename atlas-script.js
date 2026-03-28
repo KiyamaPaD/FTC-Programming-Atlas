@@ -791,12 +791,18 @@ async function updateNodeRemote(node) {
 }
 
 async function deleteNodeRemote(nodeId) {
-  const { error } = await supabase.rpc('delete_atlas_node', {
+  console.log('deleteNodeRemote RPC start', nodeId)
+
+  const { data, error } = await supabase.rpc('delete_atlas_node', {
     p_project_id: PROJECT_ID,
     p_node_id: Number(nodeId),
   })
 
+  console.log('deleteNodeRemote RPC result', { data, error })
+
   if (error) throw error
+
+  console.log('deleteNodeRemote RPC success')
 }
 
 async function insertEdgeRemote(sourceId, targetId, label) {
@@ -2005,6 +2011,9 @@ window.atlasDebug = {
   deleteSelectedEdge,
   openSelectedEdgeEdit,
   refreshSession,
+  deleteNodeRemote,
+  deleteEdgeRemote,
+  updateEdgeRemote,
 }
 
 ensureNodePositions()
