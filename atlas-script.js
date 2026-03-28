@@ -187,7 +187,7 @@ function saveStacks() {
   updateUndoRedoButtons()
 }
 
-let nodes = [loadCachedNodes()]
+let nodes = loadCachedNodes()
 let selectedId = nodes[0]?.id ?? null
 let selectedEdge = null
 let detailOpen = false
