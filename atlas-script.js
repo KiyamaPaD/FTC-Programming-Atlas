@@ -144,31 +144,10 @@ function deepCopy(obj) {
 }
 
 function loadCachedNodes() {
-  const saved = localStorage.getItem(CACHE_KEYS.nodes)
-  if (!saved) return deepCopy(initialNodes)
-
-  try {
-    const parsed = JSON.parse(saved)
-    if (!Array.isArray(parsed) || !parsed.length) return deepCopy(initialNodes)
-    return parsed.map(node => ({
-      ...node,
-      id: Number(node.id),
-      x: Number(node.x),
-      y: Number(node.y),
-      links: Array.isArray(node.links)
-        ? node.links.map(link => ({
-            targetId: Number(link.targetId),
-            label: link.label || 'relație'
-          }))
-        : []
-    }))
-  } catch {
-    return deepCopy(initialNodes)
-  }
+  return deepCopy(initialNodes)
 }
 
 function saveCachedNodes() {
-  localStorage.setItem(CACHE_KEYS.nodes, JSON.stringify(nodes))
 }
 
 function loadView() {
@@ -520,11 +499,7 @@ function findNearestFreeSpot(nodeId, desiredX, desiredY) {
 }
 
 function ensureNodePositions() {
-  nodes = nodes.map(node => {
-    const pos = findNearestFreeSpot(node.id, Number(node.x) || 20, Number(node.y) || 20)
-    return { ...node, x: pos.x, y: pos.y }
-  })
-  saveCachedNodes()
+  
 }
 
 function generateNodeId() {
@@ -547,8 +522,8 @@ function flattenEdges(nodesArray) {
 }
 
 function updateUndoRedoButtons() {
-  undoBtn.disabled = !canEdit || undoStack.length === 0
-  redoBtn.disabled = !canEdit || redoStack.length === 0
+  undoBtn.disabled = true
+  redoBtn.disabled = true
 }
 
 function snapshotState() {
@@ -581,83 +556,19 @@ function restoreSnapshot(snapshot) {
 }
 
 function pushHistory() {
-  if (!canEdit) return
-  undoStack.push(snapshotState())
-  if (undoStack.length > HISTORY_LIMIT) undoStack.shift()
-  redoStack = []
-  saveStacks()
+  return
 }
 
 async function syncRemoteState() {
-  if (!canEdit) return
-
-  const allEdges = flattenEdges(nodes)
-
-  const { error: deleteEdgesError } = await supabase
-    .from('atlas_edges')
-    .delete()
-    .eq('project_id', PROJECT_ID)
-  if (deleteEdgesError) throw deleteEdgesError
-
-  const { error: deleteNodesError } = await supabase
-    .from('atlas_nodes')
-    .delete()
-    .eq('project_id', PROJECT_ID)
-  if (deleteNodesError) throw deleteNodesError
-
-  if (nodes.length) {
-    const { error: insertNodesError } = await supabase
-      .from('atlas_nodes')
-      .insert(nodes.map(node => ({
-        id: Number(node.id),
-        project_id: PROJECT_ID,
-        title: node.title,
-        tag: node.tag,
-        x: Number(node.x),
-        y: Number(node.y),
-        content: node.content
-      })))
-    if (insertNodesError) throw insertNodesError
-  }
-
-  if (allEdges.length) {
-    const { error: insertEdgesError } = await supabase
-      .from('atlas_edges')
-      .insert(allEdges)
-    if (insertEdgesError) throw insertEdgesError
-  }
+  return
 }
 
 async function undo() {
-  if (!canEdit || !undoStack.length) return
-  redoStack.push(snapshotState())
-  const snapshot = undoStack.pop()
-  saveStacks()
-  restoreSnapshot(snapshot)
-
-  try {
-    await syncRemoteState()
-  } catch (error) {
-    console.error('Undo failed:', error)
-    alert(error.message || 'Eroare la undo.')
-    await fetchAllData()
-  }
+  alert('Undo este dezactivat temporar. Varianta veche îți poate goli atlasul din Supabase.')
 }
 
 async function redo() {
-  if (!canEdit || !redoStack.length) return
-  undoStack.push(snapshotState())
-  const snapshot = redoStack.pop()
-  saveStacks()
-  restoreSnapshot(snapshot)
-
-  try {
-    await syncRemoteState()
-  } catch (error) {
-    console.error('Redo failed:', error)
-    alert(error.message || 'Eroare la redo.')
-    await fetchAllData()
-  }
+  alert('Redo este dezactivat temporar. Varianta veche îți poate goli atlasul din Supabase.')
 }
 
 async function seedInitialAtlas() {
@@ -705,17 +616,14 @@ async function fetchAllData({ allowSeed = true } = {}) {
 
   if (!nodesData || nodesData.length === 0) {
     if (allowSeed && canEdit) {
-      await seedInitialAtlas()
-      return fetchAllData({ allowSeed: false })
+        await seedInitialAtlas()
+        return fetchAllData({ allowSeed: false })
     }
 
-    nodes = loadCachedNodes()
-    selectedId = nodes.find(n => String(n.id) === String(selectedId))?.id ?? nodes[0]?.id ?? null
-    if (selectedEdge) {
-      const stillExists = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
-      if (!stillExists) selectedEdge = null
-    }
-    saveCachedNodes()
+    nodes = []
+    selectedId = null
+    selectedEdge = null
+    detailOpen = false
     renderAll()
     return
   }
@@ -753,19 +661,18 @@ async function fetchAllData({ allowSeed = true } = {}) {
 }
 
 async function createNodeRemote(node) {
-  console.log('createNodeRemote RPC start', node)
-
-  const { data, error } = await supabase.rpc('create_atlas_node', {
-    p_project_id: PROJECT_ID,
-    p_id: Number(node.id),
-    p_title: node.title,
-    p_tag: node.tag,
-    p_x: Number(node.x),
-    p_y: Number(node.y),
-    p_content: node.content,
-  })
-
-  console.log('createNodeRemote RPC result', { data, error })
+  const { data, error } = await supabase
+    .from('atlas_nodes')
+    .insert({
+      project_id: PROJECT_ID,
+      title: node.title,
+      tag: node.tag,
+      x: Number(node.x),
+      y: Number(node.y),
+      content: node.content
+    })
+    .select('*')
+    .single()
 
   if (error) throw error
   return data
@@ -788,16 +695,13 @@ async function updateNodeRemote(node) {
 }
 
 async function deleteNodeRemote(nodeId) {
-  console.log('deleteNodeRemote RPC start', nodeId)
+  const { error } = await supabase
+    .from('atlas_nodes')
+    .delete()
+    .eq('project_id', PROJECT_ID)
+    .eq('id', Number(nodeId))
 
-  const { data, error } = await supabase.rpc('delete_atlas_node', {
-    p_project_id: PROJECT_ID,
-    p_node_id: Number(nodeId),
-  })
-
-  console.log('deleteNodeRemote RPC result', { data, error })
   if (error) throw error
-  return data
 }
 
 async function insertEdgeRemote(sourceId, targetId, label) {
@@ -821,32 +725,25 @@ async function insertEdgeRemote(sourceId, targetId, label) {
 }
 
 async function updateEdgeRemote(sourceId, targetId, label) {
-  console.log('updateEdgeRemote RPC start', { sourceId, targetId, label })
+  const { error } = await supabase
+    .from('atlas_edges')
+    .update({ label })
+    .eq('project_id', PROJECT_ID)
+    .eq('source_id', Number(sourceId))
+    .eq('target_id', Number(targetId))
 
-  const { data, error } = await supabase.rpc('update_atlas_edge_label', {
-    p_project_id: PROJECT_ID,
-    p_source_id: Number(sourceId),
-    p_target_id: Number(targetId),
-    p_label: label,
-  })
-
-  console.log('updateEdgeRemote RPC result', { data, error })
   if (error) throw error
-  return data
 }
 
 async function deleteEdgeRemote(sourceId, targetId) {
-  console.log('deleteEdgeRemote RPC start', { sourceId, targetId })
+  const { error } = await supabase
+    .from('atlas_edges')
+    .delete()
+    .eq('project_id', PROJECT_ID)
+    .eq('source_id', Number(sourceId))
+    .eq('target_id', Number(targetId))
 
-  const { data, error } = await supabase.rpc('delete_atlas_edge', {
-    p_project_id: PROJECT_ID,
-    p_source_id: Number(sourceId),
-    p_target_id: Number(targetId),
-  })
-
-  console.log('deleteEdgeRemote RPC result', { data, error })
   if (error) throw error
-  return data
 }
 
 async function nudgeSelectedNode(dx, dy) {
@@ -1542,30 +1439,35 @@ async function saveNode() {
   pushHistory()
 
   try {
-    if (editingId == null) {
-      const newId = generateNodeId()
-      const startPos = findNearestFreeSpot(
-        newId,
-        WORLD_WIDTH * 0.5 - NODE_WIDTH / 2,
-        WORLD_HEIGHT * 0.5 - NODE_HEIGHT / 2
-      )
+        if (editingId == null) {
+            const tempId = Date.now()
+            const startPos = findNearestFreeSpot(
+            tempId,
+            WORLD_WIDTH * 0.5 - NODE_WIDTH / 2,
+            WORLD_HEIGHT * 0.5 - NODE_HEIGHT / 2
+        )
 
-      const newNode = {
-        id: newId,
-        title,
-        tag,
-        content,
-        x: startPos.x,
-        y: startPos.y,
-        links: []
-      }
+        const inserted = await createNodeRemote({
+            title,
+            tag,
+            content,
+            x: startPos.x,
+            y: startPos.y
+        })
 
-      const inserted = await createNodeRemote(newNode)
-      console.log('Created node in DB:', inserted)
+        const newNode = {
+             id: Number(inserted.id),
+            title: inserted.title,
+            tag: inserted.tag,
+            content: inserted.content,
+            x: Number(inserted.x),
+            y: Number(inserted.y),
+            links: []
+        }
 
-      nodes.push(newNode)
-      selectedId = newId
-      clearEdgeSelection()
+        nodes.push(newNode)
+        selectedId = newNode.id
+        clearEdgeSelection()
     } else {
       const node = findNode(editingId)
       if (!node) return
@@ -2007,16 +1909,6 @@ if (localStorage.getItem(CACHE_KEYS.panel) === '1') togglePanel(true)
 if (introDismissed) introScreen.classList.add('hidden')
 
 window.addEventListener('resize', () => {
-  nodes.forEach(node => {
-    const pos = findNearestFreeSpot(
-      node.id,
-      clamp(node.x, 20, WORLD_WIDTH - NODE_WIDTH - 20),
-      clamp(node.y, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
-    )
-    node.x = pos.x
-    node.y = pos.y
-  })
-  saveCachedNodes()
   renderAll()
   applyView()
 })
@@ -2064,7 +1956,5 @@ try {
   await fetchAllData()
 } catch (err) {
   console.error('Supabase load failed:', err)
-  nodes = loadCachedNodes()
-  ensureNodePositions()
   renderAll()
 }
