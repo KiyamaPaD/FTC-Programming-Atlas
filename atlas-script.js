@@ -754,23 +754,19 @@ async function fetchAllData({ allowSeed = true } = {}) {
 }
 
 async function createNodeRemote(node) {
-  console.log('createNodeRemote start', node)
+  console.log('createNodeRemote RPC start', node)
 
-  const { data, error } = await supabase
-    .from('atlas_nodes')
-    .insert({
-      id: Number(node.id),
-      project_id: PROJECT_ID,
-      title: node.title,
-      tag: node.tag,
-      x: Number(node.x),
-      y: Number(node.y),
-      content: node.content
-    })
-    .select('id, title')
-    .single()
+  const { data, error } = await supabase.rpc('create_atlas_node', {
+    p_project_id: PROJECT_ID,
+    p_id: Number(node.id),
+    p_title: node.title,
+    p_tag: node.tag,
+    p_x: Number(node.x),
+    p_y: Number(node.y),
+    p_content: node.content,
+  })
 
-  console.log('createNodeRemote result', { data, error })
+  console.log('createNodeRemote RPC result', { data, error })
 
   if (error) throw error
   return data
@@ -1545,6 +1541,7 @@ async function saveNode() {
   const title = titleInput.value.trim() || 'Untitled Node'
   const tag = tagInput.value
   const content = contentInput.value.trim() || 'Fără documentație încă.'
+
   pushHistory()
 
   try {
@@ -1566,9 +1563,8 @@ async function saveNode() {
         links: []
       }
 
-      console.log('saveNode create start', newNode)
       const inserted = await createNodeRemote(newNode)
-      console.log('saveNode create inserted', inserted)
+      console.log('Created node in DB:', inserted)
 
       nodes.push(newNode)
       selectedId = newId
@@ -1584,7 +1580,6 @@ async function saveNode() {
         content
       }
 
-      console.log('saveNode edit start', nextNode)
       await updateNodeRemote(nextNode)
 
       node.title = nextNode.title
@@ -1601,7 +1596,7 @@ async function saveNode() {
     renderAll()
   } catch (error) {
     console.error('Save node failed FULL:', error)
-    alert(error.message || 'Eroare la salvare.')
+    alert(`Eroare la salvare nod: ${error?.message || 'necunoscută'}`)
     await fetchAllData()
   }
 }
