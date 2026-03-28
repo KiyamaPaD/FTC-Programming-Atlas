@@ -145,6 +145,7 @@ function deepCopy(obj) {
 
 function loadCachedNodes() {
   return []
+
 }
 
 function saveCachedNodes() {
@@ -625,7 +626,7 @@ async function fetchAllData({ allowSeed = true } = {}) {
     selectedEdge = null
     detailOpen = false
     renderAll()
-     return
+    return
   }
 
   const edgesBySource = new Map()
@@ -801,14 +802,8 @@ function requireAuth() {
 }
 
 async function refreshSession() {
-  const { data: sessionData } = await supabase.auth.getSession()
-  currentUser = sessionData?.session?.user || null
-
-  if (!currentUser) {
-    const { data, error } = await supabase.auth.getUser()
-    currentUser = error ? null : (data.user || null)
-  }
-
+  const { data, error } = await supabase.auth.getUser()
+  currentUser = error ? null : (data.user || null)
   canEdit = isAllowedEditor(currentUser?.email)
   updateAuthUI()
 }
@@ -1445,9 +1440,9 @@ async function saveNode() {
   pushHistory()
 
   try {
-    if (editingId == null) {
-        const tempId = Date.now()
-        const startPos = findNearestFreeSpot(
+        if (editingId == null) {
+            const tempId = Date.now()
+            const startPos = findNearestFreeSpot(
             tempId,
             WORLD_WIDTH * 0.5 - NODE_WIDTH / 2,
             WORLD_HEIGHT * 0.5 - NODE_HEIGHT / 2
@@ -1462,7 +1457,7 @@ async function saveNode() {
         })
 
         const newNode = {
-            id: Number(inserted.id),
+             id: Number(inserted.id),
             title: inserted.title,
             tag: inserted.tag,
             content: inserted.content,
