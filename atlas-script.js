@@ -1,5 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+console.log('ATLAS SCRIPT LOADED v3')
+
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
 const PROJECT_ID = 'ftc-main'
@@ -315,6 +317,7 @@ function clearEdgeSelection() {
 }
 
 function selectEdge(sourceId, targetId) {
+  console.log('selectEdge', { sourceId, targetId })
   selectedEdge = { sourceId: Number(sourceId), targetId: Number(targetId) }
   selectedId = Number(sourceId)
   detailOpen = false
@@ -322,12 +325,16 @@ function selectEdge(sourceId, targetId) {
 }
 
 function openSelectedEdgeEdit() {
+  console.log('openSelectedEdgeEdit', { selectedEdge })
+
   if (!selectedEdge) {
     alert('Selectează mai întâi o muchie.')
     return
   }
 
   const info = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
+  console.log('edge info', info)
+
   if (!info) {
     alert('Muchia selectată nu mai există.')
     return
@@ -784,41 +791,74 @@ async function updateNodeRemote(node) {
 }
 
 async function deleteNodeRemote(nodeId) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('atlas_nodes')
     .delete()
     .eq('project_id', PROJECT_ID)
     .eq('id', Number(nodeId))
+    .select('id, title')
 
   if (error) throw error
-}
 
-async function upsertEdgeRemote(sourceId, targetId, label) {
-  const payload = {
-    project_id: PROJECT_ID,
-    source_id: Number(sourceId),
-    target_id: Number(targetId),
-    label
+  if (!data || data.length === 0) {
+    throw new Error('Delete query matched 0 rows. Nodul nu a fost șters din Supabase.')
   }
 
-  const { error } = await supabase
+  return data[0]
+}
+
+async function insertEdgeRemote(sourceId, targetId, label) {
+  const { data, error } = await supabase
     .from('atlas_edges')
-    .upsert(payload, {
-      onConflict: 'project_id,source_id,target_id'
+    .insert({
+      project_id: PROJECT_ID,
+      source_id: Number(sourceId),
+      target_id: Number(targetId),
+      label
     })
+    .select('id, source_id, target_id, label')
 
   if (error) throw error
+
+  if (!data || data.length === 0) {
+    throw new Error('Insert edge failed. Muchia nu a fost creată.')
+  }
+
+  return data[0]
+}
+
+async function updateEdgeRemote(sourceId, targetId, label) {
+  const { data, error } = await supabase
+    .from('atlas_edges')
+    .update({ label })
+    .eq('project_id', PROJECT_ID)
+    .eq('source_id', Number(sourceId))
+    .eq('target_id', Number(targetId))
+    .select('id, source_id, target_id, label')
+
+  if (error) throw error
+
+  if (!data || data.length === 0) {
+    throw new Error('Update edge matched 0 rows. Muchia nu a fost actualizată.')
+  }
+
+  return data[0]
 }
 
 async function deleteEdgeRemote(sourceId, targetId) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('atlas_edges')
     .delete()
     .eq('project_id', PROJECT_ID)
     .eq('source_id', Number(sourceId))
     .eq('target_id', Number(targetId))
+    .select('id')
 
   if (error) throw error
+
+  if (!data || data.length === 0) {
+    throw new Error('Delete edge matched 0 rows. Muchia nu a fost ștearsă.')
+  }
 }
 
 async function nudgeSelectedNode(dx, dy) {
@@ -1558,22 +1598,30 @@ async function saveRelation() {
   if (!source) return
 
   try {
-    const existingIndex = source.links.findIndex(link => Number(link.targetId) === Number(relationDraft.targetId))
+    const existingIndex = source.links.findIndex(
+      link => Number(link.targetId) === Number(relationDraft.targetId)
+    )
 
     if (editingId == null) {
       if (existingIndex >= 0) {
         source.links[existingIndex].label = label
+        await updateEdgeRemote(relationDraft.sourceId, relationDraft.targetId, label)
       } else {
         source.links.push({ targetId: Number(relationDraft.targetId), label })
+        await insertEdgeRemote(relationDraft.sourceId, relationDraft.targetId, label)
       }
     } else {
       source.links[editingId].label = label
+      await updateEdgeRemote(relationDraft.sourceId, relationDraft.targetId, label)
     }
 
-    await upsertEdgeRemote(relationDraft.sourceId, relationDraft.targetId, label)
     selectedId = source.id
-    selectedEdge = { sourceId: Number(relationDraft.sourceId), targetId: Number(relationDraft.targetId) }
+    selectedEdge = {
+      sourceId: Number(relationDraft.sourceId),
+      targetId: Number(relationDraft.targetId)
+    }
     detailOpen = true
+
     saveCachedNodes()
     closeModal()
     renderAll()
@@ -1585,6 +1633,13 @@ async function saveRelation() {
 }
 
 async function deleteSelected() {
+  console.log('deleteSelected start', {
+    canEdit,
+    selectedId,
+    selectedNode: selectedNode()?.title ?? null,
+    selectedEdge
+  })
+
   if (!requireAuth()) return
 
   const node = selectedNode()
@@ -1599,7 +1654,8 @@ async function deleteSelected() {
   pushHistory()
 
   try {
-    await deleteNodeRemote(node.id)
+    const deleted = await deleteNodeRemote(node.id)
+    console.log('Deleted node from DB:', deleted)
 
     nodes = nodes
       .filter(n => Number(n.id) !== Number(node.id))
@@ -1625,7 +1681,7 @@ async function deleteSelected() {
     saveCachedNodes()
     renderAll()
   } catch (error) {
-    console.error('Delete node failed:', error)
+    console.error('Delete node failed FULL:', error)
     alert(`Eroare la ștergere: ${error?.message || 'necunoscută'}`)
     await fetchAllData()
   }
@@ -1980,6 +2036,22 @@ supabase.auth.onAuthStateChange(async (_event, session) => {
     console.error('Supabase reload failed:', err)
   }
 })
+
+window.atlasDebug = {
+  getState: () => ({
+    canEdit,
+    email: currentUser?.email ?? null,
+    selectedId,
+    selectedEdge,
+    selectedNode: selectedNode()?.title ?? null,
+    detailOpen,
+    relationMode
+  }),
+  deleteSelected,
+  deleteSelectedEdge,
+  openSelectedEdgeEdit,
+  refreshSession,
+}
 
 ensureNodePositions()
 applyView()
