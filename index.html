@@ -1748,14 +1748,14 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
     }
 
     async function deleteNodeRemote(nodeId) {
-      const { error } = await supabase
-        .from('atlas_nodes')
-        .delete()
-        .eq('project_id', PROJECT_ID)
-        .eq('id', Number(nodeId))
+  const { error } = await supabase
+    .from('atlas_nodes')
+    .delete()
+    .eq('project_id', PROJECT_ID)
+    .eq('id', Number(nodeId))
 
-      if (error) throw error
-    }
+  if (error) throw error
+}
 
     async function upsertEdgeRemote(sourceId, targetId, label) {
       const payload = {
@@ -2517,52 +2517,51 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
     }
 
     async function deleteSelected() {
-      if (!requireAuth()) return
+  if (!requireAuth()) return
 
-      const node = selectedNode()
-      if (!node) {
-        alert('Nu este selectat niciun nod.')
-        return
-      }
+  const node = selectedNode()
+  if (!node) {
+    alert('Nu este selectat niciun nod.')
+    return
+  }
 
-      const confirmed = confirm(`Sigur vrei să ștergi nodul "${node.title}"?`)
-      if (!confirmed) return
+  const ok = confirm(`Sigur vrei să ștergi nodul "${node.title}"?`)
+  if (!ok) return
 
-      pushHistory()
+  pushHistory()
 
-      try {
-        await deleteEdgesForNodeRemote(node.id)
-        await deleteNodeRemote(node.id)
+  try {
+    await deleteNodeRemote(node.id)
 
-        nodes = nodes
-        .filter(n => Number(n.id) !== Number(node.id))
-        .map(n => ({
-          ...n,
-          links: (n.links || []).filter(link => Number(link.targetId) !== Number(node.id))
-        }))
+    nodes = nodes
+      .filter(n => Number(n.id) !== Number(node.id))
+      .map(n => ({
+        ...n,
+        links: (n.links || []).filter(link => Number(link.targetId) !== Number(node.id))
+      }))
 
-        if (
-          selectedEdge &&
-          (
-            Number(selectedEdge.sourceId) === Number(node.id) ||
-            Number(selectedEdge.targetId) === Number(node.id)
-          )
-          ) {
-          selectedEdge = null
-        }
-
-        selectedId = nodes[0]?.id ?? null
-        detailOpen = false
-        relationMode = { active: false, sourceId: null }
-
-        saveCachedNodes()
-        renderAll()
-      } catch (error) {
-        console.error('Delete node failed:', error)
-        alert(`Eroare la ștergere: ${error?.message || 'necunoscută'}`)
-        await fetchAllData()
-      }
+    if (
+      selectedEdge &&
+      (
+        Number(selectedEdge.sourceId) === Number(node.id) ||
+        Number(selectedEdge.targetId) === Number(node.id)
+      )
+    ) {
+      selectedEdge = null
     }
+
+    selectedId = nodes[0]?.id ?? null
+    detailOpen = false
+    relationMode = { active: false, sourceId: null }
+
+    saveCachedNodes()
+    renderAll()
+  } catch (error) {
+    console.error('Delete node failed:', error)
+    alert(`Eroare la ștergere: ${error?.message || 'necunoscută'}`)
+    await fetchAllData()
+  }
+  }
 
     async function removeRelation(sourceId, relationIndex) {
       const source = findNode(sourceId)
