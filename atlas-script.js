@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log('ATLAS SCRIPT LOADED v7')
+console.log('ATLAS SCRIPT LOADED v8')
 
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
@@ -11,12 +11,9 @@ const ALLOWED_EDITORS = [
 ].map(email => email.trim().toLowerCase())
 
 const CACHE_KEYS = {
-  nodes: 'ftc_atlas_nodes_cache_v1',
-  view: 'ftc_atlas_view_v1',
-  history: 'ftc_atlas_history_v1',
-  future: 'ftc_atlas_future_v1',
-  panel: 'ftc_atlas_panel_v1',
-  intro: 'ftc_atlas_intro_v1',
+  view: 'ftc_atlas_view_v2',
+  panel: 'ftc_atlas_panel_v2',
+  intro: 'ftc_atlas_intro_v2',
 }
 
 const HISTORY_LIMIT = 80
@@ -29,6 +26,15 @@ const NODE_HEIGHT = 118
 const NODE_GAP = 28
 const DRAG_THRESHOLD = 5
 
+const initialNodes = [
+  { id: 1, x: 140, y: 170 },
+  { id: 2, x: 470, y: 270 },
+  { id: 3, x: 900, y: 180 },
+  { id: 4, x: 640, y: 620 },
+  { id: 5, x: 1150, y: 620 },
+  { id: 6, x: 1430, y: 340 },
+]
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     persistSession: true,
@@ -37,138 +43,13 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   }
 })
 
-function isAllowedEditor(email) {
-  if (!email) return false
-  return ALLOWED_EDITORS.includes(String(email).trim().toLowerCase())
-}
-
-const initialNodes = [
-  {
-    id: 1,
-    title: 'TeleOp Basics',
-    tag: 'Beginner',
-    x: 140,
-    y: 170,
-    content: `TeleOp este modul în care controlezi robotul live, de pe gamepad.
-
-Aici explici simplu ce este un OpMode, cum citești input-ul din gamepad, cum dai putere la motoare și de ce nu trebuie să pui toată logica într-o singură clasă uriașă.
-
-În manual poți avea:
-- schemă minimală de TeleOp
-- input handling pe butoane și stick-uri
-- toggle vs hold
-- update loop și telemetry
-- ce greșeli apar când amesteci tot în același fișier.`,
-    links: [{ targetId: 3, label: 'bază pentru' }]
-  },
-  {
-    id: 2,
-    title: 'PID for Lift',
-    tag: 'Control',
-    x: 470,
-    y: 270,
-    content: `PID-ul te ajută să duci un mecanism la o poziție țintă într-un mod stabil.
-
-Aici poți explica:
-- ce înseamnă error
-- de ce P reacționează imediat
-- de ce D poate liniști oscilațiile
-- ce rol are feedforward la glisieră
-- cum arată un tuning prost vs unul bun
-
-Foarte util: o secțiune clară cu probleme reale, de exemplu encoder invers, semn greșit, target uitat sau update care nu rulează constant.`,
-    links: [{ targetId: 5, label: 'se leagă de' }]
-  },
-  {
-    id: 3,
-    title: 'Autonomous Flow',
-    tag: 'Intermediate',
-    x: 900,
-    y: 180,
-    content: `Aici explici pe înțelesul tuturor cum funcționează Autonomous: init, detectare, alegere rutină, state machine, path following și sincronizarea subsistemelor.
-
-Capitol bun pentru:
-- structura de start
-- rolul detectării înainte de start
-- state machine vs logică haotică
-- cum legi pathing-ul de intake, lift sau scoring
-- cum testezi o rutină fără să te pierzi în 500 de linii.`,
-    links: [{ targetId: 4, label: 'folosește' }, { targetId: 6, label: 'depinde de' }]
-  },
-  {
-    id: 4,
-    title: 'PedroPathing',
-    tag: 'Advanced',
-    x: 640,
-    y: 620,
-    content: `Capitol dedicat pentru pathing.
-
-Explici ce este pose, heading, follower, path chain, cum pornești de la un start pose corect și de ce localization-ul contează enorm.
-
-Merită să pui:
-- exemplu minim de follower
-- diferența între traiectorie și poziție estimată
-- probleme tipice când robotul merge bine pe translație dar prost pe rotație
-- ce înseamnă să pornești din pose greșit
-- exemple reale de la robotul vostru.`,
-    links: [{ targetId: 6, label: 'are nevoie de' }]
-  },
-  {
-    id: 5,
-    title: 'Debugging Hub Issues',
-    tag: 'Troubleshooting',
-    x: 1150,
-    y: 620,
-    content: `Secțiune foarte practică pentru probleme reale: Expansion Hub care nu apare, Control Hub resetat, configurații ciudate, motoare care nu răspund, tensiune care cade sub load.
-
-Asta poate deveni una dintre cele mai valoroase pagini pentru generațiile viitoare pentru că nu e teorie generică, ci experiență reală de echipă.`,
-    links: []
-  },
-  {
-    id: 6,
-    title: 'Localization Basics',
-    tag: 'Intermediate',
-    x: 1430,
-    y: 340,
-    content: `Localization înseamnă estimarea poziției robotului pe teren.
-
-Aici poți explica odometry, IMU, pose estimate, drift și de ce un robot aparent corect poate totuși să rateze pozițiile dacă localizarea nu este stabilă.
-
-Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de fapt.`,
-    links: []
-  }
-]
-
 function deepCopy(obj) {
   return JSON.parse(JSON.stringify(obj))
 }
 
-function loadCachedNodes() {
-  const saved = localStorage.getItem(CACHE_KEYS.nodes)
-  if (!saved) return deepCopy(initialNodes)
-
-  try {
-    const parsed = JSON.parse(saved)
-    if (!Array.isArray(parsed) || !parsed.length) return deepCopy(initialNodes)
-    return parsed.map(node => ({
-      ...node,
-      id: Number(node.id),
-      x: Number(node.x),
-      y: Number(node.y),
-      links: Array.isArray(node.links)
-        ? node.links.map(link => ({
-            targetId: Number(link.targetId),
-            label: link.label || 'relație'
-          }))
-        : []
-    }))
-  } catch {
-    return deepCopy(initialNodes)
-  }
-}
-
-function saveCachedNodes() {
-  localStorage.setItem(CACHE_KEYS.nodes, JSON.stringify(nodes))
+function isAllowedEditor(email) {
+  if (!email) return false
+  return ALLOWED_EDITORS.includes(String(email).trim().toLowerCase())
 }
 
 function loadView() {
@@ -191,25 +72,8 @@ function saveView() {
   localStorage.setItem(CACHE_KEYS.view, JSON.stringify(view))
 }
 
-function loadStack(key) {
-  const saved = localStorage.getItem(key)
-  if (!saved) return []
-  try {
-    const parsed = JSON.parse(saved)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function saveStacks() {
-  localStorage.setItem(CACHE_KEYS.history, JSON.stringify(undoStack))
-  localStorage.setItem(CACHE_KEYS.future, JSON.stringify(redoStack))
-  updateUndoRedoButtons()
-}
-
-let nodes = loadCachedNodes()
-let selectedId = nodes[0]?.id ?? null
+let nodes = []
+let selectedId = null
 let selectedEdge = null
 let detailOpen = false
 let editingId = null
@@ -219,8 +83,8 @@ let relationMode = { active: false, sourceId: null }
 let modalMode = 'node'
 let relationDraft = { sourceId: null, targetId: null, label: '' }
 let view = loadView()
-let undoStack = loadStack(CACHE_KEYS.history)
-let redoStack = loadStack(CACHE_KEYS.future)
+let undoStack = []
+let redoStack = []
 let currentUser = null
 let canEdit = false
 let clickState = { id: null, time: 0 }
@@ -232,9 +96,7 @@ const world = document.getElementById('world')
 const nodeLayer = document.getElementById('nodeLayer')
 const linkLayer = document.getElementById('linkLayer')
 const detailPanel = document.getElementById('detailPanel')
-const emptyPanel = document.getElementById('emptyPanel')
 const searchInput = document.getElementById('searchInput')
-const centerBtn = document.getElementById('centerBtn')
 const createBtn = document.getElementById('createBtn')
 const editBtn = document.getElementById('editBtn')
 const deleteBtn = document.getElementById('deleteBtn')
@@ -281,11 +143,11 @@ const introScreen = document.getElementById('introScreen')
 const enterBtn = document.getElementById('enterBtn')
 
 function selectedNode() {
-  return nodes.find(node => String(node.id) === String(selectedId)) || null
+  return nodes.find(node => Number(node.id) === Number(selectedId)) || null
 }
 
 function findNode(id) {
-  return nodes.find(node => String(node.id) === String(id)) || null
+  return nodes.find(node => Number(node.id) === Number(id)) || null
 }
 
 function getEdgeInfo(sourceId, targetId) {
@@ -310,54 +172,6 @@ function isEdgeSelected(sourceId, targetId) {
 
 function clearEdgeSelection() {
   selectedEdge = null
-}
-
-function selectEdge(sourceId, targetId) {
-  console.log('selectEdge', { sourceId, targetId })
-  selectedEdge = { sourceId: Number(sourceId), targetId: Number(targetId) }
-  selectedId = Number(sourceId)
-  detailOpen = false
-  renderAll()
-}
-
-function openSelectedEdgeEdit() {
-  console.log('openSelectedEdgeEdit', { selectedEdge })
-
-  if (!selectedEdge) {
-    alert('Selectează mai întâi o muchie.')
-    return
-  }
-
-  const info = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
-  console.log('edge info', info)
-
-  if (!info) {
-    alert('Muchia selectată nu mai există.')
-    return
-  }
-
-  openRelationEdit(info.source.id, info.index)
-}
-
-async function deleteSelectedEdge() {
-  if (!selectedEdge) {
-    alert('Selectează mai întâi o muchie.')
-    return
-  }
-
-  const info = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
-  if (!info) {
-    alert('Muchia selectată nu mai există.')
-    return
-  }
-
-  const target = findNode(info.link.targetId)
-  const ok = confirm(`Sigur vrei să ștergi muchia "${info.source.title} → ${target?.title || 'nod'}"?`)
-  if (!ok) return
-
-  await removeRelation(info.source.id, info.index)
-  selectedEdge = null
-  renderAll()
 }
 
 function slugTag(tag) {
@@ -415,6 +229,7 @@ function centerOnNode(node) {
 
 function fitView() {
   if (!nodes.length) return
+
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
@@ -525,11 +340,11 @@ function ensureNodePositions() {
     const pos = findNearestFreeSpot(node.id, Number(node.x) || 20, Number(node.y) || 20)
     return { ...node, x: pos.x, y: pos.y }
   })
-  saveCachedNodes()
 }
 
 function generateNodeId() {
-  return Date.now()
+  const maxId = nodes.reduce((max, node) => Math.max(max, Number(node.id) || 0), 0)
+  return maxId + 1
 }
 
 function flattenEdges(nodesArray) {
@@ -547,11 +362,6 @@ function flattenEdges(nodesArray) {
   return allEdges
 }
 
-function updateUndoRedoButtons() {
-  undoBtn.disabled = !canEdit || undoStack.length === 0
-  redoBtn.disabled = !canEdit || redoStack.length === 0
-}
-
 function snapshotState() {
   return {
     nodes: deepCopy(nodes),
@@ -559,8 +369,8 @@ function snapshotState() {
     selectedEdge: selectedEdge ? { ...selectedEdge } : null,
     detailOpen,
     relationMode: deepCopy(relationMode),
-    modalMode,
     relationDraft: deepCopy(relationDraft),
+    modalMode,
     view: { ...view },
   }
 }
@@ -571,12 +381,10 @@ function restoreSnapshot(snapshot) {
   selectedEdge = snapshot.selectedEdge ? { ...snapshot.selectedEdge } : null
   detailOpen = !!snapshot.detailOpen
   relationMode = snapshot.relationMode ? deepCopy(snapshot.relationMode) : { active: false, sourceId: null }
-  modalMode = snapshot.modalMode || 'node'
   relationDraft = snapshot.relationDraft ? deepCopy(snapshot.relationDraft) : { sourceId: null, targetId: null, label: '' }
+  modalMode = snapshot.modalMode || 'node'
   view = snapshot.view ? { ...snapshot.view } : loadView()
-
   closeModal()
-  saveCachedNodes()
   applyView()
   renderAll()
 }
@@ -586,7 +394,12 @@ function pushHistory() {
   undoStack.push(snapshotState())
   if (undoStack.length > HISTORY_LIMIT) undoStack.shift()
   redoStack = []
-  saveStacks()
+  updateUndoRedoButtons()
+}
+
+function updateUndoRedoButtons() {
+  undoBtn.disabled = !canEdit || undoStack.length === 0
+  redoBtn.disabled = !canEdit || redoStack.length === 0
 }
 
 async function syncRemoteState() {
@@ -633,13 +446,13 @@ async function undo() {
   if (!canEdit || !undoStack.length) return
   redoStack.push(snapshotState())
   const snapshot = undoStack.pop()
-  saveStacks()
+  updateUndoRedoButtons()
   restoreSnapshot(snapshot)
 
   try {
     await syncRemoteState()
+    await fetchAllData()
   } catch (error) {
-    console.error('Undo failed:', error)
     alert(error.message || 'Eroare la undo.')
     await fetchAllData()
   }
@@ -649,44 +462,19 @@ async function redo() {
   if (!canEdit || !redoStack.length) return
   undoStack.push(snapshotState())
   const snapshot = redoStack.pop()
-  saveStacks()
+  updateUndoRedoButtons()
   restoreSnapshot(snapshot)
 
   try {
     await syncRemoteState()
+    await fetchAllData()
   } catch (error) {
-    console.error('Redo failed:', error)
     alert(error.message || 'Eroare la redo.')
     await fetchAllData()
   }
 }
 
-async function seedInitialAtlas() {
-  const seedNodes = deepCopy(initialNodes)
-  const seedEdges = flattenEdges(seedNodes)
-
-  const { error: insertNodesError } = await supabase
-    .from('atlas_nodes')
-    .insert(seedNodes.map(node => ({
-      id: Number(node.id),
-      project_id: PROJECT_ID,
-      title: node.title,
-      tag: node.tag,
-      x: Number(node.x),
-      y: Number(node.y),
-      content: node.content
-    })))
-  if (insertNodesError) throw insertNodesError
-
-  if (seedEdges.length) {
-    const { error: insertEdgesError } = await supabase
-      .from('atlas_edges')
-      .insert(seedEdges)
-    if (insertEdgesError) throw insertEdgesError
-  }
-}
-
-async function fetchAllData({ allowSeed = true } = {}) {
+async function fetchAllData() {
   const { data: nodesData, error: nodesError } = await supabase
     .from('atlas_nodes')
     .select('*')
@@ -704,23 +492,6 @@ async function fetchAllData({ allowSeed = true } = {}) {
 
   if (edgesError) throw edgesError
 
-  if (!nodesData || nodesData.length === 0) {
-    if (allowSeed && canEdit) {
-      await seedInitialAtlas()
-      return fetchAllData({ allowSeed: false })
-    }
-
-    nodes = loadCachedNodes()
-    selectedId = nodes.find(n => String(n.id) === String(selectedId))?.id ?? nodes[0]?.id ?? null
-    if (selectedEdge) {
-      const stillExists = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
-      if (!stillExists) selectedEdge = null
-    }
-    saveCachedNodes()
-    renderAll()
-    return
-  }
-
   const edgesBySource = new Map()
   for (const edge of edgesData || []) {
     const sourceId = Number(edge.source_id)
@@ -731,7 +502,7 @@ async function fetchAllData({ allowSeed = true } = {}) {
     })
   }
 
-  nodes = nodesData.map(node => ({
+  nodes = (nodesData || []).map(node => ({
     id: Number(node.id),
     title: node.title,
     tag: node.tag,
@@ -742,31 +513,35 @@ async function fetchAllData({ allowSeed = true } = {}) {
   }))
 
   ensureNodePositions()
-  selectedId = nodes.find(n => String(n.id) === String(selectedId))?.id ?? nodes[0]?.id ?? null
+
+  if (selectedId == null && nodes.length) {
+    selectedId = nodes[0].id
+  } else {
+    selectedId = nodes.find(n => Number(n.id) === Number(selectedId))?.id ?? (nodes[0]?.id ?? null)
+  }
 
   if (selectedEdge) {
     const stillExists = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
     if (!stillExists) selectedEdge = null
   }
 
-  saveCachedNodes()
   renderAll()
 }
 
 async function createNodeRemote(node) {
-  console.log('createNodeRemote RPC start', node)
-
-  const { data, error } = await supabase.rpc('create_atlas_node', {
-    p_project_id: PROJECT_ID,
-    p_id: Number(node.id),
-    p_title: node.title,
-    p_tag: node.tag,
-    p_x: Number(node.x),
-    p_y: Number(node.y),
-    p_content: node.content,
-  })
-
-  console.log('createNodeRemote RPC result', { data, error })
+  const { data, error } = await supabase
+    .from('atlas_nodes')
+    .insert({
+      id: Number(node.id),
+      project_id: PROJECT_ID,
+      title: node.title,
+      tag: node.tag,
+      x: Number(node.x),
+      y: Number(node.y),
+      content: node.content
+    })
+    .select('id, title')
+    .single()
 
   if (error) throw error
   return data
@@ -789,16 +564,13 @@ async function updateNodeRemote(node) {
 }
 
 async function deleteNodeRemote(nodeId) {
-  console.log('deleteNodeRemote RPC start', nodeId)
+  const { error } = await supabase
+    .from('atlas_nodes')
+    .delete()
+    .eq('project_id', PROJECT_ID)
+    .eq('id', Number(nodeId))
 
-  const { data, error } = await supabase.rpc('delete_atlas_node', {
-    p_project_id: PROJECT_ID,
-    p_node_id: Number(nodeId),
-  })
-
-  console.log('deleteNodeRemote RPC result', { data, error })
   if (error) throw error
-  return data
 }
 
 async function insertEdgeRemote(sourceId, targetId, label) {
@@ -811,48 +583,36 @@ async function insertEdgeRemote(sourceId, targetId, label) {
       label
     })
     .select('id, source_id, target_id, label')
+    .single()
 
   if (error) throw error
-
-  if (!data || data.length === 0) {
-    throw new Error('Insert edge failed. Muchia nu a fost creată.')
-  }
-
-  return data[0]
+  return data
 }
 
 async function updateEdgeRemote(sourceId, targetId, label) {
-  console.log('updateEdgeRemote RPC start', { sourceId, targetId, label })
+  const { error } = await supabase
+    .from('atlas_edges')
+    .update({ label })
+    .eq('project_id', PROJECT_ID)
+    .eq('source_id', Number(sourceId))
+    .eq('target_id', Number(targetId))
 
-  const { data, error } = await supabase.rpc('update_atlas_edge_label', {
-    p_project_id: PROJECT_ID,
-    p_source_id: Number(sourceId),
-    p_target_id: Number(targetId),
-    p_label: label,
-  })
-
-  console.log('updateEdgeRemote RPC result', { data, error })
   if (error) throw error
-  return data
 }
 
 async function deleteEdgeRemote(sourceId, targetId) {
-  console.log('deleteEdgeRemote RPC start', { sourceId, targetId })
+  const { error } = await supabase
+    .from('atlas_edges')
+    .delete()
+    .eq('project_id', PROJECT_ID)
+    .eq('source_id', Number(sourceId))
+    .eq('target_id', Number(targetId))
 
-  const { data, error } = await supabase.rpc('delete_atlas_edge', {
-    p_project_id: PROJECT_ID,
-    p_source_id: Number(sourceId),
-    p_target_id: Number(targetId),
-  })
-
-  console.log('deleteEdgeRemote RPC result', { data, error })
   if (error) throw error
-  return data
 }
 
 async function nudgeSelectedNode(dx, dy) {
   if (!canEdit) return
-
   const node = selectedNode()
   if (!node) return
 
@@ -864,14 +624,12 @@ async function nudgeSelectedNode(dx, dy) {
 
   node.x = free.x
   node.y = free.y
-
-  saveCachedNodes()
   renderAll()
 
   try {
     await updateNodeRemote(node)
+    await fetchAllData()
   } catch (error) {
-    console.error('Move node failed:', error)
     alert(error.message || 'Eroare la mutarea nodului.')
     await fetchAllData()
   }
@@ -929,27 +687,12 @@ async function sendMagicLink() {
   })
 
   if (error) throw error
-  alert('Magic link trimis. Verifică email-ul și deschide link-ul pe aceeași adresă a site-ului.')
+  alert('Magic link trimis. Verifică email-ul și deschide link-ul.')
 }
 
 async function signOutUser() {
   const { error } = await supabase.auth.signOut()
   if (error) throw error
-}
-
-function handleEdgePick(sourceId, targetId) {
-  if (relationMode.active) return
-
-  const edgeKey = `${sourceId}-${targetId}`
-  const now = Date.now()
-  const isDouble = edgeClickState.key === edgeKey && now - edgeClickState.time < 320
-
-  edgeClickState = { key: edgeKey, time: now }
-  selectEdge(sourceId, targetId)
-
-  if (isDouble && canEdit) {
-    openSelectedEdgeEdit()
-  }
 }
 
 function renderLinks() {
@@ -1089,9 +832,24 @@ function renderLinks() {
   linkLayer.querySelectorAll('.edge-hit, .edge-label-hit').forEach(hit => {
     hit.addEventListener('click', event => {
       event.stopPropagation()
+
+      if (relationMode.active) return
+
       const sourceId = Number(hit.dataset.source)
       const targetId = Number(hit.dataset.target)
-      handleEdgePick(sourceId, targetId)
+      const edgeKey = `${sourceId}-${targetId}`
+      const now = Date.now()
+      const isDouble = edgeClickState.key === edgeKey && now - edgeClickState.time < 320
+
+      edgeClickState = { key: edgeKey, time: now }
+      selectedEdge = { sourceId, targetId }
+      selectedId = sourceId
+      detailOpen = false
+      renderAll()
+
+      if (isDouble && canEdit) {
+        openSelectedEdgeEdit()
+      }
     })
   })
 }
@@ -1128,9 +886,7 @@ function renderNodes() {
       const rawDx = event.clientX - startClientX
       const rawDy = event.clientY - startClientY
 
-      if (!moved && Math.hypot(rawDx, rawDy) < DRAG_THRESHOLD) {
-        return
-      }
+      if (!moved && Math.hypot(rawDx, rawDy) < DRAG_THRESHOLD) return
 
       moved = true
 
@@ -1170,25 +926,21 @@ function renderNodes() {
       const desiredX = clamp(startNodeX + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20)
       const desiredY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
       const free = findNearestFreeSpot(node.id, desiredX, desiredY)
-      const changed = free.x !== node.x || free.y !== node.y
 
-      if (changed) pushHistory()
+      pushHistory()
 
       node.x = free.x
       node.y = free.y
       selectedId = node.id
       clearEdgeSelection()
-      saveCachedNodes()
+      renderAll()
 
-      if (changed && canEdit) {
-        updateNodeRemote(node).catch(async error => {
-          console.error('Move node failed:', error)
+      updateNodeRemote(node)
+        .then(() => fetchAllData())
+        .catch(async error => {
           alert(error.message || 'Eroare la mutarea nodului.')
           await fetchAllData()
         })
-      }
-
-      renderAll()
     }
 
     el.addEventListener('pointerdown', event => {
@@ -1258,10 +1010,8 @@ function renderDetailPanel() {
 
   if (!node || !detailOpen) {
     detailPanel.classList.remove('open')
-    emptyPanel.style.display = 'none'
     editBtn.disabled = !node || !canEdit
     deleteBtn.disabled = !node || !canEdit
-    if (centerBtn) centerBtn.disabled = !node
     return
   }
 
@@ -1282,7 +1032,7 @@ function renderDetailPanel() {
         </div>
       </div>
     `
-  }).join('') || '<div class="relation-item"><div><strong>Nicio relație încă</strong><span>Poți adăuga una din quick controls sau din butonul de sus.</span></div></div>'
+  }).join('') || '<div class="relation-item"><div><strong>Nicio relație încă</strong><span>Poți adăuga una din quick controls.</span></div></div>'
 
   detailPanel.innerHTML = `
     <div class="detail-top">
@@ -1290,20 +1040,20 @@ function renderDetailPanel() {
         <div>
           <span class="pill ${slugTag(node.tag)}">${escapeHtml(node.tag)}</span>
           <h2 class="detail-title">${escapeHtml(node.title)}</h2>
-          <div class="detail-sub">Documentația ocupă tot ecranul cât timp este deschisă. O poți închide normal și revii instant la hartă.</div>
+          <div style="color:#b2b2bc;">Documentația ocupă tot ecranul cât timp este deschisă.</div>
         </div>
         <div class="icon-actions">
-          <button class="icon-btn" id="detailAddRelationBtn" aria-label="Add relation">＋</button>
-          <button class="icon-btn" id="detailEditBtn" aria-label="Edit">✎</button>
-          <button class="icon-btn" id="detailDeleteBtn" aria-label="Delete">🗑</button>
-          <button class="icon-btn" id="detailCloseBtn" aria-label="Close">✕</button>
+          <button class="icon-btn" id="detailAddRelationBtn">＋</button>
+          <button class="icon-btn" id="detailEditBtn">✎</button>
+          <button class="icon-btn" id="detailDeleteBtn">🗑</button>
+          <button class="icon-btn" id="detailCloseBtn">✕</button>
         </div>
       </div>
     </div>
     <div class="detail-content">
       <div class="quick-facts">
-        <div class="fact-box"><strong>${escapeHtml(k1)}</strong><span>${escapeHtml(v1)}</span></div>
-        <div class="fact-box"><strong>${escapeHtml(k2)}</strong><span>${escapeHtml(v2)}</span></div>
+        <div class="fact-box"><strong>${escapeHtml(k1)}</strong><div style="color:#b2b2bc;">${escapeHtml(v1)}</div></div>
+        <div class="fact-box"><strong>${escapeHtml(k2)}</strong><div style="color:#b2b2bc;">${escapeHtml(v2)}</div></div>
         <div class="relation-card">
           <div class="relation-card-label">relații editabile</div>
           <div class="relations-list">${relations}</div>
@@ -1317,10 +1067,6 @@ function renderDetailPanel() {
   `
 
   detailPanel.classList.add('open')
-  emptyPanel.style.display = 'none'
-  editBtn.disabled = !canEdit
-  deleteBtn.disabled = !canEdit
-  if (centerBtn) centerBtn.disabled = false
 
   const detailAddRelationBtn = document.getElementById('detailAddRelationBtn')
   const detailEditBtn = document.getElementById('detailEditBtn')
@@ -1343,9 +1089,7 @@ function renderDetailPanel() {
 
   detailPanel.querySelectorAll('[data-rel-edit]').forEach(button => {
     button.disabled = !canEdit
-    button.addEventListener('click', () => {
-      openRelationEdit(node.id, Number(button.dataset.relEdit))
-    })
+    button.addEventListener('click', () => openRelationEdit(node.id, Number(button.dataset.relEdit)))
   })
 
   detailPanel.querySelectorAll('[data-rel-remove]').forEach(button => {
@@ -1367,72 +1111,24 @@ function renderAll() {
 }
 
 function setModalModeUi(mode) {
-  if (mode === 'node') {
-    saveBtn.textContent = 'Salvează'
-  } else if (mode === 'relation') {
-    saveBtn.textContent = 'Salvează'
-  } else {
-    saveBtn.textContent = 'Închide'
-  }
+  saveBtn.textContent = mode === 'tutorial' ? 'Închide' : 'Salvează'
 }
 
 function openTutorial() {
   modalTitle.textContent = 'Tutorial complet de folosire'
-  modalSubtitle.textContent = 'Tot ce trebuie să știi despre atlas: navigare, noduri, relații, editare, undo/redo, organizare și login.'
+  modalSubtitle.textContent = 'Tot ce trebuie să știi despre atlas.'
   nodeFields.style.display = 'none'
   nodeContentField.style.display = 'block'
   relationTargetField.style.display = 'none'
   relationLabelField.style.display = 'none'
   modalMode = 'tutorial'
   setModalModeUi('tutorial')
-  contentInput.value = `1. Ce este site-ul
-
-Acest site este un atlas interactiv pentru documentația de programare FTC. Fiecare nod reprezintă un subiect sau un capitol.
-
-2. Cum te miști pe hartă
-
-- drag pe background pentru pan
-- scroll pentru zoom
-- butoane pentru fit, reset view și centrează selecția
-
-3. Cum funcționează nodurile
-
-- un click = selectezi nodul
-- două click-uri rapide = se deschide documentația full-screen
-- roșu = selectat
-- mov = neselectat
-
-4. Cum citești documentația completă
-
-Documentația ocupă tot ecranul și o poți închide cu X.
-
-5. Cum creezi și editezi noduri
-
-Trebuie să fii logat. Din Quick Controls ai butoane pentru nod nou, editare și ștergere.
-
-6. Cum funcționează relațiile
-
-- activezi modul relație
-- alegi nodul sursă
-- alegi nodul destinație
-- se deschide direct formularul relației
-- după salvare apare muchia în atlas
-
-7. Undo și Redo
-
-Undo și redo sunt sincronizate în Supabase pentru sesiunea curentă cât timp ești logat.
-
-8. Login
-
-Introduci email-ul și apeși pe Trimite magic link. După ce deschizi link-ul din email pe aceeași adresă a site-ului, devii autentificat și poți edita atlasul.
-
-9. Ce este salvat online
-
-Nodurile și relațiile sunt în Supabase, deci nu mai depind de browserul local.
-
-10. Scopul final
-
-Atlasul trebuie să devină un manual viu pentru programarea FTC, ușor de înțeles și de extins.`
+  contentInput.value = `1. Click pe nod = selectezi.
+2. Dublu click pe nod = deschizi documentația.
+3. Click pe muchie = selectezi muchia.
+4. + Nod nou = creezi nod nou direct în Supabase.
+5. Relațiile se salvează direct în atlas_edges.
+6. Refresh-ul încarcă doar din Supabase.`
   modalBackdrop.classList.add('open')
   contentInput.focus()
   contentInput.setSelectionRange(0, 0)
@@ -1466,12 +1162,10 @@ function openCreate() {
   if (!requireAuth()) return
   editingId = null
   modalTitle.textContent = 'Creează nod'
-  modalSubtitle.textContent = 'Adaugi un titlu, o categorie și explicația completă. Nodul nou este pus automat într-un loc liber, fără suprapunere.'
+  modalSubtitle.textContent = 'Nodul nou se salvează direct în Supabase.'
   titleInput.value = 'New FTC Topic'
   tagInput.value = 'Beginner'
-  contentInput.value = `Scrie aici documentația completă.
-
-Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot și ce greșeli apar cel mai des.`
+  contentInput.value = `Scrie aici documentația completă.`
   openModal('node')
   titleInput.focus()
 }
@@ -1483,7 +1177,7 @@ function openEdit(id) {
 
   editingId = id
   modalTitle.textContent = 'Editează nod'
-  modalSubtitle.textContent = 'Modifici titlul, categoria și documentația, iar schimbările se văd imediat în hartă și în panoul de detalii.'
+  modalSubtitle.textContent = 'Modifici titlul, categoria și documentația.'
   titleInput.value = node.title
   tagInput.value = node.tag
   contentInput.value = node.content
@@ -1500,7 +1194,7 @@ function openRelationCreate(sourceId, targetId) {
   editingId = null
   relationDraft = { sourceId, targetId, label: '' }
   modalTitle.textContent = 'Creează relație'
-  modalSubtitle.textContent = 'Conexiunea este reală și editabilă. Poți să-i dai o etichetă clară, ca să aibă sens vizual și logic.'
+  modalSubtitle.textContent = 'Relația se salvează direct în Supabase.'
   relationSummary.innerHTML = `<strong>${escapeHtml(source.title)}</strong> → <strong>${escapeHtml(target.title)}</strong>`
   relationLabelInput.value = ''
   openModal('relation')
@@ -1509,7 +1203,6 @@ function openRelationCreate(sourceId, targetId) {
 
 function openRelationEdit(sourceId, relationIndex) {
   if (!requireAuth()) return
-
   const source = findNode(sourceId)
   const relation = source?.links?.[relationIndex]
   const target = relation ? findNode(relation.targetId) : null
@@ -1518,7 +1211,7 @@ function openRelationEdit(sourceId, relationIndex) {
   editingId = relationIndex
   relationDraft = { sourceId, targetId: relation.targetId, label: relation.label || '' }
   modalTitle.textContent = 'Editează relație'
-  modalSubtitle.textContent = 'Schimbi eticheta fără să pierzi conexiunea dintre noduri.'
+  modalSubtitle.textContent = 'Schimbi eticheta fără să pierzi conexiunea.'
   relationSummary.innerHTML = `<strong>${escapeHtml(source.title)}</strong> → <strong>${escapeHtml(target.title)}</strong>`
   relationLabelInput.value = relation.label || ''
   openModal('relation')
@@ -1541,7 +1234,6 @@ async function saveNode() {
   const title = titleInput.value.trim() || 'Untitled Node'
   const tag = tagInput.value
   const content = contentInput.value.trim() || 'Fără documentație încă.'
-
   pushHistory()
 
   try {
@@ -1560,43 +1252,31 @@ async function saveNode() {
         content,
         x: startPos.x,
         y: startPos.y,
-        links: []
       }
 
-      const inserted = await createNodeRemote(newNode)
-      console.log('Created node in DB:', inserted)
-
-      nodes.push(newNode)
+      await createNodeRemote(newNode)
       selectedId = newId
       clearEdgeSelection()
     } else {
       const node = findNode(editingId)
       if (!node) return
 
-      const nextNode = {
+      await updateNodeRemote({
         ...node,
         title,
         tag,
         content
-      }
-
-      await updateNodeRemote(nextNode)
-
-      node.title = nextNode.title
-      node.tag = nextNode.tag
-      node.content = nextNode.content
+      })
 
       selectedId = node.id
       clearEdgeSelection()
     }
 
     detailOpen = true
-    saveCachedNodes()
     closeModal()
-    renderAll()
+    await fetchAllData()
   } catch (error) {
-    console.error('Save node failed FULL:', error)
-    alert(`Eroare la salvare nod: ${error?.message || 'necunoscută'}`)
+    alert(error.message || 'Eroare la salvare.')
     await fetchAllData()
   }
 }
@@ -1617,14 +1297,11 @@ async function saveRelation() {
 
     if (editingId == null) {
       if (existingIndex >= 0) {
-        source.links[existingIndex].label = label
         await updateEdgeRemote(relationDraft.sourceId, relationDraft.targetId, label)
       } else {
-        source.links.push({ targetId: Number(relationDraft.targetId), label })
         await insertEdgeRemote(relationDraft.sourceId, relationDraft.targetId, label)
       }
     } else {
-      source.links[editingId].label = label
       await updateEdgeRemote(relationDraft.sourceId, relationDraft.targetId, label)
     }
 
@@ -1635,24 +1312,15 @@ async function saveRelation() {
     }
     detailOpen = true
 
-    saveCachedNodes()
     closeModal()
-    renderAll()
+    await fetchAllData()
   } catch (error) {
-    console.error('Save relation failed:', error)
     alert(`Eroare la salvarea relației: ${error?.message || 'necunoscută'}`)
     await fetchAllData()
   }
 }
 
 async function deleteSelected() {
-  console.log('deleteSelected start', {
-    canEdit,
-    selectedId,
-    selectedNode: selectedNode()?.title ?? null,
-    selectedEdge
-  })
-
   if (!requireAuth()) return
 
   const node = selectedNode()
@@ -1667,34 +1335,12 @@ async function deleteSelected() {
   pushHistory()
 
   try {
-    const deleted = await deleteNodeRemote(node.id)
-    console.log('Deleted node from DB:', deleted)
-
-    nodes = nodes
-      .filter(n => Number(n.id) !== Number(node.id))
-      .map(n => ({
-        ...n,
-        links: (n.links || []).filter(link => Number(link.targetId) !== Number(node.id))
-      }))
-
-    if (
-      selectedEdge &&
-      (
-        Number(selectedEdge.sourceId) === Number(node.id) ||
-        Number(selectedEdge.targetId) === Number(node.id)
-      )
-    ) {
-      selectedEdge = null
-    }
-
-    selectedId = nodes[0]?.id ?? null
+    await deleteNodeRemote(node.id)
+    selectedEdge = null
     detailOpen = false
     relationMode = { active: false, sourceId: null }
-
-    saveCachedNodes()
-    renderAll()
+    await fetchAllData()
   } catch (error) {
-    console.error('Delete node failed FULL:', error)
     alert(`Eroare la ștergere: ${error?.message || 'necunoscută'}`)
     await fetchAllData()
   }
@@ -1711,7 +1357,6 @@ async function removeRelation(sourceId, relationIndex) {
 
   try {
     await deleteEdgeRemote(sourceId, targetId)
-    source.links.splice(relationIndex, 1)
 
     if (
       selectedEdge &&
@@ -1721,10 +1366,8 @@ async function removeRelation(sourceId, relationIndex) {
       selectedEdge = null
     }
 
-    saveCachedNodes()
-    renderAll()
+    await fetchAllData()
   } catch (error) {
-    console.error('Remove relation failed:', error)
     alert(`Eroare la ștergerea relației: ${error?.message || 'necunoscută'}`)
     await fetchAllData()
   }
@@ -1800,19 +1443,31 @@ async function autoArrange() {
   })
 
   ensureNodePositions()
-  saveCachedNodes()
 
   try {
     await Promise.all(nodes.map(node => updateNodeRemote(node)))
+    await fetchAllData()
+    fitView()
   } catch (error) {
-    console.error('Auto arrange failed:', error)
     alert(error.message || 'Eroare la resetarea pozițiilor.')
     await fetchAllData()
-    return
   }
+}
 
-  fitView()
-  renderAll()
+function dismissIntro() {
+  introScreen.classList.add('hidden')
+  localStorage.setItem(CACHE_KEYS.intro, '1')
+  introDismissed = true
+}
+
+function togglePanel(force) {
+  const collapsed = typeof force === 'boolean'
+    ? force
+    : !toolPanel.classList.contains('collapsed')
+
+  toolPanel.classList.toggle('collapsed', collapsed)
+  collapseBtn.textContent = collapsed ? '+' : '–'
+  localStorage.setItem(CACHE_KEYS.panel, collapsed ? '1' : '0')
 }
 
 mapSurface.addEventListener('pointerdown', event => {
@@ -1860,9 +1515,7 @@ relationBtn.addEventListener('click', () => {
   if (relationMode.active) deactivateRelationMode()
   else activateRelationMode()
 })
-editEdgeBtn.addEventListener('click', () => {
-  openSelectedEdgeEdit()
-})
+editEdgeBtn.addEventListener('click', openSelectedEdgeEdit)
 deleteEdgeBtn.addEventListener('click', () => {
   deleteSelectedEdge().catch(error => alert(error.message || 'Eroare la ștergerea muchiei.'))
 })
@@ -1879,11 +1532,9 @@ fitBtn.addEventListener('click', fitView)
 arrangeBtn.addEventListener('click', () => {
   autoArrange().catch(error => alert(error.message || 'Eroare la resetarea pozițiilor.'))
 })
-centerBtn?.addEventListener('click', () => centerOnNode(selectedNode()))
 resetViewBtn.addEventListener('click', () => {
   view = { ...DEFAULT_VIEW }
   applyView()
-  fitView()
 })
 tutorialBtn.addEventListener('click', openTutorial)
 fitSelectionBtn.addEventListener('click', fitCurrentSelection)
@@ -1911,30 +1562,15 @@ collapseBtn.addEventListener('click', event => {
   togglePanel()
 })
 
-function togglePanel(force) {
-  const collapsed = typeof force === 'boolean'
-    ? force
-    : !toolPanel.classList.contains('collapsed')
-
-  toolPanel.classList.toggle('collapsed', collapsed)
-  collapseBtn.textContent = collapsed ? '+' : '–'
-  localStorage.setItem(CACHE_KEYS.panel, collapsed ? '1' : '0')
-}
-
 closeModalBtn.addEventListener('click', closeModal)
 cancelBtn.addEventListener('click', closeModal)
 saveBtn.addEventListener('click', () => {
   saveModal().catch(error => alert(error.message || 'Eroare la salvare.'))
 })
+
 modalBackdrop.addEventListener('click', event => {
   if (event.target === modalBackdrop) closeModal()
 })
-
-function dismissIntro() {
-  introScreen.classList.add('hidden')
-  localStorage.setItem(CACHE_KEYS.intro, '1')
-  introDismissed = true
-}
 
 introScreen.addEventListener('click', dismissIntro)
 enterBtn.addEventListener('click', event => {
@@ -1967,15 +1603,9 @@ window.addEventListener('keydown', event => {
   if (!isTyping && canEdit && !modalBackdrop.classList.contains('open') && event.key === 'Delete') {
     event.preventDefault()
     if (selectedEdge) {
-      deleteSelectedEdge().catch(error => {
-        console.error(error)
-        alert(error.message || 'Eroare la ștergerea muchiei.')
-      })
+      deleteSelectedEdge().catch(error => alert(error.message || 'Eroare la ștergerea muchiei.'))
     } else {
-      deleteSelected().catch(error => {
-        console.error(error)
-        alert(error.message || 'Eroare la ștergere.')
-      })
+      deleteSelected().catch(error => alert(error.message || 'Eroare la ștergere.'))
     }
     return
   }
@@ -2007,24 +1637,6 @@ window.addEventListener('keydown', event => {
   if (!introDismissed) dismissIntro()
 })
 
-if (localStorage.getItem(CACHE_KEYS.panel) === '1') togglePanel(true)
-if (introDismissed) introScreen.classList.add('hidden')
-
-window.addEventListener('resize', () => {
-  nodes.forEach(node => {
-    const pos = findNearestFreeSpot(
-      node.id,
-      clamp(node.x, 20, WORLD_WIDTH - NODE_WIDTH - 20),
-      clamp(node.y, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
-    )
-    node.x = pos.x
-    node.y = pos.y
-  })
-  saveCachedNodes()
-  renderAll()
-  applyView()
-})
-
 supabase.auth.onAuthStateChange(async (_event, session) => {
   currentUser = session?.user || null
   canEdit = isAllowedEditor(currentUser?.email)
@@ -2045,30 +1657,30 @@ window.atlasDebug = {
     selectedEdge,
     selectedNode: selectedNode()?.title ?? null,
     detailOpen,
-    relationMode
+    relationMode,
+    nodesCount: nodes.length
   }),
+  fetchAllData,
   deleteSelected,
   deleteSelectedEdge,
-  openSelectedEdgeEdit,
-  refreshSession,
+  createNodeRemote,
+  updateNodeRemote,
   deleteNodeRemote,
-  deleteEdgeRemote,
+  insertEdgeRemote,
   updateEdgeRemote,
+  deleteEdgeRemote,
 }
 
-ensureNodePositions()
+if (localStorage.getItem(CACHE_KEYS.panel) === '1') togglePanel(true)
+if (introDismissed) introScreen.classList.add('hidden')
+
 applyView()
-fitView()
 renderAll()
-saveStacks()
+updateUndoRedoButtons()
 
 await refreshSession()
+await fetchAllData()
 
-try {
-  await fetchAllData()
-} catch (err) {
-  console.error('Supabase load failed:', err)
-  nodes = loadCachedNodes()
-  ensureNodePositions()
-  renderAll()
+if (nodes.length) {
+  fitView()
 }
