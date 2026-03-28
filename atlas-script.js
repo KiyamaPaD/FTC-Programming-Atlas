@@ -234,6 +234,7 @@ const linkLayer = document.getElementById('linkLayer')
 const detailPanel = document.getElementById('detailPanel')
 const emptyPanel = document.getElementById('emptyPanel')
 const searchInput = document.getElementById('searchInput')
+const centerBtn = document.getElementById('centerBtn')
 const createBtn = document.getElementById('createBtn')
 const editBtn = document.getElementById('editBtn')
 const deleteBtn = document.getElementById('deleteBtn')
@@ -246,7 +247,6 @@ const zoomInBtn = document.getElementById('zoomInBtn')
 const zoomOutBtn = document.getElementById('zoomOutBtn')
 const fitBtn = document.getElementById('fitBtn')
 const arrangeBtn = document.getElementById('arrangeBtn')
-const centerBtn = document.getElementById('centerBtn')
 const tutorialBtn = document.getElementById('tutorialBtn')
 const resetViewBtn = document.getElementById('resetViewBtn')
 const fitSelectionBtn = document.getElementById('fitSelectionBtn')
@@ -1545,29 +1545,48 @@ async function saveNode() {
 
   try {
     if (editingId == null) {
-        const newId = generateNodeId()
-         const startPos = findNearestFreeSpot(
-            newId,
-            WORLD_WIDTH * 0.5 - NODE_WIDTH / 2,
-            WORLD_HEIGHT * 0.5 - NODE_HEIGHT / 2
-        )
+      const newId = generateNodeId()
+      const startPos = findNearestFreeSpot(
+        newId,
+        WORLD_WIDTH * 0.5 - NODE_WIDTH / 2,
+        WORLD_HEIGHT * 0.5 - NODE_HEIGHT / 2
+      )
 
-        const newNode = {
-            id: newId,
-            title,
-            tag,
-            content,
-            x: startPos.x,
-            y: startPos.y,
-            links: []
-        }
+      const newNode = {
+        id: newId,
+        title,
+        tag,
+        content,
+        x: startPos.x,
+        y: startPos.y,
+        links: []
+      }
 
-        const inserted = await createNodeRemote(newNode)
-        console.log('Created node in DB:', inserted)
+      const inserted = await createNodeRemote(newNode)
+      console.log('Created node in DB:', inserted)
 
-        nodes.push(newNode)
-        selectedId = newId
-        clearEdgeSelection()
+      nodes.push(newNode)
+      selectedId = newId
+      clearEdgeSelection()
+    } else {
+      const node = findNode(editingId)
+      if (!node) return
+
+      const nextNode = {
+        ...node,
+        title,
+        tag,
+        content
+      }
+
+      await updateNodeRemote(nextNode)
+
+      node.title = nextNode.title
+      node.tag = nextNode.tag
+      node.content = nextNode.content
+
+      selectedId = node.id
+      clearEdgeSelection()
     }
 
     detailOpen = true
