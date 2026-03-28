@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log('ATLAS SCRIPT LOADED v3')
+console.log('ATLAS SCRIPT LOADED v4')
 
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
@@ -1521,18 +1521,24 @@ async function saveNode() {
       const newId = generateNodeId()
       const startPos = findNearestFreeSpot(newId, WORLD_WIDTH * 0.5 - NODE_WIDTH / 2, WORLD_HEIGHT * 0.5 - NODE_HEIGHT / 2)
       const newNode = { id: newId, title, tag, content, x: startPos.x, y: startPos.y, links: [] }
-      nodes.push(newNode)
       await createNodeRemote(newNode)
+      nodes.push(newNode)
       selectedId = newId
       clearEdgeSelection()
     } else {
       const node = findNode(editingId)
       if (!node) return
 
-      node.title = title
-      node.tag = tag
-      node.content = content
-      await updateNodeRemote(node)
+      const nextNode = {
+        ...node,
+        title,
+        tag,
+        content
+    }
+      await updateNodeRemote(nextNode)
+      node.title = nextNode.title
+      node.tag = nextNode.tag
+      node.content = nextNode.content
       selectedId = node.id
       clearEdgeSelection()
     }
