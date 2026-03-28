@@ -144,8 +144,7 @@ function deepCopy(obj) {
 }
 
 function loadCachedNodes() {
-  return []
-
+  return deepCopy(initialNodes)
 }
 
 function saveCachedNodes() {
@@ -188,7 +187,7 @@ function saveStacks() {
   updateUndoRedoButtons()
 }
 
-let nodes = [];
+let nodes = [loadCachedNodes()]
 let selectedId = nodes[0]?.id ?? null
 let selectedEdge = null
 let detailOpen = false
