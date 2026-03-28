@@ -346,23 +346,6 @@
       transform: none;
     }
 
-    .direction-pad {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 8px;
-      margin-top: 2px;
-    }
-
-    .direction-pad .btn {
-      padding: 10px 0;
-      font-size: 1rem;
-    }
-
-    .direction-pad .empty {
-      visibility: hidden;
-      pointer-events: none;
-    }
-
     .tools-note,
     .count-strip,
     .selected-strip,
@@ -856,20 +839,6 @@
               <button class="btn" id="zoomInBtn">+ Zoom</button>
             </div>
 
-            <div class="direction-pad">
-              <span class="empty btn">·</span>
-              <button class="btn" id="moveUpBtn">↑</button>
-              <span class="empty btn">·</span>
-
-              <button class="btn" id="moveLeftBtn">←</button>
-              <button class="btn" id="centerBtn">•</button>
-              <button class="btn" id="moveRightBtn">→</button>
-
-              <span class="empty btn">·</span>
-              <button class="btn" id="moveDownBtn">↓</button>
-              <span class="empty btn">·</span>
-            </div>
-
             <div class="btn-row">
               <button class="btn" id="arrangeBtn">Auto arrange</button>
               <button class="btn" id="resetViewBtn">Reset view</button>
@@ -969,7 +938,7 @@
     </div>
   </div>
 
-  <script type="module" src="./atlas-script.js">
+  <script type="module" src="./atlas-script.js?v=4"></script>
   </script>
 
 </body>
