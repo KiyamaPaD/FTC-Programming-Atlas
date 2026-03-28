@@ -127,7 +127,7 @@
       inset: 0;
     }
 
-    .link-layer { pointer-events: none; overflow: visible; }
+    .link-layer { overflow: visible; }
     .node-layer { pointer-events: none; }
 
     .node {
@@ -222,6 +222,7 @@
       z-index: 40;
       width: 348px;
       max-width: calc(100vw - 28px);
+      max-height: calc(100vh - 36px);
       transition: transform 220ms ease, opacity 220ms ease;
     }
 
@@ -234,6 +235,9 @@
       box-shadow: var(--shadow);
       backdrop-filter: blur(12px);
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 36px);
     }
 
     .tools-header {
@@ -243,6 +247,7 @@
       gap: 14px;
       padding: 12px 14px;
       cursor: pointer;
+      flex-shrink: 0;
     }
 
     .tools-header-left { display: flex; flex-direction: column; gap: 2px; }
@@ -262,6 +267,9 @@
     .tools-body {
       padding: 0 14px 14px;
       border-top: 1px solid rgba(255,255,255,0.05);
+      overflow: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
     }
 
     .search-input,
@@ -336,6 +344,23 @@
       opacity: 0.45;
       cursor: not-allowed;
       transform: none;
+    }
+
+    .direction-pad {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .direction-pad .btn {
+      padding: 10px 0;
+      font-size: 1rem;
+    }
+
+    .direction-pad .empty {
+      visibility: hidden;
+      pointer-events: none;
     }
 
     .tools-note,
@@ -667,6 +692,47 @@
       cursor: pointer;
     }
 
+    .edge-group .edge-glow,
+    .edge-group .edge-base,
+    .edge-group .edge-flow,
+    .edge-group .edge-label {
+      pointer-events: none;
+    }
+
+    .edge-hit {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 22;
+      pointer-events: stroke;
+      cursor: pointer;
+    }
+
+    .edge-group .edge-label rect {
+      transition: stroke 140ms ease, fill 140ms ease, filter 140ms ease;
+    }
+
+    .edge-group.selected .edge-label rect {
+      stroke: rgba(255, 77, 109, 0.42);
+      fill: rgba(16, 8, 12, 0.98);
+      filter: drop-shadow(0 0 12px rgba(255,77,109,0.14));
+    }
+
+    .edge-group.selected .edge-label text {
+      fill: #ffe3ea !important;
+    }
+
+    .edge-group.selected .edge-base {
+      stroke: rgba(255, 77, 109, 0.52) !important;
+    }
+
+    .edge-group.selected .edge-flow {
+      stroke: rgba(255, 190, 205, 0.98) !important;
+    }
+
+    .edge-group:hover .edge-label rect {
+      stroke: rgba(205, 112, 255, 0.3);
+    }
+
     @media (max-width: 1180px) {
       .detail-content {
         grid-template-columns: 1fr;
@@ -683,6 +749,7 @@
         width: min(360px, calc(100vw - 24px));
         right: 12px;
         top: 12px;
+        max-height: calc(100vh - 24px);
       }
 
       .topbar { left: 12px; top: 12px; }
@@ -762,33 +829,60 @@
               <button class="btn primary" id="createBtn">+ Nod nou</button>
               <button class="btn" id="editBtn">Editează</button>
             </div>
+
             <div class="btn-row">
               <button class="btn danger" id="deleteBtn">Șterge</button>
               <button class="btn" id="relationBtn">Adaugă relație</button>
             </div>
+
+            <div class="btn-row">
+              <button class="btn" id="editEdgeBtn">Editează muchie</button>
+              <button class="btn danger" id="deleteEdgeBtn">Șterge muchie</button>
+            </div>
+
             <div class="btn-row">
               <button class="btn" id="undoBtn">Undo</button>
               <button class="btn" id="redoBtn">Redo</button>
             </div>
+
             <div class="btn-row three">
               <button class="btn" id="zoomOutBtn">– Zoom</button>
               <button class="btn" id="fitBtn">Fit</button>
               <button class="btn" id="zoomInBtn">+ Zoom</button>
             </div>
+
+            <div class="direction-pad">
+              <span class="empty btn">·</span>
+              <button class="btn" id="moveUpBtn">↑</button>
+              <span class="empty btn">·</span>
+
+              <button class="btn" id="moveLeftBtn">←</button>
+              <button class="btn" id="centerBtn">•</button>
+              <button class="btn" id="moveRightBtn">→</button>
+
+              <span class="empty btn">·</span>
+              <button class="btn" id="moveDownBtn">↓</button>
+              <span class="empty btn">·</span>
+            </div>
+
             <div class="btn-row">
               <button class="btn" id="arrangeBtn">Auto arrange</button>
-              <button class="btn" id="centerBtn">Centrează selecția</button>
+              <button class="btn" id="resetViewBtn">Reset view</button>
             </div>
+
             <div class="btn-row">
               <button class="btn" id="tutorialBtn">Tutorial</button>
-              <button class="btn" id="resetViewBtn">Reset view</button>
+              <button class="btn" id="fitSelectionBtn">Fit selecția</button>
             </div>
           </div>
 
           <div class="count-strip"><strong id="nodeCount">0</strong> topicuri încărcate din atlas.</div>
           <div class="selected-strip" id="selectedStrip">Niciun nod selectat.</div>
           <div class="mode-strip" id="modeStrip"></div>
-          <div class="tools-note">Zoom cu scroll, pan cu drag pe fundal. Pentru relații: activezi modul, alegi sursa, alegi destinația, apoi salvezi eticheta.</div>
+          <div class="tools-note">
+            Zoom cu scroll, pan cu drag pe fundal. Click pe muchie ca s-o selectezi.
+            Săgețile mută nodul selectat. Shift + săgeți = pas mai mare.
+          </div>
         </div>
       </div>
     </aside>
@@ -1025,10 +1119,12 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
           id: Number(node.id),
           x: Number(node.x),
           y: Number(node.y),
-          links: Array.isArray(node.links) ? node.links.map(link => ({
-            targetId: Number(link.targetId),
-            label: link.label || 'relație'
-          })) : []
+          links: Array.isArray(node.links)
+            ? node.links.map(link => ({
+                targetId: Number(link.targetId),
+                label: link.label || 'relație'
+              }))
+            : []
         }))
       } catch {
         return deepCopy(initialNodes)
@@ -1078,6 +1174,7 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
 
     let nodes = loadCachedNodes()
     let selectedId = nodes[0]?.id ?? null
+    let selectedEdge = null
     let detailOpen = false
     let editingId = null
     let searchQuery = ''
@@ -1091,6 +1188,7 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
     let currentUser = null
     let canEdit = false
     let clickState = { id: null, time: 0 }
+    let edgeClickState = { key: null, time: 0 }
     let panState = null
 
     const mapSurface = document.getElementById('mapSurface')
@@ -1104,6 +1202,8 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
     const editBtn = document.getElementById('editBtn')
     const deleteBtn = document.getElementById('deleteBtn')
     const relationBtn = document.getElementById('relationBtn')
+    const editEdgeBtn = document.getElementById('editEdgeBtn')
+    const deleteEdgeBtn = document.getElementById('deleteEdgeBtn')
     const undoBtn = document.getElementById('undoBtn')
     const redoBtn = document.getElementById('redoBtn')
     const zoomInBtn = document.getElementById('zoomInBtn')
@@ -1113,6 +1213,11 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
     const centerBtn = document.getElementById('centerBtn')
     const tutorialBtn = document.getElementById('tutorialBtn')
     const resetViewBtn = document.getElementById('resetViewBtn')
+    const fitSelectionBtn = document.getElementById('fitSelectionBtn')
+    const moveUpBtn = document.getElementById('moveUpBtn')
+    const moveDownBtn = document.getElementById('moveDownBtn')
+    const moveLeftBtn = document.getElementById('moveLeftBtn')
+    const moveRightBtn = document.getElementById('moveRightBtn')
     const nodeCount = document.getElementById('nodeCount')
     const selectedStrip = document.getElementById('selectedStrip')
     const modeStrip = document.getElementById('modeStrip')
@@ -1149,6 +1254,53 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
 
     function findNode(id) {
       return nodes.find(node => String(node.id) === String(id)) || null
+    }
+
+    function getEdgeInfo(sourceId, targetId) {
+      const source = findNode(sourceId)
+      if (!source) return null
+      const index = source.links.findIndex(link => Number(link.targetId) === Number(targetId))
+      if (index === -1) return null
+      return {
+        source,
+        index,
+        link: source.links[index]
+      }
+    }
+
+    function isEdgeSelected(sourceId, targetId) {
+      return !!(
+        selectedEdge &&
+        Number(selectedEdge.sourceId) === Number(sourceId) &&
+        Number(selectedEdge.targetId) === Number(targetId)
+      )
+    }
+
+    function clearEdgeSelection() {
+      selectedEdge = null
+    }
+
+    function selectEdge(sourceId, targetId) {
+      selectedEdge = { sourceId: Number(sourceId), targetId: Number(targetId) }
+      selectedId = Number(sourceId)
+      detailOpen = false
+      renderAll()
+    }
+
+    function openSelectedEdgeEdit() {
+      if (!selectedEdge) return
+      const info = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
+      if (!info) return
+      openRelationEdit(info.source.id, info.index)
+    }
+
+    async function deleteSelectedEdge() {
+      if (!selectedEdge) return
+      const info = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
+      if (!info) return
+      await removeRelation(info.source.id, info.index)
+      selectedEdge = null
+      renderAll()
     }
 
     function slugTag(tag) {
@@ -1206,7 +1358,10 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
 
     function fitView() {
       if (!nodes.length) return
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
 
       nodes.forEach(node => {
         minX = Math.min(minX, node.x)
@@ -1225,6 +1380,33 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
       view.x = (window.innerWidth - width * view.scale) / 2 - (minX - pad) * view.scale
       view.y = (window.innerHeight - height * view.scale) / 2 - (minY - pad) * view.scale
       applyView()
+    }
+
+    function fitCurrentSelection() {
+      if (selectedEdge) {
+        const info = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
+        const target = info ? findNode(info.link.targetId) : null
+        if (!info || !target) return
+
+        const minX = Math.min(info.source.x, target.x) - 120
+        const minY = Math.min(info.source.y, target.y) - 120
+        const maxX = Math.max(info.source.x + NODE_WIDTH, target.x + NODE_WIDTH) + 120
+        const maxY = Math.max(info.source.y + NODE_HEIGHT, target.y + NODE_HEIGHT) + 120
+
+        const width = maxX - minX
+        const height = maxY - minY
+        const scaleX = window.innerWidth / width
+        const scaleY = window.innerHeight / height
+
+        view.scale = clamp(Math.min(scaleX, scaleY), 0.45, 1.35)
+        view.x = (window.innerWidth - width * view.scale) / 2 - minX * view.scale
+        view.y = (window.innerHeight - height * view.scale) / 2 - minY * view.scale
+        applyView()
+        return
+      }
+
+      const node = selectedNode()
+      if (node) centerOnNode(node)
     }
 
     function getNodeMeta(tag) {
@@ -1318,6 +1500,7 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
       return {
         nodes: deepCopy(nodes),
         selectedId,
+        selectedEdge: selectedEdge ? { ...selectedEdge } : null,
         detailOpen,
         relationMode: deepCopy(relationMode),
         modalMode,
@@ -1329,6 +1512,7 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
     function restoreSnapshot(snapshot) {
       nodes = deepCopy(snapshot.nodes || [])
       selectedId = snapshot.selectedId ?? (nodes[0]?.id ?? null)
+      selectedEdge = snapshot.selectedEdge ? { ...snapshot.selectedEdge } : null
       detailOpen = !!snapshot.detailOpen
       relationMode = snapshot.relationMode ? deepCopy(snapshot.relationMode) : { active: false, sourceId: null }
       modalMode = snapshot.modalMode || 'node'
@@ -1470,6 +1654,10 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
 
         nodes = loadCachedNodes()
         selectedId = nodes.find(n => String(n.id) === String(selectedId))?.id ?? nodes[0]?.id ?? null
+        if (selectedEdge) {
+          const stillExists = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
+          if (!stillExists) selectedEdge = null
+        }
         saveCachedNodes()
         renderAll()
         return
@@ -1497,6 +1685,12 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
 
       ensureNodePositions()
       selectedId = nodes.find(n => String(n.id) === String(selectedId))?.id ?? nodes[0]?.id ?? null
+
+      if (selectedEdge) {
+        const stillExists = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
+        if (!stillExists) selectedEdge = null
+      }
+
       saveCachedNodes()
       renderAll()
     }
@@ -1581,6 +1775,30 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
       if (error) throw error
     }
 
+    async function nudgeSelectedNode(dx, dy) {
+      if (!canEdit) return
+      const node = selectedNode()
+      if (!node) return
+
+      pushHistory()
+
+      const desiredX = clamp(node.x + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20)
+      const desiredY = clamp(node.y + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
+      const free = findNearestFreeSpot(node.id, desiredX, desiredY)
+
+      node.x = free.x
+      node.y = free.y
+      saveCachedNodes()
+      renderAll()
+
+      try {
+        await updateNodeRemote(node)
+      } catch (error) {
+        alert(error.message || 'Eroare la mutarea nodului.')
+        await fetchAllData()
+      }
+    }
+
     function updateAuthUI() {
       if (!currentUser) {
         authStatusBox.innerHTML = 'Neautentificat. Poți vedea atlasul, dar editarea este permisă doar colaboratorilor aprobați.'
@@ -1596,6 +1814,13 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
       relationBtn.disabled = !canEdit
       arrangeBtn.disabled = !canEdit
       logoutBtn.disabled = !currentUser
+      editEdgeBtn.disabled = !selectedEdge || !canEdit
+      deleteEdgeBtn.disabled = !selectedEdge || !canEdit
+      moveUpBtn.disabled = !selectedNode() || !canEdit
+      moveDownBtn.disabled = !selectedNode() || !canEdit
+      moveLeftBtn.disabled = !selectedNode() || !canEdit
+      moveRightBtn.disabled = !selectedNode() || !canEdit
+
       updateUndoRedoButtons()
     }
 
@@ -1643,43 +1868,141 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
       linkLayer.setAttribute('width', WORLD_WIDTH)
       linkLayer.setAttribute('height', WORLD_HEIGHT)
 
-      const paths = []
+      const parts = []
+
+      parts.push(`
+        <defs>
+          <marker id="edgeArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,12 L10,6 z" fill="rgba(216,180,255,0.96)"></path>
+          </marker>
+          <marker id="edgeArrowHot" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L0,12 L10,6 z" fill="rgba(255,190,205,0.98)"></path>
+          </marker>
+        </defs>
+      `)
 
       nodes.forEach(source => {
         source.links.forEach(link => {
           const target = findNode(link.targetId)
           if (!target) return
 
-          const highlight = source.id === selectedId || target.id === selectedId
+          const edgeSelected = isEdgeSelected(source.id, target.id)
+          const highlight = edgeSelected || source.id === selectedId || target.id === selectedId
+
           const ax = source.x + NODE_WIDTH / 2
           const ay = source.y + NODE_HEIGHT / 2
           const bx = target.x + NODE_WIDTH / 2
           const by = target.y + NODE_HEIGHT / 2
-          const mx = (ax + bx) / 2
-          const curveY = ((ay + by) / 2) - Math.max(26, Math.abs(ax - bx) * 0.06)
-          const label = escapeHtml(link.label || 'relație')
-          const baseColor = highlight ? 'rgba(255, 77, 109, 0.34)' : 'rgba(177, 76, 255, 0.26)'
-          const flowColor = highlight ? 'rgba(255, 173, 194, 0.98)' : 'rgba(216, 180, 255, 0.92)'
-          const flowWidth = highlight ? 2.2 : 1.9
-          const baseWidth = highlight ? 2.2 : 1.35
-          const labelWidth = Math.max(68, label.length * 6.3)
-          const labelX = -labelWidth / 2
-          const duration = highlight ? 1.3 : 1.8
 
-          paths.push(`
-            <g>
-              <path d="M ${ax} ${ay} Q ${mx} ${curveY} ${bx} ${by}" fill="none" stroke="${baseColor}" stroke-width="${baseWidth}" stroke-linecap="round" />
-              <path d="M ${ax} ${ay} Q ${mx} ${curveY} ${bx} ${by}" fill="none" stroke="${flowColor}" stroke-width="${flowWidth}" stroke-linecap="round" stroke-dasharray="3 25" style="animation: circuitFlow ${duration}s linear infinite, circuitPulse 2s ease-in-out infinite; filter: drop-shadow(0 0 4px rgba(177,76,255,0.35));" />
-              <g transform="translate(${mx}, ${curveY - 4})">
-                <rect x="${labelX}" y="-11" rx="10" ry="10" width="${labelWidth}" height="22" fill="rgba(7,7,9,0.94)" stroke="rgba(177,76,255,0.16)" />
-                <text x="0" y="4" fill="${highlight ? '#ffe1e8' : '#d6b5ff'}" text-anchor="middle" font-size="10.5" font-family="Inter, system-ui">${label}</text>
+          const dx = bx - ax
+          const dy = by - ay
+          const dist = Math.max(Math.hypot(dx, dy), 1)
+
+          const mx = (ax + bx) / 2
+          const my = (ay + by) / 2
+
+          const nx = -dy / dist
+          const ny = dx / dist
+
+          const sign = source.id < target.id ? 1 : -1
+          const bend = clamp(dist * 0.16, 34, 110) * sign
+
+          const cx = mx + nx * bend
+          const cy = my + ny * bend
+
+          const pathD = `M ${ax} ${ay} Q ${cx} ${cy} ${bx} ${by}`
+
+          const lx = 0.25 * ax + 0.5 * cx + 0.25 * bx
+          const ly = 0.25 * ay + 0.5 * cy + 0.25 * by - 3
+
+          const label = escapeHtml(link.label || 'relație')
+          const labelWidth = Math.max(76, label.length * 6.6)
+          const labelX = -labelWidth / 2
+
+          const baseColor = edgeSelected
+            ? 'rgba(255, 77, 109, 0.52)'
+            : highlight
+              ? 'rgba(205, 112, 255, 0.34)'
+              : 'rgba(177, 76, 255, 0.24)'
+
+          const glowColor = edgeSelected
+            ? 'rgba(255, 77, 109, 0.18)'
+            : 'rgba(177, 76, 255, 0.10)'
+
+          const flowColor = edgeSelected
+            ? 'rgba(255, 190, 205, 0.98)'
+            : highlight
+              ? 'rgba(236, 200, 255, 0.96)'
+              : 'rgba(216, 180, 255, 0.92)'
+
+          const baseWidth = edgeSelected ? 2.5 : highlight ? 2.1 : 1.4
+          const flowWidth = edgeSelected ? 2.6 : highlight ? 2.15 : 1.8
+          const glowWidth = edgeSelected ? 8 : 6
+          const duration = edgeSelected ? 1.05 : highlight ? 1.3 : 1.8
+
+          parts.push(`
+            <g class="edge-group ${edgeSelected ? 'selected' : ''}">
+              <path class="edge-glow" d="${pathD}" fill="none" stroke="${glowColor}" stroke-width="${glowWidth}" stroke-linecap="round" />
+              <path class="edge-base" d="${pathD}" fill="none" stroke="${baseColor}" stroke-width="${baseWidth}" stroke-linecap="round" />
+              <path
+                class="edge-flow"
+                d="${pathD}"
+                fill="none"
+                stroke="${flowColor}"
+                stroke-width="${flowWidth}"
+                stroke-linecap="round"
+                stroke-dasharray="4 24"
+                marker-end="url(${edgeSelected ? '#edgeArrowHot' : '#edgeArrow'})"
+                style="animation: circuitFlow ${duration}s linear infinite, circuitPulse 2s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(177,76,255,0.28));"
+              />
+              <g class="edge-label" transform="translate(${lx}, ${ly})">
+                <rect
+                  x="${labelX}"
+                  y="-12"
+                  rx="10"
+                  ry="10"
+                  width="${labelWidth}"
+                  height="24"
+                  fill="${edgeSelected ? 'rgba(16, 8, 12, 0.98)' : 'rgba(7, 7, 9, 0.94)'}"
+                  stroke="${edgeSelected ? 'rgba(255,77,109,0.42)' : 'rgba(177,76,255,0.16)'}"
+                />
+                <text
+                  x="0"
+                  y="4"
+                  fill="${edgeSelected ? '#ffe3ea' : highlight ? '#edd7ff' : '#d6b5ff'}"
+                  text-anchor="middle"
+                  font-size="${edgeSelected ? '11' : '10.5'}"
+                  font-family="Inter, system-ui"
+                  font-weight="${edgeSelected ? '700' : '600'}"
+                >${label}</text>
               </g>
+              <path class="edge-hit" data-source="${source.id}" data-target="${target.id}" d="${pathD}"></path>
             </g>
           `)
         })
       })
 
-      linkLayer.innerHTML = paths.join('')
+      linkLayer.innerHTML = parts.join('')
+
+      linkLayer.querySelectorAll('.edge-hit').forEach(hit => {
+        hit.addEventListener('click', event => {
+          event.stopPropagation()
+          if (relationMode.active) return
+
+          const sourceId = Number(hit.dataset.source)
+          const targetId = Number(hit.dataset.target)
+          const edgeKey = `${sourceId}-${targetId}`
+          const now = Date.now()
+          const isDouble = edgeClickState.key === edgeKey && now - edgeClickState.time < 320
+
+          edgeClickState = { key: edgeKey, time: now }
+          selectEdge(sourceId, targetId)
+
+          if (isDouble && canEdit) {
+            openSelectedEdgeEdit()
+          }
+        })
+      })
     }
 
     function renderNodes() {
@@ -1729,7 +2052,9 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
             const now = Date.now()
             const isDouble = clickState.id === node.id && now - clickState.time < 320
             clickState = { id: node.id, time: now }
+
             selectedId = node.id
+            clearEdgeSelection()
 
             if (relationMode.active) {
               handleRelationNodeClick(node.id)
@@ -1780,6 +2105,20 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
     }
 
     function renderSelectedStrip() {
+      if (selectedEdge) {
+        const info = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
+        const target = info ? findNode(info.link.targetId) : null
+
+        if (info && target) {
+          selectedStrip.innerHTML = `
+            <strong>Muchie selectată</strong><br>
+            ${escapeHtml(info.source.title)} → ${escapeHtml(target.title)} ·
+            ${escapeHtml(info.link.label || 'relație')}
+          `
+          return
+        }
+      }
+
       const node = selectedNode()
       if (!node) {
         selectedStrip.innerHTML = 'Niciun nod selectat.'
@@ -2109,6 +2448,7 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
           nodes.push(newNode)
           await createNodeRemote(newNode)
           selectedId = newId
+          clearEdgeSelection()
         } else {
           const node = findNode(editingId)
           if (!node) return
@@ -2118,6 +2458,7 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
           node.content = content
           await updateNodeRemote(node)
           selectedId = node.id
+          clearEdgeSelection()
         }
 
         detailOpen = true
@@ -2154,6 +2495,7 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
 
         await upsertEdgeRemote(relationDraft.sourceId, relationDraft.targetId, label)
         selectedId = source.id
+        selectedEdge = { sourceId: Number(relationDraft.sourceId), targetId: Number(relationDraft.targetId) }
         detailOpen = true
         saveCachedNodes()
         closeModal()
@@ -2182,6 +2524,16 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
             links: n.links.filter(link => Number(link.targetId) !== Number(node.id))
           }))
 
+        if (
+          selectedEdge &&
+          (
+            Number(selectedEdge.sourceId) === Number(node.id) ||
+            Number(selectedEdge.targetId) === Number(node.id)
+          )
+        ) {
+          selectedEdge = null
+        }
+
         selectedId = nodes[0]?.id ?? null
         detailOpen = !!selectedId
         relationMode = { active: false, sourceId: null }
@@ -2205,6 +2557,15 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
       try {
         await deleteEdgeRemote(sourceId, targetId)
         source.links.splice(relationIndex, 1)
+
+        if (
+          selectedEdge &&
+          Number(selectedEdge.sourceId) === Number(sourceId) &&
+          Number(selectedEdge.targetId) === Number(targetId)
+        ) {
+          selectedEdge = null
+        }
+
         saveCachedNodes()
         renderAll()
       } catch (error) {
@@ -2233,12 +2594,14 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
       if (!sourceId) {
         relationMode.sourceId = targetId
         selectedId = targetId
+        clearEdgeSelection()
         renderAll()
         return
       }
 
       if (Number(sourceId) === Number(targetId)) {
         selectedId = sourceId
+        clearEdgeSelection()
         renderAll()
         return
       }
@@ -2251,6 +2614,7 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
 
       const relationIndex = source.links.findIndex(link => Number(link.targetId) === Number(targetId))
       selectedId = sourceId
+      clearEdgeSelection()
       deactivateRelationMode(false)
 
       if (relationIndex === -1) {
@@ -2337,6 +2701,12 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
       if (relationMode.active) deactivateRelationMode()
       else activateRelationMode()
     })
+    editEdgeBtn.addEventListener('click', () => {
+      openSelectedEdgeEdit()
+    })
+    deleteEdgeBtn.addEventListener('click', () => {
+      deleteSelectedEdge().catch(error => alert(error.message || 'Eroare la ștergerea muchiei.'))
+    })
     undoBtn.addEventListener('click', () => {
       undo().catch(error => alert(error.message || 'Eroare la undo.'))
     })
@@ -2351,11 +2721,25 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
       autoArrange().catch(error => alert(error.message || 'Eroare la resetarea pozițiilor.'))
     })
     centerBtn.addEventListener('click', () => centerOnNode(selectedNode()))
-    tutorialBtn.addEventListener('click', openTutorial)
     resetViewBtn.addEventListener('click', () => {
       view = { ...DEFAULT_VIEW }
       applyView()
       fitView()
+    })
+    tutorialBtn.addEventListener('click', openTutorial)
+    fitSelectionBtn.addEventListener('click', fitCurrentSelection)
+
+    moveUpBtn.addEventListener('click', () => {
+      nudgeSelectedNode(0, -12).catch(error => alert(error.message || 'Eroare la mutare.'))
+    })
+    moveDownBtn.addEventListener('click', () => {
+      nudgeSelectedNode(0, 12).catch(error => alert(error.message || 'Eroare la mutare.'))
+    })
+    moveLeftBtn.addEventListener('click', () => {
+      nudgeSelectedNode(-12, 0).catch(error => alert(error.message || 'Eroare la mutare.'))
+    })
+    moveRightBtn.addEventListener('click', () => {
+      nudgeSelectedNode(12, 0).catch(error => alert(error.message || 'Eroare la mutare.'))
     })
 
     loginBtn.addEventListener('click', () => {
@@ -2432,6 +2816,23 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
         event.preventDefault()
         redo().catch(error => alert(error.message || 'Eroare la redo.'))
         return
+      }
+
+      if (!isTyping && canEdit && !modalBackdrop.classList.contains('open')) {
+        const step = event.shiftKey ? 36 : 12
+        let dx = 0
+        let dy = 0
+
+        if (event.key === 'ArrowLeft') dx = -step
+        else if (event.key === 'ArrowRight') dx = step
+        else if (event.key === 'ArrowUp') dy = -step
+        else if (event.key === 'ArrowDown') dy = step
+
+        if (dx !== 0 || dy !== 0) {
+          event.preventDefault()
+          nudgeSelectedNode(dx, dy).catch(error => alert(error.message || 'Eroare la mutare.'))
+          return
+        }
       }
 
       if (event.key === 'Escape') {
