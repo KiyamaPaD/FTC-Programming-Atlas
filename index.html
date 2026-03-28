@@ -1728,13 +1728,23 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
     }
 
     async function deleteEdgesForNodeRemote(nodeId) {
-      const { error } = await supabase
-        .from('atlas_edges')
-        .delete()
-        .eq('project_id', PROJECT_ID)
-        .or(`source_id.eq.${Number(nodeId)},target_id.eq.${Number(nodeId)}`)
+      const id = Number(nodeId)
 
-      if (error) throw error
+      const { error: outgoingError } = await supabase
+      .from('atlas_edges')
+      .delete()
+      .eq('project_id', PROJECT_ID)
+      .eq('source_id', id)
+
+      if (outgoingError) throw outgoingError
+
+      const { error: incomingError } = await supabase
+      .from('atlas_edges')
+      .delete()
+      .eq('project_id', PROJECT_ID)
+      .eq('target_id', id)
+
+      if (incomingError) throw incomingError
     }
 
     async function deleteNodeRemote(nodeId) {
@@ -2507,9 +2517,16 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
     }
 
     async function deleteSelected() {
-      const node = selectedNode()
-      if (!node) return
       if (!requireAuth()) return
+
+      const node = selectedNode()
+      if (!node) {
+        alert('Nu este selectat niciun nod.')
+        return
+      }
+
+      const confirmed = confirm(`Sigur vrei să ștergi nodul "${node.title}"?`)
+      if (!confirmed) return
 
       pushHistory()
 
@@ -2518,11 +2535,11 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
         await deleteNodeRemote(node.id)
 
         nodes = nodes
-          .filter(n => n.id !== node.id)
-          .map(n => ({
-            ...n,
-            links: n.links.filter(link => Number(link.targetId) !== Number(node.id))
-          }))
+        .filter(n => Number(n.id) !== Number(node.id))
+        .map(n => ({
+          ...n,
+          links: (n.links || []).filter(link => Number(link.targetId) !== Number(node.id))
+        }))
 
         if (
           selectedEdge &&
@@ -2530,17 +2547,19 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
             Number(selectedEdge.sourceId) === Number(node.id) ||
             Number(selectedEdge.targetId) === Number(node.id)
           )
-        ) {
+          ) {
           selectedEdge = null
         }
 
         selectedId = nodes[0]?.id ?? null
-        detailOpen = !!selectedId
+        detailOpen = false
         relationMode = { active: false, sourceId: null }
+
         saveCachedNodes()
         renderAll()
       } catch (error) {
-        alert(error.message || 'Eroare la ștergere.')
+        console.error('Delete node failed:', error)
+        alert(`Eroare la ștergere: ${error?.message || 'necunoscută'}`)
         await fetchAllData()
       }
     }
@@ -2804,6 +2823,15 @@ Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot ș
         event.preventDefault()
         undo().catch(error => alert(error.message || 'Eroare la undo.'))
         return
+      }
+
+      if (!isTyping && canEdit && !modalBackdrop.classList.contains('open') && event.key === 'Delete') {
+        event.preventDefault()
+        deleteSelected().catch(error => {
+        console.error(error)
+        alert(error.message || 'Eroare la ștergere.')
+      })
+      return
       }
 
       if (
