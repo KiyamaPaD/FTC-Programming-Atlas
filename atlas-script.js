@@ -791,20 +791,56 @@ async function updateNodeRemote(node) {
 }
 
 async function deleteNodeRemote(nodeId) {
-  const { data, error } = await supabase
+  const id = Number(nodeId)
+
+  console.log('deleteNodeRemote: checking existence', id)
+
+  const { data: existing, error: existingError } = await supabase
     .from('atlas_nodes')
-    .delete()
-    .eq('project_id', PROJECT_ID)
-    .eq('id', Number(nodeId))
     .select('id, title')
+    .eq('project_id', PROJECT_ID)
+    .eq('id', id)
+    .maybeSingle()
 
-  if (error) throw error
-
-  if (!data || data.length === 0) {
-    throw new Error('Delete query matched 0 rows. Nodul nu a fost șters din Supabase.')
+  if (existingError) throw existingError
+  if (!existing) {
+    throw new Error('Nodul nu există în atlas_nodes sau nu este vizibil prin RLS.')
   }
 
-  return data[0]
+  console.log('deleteNodeRemote: found node', existing)
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 10000)
+
+  try {
+    const { error: deleteError } = await supabase
+      .from('atlas_nodes')
+      .delete()
+      .eq('project_id', PROJECT_ID)
+      .eq('id', id)
+      .abortSignal(controller.signal)
+
+    if (deleteError) throw deleteError
+  } finally {
+    clearTimeout(timeout)
+  }
+
+  console.log('deleteNodeRemote: delete sent, verifying...')
+
+  const { data: afterDelete, error: verifyError } = await supabase
+    .from('atlas_nodes')
+    .select('id')
+    .eq('project_id', PROJECT_ID)
+    .eq('id', id)
+    .maybeSingle()
+
+  if (verifyError) throw verifyError
+  if (afterDelete) {
+    throw new Error('Delete query s-a executat, dar nodul încă există în baza de date.')
+  }
+
+  console.log('deleteNodeRemote: verified deleted')
+  return existing
 }
 
 async function insertEdgeRemote(sourceId, targetId, label) {
@@ -846,18 +882,50 @@ async function updateEdgeRemote(sourceId, targetId, label) {
 }
 
 async function deleteEdgeRemote(sourceId, targetId) {
-  const { data, error } = await supabase
+  const s = Number(sourceId)
+  const t = Number(targetId)
+
+  const { data: existing, error: existingError } = await supabase
     .from('atlas_edges')
-    .delete()
+    .select('id, source_id, target_id, label')
     .eq('project_id', PROJECT_ID)
-    .eq('source_id', Number(sourceId))
-    .eq('target_id', Number(targetId))
+    .eq('source_id', s)
+    .eq('target_id', t)
+    .maybeSingle()
+
+  if (existingError) throw existingError
+  if (!existing) {
+    throw new Error('Muchia nu există în atlas_edges sau nu este vizibilă prin RLS.')
+  }
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 10000)
+
+  try {
+    const { error: deleteError } = await supabase
+      .from('atlas_edges')
+      .delete()
+      .eq('project_id', PROJECT_ID)
+      .eq('source_id', s)
+      .eq('target_id', t)
+      .abortSignal(controller.signal)
+
+    if (deleteError) throw deleteError
+  } finally {
+    clearTimeout(timeout)
+  }
+
+  const { data: afterDelete, error: verifyError } = await supabase
+    .from('atlas_edges')
     .select('id')
+    .eq('project_id', PROJECT_ID)
+    .eq('source_id', s)
+    .eq('target_id', t)
+    .maybeSingle()
 
-  if (error) throw error
-
-  if (!data || data.length === 0) {
-    throw new Error('Delete edge matched 0 rows. Muchia nu a fost ștearsă.')
+  if (verifyError) throw verifyError
+  if (afterDelete) {
+    throw new Error('Muchia încă există în baza de date după delete.')
   }
 }
 
