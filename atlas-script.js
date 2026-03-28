@@ -799,10 +799,8 @@ async function deleteNodeRemote(nodeId) {
   })
 
   console.log('deleteNodeRemote RPC result', { data, error })
-
   if (error) throw error
-
-  console.log('deleteNodeRemote RPC success')
+  return data
 }
 
 async function insertEdgeRemote(sourceId, targetId, label) {
@@ -826,24 +824,32 @@ async function insertEdgeRemote(sourceId, targetId, label) {
 }
 
 async function updateEdgeRemote(sourceId, targetId, label) {
-  const { error } = await supabase.rpc('update_atlas_edge_label', {
+  console.log('updateEdgeRemote RPC start', { sourceId, targetId, label })
+
+  const { data, error } = await supabase.rpc('update_atlas_edge_label', {
     p_project_id: PROJECT_ID,
     p_source_id: Number(sourceId),
     p_target_id: Number(targetId),
     p_label: label,
   })
 
+  console.log('updateEdgeRemote RPC result', { data, error })
   if (error) throw error
+  return data
 }
 
 async function deleteEdgeRemote(sourceId, targetId) {
-  const { error } = await supabase.rpc('delete_atlas_edge', {
+  console.log('deleteEdgeRemote RPC start', { sourceId, targetId })
+
+  const { data, error } = await supabase.rpc('delete_atlas_edge', {
     p_project_id: PROJECT_ID,
     p_source_id: Number(sourceId),
     p_target_id: Number(targetId),
   })
 
+  console.log('deleteEdgeRemote RPC result', { data, error })
   if (error) throw error
+  return data
 }
 
 function updateAuthUI() {
