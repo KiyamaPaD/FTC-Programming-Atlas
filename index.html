@@ -19,9 +19,6 @@
       --accent-soft: rgba(177, 76, 255, 0.14);
       --danger: #ff6b8a;
       --shadow: 0 12px 34px rgba(0, 0, 0, 0.42);
-      --radius-lg: 22px;
-      --radius-md: 16px;
-      --radius-sm: 12px;
       --node-width: 230px;
       --node-height: 118px;
       --world-width: 2600px;
@@ -145,49 +142,16 @@
       user-select: none;
       padding: 14px 14px 13px;
       text-align: left;
-      transition: border-color 140ms ease, background 140ms ease, transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 140ms ease, box-shadow 180ms ease, border-radius 180ms ease;
+      transition: border-color 140ms ease, background 140ms ease, transform 140ms ease, opacity 140ms ease, box-shadow 140ms ease;
       backdrop-filter: blur(8px);
       pointer-events: auto;
-      will-change: transform, border-radius, box-shadow;
-      --drag-scale-x: 1;
-      --drag-scale-y: 1;
-      --drag-skew-x: 0deg;
-      --drag-skew-y: 0deg;
-      --drag-rotate: 0deg;
-      --drag-lift: 0px;
-      transform: translateY(var(--drag-lift)) scale(var(--drag-scale-x), var(--drag-scale-y)) skew(var(--drag-skew-x), var(--drag-skew-y)) rotate(var(--drag-rotate));
     }
 
-    .node::after {
-      content: "";
-      position: absolute;
-      inset: -1px;
-      border-radius: inherit;
-      pointer-events: none;
-      background: radial-gradient(circle at 30% 25%, rgba(255, 77, 109, 0.12), transparent 45%), radial-gradient(circle at 75% 72%, rgba(177, 76, 255, 0.14), transparent 48%);
-      opacity: 0;
-      transition: opacity 180ms ease;
-      z-index: -1;
-      filter: blur(12px);
-    }
-
-    .node:hover:not(.dragging) {
+    .node:hover {
+      transform: translateY(-1px);
       border-color: rgba(205, 112, 255, 0.62);
       background: linear-gradient(180deg, rgba(16, 10, 20, 0.98), rgba(10, 8, 12, 0.99));
       box-shadow: 0 0 0 1px rgba(177, 76, 255, 0.12), 0 16px 34px rgba(0, 0, 0, 0.38), 0 0 18px rgba(177, 76, 255, 0.08);
-      --drag-lift: -1px;
-    }
-
-    .node:hover:not(.dragging)::after,
-    .node.dragging::after {
-      opacity: 1;
-    }
-
-    .node.dragging {
-      cursor: grabbing;
-      transition: none;
-      border-color: rgba(255, 77, 109, 0.72);
-      box-shadow: 0 0 0 1px rgba(255, 77, 109, 0.18), 0 22px 48px rgba(0, 0, 0, 0.42), 0 0 26px rgba(177, 76, 255, 0.12);
     }
 
     .node.active {
@@ -199,40 +163,6 @@
     .node.invalid-drop {
       box-shadow: 0 0 0 1px rgba(255, 107, 138, 0.24), 0 16px 38px rgba(0, 0, 0, 0.4);
       border-color: rgba(255,107,138,0.52);
-    }
-
-    .node-flex-handle {
-      position: absolute;
-      z-index: 4;
-      background: transparent;
-    }
-
-    .node-flex-handle.top,
-    .node-flex-handle.bottom {
-      left: 18px;
-      right: 18px;
-      height: 16px;
-    }
-
-    .node-flex-handle.left,
-    .node-flex-handle.right {
-      top: 18px;
-      bottom: 18px;
-      width: 16px;
-    }
-
-    .node-flex-handle.top { top: -8px; cursor: ns-resize; }
-    .node-flex-handle.bottom { bottom: -8px; cursor: ns-resize; }
-    .node-flex-handle.left { left: -8px; cursor: ew-resize; }
-    .node-flex-handle.right { right: -8px; cursor: ew-resize; }
-
-    .node.dragging .node-flex-handle,
-    .node.edge-flexing .node-flex-handle {
-      pointer-events: none;
-    }
-
-    .node.edge-flexing {
-      box-shadow: 0 0 0 1px rgba(255, 77, 109, 0.2), 0 18px 40px rgba(0, 0, 0, 0.44), 0 0 22px rgba(177, 76, 255, 0.14);
     }
 
     .node.search-hidden { opacity: 0.18; }
@@ -401,7 +331,12 @@
       border-color: rgba(255, 77, 109, 0.34);
     }
 
-    .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .btn:disabled,
+    .icon-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
 
     .tools-note,
     .count-strip,
@@ -572,7 +507,74 @@
 
     .modal-backdrop,
     .intro-screen {
-      transition: opacity 360ms ease, visibility 360ms ease;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 22px;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(12px);
+    }
+
+    .modal-backdrop { display: none; }
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      width: min(900px, 100%);
+      background: rgba(6, 6, 8, 0.98);
+      border: 1px solid rgba(177, 76, 255, 0.18);
+      border-radius: 22px;
+      box-shadow: 0 28px 70px rgba(0,0,0,0.56);
+      overflow: hidden;
+    }
+
+    .modal-head {
+      padding: 18px 18px 14px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .modal-body { padding: 18px; display: grid; gap: 14px; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    .field label {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 0.9rem;
+    }
+
+    .field input,
+    .field select,
+    .field textarea,
+    .relation-label-input { padding: 11px 12px; }
+
+    .field textarea {
+      min-height: 260px;
+      resize: vertical;
+      line-height: 1.8;
+    }
+
+    .field select,
+    .field option {
+      background: #0b0b0d;
+      color: #f3f3f5;
+    }
+
+    .modal-foot {
+      padding: 0 18px 18px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .intro-screen {
+      transition: opacity 260ms ease, visibility 260ms ease;
       background:
         radial-gradient(circle at 30% 24%, rgba(255, 77, 109, 0.1), transparent 22%),
         radial-gradient(circle at 70% 74%, rgba(177, 76, 255, 0.1), transparent 24%),
@@ -585,15 +587,6 @@
       pointer-events: none;
     }
 
-    .intro-screen.ready .intro-box {
-      transform: translateY(0) scale(1);
-      opacity: 1;
-    }
-
-    .intro-screen.ready .intro-hint {
-      opacity: 0.9;
-    }
-
     .intro-box {
       width: min(860px, 100%);
       padding: 32px 28px 26px;
@@ -603,9 +596,6 @@
       box-shadow: 0 30px 90px rgba(0,0,0,0.5);
       position: relative;
       overflow: hidden;
-      transform: translateY(18px) scale(0.985);
-      opacity: 0.64;
-      transition: transform 700ms cubic-bezier(0.18, 0.8, 0.2, 1), opacity 600ms ease;
     }
 
     .intro-line {
@@ -667,11 +657,6 @@
       align-items: center;
     }
 
-    .intro-hint {
-      opacity: 0.36;
-      transition: opacity 220ms ease;
-    }
-
     .intro-enter {
       border-radius: 12px;
       border: 1px solid rgba(255, 77, 109, 0.22);
@@ -690,14 +675,6 @@
 
       .detail-top {
         padding: 22px 22px 16px;
-      }
-
-      .detail-panel {
-        bottom: 22px;
-      }
-
-      .empty-panel {
-        bottom: 22px;
       }
     }
 
@@ -771,6 +748,13 @@
         </div>
 
         <div class="tools-body">
+          <div class="count-strip" id="authStatusBox">Neautentificat. Poți citi atlasul, dar pentru editare trebuie login.</div>
+          <input id="authEmailInput" class="search-input" placeholder="Email pentru magic link..." />
+          <div class="btn-row">
+            <button class="btn primary" id="loginBtn">Trimite magic link</button>
+            <button class="btn" id="logoutBtn">Logout</button>
+          </div>
+
           <input id="searchInput" class="search-input" placeholder="Caută topic, tag sau text..." />
 
           <div class="tools-grid">
@@ -801,10 +785,10 @@
             </div>
           </div>
 
-          <div class="count-strip"><strong id="nodeCount">0</strong> topicuri salvate local în browser.</div>
+          <div class="count-strip"><strong id="nodeCount">0</strong> topicuri încărcate din atlas.</div>
           <div class="selected-strip" id="selectedStrip">Niciun nod selectat.</div>
           <div class="mode-strip" id="modeStrip"></div>
-          <div class="tools-note">Zoom cu scroll, pan cu drag pe fundal. Când activezi „Adaugă relație”, alegi întâi nodul sursă și apoi nodul destinație.</div>
+          <div class="tools-note">Zoom cu scroll, pan cu drag pe fundal. Pentru relații: activezi modul, alegi sursa, alegi destinația, apoi salvezi eticheta.</div>
         </div>
       </div>
     </aside>
@@ -881,21 +865,61 @@
       </p>
       <div class="intro-actions">
         <button class="intro-enter" id="enterBtn">Intră în atlas</button>
-        <span class="intro-hint">după o clipă poți apăsa orice tastă, click sau touch</span>
+        <span class="intro-hint">sau apasă orice tastă / click oriunde</span>
       </div>
     </div>
   </div>
 
-  <script>
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+    const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
+    const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
+    const PROJECT_ID = 'ftc-main'
+
+    const ALLOWED_EDITORS = [
+      'suiramgabor@gmail.com',
+    ].map(email => email.trim().toLowerCase())
+
+    const CACHE_KEYS = {
+      nodes: 'ftc_atlas_nodes_cache_v1',
+      view: 'ftc_atlas_view_v1',
+      history: 'ftc_atlas_history_v1',
+      future: 'ftc_atlas_future_v1',
+      panel: 'ftc_atlas_panel_v1',
+      intro: 'ftc_atlas_intro_v1',
+    }
+
+    const HISTORY_LIMIT = 80
+    const DEFAULT_VIEW = { x: -120, y: -80, scale: 1 }
+
+    const WORLD_WIDTH = 2600
+    const WORLD_HEIGHT = 1800
+    const NODE_WIDTH = 230
+    const NODE_HEIGHT = 118
+    const NODE_GAP = 28
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      }
+    })
+
+    function isAllowedEditor(email) {
+      if (!email) return false
+      return ALLOWED_EDITORS.includes(String(email).trim().toLowerCase())
+    }
+
     const initialNodes = [
       {
         id: 1,
-        title: "TeleOp Basics",
-        tag: "Beginner",
+        title: 'TeleOp Basics',
+        tag: 'Beginner',
         x: 140,
         y: 170,
-        content:
-`TeleOp este modul în care controlezi robotul live, de pe gamepad.
+        content: `TeleOp este modul în care controlezi robotul live, de pe gamepad.
 
 Aici explici simplu ce este un OpMode, cum citești input-ul din gamepad, cum dai putere la motoare și de ce nu trebuie să pui toată logica într-o singură clasă uriașă.
 
@@ -905,16 +929,15 @@ Aici explici simplu ce este un OpMode, cum citești input-ul din gamepad, cum da
 - toggle vs hold
 - update loop și telemetry
 - ce greșeli apar când amesteci tot în același fișier.`,
-        links: [{ targetId: 3, label: "bază pentru" }]
+        links: [{ targetId: 3, label: 'bază pentru' }]
       },
       {
         id: 2,
-        title: "PID for Lift",
-        tag: "Control",
+        title: 'PID for Lift',
+        tag: 'Control',
         x: 470,
         y: 270,
-        content:
-`PID-ul te ajută să duci un mecanism la o poziție țintă într-un mod stabil.
+        content: `PID-ul te ajută să duci un mecanism la o poziție țintă într-un mod stabil.
 
 Aici poți explica:
 - ce înseamnă error
@@ -924,16 +947,15 @@ Aici poți explica:
 - cum arată un tuning prost vs unul bun
 
 Foarte util: o secțiune clară cu probleme reale, de exemplu encoder invers, semn greșit, target uitat sau update care nu rulează constant.`,
-        links: [{ targetId: 5, label: "se leagă de" }]
+        links: [{ targetId: 5, label: 'se leagă de' }]
       },
       {
         id: 3,
-        title: "Autonomous Flow",
-        tag: "Intermediate",
+        title: 'Autonomous Flow',
+        tag: 'Intermediate',
         x: 900,
         y: 180,
-        content:
-`Aici explici pe înțelesul tuturor cum funcționează Autonomous: init, detectare, alegere rutină, state machine, path following și sincronizarea subsistemelor.
+        content: `Aici explici pe înțelesul tuturor cum funcționează Autonomous: init, detectare, alegere rutină, state machine, path following și sincronizarea subsistemelor.
 
 Capitol bun pentru:
 - structura de start
@@ -941,16 +963,15 @@ Capitol bun pentru:
 - state machine vs logică haotică
 - cum legi pathing-ul de intake, lift sau scoring
 - cum testezi o rutină fără să te pierzi în 500 de linii.`,
-        links: [{ targetId: 4, label: "folosește" }, { targetId: 6, label: "depinde de" }]
+        links: [{ targetId: 4, label: 'folosește' }, { targetId: 6, label: 'depinde de' }]
       },
       {
         id: 4,
-        title: "PedroPathing",
-        tag: "Advanced",
+        title: 'PedroPathing',
+        tag: 'Advanced',
         x: 640,
         y: 620,
-        content:
-`Capitol dedicat pentru pathing.
+        content: `Capitol dedicat pentru pathing.
 
 Explici ce este pose, heading, follower, path chain, cum pornești de la un start pose corect și de ce localization-ul contează enorm.
 
@@ -960,314 +981,265 @@ Merită să pui:
 - probleme tipice când robotul merge bine pe translație dar prost pe rotație
 - ce înseamnă să pornești din pose greșit
 - exemple reale de la robotul vostru.`,
-        links: [{ targetId: 6, label: "are nevoie de" }]
+        links: [{ targetId: 6, label: 'are nevoie de' }]
       },
       {
         id: 5,
-        title: "Debugging Hub Issues",
-        tag: "Troubleshooting",
+        title: 'Debugging Hub Issues',
+        tag: 'Troubleshooting',
         x: 1150,
         y: 620,
-        content:
-`Secțiune foarte practică pentru probleme reale: Expansion Hub care nu apare, Control Hub resetat, configurații ciudate, motoare care nu răspund, tensiune care cade sub load.
+        content: `Secțiune foarte practică pentru probleme reale: Expansion Hub care nu apare, Control Hub resetat, configurații ciudate, motoare care nu răspund, tensiune care cade sub load.
 
 Asta poate deveni una dintre cele mai valoroase pagini pentru generațiile viitoare pentru că nu e teorie generică, ci experiență reală de echipă.`,
         links: []
       },
       {
         id: 6,
-        title: "Localization Basics",
-        tag: "Intermediate",
+        title: 'Localization Basics',
+        tag: 'Intermediate',
         x: 1430,
         y: 340,
-        content:
-`Localization înseamnă estimarea poziției robotului pe teren.
+        content: `Localization înseamnă estimarea poziției robotului pe teren.
 
 Aici poți explica odometry, IMU, pose estimate, drift și de ce un robot aparent corect poate totuși să rateze pozițiile dacă localizarea nu este stabilă.
 
 Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de fapt.`,
         links: []
       }
-    ];
+    ]
 
-    const STORAGE_KEY = "ftc-node-docs-map-v3";
-    const PANEL_KEY = "ftc-node-docs-panel-collapsed";
-    const INTRO_KEY = "ftc-node-docs-intro-seen";
-    const VIEW_KEY = "ftc-node-docs-view-v1";
-    const HISTORY_KEY = "ftc-node-docs-history-v1";
-    const FUTURE_KEY = "ftc-node-docs-future-v1";
-    const HISTORY_LIMIT = 80;
-
-    const WORLD_WIDTH = 2600;
-    const WORLD_HEIGHT = 1800;
-    const NODE_WIDTH = 230;
-    const NODE_HEIGHT = 118;
-    const NODE_GAP = 28;
-
-    let nodes = loadNodes();
-    let selectedId = nodes[0]?.id ?? null;
-    let detailOpen = false;
-    let editingId = null;
-    let searchQuery = "";
-    let introDismissed = localStorage.getItem(INTRO_KEY) === "1";
-    let relationMode = { active: false, sourceId: null };
-    let modalMode = "node";
-    let relationDraft = { sourceId: null, targetId: null, label: "" };
-    let view = loadView();
-    let undoStack = loadStack(HISTORY_KEY);
-    let redoStack = loadStack(FUTURE_KEY);
-
-    const mapSurface = document.getElementById("mapSurface");
-    const world = document.getElementById("world");
-    const nodeLayer = document.getElementById("nodeLayer");
-    const linkLayer = document.getElementById("linkLayer");
-    const detailPanel = document.getElementById("detailPanel");
-    const emptyPanel = document.getElementById("emptyPanel");
-    const searchInput = document.getElementById("searchInput");
-    const createBtn = document.getElementById("createBtn");
-    const editBtn = document.getElementById("editBtn");
-    const deleteBtn = document.getElementById("deleteBtn");
-    const relationBtn = document.getElementById("relationBtn");
-    const undoBtn = document.getElementById("undoBtn");
-    const redoBtn = document.getElementById("redoBtn");
-    const zoomInBtn = document.getElementById("zoomInBtn");
-    const zoomOutBtn = document.getElementById("zoomOutBtn");
-    const fitBtn = document.getElementById("fitBtn");
-    const arrangeBtn = document.getElementById("arrangeBtn");
-    const centerBtn = document.getElementById("centerBtn");
-    const tutorialBtn = document.getElementById("tutorialBtn");
-    const resetViewBtn = document.getElementById("resetViewBtn");
-    const nodeCount = document.getElementById("nodeCount");
-    const selectedStrip = document.getElementById("selectedStrip");
-    const modeStrip = document.getElementById("modeStrip");
-    const toolPanel = document.getElementById("toolPanel");
-    const toolsHeader = document.getElementById("toolsHeader");
-    const collapseBtn = document.getElementById("collapseBtn");
-
-    const modalBackdrop = document.getElementById("modalBackdrop");
-    const modalTitle = document.getElementById("modalTitle");
-    const modalSubtitle = document.getElementById("modalSubtitle");
-    const titleInput = document.getElementById("titleInput");
-    const tagInput = document.getElementById("tagInput");
-    const contentInput = document.getElementById("contentInput");
-    const relationSummary = document.getElementById("relationSummary");
-    const relationLabelInput = document.getElementById("relationLabelInput");
-    const nodeFields = document.getElementById("nodeFields");
-    const nodeContentField = document.getElementById("nodeContentField");
-    const relationTargetField = document.getElementById("relationTargetField");
-    const relationLabelField = document.getElementById("relationLabelField");
-    const closeModalBtn = document.getElementById("closeModalBtn");
-    const cancelBtn = document.getElementById("cancelBtn");
-    const saveBtn = document.getElementById("saveBtn");
-
-    const introScreen = document.getElementById("introScreen");
-    const enterBtn = document.getElementById("enterBtn");
-
-    function structuredCloneFallback(obj) {
-      return JSON.parse(JSON.stringify(obj));
+    function deepCopy(obj) {
+      return JSON.parse(JSON.stringify(obj))
     }
 
-    function loadNodes() {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (!saved) return structuredCloneFallback(initialNodes);
+    function loadCachedNodes() {
+      const saved = localStorage.getItem(CACHE_KEYS.nodes)
+      if (!saved) return deepCopy(initialNodes)
+
       try {
-        const parsed = JSON.parse(saved);
-        if (!Array.isArray(parsed) || !parsed.length) return structuredCloneFallback(initialNodes);
-        return parsed.map(node => ({ ...node, links: Array.isArray(node.links) ? node.links : [] }));
+        const parsed = JSON.parse(saved)
+        if (!Array.isArray(parsed) || !parsed.length) return deepCopy(initialNodes)
+        return parsed.map(node => ({
+          ...node,
+          id: Number(node.id),
+          x: Number(node.x),
+          y: Number(node.y),
+          links: Array.isArray(node.links) ? node.links.map(link => ({
+            targetId: Number(link.targetId),
+            label: link.label || 'relație'
+          })) : []
+        }))
       } catch {
-        return structuredCloneFallback(initialNodes);
+        return deepCopy(initialNodes)
       }
+    }
+
+    function saveCachedNodes() {
+      localStorage.setItem(CACHE_KEYS.nodes, JSON.stringify(nodes))
     }
 
     function loadView() {
-      const saved = localStorage.getItem(VIEW_KEY);
-      if (!saved) return { x: -120, y: -80, scale: 1 };
+      const saved = localStorage.getItem(CACHE_KEYS.view)
+      if (!saved) return { ...DEFAULT_VIEW }
+
       try {
-        const parsed = JSON.parse(saved);
+        const parsed = JSON.parse(saved)
         return {
-          x: Number.isFinite(parsed.x) ? parsed.x : -120,
-          y: Number.isFinite(parsed.y) ? parsed.y : -80,
-          scale: Number.isFinite(parsed.scale) ? parsed.scale : 1,
-        };
+          x: Number.isFinite(parsed.x) ? parsed.x : DEFAULT_VIEW.x,
+          y: Number.isFinite(parsed.y) ? parsed.y : DEFAULT_VIEW.y,
+          scale: Number.isFinite(parsed.scale) ? parsed.scale : DEFAULT_VIEW.scale,
+        }
       } catch {
-        return { x: -120, y: -80, scale: 1 };
+        return { ...DEFAULT_VIEW }
       }
+    }
+
+    function saveView() {
+      localStorage.setItem(CACHE_KEYS.view, JSON.stringify(view))
     }
 
     function loadStack(key) {
-      const saved = localStorage.getItem(key);
-      if (!saved) return [];
+      const saved = localStorage.getItem(key)
+      if (!saved) return []
       try {
-        const parsed = JSON.parse(saved);
-        return Array.isArray(parsed) ? parsed : [];
+        const parsed = JSON.parse(saved)
+        return Array.isArray(parsed) ? parsed : []
       } catch {
-        return [];
+        return []
       }
     }
 
-    function persist() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nodes));
+    function saveStacks() {
+      localStorage.setItem(CACHE_KEYS.history, JSON.stringify(undoStack))
+      localStorage.setItem(CACHE_KEYS.future, JSON.stringify(redoStack))
+      updateUndoRedoButtons()
     }
 
-    function persistView() {
-      localStorage.setItem(VIEW_KEY, JSON.stringify(view));
-    }
+    let nodes = loadCachedNodes()
+    let selectedId = nodes[0]?.id ?? null
+    let detailOpen = false
+    let editingId = null
+    let searchQuery = ''
+    let introDismissed = localStorage.getItem(CACHE_KEYS.intro) === '1'
+    let relationMode = { active: false, sourceId: null }
+    let modalMode = 'node'
+    let relationDraft = { sourceId: null, targetId: null, label: '' }
+    let view = loadView()
+    let undoStack = loadStack(CACHE_KEYS.history)
+    let redoStack = loadStack(CACHE_KEYS.future)
+    let currentUser = null
+    let canEdit = false
+    let clickState = { id: null, time: 0 }
+    let panState = null
 
-    function persistHistoryStacks() {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(undoStack));
-      localStorage.setItem(FUTURE_KEY, JSON.stringify(redoStack));
-      updateUndoRedoButtons();
-    }
+    const mapSurface = document.getElementById('mapSurface')
+    const world = document.getElementById('world')
+    const nodeLayer = document.getElementById('nodeLayer')
+    const linkLayer = document.getElementById('linkLayer')
+    const detailPanel = document.getElementById('detailPanel')
+    const emptyPanel = document.getElementById('emptyPanel')
+    const searchInput = document.getElementById('searchInput')
+    const createBtn = document.getElementById('createBtn')
+    const editBtn = document.getElementById('editBtn')
+    const deleteBtn = document.getElementById('deleteBtn')
+    const relationBtn = document.getElementById('relationBtn')
+    const undoBtn = document.getElementById('undoBtn')
+    const redoBtn = document.getElementById('redoBtn')
+    const zoomInBtn = document.getElementById('zoomInBtn')
+    const zoomOutBtn = document.getElementById('zoomOutBtn')
+    const fitBtn = document.getElementById('fitBtn')
+    const arrangeBtn = document.getElementById('arrangeBtn')
+    const centerBtn = document.getElementById('centerBtn')
+    const tutorialBtn = document.getElementById('tutorialBtn')
+    const resetViewBtn = document.getElementById('resetViewBtn')
+    const nodeCount = document.getElementById('nodeCount')
+    const selectedStrip = document.getElementById('selectedStrip')
+    const modeStrip = document.getElementById('modeStrip')
+    const toolPanel = document.getElementById('toolPanel')
+    const toolsHeader = document.getElementById('toolsHeader')
+    const collapseBtn = document.getElementById('collapseBtn')
+    const authStatusBox = document.getElementById('authStatusBox')
+    const authEmailInput = document.getElementById('authEmailInput')
+    const loginBtn = document.getElementById('loginBtn')
+    const logoutBtn = document.getElementById('logoutBtn')
 
-    function snapshotState() {
-      return {
-        nodes: structuredCloneFallback(nodes),
-        selectedId,
-        detailOpen,
-        relationMode: structuredCloneFallback(relationMode),
-        modalMode,
-        relationDraft: structuredCloneFallback(relationDraft),
-        view: { ...view },
-      };
-    }
+    const modalBackdrop = document.getElementById('modalBackdrop')
+    const modalTitle = document.getElementById('modalTitle')
+    const modalSubtitle = document.getElementById('modalSubtitle')
+    const titleInput = document.getElementById('titleInput')
+    const tagInput = document.getElementById('tagInput')
+    const contentInput = document.getElementById('contentInput')
+    const relationSummary = document.getElementById('relationSummary')
+    const relationLabelInput = document.getElementById('relationLabelInput')
+    const nodeFields = document.getElementById('nodeFields')
+    const nodeContentField = document.getElementById('nodeContentField')
+    const relationTargetField = document.getElementById('relationTargetField')
+    const relationLabelField = document.getElementById('relationLabelField')
+    const closeModalBtn = document.getElementById('closeModalBtn')
+    const cancelBtn = document.getElementById('cancelBtn')
+    const saveBtn = document.getElementById('saveBtn')
 
-    function restoreSnapshot(snapshot) {
-      nodes = structuredCloneFallback(snapshot.nodes || []);
-      selectedId = snapshot.selectedId ?? (nodes[0]?.id ?? null);
-      detailOpen = !!snapshot.detailOpen;
-      relationMode = snapshot.relationMode ? structuredCloneFallback(snapshot.relationMode) : { active: false, sourceId: null };
-      modalMode = snapshot.modalMode || "node";
-      relationDraft = snapshot.relationDraft ? structuredCloneFallback(snapshot.relationDraft) : { sourceId: null, targetId: null, label: "" };
-      view = snapshot.view ? { ...snapshot.view } : loadView();
-      closeModal();
-      applyView();
-      persist();
-      renderAll();
-    }
-
-    function pushHistory() {
-      undoStack.push(snapshotState());
-      if (undoStack.length > HISTORY_LIMIT) undoStack.shift();
-      redoStack = [];
-      persistHistoryStacks();
-    }
-
-    function undo() {
-      if (!undoStack.length) return;
-      redoStack.push(snapshotState());
-      const snapshot = undoStack.pop();
-      persistHistoryStacks();
-      restoreSnapshot(snapshot);
-    }
-
-    function redo() {
-      if (!redoStack.length) return;
-      undoStack.push(snapshotState());
-      const snapshot = redoStack.pop();
-      persistHistoryStacks();
-      restoreSnapshot(snapshot);
-    }
-
-    function updateUndoRedoButtons() {
-      if (!undoBtn || !redoBtn) return;
-      undoBtn.disabled = undoStack.length === 0;
-      redoBtn.disabled = redoStack.length === 0;
-    }
+    const introScreen = document.getElementById('introScreen')
+    const enterBtn = document.getElementById('enterBtn')
 
     function selectedNode() {
-      return nodes.find(node => node.id === selectedId) || null;
+      return nodes.find(node => String(node.id) === String(selectedId)) || null
     }
 
     function findNode(id) {
-      return nodes.find(node => node.id === id) || null;
+      return nodes.find(node => String(node.id) === String(id)) || null
     }
 
     function slugTag(tag) {
-      return String(tag).toLowerCase().replace(/\s+/g, "-");
+      return String(tag).toLowerCase().replace(/\s+/g, '-')
     }
 
     function matchesSearch(node) {
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.trim().toLowerCase();
+      if (!searchQuery.trim()) return true
+      const q = searchQuery.trim().toLowerCase()
       return (
         node.title.toLowerCase().includes(q) ||
         node.tag.toLowerCase().includes(q) ||
         node.content.toLowerCase().includes(q)
-      );
+      )
     }
 
     function escapeHtml(str) {
       return String(str)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;")
-        .replaceAll("\n", "<br>");
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;')
+        .replaceAll('\n', '<br>')
     }
 
     function clamp(value, min, max) {
-      return Math.min(Math.max(value, min), max);
+      return Math.min(Math.max(value, min), max)
     }
 
     function applyView() {
-      world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`;
-      persistView();
+      world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`
+      saveView()
     }
 
     function setScale(nextScale, clientX = window.innerWidth / 2, clientY = window.innerHeight / 2) {
-      const prevScale = view.scale;
-      const newScale = clamp(nextScale, 0.45, 1.8);
-      const worldX = (clientX - view.x) / prevScale;
-      const worldY = (clientY - view.y) / prevScale;
-      view.scale = newScale;
-      view.x = clientX - worldX * newScale;
-      view.y = clientY - worldY * newScale;
-      applyView();
+      const prevScale = view.scale
+      const newScale = clamp(nextScale, 0.45, 1.8)
+      const worldX = (clientX - view.x) / prevScale
+      const worldY = (clientY - view.y) / prevScale
+      view.scale = newScale
+      view.x = clientX - worldX * newScale
+      view.y = clientY - worldY * newScale
+      applyView()
     }
 
     function centerOnNode(node) {
-      if (!node) return;
-      const targetX = node.x + NODE_WIDTH / 2;
-      const targetY = node.y + NODE_HEIGHT / 2;
-      view.x = window.innerWidth / 2 - targetX * view.scale;
-      view.y = window.innerHeight / 2 - targetY * view.scale;
-      applyView();
+      if (!node) return
+      const targetX = node.x + NODE_WIDTH / 2
+      const targetY = node.y + NODE_HEIGHT / 2
+      view.x = window.innerWidth / 2 - targetX * view.scale
+      view.y = window.innerHeight / 2 - targetY * view.scale
+      applyView()
     }
 
     function fitView() {
-      if (!nodes.length) return;
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      if (!nodes.length) return
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+
       nodes.forEach(node => {
-        minX = Math.min(minX, node.x);
-        minY = Math.min(minY, node.y);
-        maxX = Math.max(maxX, node.x + NODE_WIDTH);
-        maxY = Math.max(maxY, node.y + NODE_HEIGHT);
-      });
-      const pad = 120;
-      const width = maxX - minX + pad * 2;
-      const height = maxY - minY + pad * 2;
-      const scaleX = window.innerWidth / width;
-      const scaleY = window.innerHeight / height;
-      view.scale = clamp(Math.min(scaleX, scaleY), 0.45, 1.2);
-      view.x = (window.innerWidth - width * view.scale) / 2 - (minX - pad) * view.scale;
-      view.y = (window.innerHeight - height * view.scale) / 2 - (minY - pad) * view.scale;
-      applyView();
+        minX = Math.min(minX, node.x)
+        minY = Math.min(minY, node.y)
+        maxX = Math.max(maxX, node.x + NODE_WIDTH)
+        maxY = Math.max(maxY, node.y + NODE_HEIGHT)
+      })
+
+      const pad = 120
+      const width = maxX - minX + pad * 2
+      const height = maxY - minY + pad * 2
+      const scaleX = window.innerWidth / width
+      const scaleY = window.innerHeight / height
+
+      view.scale = clamp(Math.min(scaleX, scaleY), 0.45, 1.2)
+      view.x = (window.innerWidth - width * view.scale) / 2 - (minX - pad) * view.scale
+      view.y = (window.innerHeight - height * view.scale) / 2 - (minY - pad) * view.scale
+      applyView()
     }
 
     function getNodeMeta(tag) {
       const map = {
-        Beginner: ["Nivel", "Bază / onboarding", "Bun pentru", "primele lecții și setup"],
-        Intermediate: ["Nivel", "următorul pas logic", "Bun pentru", "structură și practică"],
-        Advanced: ["Nivel", "concepte serioase", "Bun pentru", "pathing, architecture, edge cases"],
-        Control: ["Nivel", "mecanică + logică", "Bun pentru", "PID, encodere, targeting"],
-        Troubleshooting: ["Nivel", "salvează timp la concurs", "Bun pentru", "diagnostic și checklist-uri"],
-      };
-      return map[tag] || ["Nivel", "general", "Bun pentru", "documentație internă"];
+        Beginner: ['Nivel', 'Bază / onboarding', 'Bun pentru', 'primele lecții și setup'],
+        Intermediate: ['Nivel', 'următorul pas logic', 'Bun pentru', 'structură și practică'],
+        Advanced: ['Nivel', 'concepte serioase', 'Bun pentru', 'pathing, architecture, edge cases'],
+        Control: ['Nivel', 'mecanică + logică', 'Bun pentru', 'PID, encodere, targeting'],
+        Troubleshooting: ['Nivel', 'salvează timp la concurs', 'Bun pentru', 'diagnostic și checklist-uri'],
+      }
+      return map[tag] || ['Nivel', 'general', 'Bun pentru', 'documentație internă']
     }
 
     function nodeRect(node, x = node.x, y = node.y) {
-      return { left: x, top: y, right: x + NODE_WIDTH, bottom: y + NODE_HEIGHT };
+      return { left: x, top: y, right: x + NODE_WIDTH, bottom: y + NODE_HEIGHT }
     }
 
     function rectsOverlap(a, b, gap = NODE_GAP) {
@@ -1276,73 +1248,423 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
         a.left >= b.right + gap ||
         a.bottom + gap <= b.top ||
         a.top >= b.bottom + gap
-      );
+      )
     }
 
     function overlapsAny(nodeId, x, y) {
-      const rect = nodeRect({ x, y });
-      return nodes.some(other => other.id !== nodeId && rectsOverlap(rect, nodeRect(other)));
+      const rect = nodeRect({ x, y })
+      return nodes.some(other => other.id !== nodeId && rectsOverlap(rect, nodeRect(other)))
     }
 
     function findNearestFreeSpot(nodeId, desiredX, desiredY) {
-      const maxX = WORLD_WIDTH - NODE_WIDTH - 20;
-      const maxY = WORLD_HEIGHT - NODE_HEIGHT - 20;
-      const startX = clamp(desiredX, 20, maxX);
-      const startY = clamp(desiredY, 20, maxY);
-      if (!overlapsAny(nodeId, startX, startY)) return { x: startX, y: startY };
+      const maxX = WORLD_WIDTH - NODE_WIDTH - 20
+      const maxY = WORLD_HEIGHT - NODE_HEIGHT - 20
+      const startX = clamp(desiredX, 20, maxX)
+      const startY = clamp(desiredY, 20, maxY)
 
-      const steps = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6];
-      const radiusStep = 34;
+      if (!overlapsAny(nodeId, startX, startY)) return { x: startX, y: startY }
+
+      const steps = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6]
+      const radiusStep = 34
+
       for (let radius = 1; radius <= 28; radius++) {
         for (const dxStep of steps) {
           for (const dyStep of steps) {
-            if (Math.abs(dxStep) !== radius && Math.abs(dyStep) !== radius) continue;
-            const x = clamp(startX + dxStep * radiusStep, 20, maxX);
-            const y = clamp(startY + dyStep * radiusStep, 20, maxY);
-            if (!overlapsAny(nodeId, x, y)) return { x, y };
+            if (Math.abs(dxStep) !== radius && Math.abs(dyStep) !== radius) continue
+            const x = clamp(startX + dxStep * radiusStep, 20, maxX)
+            const y = clamp(startY + dyStep * radiusStep, 20, maxY)
+            if (!overlapsAny(nodeId, x, y)) return { x, y }
           }
         }
       }
-      return { x: startX, y: startY };
+
+      return { x: startX, y: startY }
     }
 
     function ensureNodePositions() {
       nodes = nodes.map(node => {
-        const pos = findNearestFreeSpot(node.id, node.x, node.y);
-        return { ...node, x: pos.x, y: pos.y };
-      });
-      persist();
+        const pos = findNearestFreeSpot(node.id, Number(node.x) || 20, Number(node.y) || 20)
+        return { ...node, x: pos.x, y: pos.y }
+      })
+      saveCachedNodes()
     }
 
-    function getVisibleNodes() {
-      return nodes.filter(matchesSearch);
+    function generateNodeId() {
+      const maxId = nodes.reduce((max, node) => Math.max(max, Number(node.id) || 0), 0)
+      return maxId + 1
+    }
+
+    function flattenEdges(nodesArray) {
+      const allEdges = []
+      for (const node of nodesArray) {
+        for (const link of (node.links || [])) {
+          allEdges.push({
+            project_id: PROJECT_ID,
+            source_id: Number(node.id),
+            target_id: Number(link.targetId),
+            label: link.label || 'relație'
+          })
+        }
+      }
+      return allEdges
+    }
+
+    function updateUndoRedoButtons() {
+      undoBtn.disabled = !canEdit || undoStack.length === 0
+      redoBtn.disabled = !canEdit || redoStack.length === 0
+    }
+
+    function snapshotState() {
+      return {
+        nodes: deepCopy(nodes),
+        selectedId,
+        detailOpen,
+        relationMode: deepCopy(relationMode),
+        modalMode,
+        relationDraft: deepCopy(relationDraft),
+        view: { ...view },
+      }
+    }
+
+    function restoreSnapshot(snapshot) {
+      nodes = deepCopy(snapshot.nodes || [])
+      selectedId = snapshot.selectedId ?? (nodes[0]?.id ?? null)
+      detailOpen = !!snapshot.detailOpen
+      relationMode = snapshot.relationMode ? deepCopy(snapshot.relationMode) : { active: false, sourceId: null }
+      modalMode = snapshot.modalMode || 'node'
+      relationDraft = snapshot.relationDraft ? deepCopy(snapshot.relationDraft) : { sourceId: null, targetId: null, label: '' }
+      view = snapshot.view ? { ...snapshot.view } : loadView()
+
+      closeModal()
+      saveCachedNodes()
+      applyView()
+      renderAll()
+    }
+
+    function pushHistory() {
+      if (!canEdit) return
+      undoStack.push(snapshotState())
+      if (undoStack.length > HISTORY_LIMIT) undoStack.shift()
+      redoStack = []
+      saveStacks()
+    }
+
+    async function syncRemoteState() {
+      if (!canEdit) return
+
+      const allEdges = flattenEdges(nodes)
+
+      const { error: deleteEdgesError } = await supabase
+        .from('atlas_edges')
+        .delete()
+        .eq('project_id', PROJECT_ID)
+      if (deleteEdgesError) throw deleteEdgesError
+
+      const { error: deleteNodesError } = await supabase
+        .from('atlas_nodes')
+        .delete()
+        .eq('project_id', PROJECT_ID)
+      if (deleteNodesError) throw deleteNodesError
+
+      if (nodes.length) {
+        const { error: insertNodesError } = await supabase
+          .from('atlas_nodes')
+          .insert(nodes.map(node => ({
+            id: Number(node.id),
+            project_id: PROJECT_ID,
+            title: node.title,
+            tag: node.tag,
+            x: Number(node.x),
+            y: Number(node.y),
+            content: node.content
+          })))
+        if (insertNodesError) throw insertNodesError
+      }
+
+      if (allEdges.length) {
+        const { error: insertEdgesError } = await supabase
+          .from('atlas_edges')
+          .insert(allEdges)
+        if (insertEdgesError) throw insertEdgesError
+      }
+    }
+
+    async function undo() {
+      if (!canEdit || !undoStack.length) return
+      redoStack.push(snapshotState())
+      const snapshot = undoStack.pop()
+      saveStacks()
+      restoreSnapshot(snapshot)
+
+      try {
+        await syncRemoteState()
+      } catch (error) {
+        alert(error.message || 'Eroare la undo.')
+        await fetchAllData()
+      }
+    }
+
+    async function redo() {
+      if (!canEdit || !redoStack.length) return
+      undoStack.push(snapshotState())
+      const snapshot = redoStack.pop()
+      saveStacks()
+      restoreSnapshot(snapshot)
+
+      try {
+        await syncRemoteState()
+      } catch (error) {
+        alert(error.message || 'Eroare la redo.')
+        await fetchAllData()
+      }
+    }
+
+    async function seedInitialAtlas() {
+      const seedNodes = deepCopy(initialNodes)
+      const seedEdges = flattenEdges(seedNodes)
+
+      const { error: insertNodesError } = await supabase
+        .from('atlas_nodes')
+        .insert(seedNodes.map(node => ({
+          id: Number(node.id),
+          project_id: PROJECT_ID,
+          title: node.title,
+          tag: node.tag,
+          x: Number(node.x),
+          y: Number(node.y),
+          content: node.content
+        })))
+      if (insertNodesError) throw insertNodesError
+
+      if (seedEdges.length) {
+        const { error: insertEdgesError } = await supabase
+          .from('atlas_edges')
+          .insert(seedEdges)
+        if (insertEdgesError) throw insertEdgesError
+      }
+    }
+
+    async function fetchAllData({ allowSeed = true } = {}) {
+      const { data: nodesData, error: nodesError } = await supabase
+        .from('atlas_nodes')
+        .select('*')
+        .eq('project_id', PROJECT_ID)
+        .order('id', { ascending: true })
+
+      if (nodesError) throw nodesError
+
+      const { data: edgesData, error: edgesError } = await supabase
+        .from('atlas_edges')
+        .select('*')
+        .eq('project_id', PROJECT_ID)
+        .order('source_id', { ascending: true })
+        .order('target_id', { ascending: true })
+
+      if (edgesError) throw edgesError
+
+      if (!nodesData || nodesData.length === 0) {
+        if (allowSeed && canEdit) {
+          await seedInitialAtlas()
+          return fetchAllData({ allowSeed: false })
+        }
+
+        nodes = loadCachedNodes()
+        selectedId = nodes.find(n => String(n.id) === String(selectedId))?.id ?? nodes[0]?.id ?? null
+        saveCachedNodes()
+        renderAll()
+        return
+      }
+
+      const edgesBySource = new Map()
+      for (const edge of edgesData || []) {
+        const sourceId = Number(edge.source_id)
+        if (!edgesBySource.has(sourceId)) edgesBySource.set(sourceId, [])
+        edgesBySource.get(sourceId).push({
+          targetId: Number(edge.target_id),
+          label: edge.label || 'relație'
+        })
+      }
+
+      nodes = nodesData.map(node => ({
+        id: Number(node.id),
+        title: node.title,
+        tag: node.tag,
+        x: Number(node.x),
+        y: Number(node.y),
+        content: node.content,
+        links: edgesBySource.get(Number(node.id)) || []
+      }))
+
+      ensureNodePositions()
+      selectedId = nodes.find(n => String(n.id) === String(selectedId))?.id ?? nodes[0]?.id ?? null
+      saveCachedNodes()
+      renderAll()
+    }
+
+    async function createNodeRemote(node) {
+      const { error } = await supabase
+        .from('atlas_nodes')
+        .insert({
+          id: Number(node.id),
+          project_id: PROJECT_ID,
+          title: node.title,
+          tag: node.tag,
+          x: Number(node.x),
+          y: Number(node.y),
+          content: node.content
+        })
+
+      if (error) throw error
+    }
+
+    async function updateNodeRemote(node) {
+      const { error } = await supabase
+        .from('atlas_nodes')
+        .update({
+          title: node.title,
+          tag: node.tag,
+          x: Number(node.x),
+          y: Number(node.y),
+          content: node.content
+        })
+        .eq('project_id', PROJECT_ID)
+        .eq('id', Number(node.id))
+
+      if (error) throw error
+    }
+
+    async function deleteEdgesForNodeRemote(nodeId) {
+      const { error } = await supabase
+        .from('atlas_edges')
+        .delete()
+        .eq('project_id', PROJECT_ID)
+        .or(`source_id.eq.${Number(nodeId)},target_id.eq.${Number(nodeId)}`)
+
+      if (error) throw error
+    }
+
+    async function deleteNodeRemote(nodeId) {
+      const { error } = await supabase
+        .from('atlas_nodes')
+        .delete()
+        .eq('project_id', PROJECT_ID)
+        .eq('id', Number(nodeId))
+
+      if (error) throw error
+    }
+
+    async function upsertEdgeRemote(sourceId, targetId, label) {
+      const payload = {
+        project_id: PROJECT_ID,
+        source_id: Number(sourceId),
+        target_id: Number(targetId),
+        label
+      }
+
+      const { error } = await supabase
+        .from('atlas_edges')
+        .upsert(payload, {
+          onConflict: 'project_id,source_id,target_id'
+        })
+
+      if (error) throw error
+    }
+
+    async function deleteEdgeRemote(sourceId, targetId) {
+      const { error } = await supabase
+        .from('atlas_edges')
+        .delete()
+        .eq('project_id', PROJECT_ID)
+        .eq('source_id', Number(sourceId))
+        .eq('target_id', Number(targetId))
+
+      if (error) throw error
+    }
+
+    function updateAuthUI() {
+      if (!currentUser) {
+        authStatusBox.innerHTML = 'Neautentificat. Poți vedea atlasul, dar editarea este permisă doar colaboratorilor aprobați.'
+      } else if (canEdit) {
+        authStatusBox.innerHTML = `<strong>Logat ca editor:</strong><br>${escapeHtml(currentUser.email)}`
+      } else {
+        authStatusBox.innerHTML = `<strong>Logat doar pentru view:</strong><br>${escapeHtml(currentUser.email)}<br>Emailul nu este în ALLOWED_EDITORS.`
+      }
+
+      createBtn.disabled = !canEdit
+      editBtn.disabled = !selectedNode() || !canEdit
+      deleteBtn.disabled = !selectedNode() || !canEdit
+      relationBtn.disabled = !canEdit
+      arrangeBtn.disabled = !canEdit
+      logoutBtn.disabled = !currentUser
+      updateUndoRedoButtons()
+    }
+
+    function requireAuth() {
+      if (canEdit) return true
+      alert('Doar emailurile din ALLOWED_EDITORS pot edita atlasul.')
+      return false
+    }
+
+    async function refreshSession() {
+      const { data, error } = await supabase.auth.getUser()
+      currentUser = error ? null : (data.user || null)
+      canEdit = isAllowedEditor(currentUser?.email)
+      updateAuthUI()
+    }
+
+    async function sendMagicLink() {
+      const email = authEmailInput.value.trim()
+      if (!email) {
+        alert('Scrie email-ul mai întâi.')
+        return
+      }
+
+      const redirectTo = `${window.location.origin}${window.location.pathname}`
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true,
+          emailRedirectTo: redirectTo
+        }
+      })
+
+      if (error) throw error
+      alert('Magic link trimis. Verifică email-ul și deschide link-ul pe aceeași adresă a site-ului.')
+    }
+
+    async function signOutUser() {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
     }
 
     function renderLinks() {
-      linkLayer.setAttribute("viewBox", `0 0 ${WORLD_WIDTH} ${WORLD_HEIGHT}`);
-      linkLayer.setAttribute("width", WORLD_WIDTH);
-      linkLayer.setAttribute("height", WORLD_HEIGHT);
-      const paths = [];
+      linkLayer.setAttribute('viewBox', `0 0 ${WORLD_WIDTH} ${WORLD_HEIGHT}`)
+      linkLayer.setAttribute('width', WORLD_WIDTH)
+      linkLayer.setAttribute('height', WORLD_HEIGHT)
+
+      const paths = []
 
       nodes.forEach(source => {
-        source.links.forEach((link, index) => {
-          const target = findNode(link.targetId);
-          if (!target) return;
-          const highlight = source.id === selectedId || target.id === selectedId;
-          const ax = source.x + NODE_WIDTH / 2;
-          const ay = source.y + NODE_HEIGHT / 2;
-          const bx = target.x + NODE_WIDTH / 2;
-          const by = target.y + NODE_HEIGHT / 2;
-          const mx = (ax + bx) / 2;
-          const curveY = ((ay + by) / 2) - Math.max(26, Math.abs(ax - bx) * 0.06);
-          const label = escapeHtml(link.label || "relație");
-          const baseColor = highlight ? "rgba(255, 77, 109, 0.34)" : "rgba(177, 76, 255, 0.26)";
-          const flowColor = highlight ? "rgba(255, 173, 194, 0.98)" : "rgba(216, 180, 255, 0.92)";
-          const flowWidth = highlight ? 2.2 : 1.9;
-          const baseWidth = highlight ? 2.2 : 1.35;
-          const labelWidth = Math.max(68, label.length * 6.3);
-          const labelX = -labelWidth / 2;
-          const duration = highlight ? 1.3 : 1.8;
+        source.links.forEach(link => {
+          const target = findNode(link.targetId)
+          if (!target) return
+
+          const highlight = source.id === selectedId || target.id === selectedId
+          const ax = source.x + NODE_WIDTH / 2
+          const ay = source.y + NODE_HEIGHT / 2
+          const bx = target.x + NODE_WIDTH / 2
+          const by = target.y + NODE_HEIGHT / 2
+          const mx = (ax + bx) / 2
+          const curveY = ((ay + by) / 2) - Math.max(26, Math.abs(ax - bx) * 0.06)
+          const label = escapeHtml(link.label || 'relație')
+          const baseColor = highlight ? 'rgba(255, 77, 109, 0.34)' : 'rgba(177, 76, 255, 0.26)'
+          const flowColor = highlight ? 'rgba(255, 173, 194, 0.98)' : 'rgba(216, 180, 255, 0.92)'
+          const flowWidth = highlight ? 2.2 : 1.9
+          const baseWidth = highlight ? 2.2 : 1.35
+          const labelWidth = Math.max(68, label.length * 6.3)
+          const labelX = -labelWidth / 2
+          const duration = highlight ? 1.3 : 1.8
 
           paths.push(`
             <g>
@@ -1350,193 +1672,175 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
               <path d="M ${ax} ${ay} Q ${mx} ${curveY} ${bx} ${by}" fill="none" stroke="${flowColor}" stroke-width="${flowWidth}" stroke-linecap="round" stroke-dasharray="3 25" style="animation: circuitFlow ${duration}s linear infinite, circuitPulse 2s ease-in-out infinite; filter: drop-shadow(0 0 4px rgba(177,76,255,0.35));" />
               <g transform="translate(${mx}, ${curveY - 4})">
                 <rect x="${labelX}" y="-11" rx="10" ry="10" width="${labelWidth}" height="22" fill="rgba(7,7,9,0.94)" stroke="rgba(177,76,255,0.16)" />
-                <text x="0" y="4" fill="${highlight ? "#ffe1e8" : "#d6b5ff"}" text-anchor="middle" font-size="10.5" font-family="Inter, system-ui">${label}</text>
+                <text x="0" y="4" fill="${highlight ? '#ffe1e8' : '#d6b5ff'}" text-anchor="middle" font-size="10.5" font-family="Inter, system-ui">${label}</text>
               </g>
             </g>
-          `);
-        });
-      });
+          `)
+        })
+      })
 
-      linkLayer.innerHTML = paths.join("");
+      linkLayer.innerHTML = paths.join('')
     }
 
     function renderNodes() {
-      nodeLayer.innerHTML = "";
-      const orderedNodes = [...nodes].sort((a, b) => (a.id === selectedId ? 1 : b.id === selectedId ? -1 : 0));
+      nodeLayer.innerHTML = ''
+      const orderedNodes = [...nodes].sort((a, b) => (a.id === selectedId ? 1 : b.id === selectedId ? -1 : 0))
+
       orderedNodes.forEach(node => {
-        const el = document.createElement("button");
-        el.type = "button";
-        el.className = `node ${node.id === selectedId ? "active" : ""} ${matchesSearch(node) ? "" : "search-hidden"}`;
-        el.style.left = `${node.x}px`;
-        el.style.top = `${node.y}px`;
+        const el = document.createElement('button')
+        el.type = 'button'
+        el.className = `node ${node.id === selectedId ? 'active' : ''} ${matchesSearch(node) ? '' : 'search-hidden'}`
+        el.style.left = `${node.x}px`
+        el.style.top = `${node.y}px`
+
         el.innerHTML = `
-          <span class="node-flex-handle top" data-side="top"></span>
-          <span class="node-flex-handle right" data-side="right"></span>
-          <span class="node-flex-handle bottom" data-side="bottom"></span>
-          <span class="node-flex-handle left" data-side="left"></span>
           <div class="node-head">
             <span class="pill ${slugTag(node.tag)}">${escapeHtml(node.tag)}</span>
             ${node.id === selectedId ? '<span class="open-mark">open</span>' : ''}
           </div>
           <h3 class="node-title">${escapeHtml(node.title)}</h3>
           <p class="node-preview">${escapeHtml(node.content)}</p>
-        `;
+        `
 
-        let startClientX = 0;
-        let startClientY = 0;
-        let startNodeX = node.x;
-        let startNodeY = node.y;
-        let moved = false;
+        let startClientX = 0
+        let startClientY = 0
+        let startNodeX = node.x
+        let startNodeY = node.y
+        let moved = false
 
         const onMove = event => {
-          moved = true;
-          el.classList.add("dragging");
-          const dx = (event.clientX - startClientX) / view.scale;
-          const dy = (event.clientY - startClientY) / view.scale;
-          const nextX = clamp(startNodeX + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20);
-          const nextY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20);
-          el.style.left = `${nextX}px`;
-          el.style.top = `${nextY}px`;
-          applyNodeFlex(el, dx, dy);
-          const invalid = overlapsAny(node.id, nextX, nextY);
-          el.classList.toggle("invalid-drop", invalid);
-        };
+          if (!canEdit) return
+          moved = true
+          const dx = (event.clientX - startClientX) / view.scale
+          const dy = (event.clientY - startClientY) / view.scale
+          const nextX = clamp(startNodeX + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20)
+          const nextY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
+          el.style.left = `${nextX}px`
+          el.style.top = `${nextY}px`
+          const invalid = overlapsAny(node.id, nextX, nextY)
+          el.classList.toggle('invalid-drop', invalid)
+        }
 
         const onUp = event => {
-          document.removeEventListener("pointermove", onMove);
-          document.removeEventListener("pointerup", onUp);
+          document.removeEventListener('pointermove', onMove)
+          document.removeEventListener('pointerup', onUp)
 
-          if (!moved) {
-            resetNodeFlex(el);
-            const now = Date.now();
-            const isDouble = clickState.id === node.id && now - clickState.time < 340;
-            clickState = { id: node.id, time: now };
-            selectedId = node.id;
+          if (!moved || !canEdit) {
+            const now = Date.now()
+            const isDouble = clickState.id === node.id && now - clickState.time < 320
+            clickState = { id: node.id, time: now }
+            selectedId = node.id
+
             if (relationMode.active) {
-              handleRelationNodeClick(node.id);
+              handleRelationNodeClick(node.id)
             } else {
-              detailOpen = isDouble;
-              renderAll();
+              detailOpen = isDouble
+              renderAll()
             }
-            return;
+            return
           }
 
-          const dx = (event.clientX - startClientX) / view.scale;
-          const dy = (event.clientY - startClientY) / view.scale;
-          const desiredX = clamp(startNodeX + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20);
-          const desiredY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20);
-          const free = findNearestFreeSpot(node.id, desiredX, desiredY);
-          if (free.x !== node.x || free.y !== node.y) pushHistory();
-          node.x = free.x;
-          node.y = free.y;
-          persist();
-          resetNodeFlex(el);
-          renderAll();
-        };
+          const dx = (event.clientX - startClientX) / view.scale
+          const dy = (event.clientY - startClientY) / view.scale
+          const desiredX = clamp(startNodeX + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20)
+          const desiredY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
+          const free = findNearestFreeSpot(node.id, desiredX, desiredY)
+          const changed = free.x !== node.x || free.y !== node.y
 
-        el.addEventListener("pointerdown", event => {
-          if (event.button !== 0) return;
-          if (event.target.closest(".node-flex-handle")) return;
-          event.stopPropagation();
-          startClientX = event.clientX;
-          startClientY = event.clientY;
-          startNodeX = node.x;
-          startNodeY = node.y;
-          moved = false;
-          document.addEventListener("pointermove", onMove);
-          document.addEventListener("pointerup", onUp, { once: true });
-        });
+          if (changed) pushHistory()
 
-        el.querySelectorAll(".node-flex-handle").forEach(handle => {
-          handle.addEventListener("pointerdown", event => {
-            if (event.button !== 0) return;
-            event.stopPropagation();
-            event.preventDefault();
-            const side = handle.dataset.side;
-            const edgeStartX = event.clientX;
-            const edgeStartY = event.clientY;
-            el.classList.add("edge-flexing");
+          node.x = free.x
+          node.y = free.y
+          saveCachedNodes()
 
-            const onEdgeMove = moveEvent => {
-              const dx = (moveEvent.clientX - edgeStartX) / view.scale;
-              const dy = (moveEvent.clientY - edgeStartY) / view.scale;
-              applyEdgeFlex(el, side, dx, dy);
-            };
+          if (changed && canEdit) {
+            updateNodeRemote(node).catch(async error => {
+              alert(error.message || 'Eroare la mutarea nodului.')
+              await fetchAllData()
+            })
+          }
 
-            const onEdgeUp = () => {
-              document.removeEventListener("pointermove", onEdgeMove);
-              document.removeEventListener("pointerup", onEdgeUp);
-              resetNodeFlex(el);
-            };
+          renderAll()
+        }
 
-            document.addEventListener("pointermove", onEdgeMove);
-            document.addEventListener("pointerup", onEdgeUp, { once: true });
-          });
-        });
+        el.addEventListener('pointerdown', event => {
+          if (event.button !== 0) return
+          event.stopPropagation()
+          startClientX = event.clientX
+          startClientY = event.clientY
+          startNodeX = node.x
+          startNodeY = node.y
+          moved = false
+          document.addEventListener('pointermove', onMove)
+          document.addEventListener('pointerup', onUp, { once: true })
+        })
 
-        nodeLayer.appendChild(el);
-      });
+        nodeLayer.appendChild(el)
+      })
     }
 
     function renderSelectedStrip() {
-      const node = selectedNode();
+      const node = selectedNode()
       if (!node) {
-        selectedStrip.innerHTML = "Niciun nod selectat.";
-        return;
+        selectedStrip.innerHTML = 'Niciun nod selectat.'
+        return
       }
-      selectedStrip.innerHTML = `<strong>${escapeHtml(node.title)}</strong><br>${escapeHtml(node.tag)} · ${node.links.length} relații pleacă din acest nod.`;
+
+      selectedStrip.innerHTML = `<strong>${escapeHtml(node.title)}</strong><br>${escapeHtml(node.tag)} · ${node.links.length} relații pleacă din acest nod.`
     }
 
     function renderModeStrip() {
       if (!relationMode.active) {
-        modeStrip.classList.remove("show");
-        modeStrip.innerHTML = "";
-        relationBtn.classList.remove("active");
-        relationBtn.textContent = "Adaugă relație";
-        return;
+        modeStrip.classList.remove('show')
+        modeStrip.innerHTML = ''
+        relationBtn.classList.remove('active')
+        relationBtn.textContent = 'Adaugă relație'
+        return
       }
 
-      relationBtn.classList.add("active");
-      relationBtn.textContent = "Anulează";
-      modeStrip.classList.add("show");
+      relationBtn.classList.add('active')
+      relationBtn.textContent = 'Anulează'
+      modeStrip.classList.add('show')
 
       if (!relationMode.sourceId) {
-        modeStrip.innerHTML = `<strong>Mod relație activ</strong><br>Alege mai întâi nodul sursă, apoi apasă pe nodul destinație.`;
-        return;
+        modeStrip.innerHTML = '<strong>Mod relație activ</strong><br>Alege mai întâi nodul sursă, apoi apasă pe nodul destinație.'
+        return
       }
 
-      const source = findNode(relationMode.sourceId);
-      modeStrip.innerHTML = `<strong>Mod relație activ</strong><br>Sursa: ${escapeHtml(source?.title || "—")}. Acum apasă pe nodul destinație.`;
+      const source = findNode(relationMode.sourceId)
+      modeStrip.innerHTML = `<strong>Mod relație activ</strong><br>Sursa: ${escapeHtml(source?.title || '—')}. Acum apasă pe nodul destinație.`
     }
 
     function renderDetailPanel() {
-      const node = selectedNode();
+      const node = selectedNode()
+
       if (!node || !detailOpen) {
-        detailPanel.classList.remove("open");
-        emptyPanel.style.display = "none";
-        editBtn.disabled = !node;
-        deleteBtn.disabled = !node;
-        centerBtn.disabled = !node;
-        return;
+        detailPanel.classList.remove('open')
+        emptyPanel.style.display = 'none'
+        editBtn.disabled = !node || !canEdit
+        deleteBtn.disabled = !node || !canEdit
+        centerBtn.disabled = !node
+        return
       }
 
-      const [k1, v1, k2, v2] = getNodeMeta(node.tag);
+      const [k1, v1, k2, v2] = getNodeMeta(node.tag)
+
       const relations = node.links.map((link, index) => {
-        const target = findNode(link.targetId);
-        if (!target) return "";
+        const target = findNode(link.targetId)
+        if (!target) return ''
         return `
           <div class="relation-item">
             <div>
               <strong>${escapeHtml(target.title)}</strong>
-              <span>${escapeHtml(link.label || "relație")}</span>
+              <span>${escapeHtml(link.label || 'relație')}</span>
             </div>
             <div class="relation-actions">
               <button class="icon-btn" data-rel-edit="${index}" aria-label="Edit relation">✎</button>
               <button class="icon-btn" data-rel-remove="${index}" aria-label="Remove relation">✕</button>
             </div>
           </div>
-        `;
-      }).join("") || `<div class="relation-item"><div><strong>Nicio relație încă</strong><span>Poți adăuga una din quick controls sau din butonul de sus.</span></div></div>`;
+        `
+      }).join('') || '<div class="relation-item"><div><strong>Nicio relație încă</strong><span>Poți adăuga una din quick controls sau din butonul de sus.</span></div></div>'
 
       detailPanel.innerHTML = `
         <div class="detail-top">
@@ -1568,681 +1872,624 @@ Ideal ar fi să ai și o comparație între ce crede robotul și unde este el de
             <div class="doc-text">${escapeHtml(node.content)}</div>
           </div>
         </div>
-      `;
+      `
 
-      detailPanel.classList.add("open");
-      emptyPanel.style.display = "none";
-      editBtn.disabled = false;
-      deleteBtn.disabled = false;
-      centerBtn.disabled = false;
+      detailPanel.classList.add('open')
+      emptyPanel.style.display = 'none'
+      editBtn.disabled = !canEdit
+      deleteBtn.disabled = !canEdit
+      centerBtn.disabled = false
 
-      document.getElementById("detailAddRelationBtn").addEventListener("click", () => activateRelationMode(node.id));
-      document.getElementById("detailEditBtn").addEventListener("click", () => openEdit(node.id));
-      document.getElementById("detailDeleteBtn").addEventListener("click", deleteSelected);
-      document.getElementById("detailCloseBtn").addEventListener("click", () => {
-        detailOpen = false;
-        renderAll();
-      });
+      const detailAddRelationBtn = document.getElementById('detailAddRelationBtn')
+      const detailEditBtn = document.getElementById('detailEditBtn')
+      const detailDeleteBtn = document.getElementById('detailDeleteBtn')
+      const detailCloseBtn = document.getElementById('detailCloseBtn')
 
-      detailPanel.querySelectorAll("[data-rel-edit]").forEach(button => {
-        button.addEventListener("click", () => {
-          openRelationEdit(node.id, Number(button.dataset.relEdit));
-        });
-      });
-      detailPanel.querySelectorAll("[data-rel-remove]").forEach(button => {
-        button.addEventListener("click", () => {
-          removeRelation(node.id, Number(button.dataset.relRemove));
-        });
-      });
+      detailAddRelationBtn.disabled = !canEdit
+      detailEditBtn.disabled = !canEdit
+      detailDeleteBtn.disabled = !canEdit
+
+      detailAddRelationBtn.addEventListener('click', () => activateRelationMode(node.id))
+      detailEditBtn.addEventListener('click', () => openEdit(node.id))
+      detailDeleteBtn.addEventListener('click', () => {
+        deleteSelected().catch(error => alert(error.message || 'Eroare la ștergere.'))
+      })
+      detailCloseBtn.addEventListener('click', () => {
+        detailOpen = false
+        renderAll()
+      })
+
+      detailPanel.querySelectorAll('[data-rel-edit]').forEach(button => {
+        button.disabled = !canEdit
+        button.addEventListener('click', () => {
+          openRelationEdit(node.id, Number(button.dataset.relEdit))
+        })
+      })
+
+      detailPanel.querySelectorAll('[data-rel-remove]').forEach(button => {
+        button.disabled = !canEdit
+        button.addEventListener('click', () => {
+          removeRelation(node.id, Number(button.dataset.relRemove)).catch(error => alert(error.message || 'Eroare la ștergerea relației.'))
+        })
+      })
     }
 
     function renderAll() {
-      nodeCount.textContent = String(nodes.length);
-      renderSelectedStrip();
-      renderModeStrip();
-      renderLinks();
-      renderNodes();
-      renderDetailPanel();
-      updateUndoRedoButtons();
+      nodeCount.textContent = String(nodes.length)
+      renderSelectedStrip()
+      renderModeStrip()
+      renderLinks()
+      renderNodes()
+      renderDetailPanel()
+      updateAuthUI()
+    }
+
+    function setModalModeUi(mode) {
+      if (mode === 'node') {
+        saveBtn.textContent = 'Salvează'
+      } else if (mode === 'relation') {
+        saveBtn.textContent = 'Salvează'
+      } else {
+        saveBtn.textContent = 'Închide'
+      }
     }
 
     function openTutorial() {
-      modalTitle.textContent = "Tutorial complet de folosire";
-      modalSubtitle.textContent = "Tot ce trebuie să știi despre atlas: navigare, noduri, relații, editare, undo/redo, organizare și bune practici de lucru.";
-      nodeFields.style.display = "none";
-      nodeContentField.style.display = "block";
-      relationTargetField.style.display = "none";
-      relationLabelField.style.display = "none";
-      modalMode = "tutorial";
+      modalTitle.textContent = 'Tutorial complet de folosire'
+      modalSubtitle.textContent = 'Tot ce trebuie să știi despre atlas: navigare, noduri, relații, editare, undo/redo, organizare și login.'
+      nodeFields.style.display = 'none'
+      nodeContentField.style.display = 'block'
+      relationTargetField.style.display = 'none'
+      relationLabelField.style.display = 'none'
+      modalMode = 'tutorial'
+      setModalModeUi('tutorial')
       contentInput.value = `1. Ce este site-ul
 
-Acest site este un atlas interactiv pentru documentația de programare FTC. Fiecare nod reprezintă un subiect sau un capitol: TeleOp, PID, Autonomous, Pathing, Debugging, Localization și orice altă temă pe care o adaugi tu.
-
-Ideea principală este că documentația nu mai stă ascunsă în foldere sau fișiere greu de urmărit. Totul este pus pe o hartă vizuală, unde poți vedea rapid ce subiecte există și cum sunt legate între ele.
+Acest site este un atlas interactiv pentru documentația de programare FTC. Fiecare nod reprezintă un subiect sau un capitol.
 
 2. Cum te miști pe hartă
 
-- Poți face drag pe background ca să te plimbi prin hartă.
-- Poți da scroll ca să faci zoom in / zoom out.
-- Din Quick Controls ai și butoane separate pentru zoom, fit și reset view.
-- Butonul Fit încearcă să încadreze nodurile într-o zonă vizibilă.
-- Butonul Centrează selecția mută camera pe nodul selectat.
+- drag pe background pentru pan
+- scroll pentru zoom
+- butoane pentru fit, reset view și centrează selecția
 
 3. Cum funcționează nodurile
 
-- Un singur click pe nod = selectezi nodul.
-- Două click-uri rapide pe același nod = se deschide documentația full-screen.
-- Când un nod este selectat, el apare roșu.
-- Nodurile neselectate rămân mov.
-- Poți trage un nod în alt loc, dar site-ul încearcă să nu-l lase suprapus peste alte noduri.
+- un click = selectezi nodul
+- două click-uri rapide = se deschide documentația full-screen
+- roșu = selectat
+- mov = neselectat
 
 4. Cum citești documentația completă
 
-Când se deschide documentația full-screen, ai:
-- titlul nodului
-- categoria lui
-- informații scurte de context
-- documentația lungă
-- lista relațiilor editabile
-
-Poți închide tab-ul full-screen cu butonul X și revii la hartă.
+Documentația ocupă tot ecranul și o poți închide cu X.
 
 5. Cum creezi și editezi noduri
 
-Din Quick Controls:
-- Nod nou = creezi un capitol nou
-- Editează = modifici nodul selectat
-- Șterge = ștergi nodul selectat
+Trebuie să fii logat. Din Quick Controls ai butoane pentru nod nou, editare și ștergere.
 
-Când creezi sau editezi un nod, completezi:
-- titlul
-- categoria
-- documentația completă
+6. Cum funcționează relațiile
 
-6. Cum funcționează relațiile dintre noduri
-
-Relațiile sunt muchii reale între noduri.
-
-Fluxul corect este:
-- apeși pe Adaugă relație
+- activezi modul relație
 - alegi nodul sursă
 - alegi nodul destinație
-- relația apare instant
-- după aceea se deschide editorul pentru eticheta relației
+- se deschide direct formularul relației
+- după salvare apare muchia în atlas
 
-Exemple de etichete bune:
-- depinde de
-- continuă în
-- bază pentru
-- folosește
-- legat de
+7. Undo și Redo
 
-7. Cum editezi sau ștergi o relație
+Undo și redo sunt sincronizate în Supabase pentru sesiunea curentă cât timp ești logat.
 
-După ce ai deschis documentația completă a unui nod, în secțiunea relații editabile poți:
-- modifica eticheta unei relații
-- șterge o relație
+8. Login
 
-8. Cum organizezi harta
+Introduci email-ul și apeși pe Trimite magic link. După ce deschizi link-ul din email pe aceeași adresă a site-ului, devii autentificat și poți edita atlasul.
 
-- Auto arrange încearcă să așeze nodurile mai ordonat
-- Poți muta manual nodurile prin drag and drop
-- E bine să păstrezi capitolele apropiate dacă sunt legate logic
+9. Ce este salvat online
 
-Exemplu:
-TeleOp Basics aproape de Autonomous Flow
-Autonomous Flow aproape de Pathing și Localization
-PID aproape de Control / Debugging
+Nodurile și relațiile sunt în Supabase, deci nu mai depind de browserul local.
 
-9. Undo și Redo
+10. Scopul final
 
-Site-ul are istoric local pentru acțiuni importante.
-
-Poți folosi:
-- butonul Undo
-- butonul Redo
-- Ctrl+Z / Cmd+Z pentru undo
-- Ctrl+Y sau Ctrl+Shift+Z / Cmd+Shift+Z pentru redo
-
-Asta te ajută dacă:
-- ștergi un nod din greșeală
-- muți prost un nod
-- strici o relație
-- modifici un text și vrei versiunea anterioară
-
-10. Ce înseamnă date locale
-
-Momentan, datele sunt salvate local în browser. Asta înseamnă că proiectul tău rămâne pe calculatorul și browserul curent, nu automat pentru toată lumea. De asta următorul pas bun este conectarea la Supabase, ca datele să devină publice și persistente online.
-
-11. Cum e bine să folosești site-ul în echipă
-
-- fă un nod pentru fiecare concept mare
-- nu pune tot într-un singur nod gigantic
-- folosește relații clare între capitole
-- scrie explicațiile ca pentru cineva nou în echipă
-- pune exemple reale din robot, nu doar teorie generică
-
-12. Structură recomandată pentru documentație FTC
-
-Ai putea avea noduri pentru:
-- TeleOp Basics
-- Hardware Mapping
-- Gamepad Logic
-- Subsystems
-- PID / Control
-- Autonomous Flow
-- State Machines
-- Localization
-- PedroPathing / Road Runner
-- Vision / Camera
-- Troubleshooting
-- Match Workflow
-
-13. Cum știi că folosești corect site-ul
-
-Folosești corect atlasul dacă:
-- poți găsi rapid un subiect
-- vezi ușor ce depinde de ce
-- un membru nou înțelege ordinea capitolelor
-- documentația este clară și modulară
-
-14. Scopul final
-
-Scopul site-ului nu este doar să arate bine. Scopul este să devină manualul vostru viu de programare FTC, adică un loc unde generațiile viitoare intră și înțeleg atât teoria, cât și experiența reală a echipei.`;
-      modalBackdrop.classList.add("open");
-      contentInput.focus();
-      contentInput.setSelectionRange(0, 0);
+Atlasul trebuie să devină un manual viu pentru programarea FTC, ușor de înțeles și de extins.`
+      modalBackdrop.classList.add('open')
+      contentInput.focus()
+      contentInput.setSelectionRange(0, 0)
     }
 
     function openModal(mode) {
-      modalMode = mode;
-      modalBackdrop.classList.add("open");
-      if (mode === "node") {
-        nodeFields.style.display = "grid";
-        nodeContentField.style.display = "block";
-        relationTargetField.style.display = "none";
-        relationLabelField.style.display = "none";
+      modalMode = mode
+      setModalModeUi(mode)
+      modalBackdrop.classList.add('open')
+
+      if (mode === 'node' || mode === 'tutorial') {
+        nodeFields.style.display = mode === 'tutorial' ? 'none' : 'grid'
+        nodeContentField.style.display = 'block'
+        relationTargetField.style.display = 'none'
+        relationLabelField.style.display = 'none'
       } else {
-        nodeFields.style.display = "none";
-        nodeContentField.style.display = "none";
-        relationTargetField.style.display = "block";
-        relationLabelField.style.display = "block";
+        nodeFields.style.display = 'none'
+        nodeContentField.style.display = 'none'
+        relationTargetField.style.display = 'block'
+        relationLabelField.style.display = 'block'
       }
     }
 
     function closeModal() {
-      modalBackdrop.classList.remove("open");
-      editingId = null;
+      modalBackdrop.classList.remove('open')
+      editingId = null
+      setModalModeUi('node')
     }
 
     function openCreate() {
-      editingId = null;
-      modalTitle.textContent = "Creează nod";
-      modalSubtitle.textContent = "Adaugi un titlu, o categorie și explicația completă. Nodul nou este pus automat într-un loc liber, fără suprapunere.";
-      titleInput.value = "New FTC Topic";
-      tagInput.value = "Beginner";
-      contentInput.value = `Scrie aici documentația completă.\n\nPoți explica simplu conceptul, de ce e important, cum îl folosiți pe robot și ce greșeli apar cel mai des.`;
-      openModal("node");
-      titleInput.focus();
+      if (!requireAuth()) return
+      editingId = null
+      modalTitle.textContent = 'Creează nod'
+      modalSubtitle.textContent = 'Adaugi un titlu, o categorie și explicația completă. Nodul nou este pus automat într-un loc liber, fără suprapunere.'
+      titleInput.value = 'New FTC Topic'
+      tagInput.value = 'Beginner'
+      contentInput.value = `Scrie aici documentația completă.
+
+Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot și ce greșeli apar cel mai des.`
+      openModal('node')
+      titleInput.focus()
     }
 
     function openEdit(id) {
-      const node = findNode(id);
-      if (!node) return;
-      editingId = id;
-      modalTitle.textContent = "Editează nod";
-      modalSubtitle.textContent = "Modifici titlul, categoria și documentația, iar schimbările se văd imediat în hartă și în panoul de detalii.";
-      titleInput.value = node.title;
-      tagInput.value = node.tag;
-      contentInput.value = node.content;
-      openModal("node");
-      titleInput.focus();
+      if (!requireAuth()) return
+      const node = findNode(id)
+      if (!node) return
+
+      editingId = id
+      modalTitle.textContent = 'Editează nod'
+      modalSubtitle.textContent = 'Modifici titlul, categoria și documentația, iar schimbările se văd imediat în hartă și în panoul de detalii.'
+      titleInput.value = node.title
+      tagInput.value = node.tag
+      contentInput.value = node.content
+      openModal('node')
+      titleInput.focus()
     }
 
     function openRelationCreate(sourceId, targetId) {
-      const source = findNode(sourceId);
-      const target = findNode(targetId);
-      if (!source || !target) return;
-      editingId = null;
-      relationDraft = { sourceId, targetId, label: "" };
-      modalTitle.textContent = "Creează relație";
-      modalSubtitle.textContent = "Conexiunea este reală și editabilă. Poți să-i dai o etichetă clară, ca să aibă sens vizual și logic.";
-      relationSummary.innerHTML = `<strong>${escapeHtml(source.title)}</strong> → <strong>${escapeHtml(target.title)}</strong>`;
-      relationLabelInput.value = "";
-      openModal("relation");
-      relationLabelInput.focus();
+      if (!requireAuth()) return
+      const source = findNode(sourceId)
+      const target = findNode(targetId)
+      if (!source || !target) return
+
+      editingId = null
+      relationDraft = { sourceId, targetId, label: '' }
+      modalTitle.textContent = 'Creează relație'
+      modalSubtitle.textContent = 'Conexiunea este reală și editabilă. Poți să-i dai o etichetă clară, ca să aibă sens vizual și logic.'
+      relationSummary.innerHTML = `<strong>${escapeHtml(source.title)}</strong> → <strong>${escapeHtml(target.title)}</strong>`
+      relationLabelInput.value = ''
+      openModal('relation')
+      relationLabelInput.focus()
     }
 
     function openRelationEdit(sourceId, relationIndex) {
-      const source = findNode(sourceId);
-      const relation = source?.links?.[relationIndex];
-      const target = relation ? findNode(relation.targetId) : null;
-      if (!source || !relation || !target) return;
-      editingId = relationIndex;
-      relationDraft = { sourceId, targetId: relation.targetId, label: relation.label || "" };
-      modalTitle.textContent = "Editează relație";
-      modalSubtitle.textContent = "Schimbi eticheta fără să pierzi conexiunea dintre noduri.";
-      relationSummary.innerHTML = `<strong>${escapeHtml(source.title)}</strong> → <strong>${escapeHtml(target.title)}</strong>`;
-      relationLabelInput.value = relation.label || "";
-      openModal("relation");
-      relationLabelInput.focus();
+      if (!requireAuth()) return
+
+      const source = findNode(sourceId)
+      const relation = source?.links?.[relationIndex]
+      const target = relation ? findNode(relation.targetId) : null
+      if (!source || !relation || !target) return
+
+      editingId = relationIndex
+      relationDraft = { sourceId, targetId: relation.targetId, label: relation.label || '' }
+      modalTitle.textContent = 'Editează relație'
+      modalSubtitle.textContent = 'Schimbi eticheta fără să pierzi conexiunea dintre noduri.'
+      relationSummary.innerHTML = `<strong>${escapeHtml(source.title)}</strong> → <strong>${escapeHtml(target.title)}</strong>`
+      relationLabelInput.value = relation.label || ''
+      openModal('relation')
+      relationLabelInput.focus()
     }
 
-    function saveModal() {
-      if (modalMode === "node") {
-        saveNode();
-      } else if (modalMode === "relation") {
-        saveRelation();
+    async function saveModal() {
+      if (modalMode === 'node') {
+        await saveNode()
+      } else if (modalMode === 'relation') {
+        await saveRelation()
       } else {
-        closeModal();
+        closeModal()
       }
     }
 
-    function saveNode() {
-      const title = titleInput.value.trim() || "Untitled Node";
-      pushHistory();
-      const tag = tagInput.value;
-      const content = contentInput.value.trim() || "Fără documentație încă.";
+    async function saveNode() {
+      if (!requireAuth()) return
 
-      if (editingId == null) {
-        const newId = Date.now();
-        const startPos = findNearestFreeSpot(newId, WORLD_WIDTH * 0.5 - NODE_WIDTH / 2, WORLD_HEIGHT * 0.5 - NODE_HEIGHT / 2);
-        nodes.push({ id: newId, title, tag, content, x: startPos.x, y: startPos.y, links: [] });
-        selectedId = newId;
-      } else {
-        const node = findNode(editingId);
-        if (!node) return;
-        node.title = title;
-        node.tag = tag;
-        node.content = content;
-        selectedId = node.id;
-      }
-      detailOpen = true;
-      persist();
-      closeModal();
-      renderAll();
-    }
+      const title = titleInput.value.trim() || 'Untitled Node'
+      const tag = tagInput.value
+      const content = contentInput.value.trim() || 'Fără documentație încă.'
+      pushHistory()
 
-    function saveRelation() {
-      const label = relationLabelInput.value.trim() || "relație";
-      pushHistory();
-      const source = findNode(relationDraft.sourceId);
-      if (!source) return;
-      const existingIndex = source.links.findIndex(link => link.targetId === relationDraft.targetId);
-      if (editingId == null) {
-        if (existingIndex >= 0) {
-          source.links[existingIndex].label = label;
+      try {
+        if (editingId == null) {
+          const newId = generateNodeId()
+          const startPos = findNearestFreeSpot(newId, WORLD_WIDTH * 0.5 - NODE_WIDTH / 2, WORLD_HEIGHT * 0.5 - NODE_HEIGHT / 2)
+          const newNode = { id: newId, title, tag, content, x: startPos.x, y: startPos.y, links: [] }
+          nodes.push(newNode)
+          await createNodeRemote(newNode)
+          selectedId = newId
         } else {
-          source.links.push({ targetId: relationDraft.targetId, label });
+          const node = findNode(editingId)
+          if (!node) return
+
+          node.title = title
+          node.tag = tag
+          node.content = content
+          await updateNodeRemote(node)
+          selectedId = node.id
         }
-      } else {
-        source.links[editingId].label = label;
+
+        detailOpen = true
+        saveCachedNodes()
+        closeModal()
+        renderAll()
+      } catch (error) {
+        alert(error.message || 'Eroare la salvare.')
+        await fetchAllData()
       }
-      selectedId = source.id;
-      detailOpen = true;
-      persist();
-      closeModal();
-      renderAll();
     }
 
-    function deleteSelected() {
-      const node = selectedNode();
-      if (!node) return;
-      pushHistory();
-      nodes = nodes
-        .filter(n => n.id !== node.id)
-        .map(n => ({
-          ...n,
-          links: n.links.filter(link => link.targetId !== node.id)
-        }));
-      selectedId = nodes[0]?.id ?? null;
-      detailOpen = !!selectedId;
-      relationMode = { active: false, sourceId: null };
-      persist();
-      renderAll();
+    async function saveRelation() {
+      if (!requireAuth()) return
+
+      const label = relationLabelInput.value.trim() || 'relație'
+      pushHistory()
+
+      const source = findNode(relationDraft.sourceId)
+      if (!source) return
+
+      try {
+        const existingIndex = source.links.findIndex(link => Number(link.targetId) === Number(relationDraft.targetId))
+
+        if (editingId == null) {
+          if (existingIndex >= 0) {
+            source.links[existingIndex].label = label
+          } else {
+            source.links.push({ targetId: Number(relationDraft.targetId), label })
+          }
+        } else {
+          source.links[editingId].label = label
+        }
+
+        await upsertEdgeRemote(relationDraft.sourceId, relationDraft.targetId, label)
+        selectedId = source.id
+        detailOpen = true
+        saveCachedNodes()
+        closeModal()
+        renderAll()
+      } catch (error) {
+        alert(error.message || 'Eroare la salvarea relației.')
+        await fetchAllData()
+      }
     }
 
-    function removeRelation(sourceId, relationIndex) {
-      const source = findNode(sourceId);
-      if (!source || !source.links[relationIndex]) return;
-      pushHistory();
-      source.links.splice(relationIndex, 1);
-      persist();
-      renderAll();
+    async function deleteSelected() {
+      const node = selectedNode()
+      if (!node) return
+      if (!requireAuth()) return
+
+      pushHistory()
+
+      try {
+        await deleteEdgesForNodeRemote(node.id)
+        await deleteNodeRemote(node.id)
+
+        nodes = nodes
+          .filter(n => n.id !== node.id)
+          .map(n => ({
+            ...n,
+            links: n.links.filter(link => Number(link.targetId) !== Number(node.id))
+          }))
+
+        selectedId = nodes[0]?.id ?? null
+        detailOpen = !!selectedId
+        relationMode = { active: false, sourceId: null }
+        saveCachedNodes()
+        renderAll()
+      } catch (error) {
+        alert(error.message || 'Eroare la ștergere.')
+        await fetchAllData()
+      }
+    }
+
+    async function removeRelation(sourceId, relationIndex) {
+      const source = findNode(sourceId)
+      if (!source || !source.links[relationIndex]) return
+      if (!requireAuth()) return
+
+      pushHistory()
+
+      const targetId = source.links[relationIndex].targetId
+
+      try {
+        await deleteEdgeRemote(sourceId, targetId)
+        source.links.splice(relationIndex, 1)
+        saveCachedNodes()
+        renderAll()
+      } catch (error) {
+        alert(error.message || 'Eroare la ștergerea relației.')
+        await fetchAllData()
+      }
     }
 
     function activateRelationMode(sourceId = selectedId || null) {
-      relationMode = { active: true, sourceId: sourceId || null };
-      detailOpen = false;
-      renderAll();
+      if (!requireAuth()) return
+      relationMode = { active: true, sourceId: sourceId || null }
+      detailOpen = false
+      renderAll()
     }
 
     function deactivateRelationMode(renderNow = true) {
-      relationMode = { active: false, sourceId: null };
-      if (renderNow) renderAll();
+      relationMode = { active: false, sourceId: null }
+      if (renderNow) renderAll()
     }
 
     function handleRelationNodeClick(targetId) {
-      if (!relationMode.active) return;
+      if (!relationMode.active) return
 
-      const sourceId = relationMode.sourceId;
+      const sourceId = relationMode.sourceId
 
       if (!sourceId) {
-        relationMode.sourceId = targetId;
-        selectedId = targetId;
-        renderAll();
-        return;
+        relationMode.sourceId = targetId
+        selectedId = targetId
+        renderAll()
+        return
       }
 
-      if (sourceId === targetId) {
-        selectedId = sourceId;
-        renderAll();
-        return;
+      if (Number(sourceId) === Number(targetId)) {
+        selectedId = sourceId
+        renderAll()
+        return
       }
 
-      const source = findNode(sourceId);
+      const source = findNode(sourceId)
       if (!source) {
-        deactivateRelationMode();
-        return;
+        deactivateRelationMode()
+        return
       }
 
-      let relationIndex = source.links.findIndex(link => link.targetId === targetId);
+      const relationIndex = source.links.findIndex(link => Number(link.targetId) === Number(targetId))
+      selectedId = sourceId
+      deactivateRelationMode(false)
+
       if (relationIndex === -1) {
-        pushHistory();
-        source.links.push({ targetId, label: "legat de" });
-        relationIndex = source.links.length - 1;
+        detailOpen = false
+        renderAll()
+        openRelationCreate(sourceId, targetId)
+        return
       }
 
-      selectedId = sourceId;
-      detailOpen = true;
-      persist();
-      deactivateRelationMode(false);
-      renderAll();
-      openRelationEdit(sourceId, relationIndex);
+      detailOpen = true
+      renderAll()
+      openRelationEdit(sourceId, relationIndex)
     }
 
-    function autoArrange() {
-      pushHistory();
-      const initialMap = new Map(initialNodes.map(node => [node.id, { x: node.x, y: node.y }]));
+    async function autoArrange() {
+      if (!requireAuth()) return
+      pushHistory()
+
+      const initialMap = new Map(initialNodes.map(node => [Number(node.id), { x: node.x, y: node.y }]))
+
       nodes.forEach(node => {
-        const initialPos = initialMap.get(node.id);
+        const initialPos = initialMap.get(Number(node.id))
         if (initialPos) {
-          node.x = initialPos.x;
-          node.y = initialPos.y;
+          node.x = initialPos.x
+          node.y = initialPos.y
         }
-      });
-      ensureNodePositions();
-      persist();
-      fitView();
-      renderAll();
-    }
+      })
 
-    function getWorldPoint(clientX, clientY) {
-      return {
-        x: (clientX - view.x) / view.scale,
-        y: (clientY - view.y) / view.scale,
-      };
-    }
+      ensureNodePositions()
+      saveCachedNodes()
 
-    function applyNodeFlex(el, dx, dy) {
-      const nx = clamp(dx / 180, -1, 1);
-      const ny = clamp(dy / 180, -1, 1);
-      const absX = Math.abs(nx);
-      const absY = Math.abs(ny);
-      const scaleX = 1 + absX * 0.16 - absY * 0.05;
-      const scaleY = 1 + absY * 0.16 - absX * 0.05;
-      const skewX = nx * 6.5;
-      const skewY = ny * 4.25;
-      const rotate = nx * 2.6;
-      const lift = -Math.min(12, Math.hypot(dx, dy) * 0.03);
-      const radiusTopLeft = 18 + Math.max(0, -nx) * 18 + absY * 7;
-      const radiusTopRight = 18 + Math.max(0, nx) * 18 + absY * 5;
-      const radiusBottomRight = 18 + Math.max(0, nx) * 12 + Math.max(0, ny) * 16;
-      const radiusBottomLeft = 18 + Math.max(0, -nx) * 12 + Math.max(0, ny) * 16;
-
-      el.style.setProperty("--drag-scale-x", scaleX.toFixed(3));
-      el.style.setProperty("--drag-scale-y", scaleY.toFixed(3));
-      el.style.setProperty("--drag-skew-x", `${skewX.toFixed(2)}deg`);
-      el.style.setProperty("--drag-skew-y", `${skewY.toFixed(2)}deg`);
-      el.style.setProperty("--drag-rotate", `${rotate.toFixed(2)}deg`);
-      el.style.setProperty("--drag-lift", `${lift.toFixed(2)}px`);
-      el.style.borderRadius = `${radiusTopLeft.toFixed(1)}px ${radiusTopRight.toFixed(1)}px ${radiusBottomRight.toFixed(1)}px ${radiusBottomLeft.toFixed(1)}px / ${(18 + absY * 16).toFixed(1)}px ${(18 + absX * 10).toFixed(1)}px ${(18 + absY * 10).toFixed(1)}px ${(18 + absX * 16).toFixed(1)}px`;
-    }
-
-    function resetNodeFlex(el) {
-      el.style.setProperty("--drag-scale-x", "1");
-      el.style.setProperty("--drag-scale-y", "1");
-      el.style.setProperty("--drag-skew-x", "0deg");
-      el.style.setProperty("--drag-skew-y", "0deg");
-      el.style.setProperty("--drag-rotate", "0deg");
-      el.style.setProperty("--drag-lift", "0px");
-      el.style.borderRadius = "18px";
-      el.classList.remove("dragging");
-      el.classList.remove("edge-flexing");
-    }
-
-    function applyEdgeFlex(el, side, dx, dy) {
-      let primary = 0;
-      let tangent = 0;
-
-      if (side === "right") {
-        primary = dx;
-        tangent = dy;
-      } else if (side === "left") {
-        primary = -dx;
-        tangent = dy;
-      } else if (side === "bottom") {
-        primary = dy;
-        tangent = dx;
-      } else {
-        primary = -dy;
-        tangent = dx;
+      try {
+        await Promise.all(nodes.map(node => updateNodeRemote(node)))
+      } catch (error) {
+        alert(error.message || 'Eroare la resetarea pozițiilor.')
+        await fetchAllData()
+        return
       }
 
-      const p = clamp(primary / 200, -1, 1);
-      const t = clamp(tangent / 180, -1, 1);
-      let scaleX = 1;
-      let scaleY = 1;
-      let skewX = 0;
-      let skewY = 0;
-      let rotate = 0;
-      let r1 = 18, r2 = 18, r3 = 18, r4 = 18;
-
-      if (side === "left" || side === "right") {
-        scaleX = 1 + p * 0.18;
-        scaleY = 1 - p * 0.06 + Math.abs(t) * 0.06;
-        skewY = t * 8 * (side === "right" ? 1 : -1);
-        rotate = t * 3 * (side === "right" ? 1 : -1);
-        if (side === "right") {
-          r2 += Math.max(0, p) * 24 + Math.abs(t) * 8;
-          r3 += Math.max(0, p) * 24 + Math.abs(t) * 10;
-          r1 += Math.max(0, -p) * 12;
-          r4 += Math.max(0, -p) * 12;
-        } else {
-          r1 += Math.max(0, p) * 24 + Math.abs(t) * 8;
-          r4 += Math.max(0, p) * 24 + Math.abs(t) * 10;
-          r2 += Math.max(0, -p) * 12;
-          r3 += Math.max(0, -p) * 12;
-        }
-      } else {
-        scaleY = 1 + p * 0.18;
-        scaleX = 1 - p * 0.06 + Math.abs(t) * 0.06;
-        skewX = t * 8 * (side === "bottom" ? 1 : -1);
-        rotate = t * 2.4 * (side === "bottom" ? 1 : -1);
-        if (side === "bottom") {
-          r3 += Math.max(0, p) * 24 + Math.abs(t) * 8;
-          r4 += Math.max(0, p) * 24 + Math.abs(t) * 10;
-          r1 += Math.max(0, -p) * 12;
-          r2 += Math.max(0, -p) * 12;
-        } else {
-          r1 += Math.max(0, p) * 24 + Math.abs(t) * 8;
-          r2 += Math.max(0, p) * 24 + Math.abs(t) * 10;
-          r3 += Math.max(0, -p) * 12;
-          r4 += Math.max(0, -p) * 12;
-        }
-      }
-
-      const lift = -Math.min(10, Math.abs(primary) * 0.04 + Math.abs(tangent) * 0.01);
-      el.style.setProperty("--drag-scale-x", scaleX.toFixed(3));
-      el.style.setProperty("--drag-scale-y", scaleY.toFixed(3));
-      el.style.setProperty("--drag-skew-x", `${skewX.toFixed(2)}deg`);
-      el.style.setProperty("--drag-skew-y", `${skewY.toFixed(2)}deg`);
-      el.style.setProperty("--drag-rotate", `${rotate.toFixed(2)}deg`);
-      el.style.setProperty("--drag-lift", `${lift.toFixed(2)}px`);
-      el.style.borderRadius = `${r1.toFixed(1)}px ${r2.toFixed(1)}px ${r3.toFixed(1)}px ${r4.toFixed(1)}px`;
-      el.classList.add("edge-flexing");
+      fitView()
+      renderAll()
     }
 
-    let clickState = { id: null, time: 0 };
-    let panState = null;
-    let introCanClose = introDismissed;
-    let introArmTimer = null;
-    mapSurface.addEventListener("pointerdown", event => {
-      if (event.target.closest(".node") || event.target.closest(".floating-tools") || event.target.closest(".detail-panel") || event.target.closest(".modal")) return;
-      panState = { startX: event.clientX, startY: event.clientY, x: view.x, y: view.y };
-      mapSurface.classList.add("panning");
-    });
+    mapSurface.addEventListener('pointerdown', event => {
+      if (
+        event.target.closest('.node') ||
+        event.target.closest('.floating-tools') ||
+        event.target.closest('.detail-panel') ||
+        event.target.closest('.modal')
+      ) return
 
-    window.addEventListener("pointermove", event => {
-      if (!panState) return;
-      view.x = panState.x + (event.clientX - panState.startX);
-      view.y = panState.y + (event.clientY - panState.startY);
-      applyView();
-    });
+      panState = { startX: event.clientX, startY: event.clientY, x: view.x, y: view.y }
+      mapSurface.classList.add('panning')
+    })
 
-    window.addEventListener("pointerup", () => {
-      if (!panState) return;
-      panState = null;
-      mapSurface.classList.remove("panning");
-    });
+    window.addEventListener('pointermove', event => {
+      if (!panState) return
+      view.x = panState.x + (event.clientX - panState.startX)
+      view.y = panState.y + (event.clientY - panState.startY)
+      applyView()
+    })
 
-    mapSurface.addEventListener("wheel", event => {
-      event.preventDefault();
-      const delta = event.deltaY > 0 ? 0.92 : 1.08;
-      setScale(view.scale * delta, event.clientX, event.clientY);
-    }, { passive: false });
+    window.addEventListener('pointerup', () => {
+      if (!panState) return
+      panState = null
+      mapSurface.classList.remove('panning')
+    })
 
-    createBtn.addEventListener("click", openCreate);
-    editBtn.addEventListener("click", () => { const node = selectedNode(); if (node) openEdit(node.id); });
-    deleteBtn.addEventListener("click", deleteSelected);
-    relationBtn.addEventListener("click", () => {
-      if (relationMode.active) deactivateRelationMode();
-      else activateRelationMode();
-    });
-    undoBtn.addEventListener("click", undo);
-    redoBtn.addEventListener("click", redo);
+    mapSurface.addEventListener('wheel', event => {
+      event.preventDefault()
+      const delta = event.deltaY > 0 ? 0.92 : 1.08
+      setScale(view.scale * delta, event.clientX, event.clientY)
+    }, { passive: false })
 
-    zoomInBtn.addEventListener("click", () => setScale(view.scale * 1.12));
-    zoomOutBtn.addEventListener("click", () => setScale(view.scale * 0.88));
-    fitBtn.addEventListener("click", fitView);
-    arrangeBtn.addEventListener("click", autoArrange);
-    centerBtn.addEventListener("click", () => centerOnNode(selectedNode()));
-    tutorialBtn.addEventListener("click", openTutorial);
-    resetViewBtn.addEventListener("click", () => {
-      view = { x: -120, y: -80, scale: 1 };
-      applyView();
-      fitView();
-    });
+    createBtn.addEventListener('click', openCreate)
+    editBtn.addEventListener('click', () => {
+      const node = selectedNode()
+      if (node) openEdit(node.id)
+    })
+    deleteBtn.addEventListener('click', () => {
+      deleteSelected().catch(error => alert(error.message || 'Eroare la ștergere.'))
+    })
+    relationBtn.addEventListener('click', () => {
+      if (relationMode.active) deactivateRelationMode()
+      else activateRelationMode()
+    })
+    undoBtn.addEventListener('click', () => {
+      undo().catch(error => alert(error.message || 'Eroare la undo.'))
+    })
+    redoBtn.addEventListener('click', () => {
+      redo().catch(error => alert(error.message || 'Eroare la redo.'))
+    })
 
-    searchInput.addEventListener("input", event => {
-      searchQuery = event.target.value;
-      renderAll();
-    });
+    zoomInBtn.addEventListener('click', () => setScale(view.scale * 1.12))
+    zoomOutBtn.addEventListener('click', () => setScale(view.scale * 0.88))
+    fitBtn.addEventListener('click', fitView)
+    arrangeBtn.addEventListener('click', () => {
+      autoArrange().catch(error => alert(error.message || 'Eroare la resetarea pozițiilor.'))
+    })
+    centerBtn.addEventListener('click', () => centerOnNode(selectedNode()))
+    tutorialBtn.addEventListener('click', openTutorial)
+    resetViewBtn.addEventListener('click', () => {
+      view = { ...DEFAULT_VIEW }
+      applyView()
+      fitView()
+    })
 
-    toolsHeader.addEventListener("click", event => {
-      if (event.target === collapseBtn) return;
-      togglePanel();
-    });
+    loginBtn.addEventListener('click', () => {
+      sendMagicLink().catch(error => alert(error.message || 'Eroare la login.'))
+    })
 
-    collapseBtn.addEventListener("click", event => {
-      event.stopPropagation();
-      togglePanel();
-    });
+    logoutBtn.addEventListener('click', () => {
+      signOutUser().catch(error => alert(error.message || 'Eroare la logout.'))
+    })
+
+    searchInput.addEventListener('input', event => {
+      searchQuery = event.target.value
+      renderAll()
+    })
+
+    toolsHeader.addEventListener('click', event => {
+      if (event.target === collapseBtn) return
+      togglePanel()
+    })
+
+    collapseBtn.addEventListener('click', event => {
+      event.stopPropagation()
+      togglePanel()
+    })
 
     function togglePanel(force) {
-      const collapsed = typeof force === "boolean" ? force : !toolPanel.classList.contains("collapsed");
-      toolPanel.classList.toggle("collapsed", collapsed);
-      collapseBtn.textContent = collapsed ? "+" : "–";
-      localStorage.setItem(PANEL_KEY, collapsed ? "1" : "0");
+      const collapsed = typeof force === 'boolean'
+        ? force
+        : !toolPanel.classList.contains('collapsed')
+
+      toolPanel.classList.toggle('collapsed', collapsed)
+      collapseBtn.textContent = collapsed ? '+' : '–'
+      localStorage.setItem(CACHE_KEYS.panel, collapsed ? '1' : '0')
     }
 
-    closeModalBtn.addEventListener("click", closeModal);
-    cancelBtn.addEventListener("click", closeModal);
-    saveBtn.addEventListener("click", saveModal);
-    modalBackdrop.addEventListener("click", event => { if (event.target === modalBackdrop) closeModal(); });
+    closeModalBtn.addEventListener('click', closeModal)
+    cancelBtn.addEventListener('click', closeModal)
+    saveBtn.addEventListener('click', () => {
+      saveModal().catch(error => alert(error.message || 'Eroare la salvare.'))
+    })
+    modalBackdrop.addEventListener('click', event => {
+      if (event.target === modalBackdrop) closeModal()
+    })
 
-    function dismissIntro(force = false) {
-      if (!introDismissed && !force && !introCanClose) return;
-      introScreen.classList.add("hidden");
-      introScreen.classList.add("ready");
-      localStorage.setItem(INTRO_KEY, "1");
-      introDismissed = true;
-      introCanClose = true;
-      if (introArmTimer) {
-        window.clearTimeout(introArmTimer);
-        introArmTimer = null;
-      }
+    function dismissIntro() {
+      introScreen.classList.add('hidden')
+      localStorage.setItem(CACHE_KEYS.intro, '1')
+      introDismissed = true
     }
 
-    introScreen.addEventListener("pointerdown", () => dismissIntro());
-    enterBtn.addEventListener("click", event => { event.stopPropagation(); dismissIntro(true); });
+    introScreen.addEventListener('click', dismissIntro)
+    enterBtn.addEventListener('click', event => {
+      event.stopPropagation()
+      dismissIntro()
+    })
 
-    window.addEventListener("keydown", event => {
-      const tag = document.activeElement?.tagName;
-      const isTyping = tag === "INPUT" || tag === "TEXTAREA" || document.activeElement?.isContentEditable;
+    window.addEventListener('keydown', event => {
+      const tag = document.activeElement?.tagName
+      const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable
 
-      if (!introDismissed) {
-        if (!["Shift", "Control", "Alt", "Meta"].includes(event.key)) {
-          dismissIntro(event.key === "Escape" || event.key === "Enter" || event.key === " ");
-        }
-        return;
+      if (!isTyping && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !event.shiftKey) {
+        event.preventDefault()
+        undo().catch(error => alert(error.message || 'Eroare la undo.'))
+        return
       }
 
-      if (!isTyping && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !event.shiftKey) {
-        event.preventDefault();
-        undo();
-        return;
+      if (
+        !isTyping &&
+        (
+          ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') ||
+          ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'z')
+        )
+      ) {
+        event.preventDefault()
+        redo().catch(error => alert(error.message || 'Eroare la redo.'))
+        return
       }
 
-      if (!isTyping && (((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") || ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "z"))) {
-        event.preventDefault();
-        redo();
-        return;
+      if (event.key === 'Escape') {
+        if (!introDismissed) dismissIntro()
+        else if (modalBackdrop.classList.contains('open')) closeModal()
+        else if (relationMode.active) deactivateRelationMode()
+        return
       }
 
-      if (event.key === "Escape") {
-        if (modalBackdrop.classList.contains("open")) closeModal();
-        else if (relationMode.active) deactivateRelationMode();
-      }
-    });
+      if (!introDismissed) dismissIntro()
+    })
 
-    if (localStorage.getItem(PANEL_KEY) === "1") togglePanel(true);
-    if (introDismissed) {
-      introScreen.classList.add("hidden");
-      introScreen.classList.add("ready");
-    } else {
-      introArmTimer = window.setTimeout(() => {
-        introCanClose = true;
-        introScreen.classList.add("ready");
-      }, 950);
-    }
+    if (localStorage.getItem(CACHE_KEYS.panel) === '1') togglePanel(true)
+    if (introDismissed) introScreen.classList.add('hidden')
 
-    window.addEventListener("resize", () => {
+    window.addEventListener('resize', () => {
       nodes.forEach(node => {
-        const pos = findNearestFreeSpot(node.id, clamp(node.x, 20, WORLD_WIDTH - NODE_WIDTH - 20), clamp(node.y, 20, WORLD_HEIGHT - NODE_HEIGHT - 20));
-        node.x = pos.x;
-        node.y = pos.y;
-      });
-      persist();
-      renderAll();
-      applyView();
-    });
+        const pos = findNearestFreeSpot(
+          node.id,
+          clamp(node.x, 20, WORLD_WIDTH - NODE_WIDTH - 20),
+          clamp(node.y, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
+        )
+        node.x = pos.x
+        node.y = pos.y
+      })
+      saveCachedNodes()
+      renderAll()
+      applyView()
+    })
 
-    ensureNodePositions();
-    applyView();
-    fitView();
-    renderAll();
-    persistHistoryStacks();
+    supabase.auth.onAuthStateChange(async (_event, session) => {
+      currentUser = session?.user || null
+      canEdit = isAllowedEditor(currentUser?.email)
+      updateAuthUI()
+
+      try {
+        await fetchAllData()
+      } catch (err) {
+        console.error('Supabase reload failed:', err)
+      }
+    })
+
+    ensureNodePositions()
+    applyView()
+    fitView()
+    renderAll()
+    saveStacks()
+
+    await refreshSession()
+
+    try {
+      await fetchAllData()
+    } catch (err) {
+      console.error('Supabase load failed:', err)
+      nodes = loadCachedNodes()
+      ensureNodePositions()
+      renderAll()
+    }
   </script>
 </body>
 </html>
