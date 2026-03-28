@@ -250,10 +250,6 @@ const centerBtn = document.getElementById('centerBtn')
 const tutorialBtn = document.getElementById('tutorialBtn')
 const resetViewBtn = document.getElementById('resetViewBtn')
 const fitSelectionBtn = document.getElementById('fitSelectionBtn')
-const moveUpBtn = document.getElementById('moveUpBtn')
-const moveDownBtn = document.getElementById('moveDownBtn')
-const moveLeftBtn = document.getElementById('moveLeftBtn')
-const moveRightBtn = document.getElementById('moveRightBtn')
 const nodeCount = document.getElementById('nodeCount')
 const selectedStrip = document.getElementById('selectedStrip')
 const modeStrip = document.getElementById('modeStrip')
@@ -533,8 +529,7 @@ function ensureNodePositions() {
 }
 
 function generateNodeId() {
-  const maxId = nodes.reduce((max, node) => Math.max(max, Number(node.id) || 0), 0)
-  return maxId + 1
+  return Date.now()
 }
 
 function flattenEdges(nodesArray) {
@@ -759,7 +754,7 @@ async function fetchAllData({ allowSeed = true } = {}) {
 }
 
 async function createNodeRemote(node) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('atlas_nodes')
     .insert({
       id: Number(node.id),
@@ -770,8 +765,11 @@ async function createNodeRemote(node) {
       y: Number(node.y),
       content: node.content
     })
+    .select('id, title')
+    .single()
 
   if (error) throw error
+  return data
 }
 
 async function updateNodeRemote(node) {
@@ -852,6 +850,33 @@ async function deleteEdgeRemote(sourceId, targetId) {
   return data
 }
 
+async function nudgeSelectedNode(dx, dy) {
+  if (!canEdit) return
+
+  const node = selectedNode()
+  if (!node) return
+
+  pushHistory()
+
+  const desiredX = clamp(node.x + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20)
+  const desiredY = clamp(node.y + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
+  const free = findNearestFreeSpot(node.id, desiredX, desiredY)
+
+  node.x = free.x
+  node.y = free.y
+
+  saveCachedNodes()
+  renderAll()
+
+  try {
+    await updateNodeRemote(node)
+  } catch (error) {
+    console.error('Move node failed:', error)
+    alert(error.message || 'Eroare la mutarea nodului.')
+    await fetchAllData()
+  }
+}
+
 function updateAuthUI() {
   if (!currentUser) {
     authStatusBox.innerHTML = 'Neautentificat. Poți vedea atlasul, dar editarea este permisă doar colaboratorilor aprobați.'
@@ -869,10 +894,6 @@ function updateAuthUI() {
   logoutBtn.disabled = !currentUser
   editEdgeBtn.disabled = !selectedEdge || !canEdit
   deleteEdgeBtn.disabled = !selectedEdge || !canEdit
-  moveUpBtn.disabled = !selectedNode() || !canEdit
-  moveDownBtn.disabled = !selectedNode() || !canEdit
-  moveLeftBtn.disabled = !selectedNode() || !canEdit
-  moveRightBtn.disabled = !selectedNode() || !canEdit
 
   updateUndoRedoButtons()
 }
@@ -1524,29 +1545,29 @@ async function saveNode() {
 
   try {
     if (editingId == null) {
-      const newId = generateNodeId()
-      const startPos = findNearestFreeSpot(newId, WORLD_WIDTH * 0.5 - NODE_WIDTH / 2, WORLD_HEIGHT * 0.5 - NODE_HEIGHT / 2)
-      const newNode = { id: newId, title, tag, content, x: startPos.x, y: startPos.y, links: [] }
-      await createNodeRemote(newNode)
-      nodes.push(newNode)
-      selectedId = newId
-      clearEdgeSelection()
-    } else {
-      const node = findNode(editingId)
-      if (!node) return
+        const newId = generateNodeId()
+         const startPos = findNearestFreeSpot(
+            newId,
+            WORLD_WIDTH * 0.5 - NODE_WIDTH / 2,
+            WORLD_HEIGHT * 0.5 - NODE_HEIGHT / 2
+        )
 
-      const nextNode = {
-        ...node,
-        title,
-        tag,
-        content
-    }
-      await updateNodeRemote(nextNode)
-      node.title = nextNode.title
-      node.tag = nextNode.tag
-      node.content = nextNode.content
-      selectedId = node.id
-      clearEdgeSelection()
+        const newNode = {
+            id: newId,
+            title,
+            tag,
+            content,
+            x: startPos.x,
+            y: startPos.y,
+            links: []
+        }
+
+        const inserted = await createNodeRemote(newNode)
+        console.log('Created node in DB:', inserted)
+
+        nodes.push(newNode)
+        selectedId = newId
+        clearEdgeSelection()
     }
 
     detailOpen = true
@@ -1846,19 +1867,6 @@ resetViewBtn.addEventListener('click', () => {
 })
 tutorialBtn.addEventListener('click', openTutorial)
 fitSelectionBtn.addEventListener('click', fitCurrentSelection)
-
-moveUpBtn.addEventListener('click', () => {
-  nudgeSelectedNode(0, -12).catch(error => alert(error.message || 'Eroare la mutare.'))
-})
-moveDownBtn.addEventListener('click', () => {
-  nudgeSelectedNode(0, 12).catch(error => alert(error.message || 'Eroare la mutare.'))
-})
-moveLeftBtn.addEventListener('click', () => {
-  nudgeSelectedNode(-12, 0).catch(error => alert(error.message || 'Eroare la mutare.'))
-})
-moveRightBtn.addEventListener('click', () => {
-  nudgeSelectedNode(12, 0).catch(error => alert(error.message || 'Eroare la mutare.'))
-})
 
 loginBtn.addEventListener('click', () => {
   sendMagicLink().catch(error => alert(error.message || 'Eroare la login.'))
