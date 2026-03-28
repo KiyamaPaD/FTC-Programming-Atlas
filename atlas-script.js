@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log('ATLAS SCRIPT LOADED v4')
+console.log('ATLAS SCRIPT LOADED v7')
 
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
@@ -754,6 +754,8 @@ async function fetchAllData({ allowSeed = true } = {}) {
 }
 
 async function createNodeRemote(node) {
+  console.log('createNodeRemote start', node)
+
   const { data, error } = await supabase
     .from('atlas_nodes')
     .insert({
@@ -767,6 +769,8 @@ async function createNodeRemote(node) {
     })
     .select('id, title')
     .single()
+
+  console.log('createNodeRemote result', { data, error })
 
   if (error) throw error
   return data
@@ -1261,7 +1265,7 @@ function renderDetailPanel() {
     emptyPanel.style.display = 'none'
     editBtn.disabled = !node || !canEdit
     deleteBtn.disabled = !node || !canEdit
-    centerBtn.disabled = !node
+    if (centerBtn) centerBtn.disabled = !node
     return
   }
 
@@ -1320,7 +1324,7 @@ function renderDetailPanel() {
   emptyPanel.style.display = 'none'
   editBtn.disabled = !canEdit
   deleteBtn.disabled = !canEdit
-  centerBtn.disabled = false
+  if (centerBtn) centerBtn.disabled = false
 
   const detailAddRelationBtn = document.getElementById('detailAddRelationBtn')
   const detailEditBtn = document.getElementById('detailEditBtn')
@@ -1562,8 +1566,9 @@ async function saveNode() {
         links: []
       }
 
+      console.log('saveNode create start', newNode)
       const inserted = await createNodeRemote(newNode)
-      console.log('Created node in DB:', inserted)
+      console.log('saveNode create inserted', inserted)
 
       nodes.push(newNode)
       selectedId = newId
@@ -1579,6 +1584,7 @@ async function saveNode() {
         content
       }
 
+      console.log('saveNode edit start', nextNode)
       await updateNodeRemote(nextNode)
 
       node.title = nextNode.title
@@ -1594,7 +1600,7 @@ async function saveNode() {
     closeModal()
     renderAll()
   } catch (error) {
-    console.error('Save node failed:', error)
+    console.error('Save node failed FULL:', error)
     alert(error.message || 'Eroare la salvare.')
     await fetchAllData()
   }
@@ -1878,7 +1884,7 @@ fitBtn.addEventListener('click', fitView)
 arrangeBtn.addEventListener('click', () => {
   autoArrange().catch(error => alert(error.message || 'Eroare la resetarea pozițiilor.'))
 })
-centerBtn.addEventListener('click', () => centerOnNode(selectedNode()))
+centerBtn?.addEventListener('click', () => centerOnNode(selectedNode()))
 resetViewBtn.addEventListener('click', () => {
   view = { ...DEFAULT_VIEW }
   applyView()
