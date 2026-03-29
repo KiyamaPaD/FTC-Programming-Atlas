@@ -801,11 +801,19 @@ function requireAuth() {
 }
 
 async function refreshSession() {
-  const { data, error } = await supabase.auth.getUser()
-  currentUser = error ? null : (data.user || null)
+  const { data: sessionData } = await supabase.auth.getSession()
+  currentUser = sessionData?.session?.user || null
+
+  if (!currentUser) {
+    const { data, error } = await supabase.auth.getUser()
+    currentUser = error ? null : (data.user || null)
+  }
+
   canEdit = isAllowedEditor(currentUser?.email)
   updateAuthUI()
 }
+
+const CANONICAL_URL = 'https://ftcprogrammingatlas.netlify.app/'
 
 async function sendMagicLink() {
   const email = authEmailInput.value.trim()
@@ -814,18 +822,16 @@ async function sendMagicLink() {
     return
   }
 
-  const redirectTo = `${window.location.origin}${window.location.pathname}`
-
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
       shouldCreateUser: true,
-      emailRedirectTo: redirectTo
+      emailRedirectTo: CANONICAL_URL
     }
   })
 
   if (error) throw error
-  alert('Magic link trimis. Verifică email-ul și deschide link-ul pe aceeași adresă a site-ului.')
+  alert('Magic link trimis.')
 }
 
 async function signOutUser() {
