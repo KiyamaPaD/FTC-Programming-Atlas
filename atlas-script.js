@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log('ATLAS SCRIPT LOADED v7')
+console.log('ATLAS SCRIPT LOADED v9')
 
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
@@ -144,7 +144,7 @@ function deepCopy(obj) {
 }
 
 function loadCachedNodes() {
-  return deepCopy(initialNodes)
+  return []
 }
 
 function saveCachedNodes() {
@@ -1964,3 +1964,9 @@ try {
   console.error('Supabase load failed:', err)
   renderAll()
 }
+
+const { data: bootSession } = await supabase.auth.getSession()
+console.log('BOOT SESSION =', bootSession?.session)
+
+const { data: bootUser, error: bootUserError } = await supabase.auth.getUser()
+console.log('BOOT USER =', bootUser?.user, 'ERR =', bootUserError)
