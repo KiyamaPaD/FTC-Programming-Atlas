@@ -572,28 +572,7 @@ async function redo() {
 }
 
 async function seedInitialAtlas() {
-  const seedNodes = deepCopy(initialNodes)
-  const seedEdges = flattenEdges(seedNodes)
-
-  const { error: insertNodesError } = await supabase
-    .from('atlas_nodes')
-    .insert(seedNodes.map(node => ({
-      id: Number(node.id),
-      project_id: PROJECT_ID,
-      title: node.title,
-      tag: node.tag,
-      x: Number(node.x),
-      y: Number(node.y),
-      content: node.content
-    })))
-  if (insertNodesError) throw insertNodesError
-
-  if (seedEdges.length) {
-    const { error: insertEdgesError } = await supabase
-      .from('atlas_edges')
-      .insert(seedEdges)
-    if (insertEdgesError) throw insertEdgesError
-  }
+  return
 }
 
 async function fetchAllData({ allowSeed = true } = {}) {
@@ -615,11 +594,6 @@ async function fetchAllData({ allowSeed = true } = {}) {
   if (edgesError) throw edgesError
 
   if (!nodesData || nodesData.length === 0) {
-    if (allowSeed && canEdit) {
-        await seedInitialAtlas()
-        return fetchAllData({ allowSeed: false })
-    }
-
     nodes = []
     selectedId = null
     selectedEdge = null
