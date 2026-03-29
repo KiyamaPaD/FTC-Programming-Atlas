@@ -576,6 +576,7 @@ async function seedInitialAtlas() {
 }
 
 async function fetchAllData({ allowSeed = true } = {}) {
+  console.log('fetchAllData START')
   const { data: nodesData, error: nodesError } = await supabase
     .from('atlas_nodes')
     .select('*')
@@ -599,6 +600,7 @@ async function fetchAllData({ allowSeed = true } = {}) {
     selectedEdge = null
     detailOpen = false
     renderAll()
+    console.log('fetchAllData END', { nodesCount: nodes.length })
     return
   }
 
@@ -653,7 +655,7 @@ async function createNodeRemote(node) {
 }
 
 async function updateNodeRemote(node) {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('atlas_nodes')
     .update({
       title: node.title,
@@ -664,8 +666,11 @@ async function updateNodeRemote(node) {
     })
     .eq('project_id', PROJECT_ID)
     .eq('id', Number(node.id))
+    .select('id')
+    .maybeSingle()
 
   if (error) throw error
+  if (!data) throw new Error(`Nodul ${node.id} nu există în baza de date.`)
 }
 
 async function deleteNodeRemote(nodeId) {
@@ -1893,16 +1898,16 @@ window.addEventListener('resize', () => {
   applyView()
 })
 
-supabase.auth.onAuthStateChange(async (_event, session) => {
+supabase.auth.onAuthStateChange((_event, session) => {
   currentUser = session?.user || null
   canEdit = isAllowedEditor(currentUser?.email)
   updateAuthUI()
 
-  try {
-    await fetchAllData()
-  } catch (err) {
-    console.error('Supabase reload failed:', err)
-  }
+  setTimeout(() => {
+    fetchAllData().catch(err => {
+      console.error('Supabase reload failed:', err)
+    })
+  }, 0)
 })
 
 window.atlasDebug = {
