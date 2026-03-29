@@ -134,7 +134,3 @@ This project is useful for:
 ## Author
 
 Built by **Cristi** as part of my portfolio and as a practical documentation system for FTC programming education.
-
-## Live Project Link
-
-https://ftcprogrammingatlas.netlify.app
