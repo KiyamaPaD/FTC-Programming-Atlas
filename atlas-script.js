@@ -522,8 +522,9 @@ function flattenEdges(nodesArray) {
 }
 
 function updateUndoRedoButtons() {
-  undoBtn.disabled = true
-  redoBtn.disabled = true
+  refreshHistoryButtons().catch(err => {
+    console.error('refreshHistoryButtons failed:', err)
+  })
 }
 
 function snapshotState() {
@@ -564,11 +565,47 @@ async function syncRemoteState() {
 }
 
 async function undo() {
-  alert('Undo este dezactivat temporar. Varianta veche îți poate goli atlasul din Supabase.')
+  if (!canEdit) return
+
+  const { data, error } = await supabase.rpc('atlas_undo', {
+    p_project_id: PROJECT_ID
+  })
+
+  if (error) {
+    alert(error.message || 'Eroare la undo.')
+    return
+  }
+
+  if (!data?.ok) {
+    alert('Nu mai există nimic de făcut undo.')
+    await refreshHistoryButtons()
+    return
+  }
+
+  await fetchAllData()
+  await refreshHistoryButtons()
 }
 
 async function redo() {
-  alert('Redo este dezactivat temporar. Varianta veche îți poate goli atlasul din Supabase.')
+  if (!canEdit) return
+
+  const { data, error } = await supabase.rpc('atlas_redo', {
+    p_project_id: PROJECT_ID
+  })
+
+  if (error) {
+    alert(error.message || 'Eroare la redo.')
+    return
+  }
+
+  if (!data?.ok) {
+    alert('Nu mai există nimic de făcut redo.')
+    await refreshHistoryButtons()
+    return
+  }
+
+  await fetchAllData()
+  await refreshHistoryButtons()
 }
 
 async function seedInitialAtlas() {
@@ -600,6 +637,7 @@ async function fetchAllData({ allowSeed = true } = {}) {
     selectedEdge = null
     detailOpen = false
     renderAll()
+    await refreshHistoryButtons()
     console.log('fetchAllData END', { nodesCount: nodes.length })
     return
   }
@@ -634,6 +672,7 @@ async function fetchAllData({ allowSeed = true } = {}) {
 
   saveCachedNodes()
   renderAll()
+  await refreshHistoryButtons()
 }
 
 async function createNodeRemote(node) {
@@ -732,6 +771,7 @@ async function nudgeSelectedNode(dx, dy) {
   if (!node) return
 
   pushHistory()
+  const beforeNode = serializeNode(node)
 
   const desiredX = clamp(node.x + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20)
   const desiredY = clamp(node.y + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
@@ -745,6 +785,8 @@ async function nudgeSelectedNode(dx, dy) {
 
   try {
     await updateNodeRemote(node)
+    await recordHistory('node_update', beforeNode, serializeNode(node))
+    await refreshHistoryButtons()
   } catch (error) {
     console.error('Move node failed:', error)
     alert(error.message || 'Eroare la mutarea nodului.')
@@ -1046,30 +1088,38 @@ function renderNodes() {
         return
       }
 
-      const dx = (event.clientX - startClientX) / view.scale
-      const dy = (event.clientY - startClientY) / view.scale
-      const desiredX = clamp(startNodeX + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20)
-      const desiredY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
-      const free = findNearestFreeSpot(node.id, desiredX, desiredY)
-      const changed = free.x !== node.x || free.y !== node.y
+      const beforeNode = serializeNode(node)
 
-      if (changed) pushHistory()
+        const dx = (event.clientX - startClientX) / view.scale
+        const dy = (event.clientY - startClientY) / view.scale
+        const desiredX = clamp(startNodeX + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20)
+        const desiredY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
+        const free = findNearestFreeSpot(node.id, desiredX, desiredY)
+        const changed = free.x !== node.x || free.y !== node.y
 
-      node.x = free.x
-      node.y = free.y
-      selectedId = node.id
-      clearEdgeSelection()
-      saveCachedNodes()
+        if (changed) pushHistory()
 
-      if (changed && canEdit) {
-        updateNodeRemote(node).catch(async error => {
-          console.error('Move node failed:', error)
-          alert(error.message || 'Eroare la mutarea nodului.')
-          await fetchAllData()
-        })
-      }
+        node.x = free.x
+        node.y = free.y
+        selectedId = node.id
+        clearEdgeSelection()
+        saveCachedNodes()
 
-      renderAll()
+        if (changed && canEdit) {
+            ;(async () => {
+            try {
+                await updateNodeRemote(node)
+                await recordHistory('node_update', beforeNode, serializeNode(node))
+                await refreshHistoryButtons()
+            } catch (error) {
+                console.error('Move node failed:', error)
+                alert(error.message || 'Eroare la mutarea nodului.')
+                await fetchAllData()
+            }
+            })()
+        }
+
+        renderAll()
     }
 
     el.addEventListener('pointerdown', event => {
@@ -1424,7 +1474,7 @@ async function saveNode() {
   pushHistory()
 
   try {
-        if (editingId == null) {
+    if (editingId == null) {
             const tempId = Date.now()
             const startPos = findNearestFreeSpot(
             tempId,
@@ -1453,9 +1503,13 @@ async function saveNode() {
         nodes.push(newNode)
         selectedId = newNode.id
         clearEdgeSelection()
+        await recordHistory('node_create', null, serializeNode(newNode))
+        await refreshHistoryButtons()
     } else {
       const node = findNode(editingId)
       if (!node) return
+
+      const beforeNode = serializeNode(node)
 
       const nextNode = {
         ...node,
@@ -1470,6 +1524,9 @@ async function saveNode() {
       node.tag = nextNode.tag
       node.content = nextNode.content
 
+      await recordHistory('node_update', beforeNode, serializeNode(node))
+      await refreshHistoryButtons()
+
       selectedId = node.id
       clearEdgeSelection()
     }
@@ -1479,9 +1536,9 @@ async function saveNode() {
     closeModal()
     renderAll()
   } catch (error) {
-    console.error('Save node failed FULL:', error)
-    alert(`Eroare la salvare nod: ${error?.message || 'necunoscută'}`)
-    await fetchAllData()
+        console.error('Save node failed FULL:', error)
+        alert(`Eroare la salvare nod: ${error?.message || 'necunoscută'}`)
+        await fetchAllData()
   }
 }
 
@@ -1501,15 +1558,30 @@ async function saveRelation() {
 
     if (editingId == null) {
       if (existingIndex >= 0) {
+        const oldLabel = source.links[existingIndex].label || 'relație'
+        const beforeEdge = serializeEdge(source.id, relationDraft.targetId, oldLabel)
+
         source.links[existingIndex].label = label
         await updateEdgeRemote(relationDraft.sourceId, relationDraft.targetId, label)
+
+        const afterEdge = serializeEdge(source.id, relationDraft.targetId, label)
+        await recordHistory('edge_update', beforeEdge, afterEdge)
       } else {
         source.links.push({ targetId: Number(relationDraft.targetId), label })
         await insertEdgeRemote(relationDraft.sourceId, relationDraft.targetId, label)
+
+        const afterEdge = serializeEdge(source.id, relationDraft.targetId, label)
+        await recordHistory('edge_create', null, afterEdge)
       }
     } else {
+      const oldLabel = source.links[editingId].label || 'relație'
+      const beforeEdge = serializeEdge(source.id, relationDraft.targetId, oldLabel)
+
       source.links[editingId].label = label
       await updateEdgeRemote(relationDraft.sourceId, relationDraft.targetId, label)
+
+      const afterEdge = serializeEdge(source.id, relationDraft.targetId, label)
+      await recordHistory('edge_update', beforeEdge, afterEdge)
     }
 
     selectedId = source.id
@@ -1522,6 +1594,7 @@ async function saveRelation() {
     saveCachedNodes()
     closeModal()
     renderAll()
+    await refreshHistoryButtons()
   } catch (error) {
     console.error('Save relation failed:', error)
     alert(`Eroare la salvarea relației: ${error?.message || 'necunoscută'}`)
@@ -1550,9 +1623,11 @@ async function deleteSelected() {
 
   pushHistory()
 
+  const beforeNode = serializeNode(node)
+  const beforeEdges = collectEdgesForNode(node.id)
+
   try {
-    const deleted = await deleteNodeRemote(node.id)
-    console.log('Deleted node from DB:', deleted)
+    await deleteNodeRemote(node.id)
 
     nodes = nodes
       .filter(n => Number(n.id) !== Number(node.id))
@@ -1575,8 +1650,14 @@ async function deleteSelected() {
     detailOpen = false
     relationMode = { active: false, sourceId: null }
 
+    await recordHistory('node_delete', {
+      node: beforeNode,
+      edges: beforeEdges
+    }, null)
+
     saveCachedNodes()
     renderAll()
+    await refreshHistoryButtons()
   } catch (error) {
     console.error('Delete node failed FULL:', error)
     alert(`Eroare la ștergere: ${error?.message || 'necunoscută'}`)
@@ -1592,6 +1673,8 @@ async function removeRelation(sourceId, relationIndex) {
   pushHistory()
 
   const targetId = source.links[relationIndex].targetId
+  const oldLabel = source.links[relationIndex].label || 'relație'
+  const beforeEdge = serializeEdge(sourceId, targetId, oldLabel)
 
   try {
     await deleteEdgeRemote(sourceId, targetId)
@@ -1605,8 +1688,11 @@ async function removeRelation(sourceId, relationIndex) {
       selectedEdge = null
     }
 
+    await recordHistory('edge_delete', beforeEdge, null)
+
     saveCachedNodes()
     renderAll()
+    await refreshHistoryButtons()
   } catch (error) {
     console.error('Remove relation failed:', error)
     alert(`Eroare la ștergerea relației: ${error?.message || 'necunoscută'}`)
@@ -1824,6 +1910,71 @@ enterBtn.addEventListener('click', event => {
   event.stopPropagation()
   dismissIntro()
 })
+
+function serializeNode(node) {
+  return {
+    id: Number(node.id),
+    project_id: PROJECT_ID,
+    title: node.title,
+    tag: node.tag,
+    x: Number(node.x),
+    y: Number(node.y),
+    content: node.content
+  }
+}
+
+function serializeEdge(sourceId, targetId, label) {
+  return {
+    project_id: PROJECT_ID,
+    source_id: Number(sourceId),
+    target_id: Number(targetId),
+    label: label || 'relație'
+  }
+}
+
+function collectEdgesForNode(nodeId) {
+  return nodes.flatMap(source =>
+    (source.links || [])
+      .filter(link =>
+        Number(source.id) === Number(nodeId) ||
+        Number(link.targetId) === Number(nodeId)
+      )
+      .map(link => serializeEdge(source.id, link.targetId, link.label))
+  )
+}
+
+async function recordHistory(actionType, beforeData, afterData) {
+  const { error } = await supabase.rpc('atlas_record_action', {
+    p_project_id: PROJECT_ID,
+    p_action_type: actionType,
+    p_before_data: beforeData,
+    p_after_data: afterData
+  })
+
+  if (error) throw error
+}
+
+async function refreshHistoryButtons() {
+  if (!canEdit) {
+    undoBtn.disabled = true
+    redoBtn.disabled = true
+    return
+  }
+
+  const { data, error } = await supabase.rpc('atlas_history_status', {
+    p_project_id: PROJECT_ID
+  })
+
+  if (error) {
+    console.error('History status failed:', error)
+    undoBtn.disabled = false
+    redoBtn.disabled = false
+    return
+  }
+
+  undoBtn.disabled = !canEdit || Number(data?.undo_count || 0) === 0
+  redoBtn.disabled = !canEdit || Number(data?.redo_count || 0) === 0
+}
 
 window.addEventListener('keydown', event => {
   const tag = document.activeElement?.tagName
