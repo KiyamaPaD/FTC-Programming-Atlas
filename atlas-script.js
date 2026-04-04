@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log('ATLAS SCRIPT LOADED v9')
+console.log('ATLAS SCRIPT LOADED v10')
 
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
@@ -28,6 +28,42 @@ const NODE_WIDTH = 230
 const NODE_HEIGHT = 118
 const NODE_GAP = 28
 const DRAG_THRESHOLD = 5
+const MOBILE_DOUBLE_TAP_DELAY = 360
+const MOBILE_LONG_PRESS_MS = 260
+const activeTouchPoints = new Map()
+let pinchState = null
+
+function isTouchLayout() {
+  return window.matchMedia('(pointer: coarse), (max-width: 920px)').matches
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia('(pointer: coarse), (prefers-reduced-motion: reduce)').matches
+}
+
+function getCssPx(varName, fallback) {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim()
+  const value = parseFloat(raw)
+  return Number.isFinite(value) ? value : fallback
+}
+
+function getNodeMetrics() {
+  return {
+    width: getCssPx('--node-width', 230),
+    height: getCssPx('--node-height', 118),
+  }
+}
+
+function getTouchDistance(a, b) {
+  return Math.hypot(b.x - a.x, b.y - a.y)
+}
+
+function getTouchCenter(a, b) {
+  return {
+    x: (a.x + b.x) / 2,
+    y: (a.y + b.y) / 2,
+  }
+}
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
@@ -290,6 +326,23 @@ function clearEdgeSelection() {
   selectedEdge = null
 }
 
+function handleNodeTap(nodeId) {
+  const now = Date.now()
+  const isDouble = clickState.id === nodeId && now - clickState.time < MOBILE_DOUBLE_TAP_DELAY
+
+  clickState = { id: nodeId, time: now }
+  selectedId = Number(nodeId)
+  clearEdgeSelection()
+
+  if (relationMode.active) {
+    handleRelationNodeClick(Number(nodeId))
+    return
+  }
+
+  detailOpen = isDouble
+  renderAll()
+}
+
 function selectEdge(sourceId, targetId) {
   console.log('selectEdge', { sourceId, targetId })
   selectedEdge = { sourceId: Number(sourceId), targetId: Number(targetId) }
@@ -384,8 +437,9 @@ function setScale(nextScale, clientX = window.innerWidth / 2, clientY = window.i
 
 function centerOnNode(node) {
   if (!node) return
-  const targetX = node.x + NODE_WIDTH / 2
-  const targetY = node.y + NODE_HEIGHT / 2
+  const { width, height } = getNodeMetrics()
+  const targetX = node.x + width / 2
+  const targetY = node.y + height / 2
   view.x = window.innerWidth / 2 - targetX * view.scale
   view.y = window.innerHeight / 2 - targetY * view.scale
   applyView()
@@ -393,6 +447,9 @@ function centerOnNode(node) {
 
 function fitView() {
   if (!nodes.length) return
+
+  const { width, height } = getNodeMetrics()
+
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
@@ -401,23 +458,25 @@ function fitView() {
   nodes.forEach(node => {
     minX = Math.min(minX, node.x)
     minY = Math.min(minY, node.y)
-    maxX = Math.max(maxX, node.x + NODE_WIDTH)
-    maxY = Math.max(maxY, node.y + NODE_HEIGHT)
+    maxX = Math.max(maxX, node.x + width)
+    maxY = Math.max(maxY, node.y + height)
   })
 
-  const pad = 120
-  const width = maxX - minX + pad * 2
-  const height = maxY - minY + pad * 2
-  const scaleX = window.innerWidth / width
-  const scaleY = window.innerHeight / height
+  const pad = isTouchLayout() ? 90 : 120
+  const totalWidth = maxX - minX + pad * 2
+  const totalHeight = maxY - minY + pad * 2
+  const scaleX = window.innerWidth / totalWidth
+  const scaleY = window.innerHeight / totalHeight
 
   view.scale = clamp(Math.min(scaleX, scaleY), 0.45, 1.2)
-  view.x = (window.innerWidth - width * view.scale) / 2 - (minX - pad) * view.scale
-  view.y = (window.innerHeight - height * view.scale) / 2 - (minY - pad) * view.scale
+  view.x = (window.innerWidth - totalWidth * view.scale) / 2 - (minX - pad) * view.scale
+  view.y = (window.innerHeight - totalHeight * view.scale) / 2 - (minY - pad) * view.scale
   applyView()
 }
 
 function fitCurrentSelection() {
+  const { width, height } = getNodeMetrics()
+
   if (selectedEdge) {
     const info = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
     const target = info ? findNode(info.link.targetId) : null
@@ -425,17 +484,17 @@ function fitCurrentSelection() {
 
     const minX = Math.min(info.source.x, target.x) - 120
     const minY = Math.min(info.source.y, target.y) - 120
-    const maxX = Math.max(info.source.x + NODE_WIDTH, target.x + NODE_WIDTH) + 120
-    const maxY = Math.max(info.source.y + NODE_HEIGHT, target.y + NODE_HEIGHT) + 120
+    const maxX = Math.max(info.source.x + width, target.x + width) + 120
+    const maxY = Math.max(info.source.y + height, target.y + height) + 120
 
-    const width = maxX - minX
-    const height = maxY - minY
-    const scaleX = window.innerWidth / width
-    const scaleY = window.innerHeight / height
+    const boxWidth = maxX - minX
+    const boxHeight = maxY - minY
+    const scaleX = window.innerWidth / boxWidth
+    const scaleY = window.innerHeight / boxHeight
 
     view.scale = clamp(Math.min(scaleX, scaleY), 0.45, 1.35)
-    view.x = (window.innerWidth - width * view.scale) / 2 - minX * view.scale
-    view.y = (window.innerHeight - height * view.scale) / 2 - minY * view.scale
+    view.x = (window.innerWidth - boxWidth * view.scale) / 2 - minX * view.scale
+    view.y = (window.innerHeight - boxHeight * view.scale) / 2 - minY * view.scale
     applyView()
     return
   }
@@ -456,7 +515,8 @@ function getNodeMeta(tag) {
 }
 
 function nodeRect(node, x = node.x, y = node.y) {
-  return { left: x, top: y, right: x + NODE_WIDTH, bottom: y + NODE_HEIGHT }
+  const { width, height } = getNodeMetrics()
+  return { left: x, top: y, right: x + width, bottom: y + height }
 }
 
 function rectsOverlap(a, b, gap = NODE_GAP) {
@@ -474,8 +534,10 @@ function overlapsAny(nodeId, x, y) {
 }
 
 function findNearestFreeSpot(nodeId, desiredX, desiredY) {
-  const maxX = WORLD_WIDTH - NODE_WIDTH - 20
-  const maxY = WORLD_HEIGHT - NODE_HEIGHT - 20
+  const { width, height } = getNodeMetrics()
+
+  const maxX = WORLD_WIDTH - width - 20
+  const maxY = WORLD_HEIGHT - height - 20
   const startX = clamp(desiredX, 20, maxX)
   const startY = clamp(desiredY, 20, maxY)
 
@@ -499,7 +561,7 @@ function findNearestFreeSpot(nodeId, desiredX, desiredY) {
 }
 
 function ensureNodePositions() {
-  
+  return
 }
 
 function generateNodeId() {
@@ -770,11 +832,13 @@ async function nudgeSelectedNode(dx, dy) {
   const node = selectedNode()
   if (!node) return
 
+  const { width, height } = getNodeMetrics()
+
   pushHistory()
   const beforeNode = serializeNode(node)
 
-  const desiredX = clamp(node.x + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20)
-  const desiredY = clamp(node.y + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
+  const desiredX = clamp(node.x + dx, 20, WORLD_WIDTH - width - 20)
+  const desiredY = clamp(node.y + dy, 20, WORLD_HEIGHT - height - 20)
   const free = findNearestFreeSpot(node.id, desiredX, desiredY)
 
   node.x = free.x
@@ -881,6 +945,8 @@ function renderLinks() {
   linkLayer.setAttribute('height', WORLD_HEIGHT)
 
   const parts = []
+  const { width: nodeWidth, height: nodeHeight } = getNodeMetrics()
+  const lowMotion = prefersReducedMotion()
 
   parts.push(`
     <defs>
@@ -901,10 +967,10 @@ function renderLinks() {
       const edgeSelected = isEdgeSelected(source.id, target.id)
       const highlight = edgeSelected || source.id === selectedId || target.id === selectedId
 
-      const ax = source.x + NODE_WIDTH / 2
-      const ay = source.y + NODE_HEIGHT / 2
-      const bx = target.x + NODE_WIDTH / 2
-      const by = target.y + NODE_HEIGHT / 2
+      const ax = source.x + nodeWidth / 2
+      const ay = source.y + nodeHeight / 2
+      const bx = target.x + nodeWidth / 2
+      const by = target.y + nodeHeight / 2
 
       const dx = bx - ax
       const dy = by - ay
@@ -953,9 +1019,17 @@ function renderLinks() {
       const glowWidth = edgeSelected ? 8 : 6
       const duration = edgeSelected ? 1.05 : highlight ? 1.3 : 1.8
 
+      const glowPath = lowMotion
+        ? ''
+        : `<path class="edge-glow" d="${pathD}" fill="none" stroke="${glowColor}" stroke-width="${glowWidth}" stroke-linecap="round" />`
+
+      const flowStyle = lowMotion
+        ? 'filter: none;'
+        : `animation: circuitFlow ${duration}s linear infinite, circuitPulse 2s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(177,76,255,0.28));`
+
       parts.push(`
         <g class="edge-group ${edgeSelected ? 'selected' : ''}">
-          <path class="edge-glow" d="${pathD}" fill="none" stroke="${glowColor}" stroke-width="${glowWidth}" stroke-linecap="round" />
+          ${glowPath}
           <path class="edge-base" d="${pathD}" fill="none" stroke="${baseColor}" stroke-width="${baseWidth}" stroke-linecap="round" />
           <path
             class="edge-flow"
@@ -966,7 +1040,7 @@ function renderLinks() {
             stroke-linecap="round"
             stroke-dasharray="4 24"
             marker-end="url(${edgeSelected ? '#edgeArrowHot' : '#edgeArrow'})"
-            style="animation: circuitFlow ${duration}s linear infinite, circuitPulse 2s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(177,76,255,0.28));"
+            style="${flowStyle}"
           />
           <g class="edge-label" transform="translate(${lx}, ${ly})">
             <rect
@@ -1022,6 +1096,7 @@ function renderLinks() {
 function renderNodes() {
   nodeLayer.innerHTML = ''
   const orderedNodes = [...nodes].sort((a, b) => (a.id === selectedId ? 1 : b.id === selectedId ? -1 : 0))
+  const { width: nodeWidth, height: nodeHeight } = getNodeMetrics()
 
   orderedNodes.forEach(node => {
     const el = document.createElement('button')
@@ -1043,95 +1118,165 @@ function renderNodes() {
     let startClientY = 0
     let startNodeX = node.x
     let startNodeY = node.y
+    let startViewX = view.x
+    let startViewY = view.y
     let moved = false
+    let interactionMode = 'idle'
+    let pointerId = null
+    let touchLongPressTimer = null
+
+    const cleanup = () => {
+      document.removeEventListener('pointermove', onMove)
+      document.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointercancel', onUp)
+
+      if (touchLongPressTimer) {
+        clearTimeout(touchLongPressTimer)
+        touchLongPressTimer = null
+      }
+
+      el.classList.remove('invalid-drop')
+      mapSurface.classList.remove('panning')
+    }
 
     const onMove = event => {
-      if (!canEdit) return
+      if (event.pointerId !== pointerId) return
 
       const rawDx = event.clientX - startClientX
       const rawDy = event.clientY - startClientY
+      const distance = Math.hypot(rawDx, rawDy)
 
-      if (!moved && Math.hypot(rawDx, rawDy) < DRAG_THRESHOLD) {
-        return
+      if (event.pointerType === 'touch') {
+        if (interactionMode === 'pending' && distance > DRAG_THRESHOLD) {
+          if (touchLongPressTimer) {
+            clearTimeout(touchLongPressTimer)
+            touchLongPressTimer = null
+          }
+          interactionMode = 'pan'
+        }
+
+        if (interactionMode === 'pan') {
+          moved = true
+          mapSurface.classList.add('panning')
+          view.x = startViewX + rawDx
+          view.y = startViewY + rawDy
+          applyView()
+          return
+        }
+
+        if (interactionMode !== 'drag') return
+      } else {
+        if (!canEdit) return
+        if (!moved && distance < DRAG_THRESHOLD) return
+        interactionMode = 'drag'
       }
 
       moved = true
 
       const dx = rawDx / view.scale
       const dy = rawDy / view.scale
-      const nextX = clamp(startNodeX + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20)
-      const nextY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
+      const nextX = clamp(startNodeX + dx, 20, WORLD_WIDTH - nodeWidth - 20)
+      const nextY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - nodeHeight - 20)
+
       el.style.left = `${nextX}px`
       el.style.top = `${nextY}px`
+
       const invalid = overlapsAny(node.id, nextX, nextY)
       el.classList.toggle('invalid-drop', invalid)
     }
 
     const onUp = event => {
-      document.removeEventListener('pointermove', onMove)
-      document.removeEventListener('pointerup', onUp)
+      if (event.pointerId !== pointerId) return
+      cleanup()
 
-      if (!moved || !canEdit) {
-        const now = Date.now()
-        const isDouble = clickState.id === node.id && now - clickState.time < 320
-        clickState = { id: node.id, time: now }
+      try {
+        el.releasePointerCapture(pointerId)
+      } catch {}
 
-        selectedId = node.id
-        clearEdgeSelection()
-
-        if (relationMode.active) {
-          handleRelationNodeClick(node.id)
-        } else {
-          detailOpen = isDouble
-          renderAll()
+      if (event.pointerType === 'touch') {
+        if (interactionMode === 'pending') {
+          handleNodeTap(node.id)
+          return
         }
+
+        if (interactionMode === 'pan') {
+          return
+        }
+      } else if (interactionMode !== 'drag') {
+        handleNodeTap(node.id)
+        return
+      }
+
+      if (!canEdit || interactionMode !== 'drag') {
+        renderAll()
         return
       }
 
       const beforeNode = serializeNode(node)
 
-        const dx = (event.clientX - startClientX) / view.scale
-        const dy = (event.clientY - startClientY) / view.scale
-        const desiredX = clamp(startNodeX + dx, 20, WORLD_WIDTH - NODE_WIDTH - 20)
-        const desiredY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - NODE_HEIGHT - 20)
-        const free = findNearestFreeSpot(node.id, desiredX, desiredY)
-        const changed = free.x !== node.x || free.y !== node.y
+      const dx = (event.clientX - startClientX) / view.scale
+      const dy = (event.clientY - startClientY) / view.scale
+      const desiredX = clamp(startNodeX + dx, 20, WORLD_WIDTH - nodeWidth - 20)
+      const desiredY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - nodeHeight - 20)
+      const free = findNearestFreeSpot(node.id, desiredX, desiredY)
+      const changed = free.x !== node.x || free.y !== node.y
 
-        if (changed) pushHistory()
-
-        node.x = free.x
-        node.y = free.y
+      if (!changed) {
         selectedId = node.id
         clearEdgeSelection()
-        saveCachedNodes()
-
-        if (changed && canEdit) {
-            ;(async () => {
-            try {
-                await updateNodeRemote(node)
-                await recordHistory('node_update', beforeNode, serializeNode(node))
-                await refreshHistoryButtons()
-            } catch (error) {
-                console.error('Move node failed:', error)
-                alert(error.message || 'Eroare la mutarea nodului.')
-                await fetchAllData()
-            }
-            })()
-        }
-
         renderAll()
+        return
+      }
+
+      pushHistory()
+
+      node.x = free.x
+      node.y = free.y
+      selectedId = node.id
+      clearEdgeSelection()
+      saveCachedNodes()
+      renderAll()
+
+      ;(async () => {
+        try {
+          await updateNodeRemote(node)
+          await recordHistory('node_update', beforeNode, serializeNode(node))
+          await refreshHistoryButtons()
+        } catch (error) {
+          console.error('Move node failed:', error)
+          alert(error.message || 'Eroare la mutarea nodului.')
+          await fetchAllData()
+        }
+      })()
     }
 
     el.addEventListener('pointerdown', event => {
-      if (event.button !== 0) return
+      if (event.button !== 0 && event.pointerType !== 'touch') return
       event.stopPropagation()
+
+      pointerId = event.pointerId
       startClientX = event.clientX
       startClientY = event.clientY
       startNodeX = node.x
       startNodeY = node.y
+      startViewX = view.x
+      startViewY = view.y
       moved = false
+      interactionMode = event.pointerType === 'touch' ? 'pending' : 'idle'
+
+      if (event.pointerType === 'touch' && canEdit) {
+        touchLongPressTimer = window.setTimeout(() => {
+          interactionMode = 'drag'
+        }, MOBILE_LONG_PRESS_MS)
+      }
+
+      try {
+        el.setPointerCapture(pointerId)
+      } catch {}
+
       document.addEventListener('pointermove', onMove)
-      document.addEventListener('pointerup', onUp, { once: true })
+      document.addEventListener('pointerup', onUp)
+      document.addEventListener('pointercancel', onUp)
     })
 
     nodeLayer.appendChild(el)
@@ -1475,11 +1620,12 @@ async function saveNode() {
 
   try {
     if (editingId == null) {
-            const tempId = Date.now()
-            const startPos = findNearestFreeSpot(
+        const tempId = Date.now()
+        const { width: nodeWidth, height: nodeHeight } = getNodeMetrics()
+        const startPos = findNearestFreeSpot(
             tempId,
-            WORLD_WIDTH * 0.5 - NODE_WIDTH / 2,
-            WORLD_HEIGHT * 0.5 - NODE_HEIGHT / 2
+            WORLD_WIDTH * 0.5 - nodeWidth / 2,
+            WORLD_HEIGHT * 0.5 - nodeHeight / 2
         )
 
         const inserted = await createNodeRemote({
@@ -1785,32 +1931,157 @@ async function autoArrange() {
   renderAll()
 }
 
-mapSurface.addEventListener('pointerdown', event => {
-  if (
+function shouldIgnoreSurfaceGesture(event) {
+  return !!(
     event.target.closest('.node') ||
     event.target.closest('.edge-hit') ||
     event.target.closest('.edge-label-hit') ||
     event.target.closest('.floating-tools') ||
     event.target.closest('.detail-panel') ||
     event.target.closest('.modal')
-  ) return
+  )
+}
 
-  panState = { startX: event.clientX, startY: event.clientY, x: view.x, y: view.y }
+function beginPinchGesture() {
+  const points = Array.from(activeTouchPoints.values())
+  if (points.length < 2) return
+
+  const center = getTouchCenter(points[0], points[1])
+  const distance = Math.max(getTouchDistance(points[0], points[1]), 1)
+
+  pinchState = {
+    startDistance: distance,
+    startScale: view.scale,
+    worldX: (center.x - view.x) / view.scale,
+    worldY: (center.y - view.y) / view.scale,
+  }
+
+  panState = null
+  mapSurface.classList.add('panning')
+}
+
+mapSurface.addEventListener('pointerdown', event => {
+  if (shouldIgnoreSurfaceGesture(event)) return
+
+  if (event.pointerType === 'touch') {
+    activeTouchPoints.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    })
+
+    try {
+      mapSurface.setPointerCapture(event.pointerId)
+    } catch {}
+
+    if (activeTouchPoints.size === 1) {
+      panState = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        x: view.x,
+        y: view.y,
+      }
+      mapSurface.classList.add('panning')
+    } else if (activeTouchPoints.size === 2) {
+      beginPinchGesture()
+    }
+
+    return
+  }
+
+  panState = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    x: view.x,
+    y: view.y,
+  }
+
   mapSurface.classList.add('panning')
 })
 
 window.addEventListener('pointermove', event => {
-  if (!panState) return
+  if (event.pointerType === 'touch' && activeTouchPoints.has(event.pointerId)) {
+    activeTouchPoints.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    })
+
+    const points = Array.from(activeTouchPoints.values())
+
+    if (points.length >= 2 && pinchState) {
+      const center = getTouchCenter(points[0], points[1])
+      const distance = Math.max(getTouchDistance(points[0], points[1]), 1)
+      const nextScale = clamp(
+        pinchState.startScale * (distance / pinchState.startDistance),
+        0.45,
+        1.8
+      )
+
+      view.scale = nextScale
+      view.x = center.x - pinchState.worldX * nextScale
+      view.y = center.y - pinchState.worldY * nextScale
+      applyView()
+      return
+    }
+
+    if (panState && panState.pointerId === event.pointerId) {
+      view.x = panState.x + (event.clientX - panState.startX)
+      view.y = panState.y + (event.clientY - panState.startY)
+      applyView()
+    }
+
+    return
+  }
+
+  if (!panState || panState.pointerId !== event.pointerId) return
+
   view.x = panState.x + (event.clientX - panState.startX)
   view.y = panState.y + (event.clientY - panState.startY)
   applyView()
 })
 
-window.addEventListener('pointerup', () => {
-  if (!panState) return
+function finishSurfacePointer(event) {
+  if (event.pointerType === 'touch') {
+    activeTouchPoints.delete(event.pointerId)
+
+    try {
+      mapSurface.releasePointerCapture(event.pointerId)
+    } catch {}
+
+    if (panState?.pointerId === event.pointerId) {
+      panState = null
+    }
+
+    if (activeTouchPoints.size < 2) {
+      pinchState = null
+    }
+
+    if (activeTouchPoints.size === 1 && !pinchState) {
+      const [remainingId, point] = Array.from(activeTouchPoints.entries())[0]
+      panState = {
+        pointerId: remainingId,
+        startX: point.x,
+        startY: point.y,
+        x: view.x,
+        y: view.y,
+      }
+    }
+
+    if (activeTouchPoints.size === 0) {
+      mapSurface.classList.remove('panning')
+    }
+
+    return
+  }
+
+  if (!panState || panState.pointerId !== event.pointerId) return
   panState = null
   mapSurface.classList.remove('panning')
-})
+}
+
+window.addEventListener('pointerup', finishSurfacePointer)
+window.addEventListener('pointercancel', finishSurfacePointer)
 
 mapSurface.addEventListener('wheel', event => {
   event.preventDefault()
@@ -2041,7 +2312,12 @@ window.addEventListener('keydown', event => {
   if (!introDismissed) dismissIntro()
 })
 
-if (localStorage.getItem(CACHE_KEYS.panel) === '1') togglePanel(true)
+const savedPanelState = localStorage.getItem(CACHE_KEYS.panel)
+
+if (savedPanelState === '1' || (savedPanelState == null && isTouchLayout())) {
+  togglePanel(true)
+}
+
 if (introDismissed) introScreen.classList.add('hidden')
 
 window.addEventListener('resize', () => {
