@@ -2388,23 +2388,22 @@
     pointer-events: none;
   }
 
-  .edge-control-reset {
-    cursor: pointer;
-    pointer-events: all;
-    touch-action: manipulation;
+  .edge-control-handle.selected {
+    fill: rgba(255, 77, 109, 0.72);
+    stroke: rgba(255, 235, 240, 1);
+    stroke-width: 3;
   }
 
-  .edge-control-reset rect {
-    fill: rgba(10, 8, 14, 0.98);
-    stroke: rgba(255, 77, 109, 0.46);
-  }
-
-  .edge-control-reset text {
+  .edge-control-number {
     fill: #ffdce5;
     font-family: Inter, system-ui;
     font-size: 10px;
-    font-weight: 750;
+    font-weight: 800;
+    paint-order: stroke;
+    stroke: rgba(0, 0, 0, 0.92);
+    stroke-width: 4px;
     pointer-events: none;
+    user-select: none;
   }
 
   @media (max-width: 920px), (pointer: coarse) {
@@ -2432,7 +2431,121 @@
     }
   }
 
-  </style>
+  
+  @media (max-width: 920px), (pointer: coarse) {
+    .detail-panel {
+      inset: 0 !important;
+      width: 100% !important;
+      height: var(--atlas-viewport-height, 100dvh);
+      min-height: var(--atlas-viewport-height, 100dvh);
+      border-radius: 0;
+    }
+
+    .detail-top {
+      position: relative;
+      flex: 0 0 auto;
+      min-width: 0;
+      padding:
+        max(14px, env(safe-area-inset-top))
+        68px
+        12px
+        14px;
+    }
+
+    .detail-meta {
+      display: block;
+      min-width: 0;
+    }
+
+    .detail-meta > div:first-child {
+      min-width: 0;
+    }
+
+    .detail-title {
+      max-width: 100%;
+      margin-top: 10px;
+      padding-right: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .detail-sub {
+      margin-top: 8px;
+      padding-right: 0;
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
+    .icon-actions {
+      width: calc(100vw - 28px);
+      max-width: 100%;
+      margin-top: 12px;
+      padding: 2px 0 4px;
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .icon-actions::-webkit-scrollbar {
+      display: none;
+    }
+
+    .icon-actions .icon-btn {
+      flex: 0 0 44px;
+      width: 44px;
+      height: 44px;
+    }
+
+    #detailCloseBtn {
+      position: absolute;
+      top: max(12px, env(safe-area-inset-top));
+      right: 12px;
+      z-index: 20;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      min-width: 48px;
+      border-color: rgba(255, 77, 109, 0.42);
+      background: rgba(18, 8, 12, 0.98);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .detail-content {
+      flex: 1 1 auto;
+      min-height: 0;
+      height: auto;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding:
+        14px
+        14px
+        max(28px, env(safe-area-inset-bottom));
+      touch-action: pan-y;
+      overscroll-behavior-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .detail-top {
+      padding-right: 66px;
+    }
+
+    .detail-sub {
+      display: none;
+    }
+
+    .detail-title {
+      font-size: 1.35rem;
+      line-height: 1.12;
+    }
+  }
+</style>
 </head>
 <body>
   <div class="noise"></div>
@@ -2572,7 +2685,12 @@
               </div>
 
               <div class="btn-row">
-                <button class="btn" id="arrangeBtn">Auto arrange</button>
+                <button class="btn" id="addEdgePointBtn" type="button">+ Punct muchie</button>
+                <button class="btn" id="removeEdgePointBtn" type="button">− Punct muchie</button>
+              </div>
+
+              <div class="btn-row">
+                <button class="btn" id="resetEdgePathBtn" type="button">Traseu automat</button>
                 <button class="btn" id="mediaManagerBtn" type="button">Media nod</button>
               </div>
 
@@ -2590,7 +2708,7 @@
           <div class="mode-strip" id="modeStrip"></div>
           <div class="tools-note">
             Click sau tap pe un nod pentru documentație. Zoom cu scroll și pan cu drag pe fundal.
-            În Editor Mode poți muta nodurile, le poți redimensiona din mânere sau cu Alt + săgeți și poți modela relațiile din punctul lor de control.
+            În Editor Mode poți redimensiona nodurile, selecta o muchie, adăuga mai multe puncte și trage fiecare punct numerotat.
           </div>
         </div>
       </div>
@@ -2966,6 +3084,6 @@
     </div>
   </div>
 
-  <script type="module" src="./atlas-script.js?v=29"></script>
+  <script type="module" src="./atlas-script.js?v=30"></script>
 </body>
 </html>
