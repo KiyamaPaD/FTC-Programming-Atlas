@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log('ATLAS SCRIPT LOADED v28 · MOBILE SCROLL')
+console.log('ATLAS SCRIPT LOADED v29 · NODE GEOMETRY')
 
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
@@ -35,8 +35,13 @@ const NODE_HEIGHT = 118
 const NODE_GAP = 28
 const DRAG_THRESHOLD = 5
 const MOBILE_LONG_PRESS_MS = 260
+const NODE_MIN_WIDTH = 172
+const NODE_MIN_HEIGHT = 104
+const NODE_MAX_WIDTH = 720
+const NODE_MAX_HEIGHT = 520
 const activeTouchPoints = new Map()
 let pinchState = null
+let edgeControlDragState = null
 
 function isTouchLayout() {
   return window.matchMedia('(pointer: coarse), (max-width: 920px)').matches
@@ -111,8 +116,29 @@ function getCssPx(varName, fallback) {
 
 function getNodeMetrics() {
   return {
-    width: getCssPx('--node-width', 230),
-    height: getCssPx('--node-height', 118),
+    width: getCssPx('--node-width', NODE_WIDTH),
+    height: getCssPx('--node-height', NODE_HEIGHT),
+  }
+}
+
+function nodeWidth(node) {
+  const value = Number(node?.width)
+  return Number.isFinite(value) && value > 0
+    ? clamp(value, NODE_MIN_WIDTH, NODE_MAX_WIDTH)
+    : getNodeMetrics().width
+}
+
+function nodeHeight(node) {
+  const value = Number(node?.height)
+  return Number.isFinite(value) && value > 0
+    ? clamp(value, NODE_MIN_HEIGHT, NODE_MAX_HEIGHT)
+    : getNodeMetrics().height
+}
+
+function nodeSize(node) {
+  return {
+    width: nodeWidth(node),
+    height: nodeHeight(node)
   }
 }
 
@@ -2031,7 +2057,7 @@ function setScale(nextScale, clientX = window.innerWidth / 2, clientY = window.i
 
 function centerOnNode(node) {
   if (!node) return
-  const { width, height } = getNodeMetrics()
+  const { width, height } = nodeSize(node)
   const targetX = node.x + width / 2
   const targetY = node.y + height / 2
   view.x = window.innerWidth / 2 - targetX * view.scale
@@ -2043,14 +2069,13 @@ function fitView() {
   const visibleNodes = getVisibleNodes()
   if (!visibleNodes.length) return
 
-  const { width, height } = getNodeMetrics()
-
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
   let maxY = -Infinity
 
   visibleNodes.forEach(node => {
+    const { width, height } = nodeSize(node)
     minX = Math.min(minX, node.x)
     minY = Math.min(minY, node.y)
     maxX = Math.max(maxX, node.x + width)
@@ -2070,17 +2095,38 @@ function fitView() {
 }
 
 function fitCurrentSelection() {
-  const { width, height } = getNodeMetrics()
-
   if (selectedEdge) {
     const info = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
     const target = info ? findNode(info.link.targetId) : null
     if (!info || !target) return
 
-    const minX = Math.min(info.source.x, target.x) - 120
-    const minY = Math.min(info.source.y, target.y) - 120
-    const maxX = Math.max(info.source.x + width, target.x + width) + 120
-    const maxY = Math.max(info.source.y + height, target.y + height) + 120
+    const sourceSize = nodeSize(info.source)
+    const targetSize = nodeSize(target)
+    const geometry = getEdgeGeometry(info.source, target, info.link)
+
+    const minX = Math.min(
+      info.source.x,
+      target.x,
+      geometry.cx
+    ) - 120
+
+    const minY = Math.min(
+      info.source.y,
+      target.y,
+      geometry.cy
+    ) - 120
+
+    const maxX = Math.max(
+      info.source.x + sourceSize.width,
+      target.x + targetSize.width,
+      geometry.cx
+    ) + 120
+
+    const maxY = Math.max(
+      info.source.y + sourceSize.height,
+      target.y + targetSize.height,
+      geometry.cy
+    ) + 120
 
     const boxWidth = maxX - minX
     const boxHeight = maxY - minY
@@ -2098,11 +2144,19 @@ function fitCurrentSelection() {
   if (node) centerOnNode(node)
 }
 
-
-
-function nodeRect(node, x = node.x, y = node.y) {
-  const { width, height } = getNodeMetrics()
-  return { left: x, top: y, right: x + width, bottom: y + height }
+function nodeRect(
+  node,
+  x = node.x,
+  y = node.y,
+  width = nodeWidth(node),
+  height = nodeHeight(node)
+) {
+  return {
+    left: x,
+    top: y,
+    right: x + width,
+    bottom: y + height
+  }
 }
 
 function rectsOverlap(a, b, gap = NODE_GAP) {
@@ -2114,20 +2168,34 @@ function rectsOverlap(a, b, gap = NODE_GAP) {
   )
 }
 
-function overlapsAny(nodeId, x, y) {
-  const rect = nodeRect({ x, y })
-  return nodes.some(other => other.id !== nodeId && rectsOverlap(rect, nodeRect(other)))
+function overlapsAny(nodeId, x, y, width = null, height = null) {
+  const node = findNode(nodeId)
+  const rect = nodeRect(
+    node || { x, y },
+    x,
+    y,
+    width ?? nodeWidth(node),
+    height ?? nodeHeight(node)
+  )
+
+  return nodes.some(other =>
+    Number(other.id) !== Number(nodeId) &&
+    rectsOverlap(rect, nodeRect(other))
+  )
 }
 
 function findNearestFreeSpot(nodeId, desiredX, desiredY) {
-  const { width, height } = getNodeMetrics()
+  const node = findNode(nodeId)
+  const { width, height } = nodeSize(node)
 
   const maxX = WORLD_WIDTH - width - 20
   const maxY = WORLD_HEIGHT - height - 20
   const startX = clamp(desiredX, 20, maxX)
   const startY = clamp(desiredY, 20, maxY)
 
-  if (!overlapsAny(nodeId, startX, startY)) return { x: startX, y: startY }
+  if (!overlapsAny(nodeId, startX, startY, width, height)) {
+    return { x: startX, y: startY }
+  }
 
   const steps = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6]
   const radiusStep = 34
@@ -2138,7 +2206,7 @@ function findNearestFreeSpot(nodeId, desiredX, desiredY) {
         if (Math.abs(dxStep) !== radius && Math.abs(dyStep) !== radius) continue
         const x = clamp(startX + dxStep * radiusStep, 20, maxX)
         const y = clamp(startY + dyStep * radiusStep, 20, maxY)
-        if (!overlapsAny(nodeId, x, y)) return { x, y }
+        if (!overlapsAny(nodeId, x, y, width, height)) return { x, y }
       }
     }
   }
@@ -2322,7 +2390,9 @@ async function fetchAllData() {
 
     edgesBySource.get(sourceId).push({
       targetId: Number(edge.target_id),
-      label: edge.label || 'relație'
+      label: edge.label || 'relație',
+      controlX: edge.control_x == null ? null : Number(edge.control_x),
+      controlY: edge.control_y == null ? null : Number(edge.control_y)
     })
   }
 
@@ -2382,6 +2452,8 @@ async function fetchAllData() {
     tagIds: tagsByNode.get(Number(node.id)) || [],
     x: Number(node.x),
     y: Number(node.y),
+    width: node.width == null ? null : Number(node.width),
+    height: node.height == null ? null : Number(node.height),
     content: node.content,
     links: edgesBySource.get(Number(node.id)) || [],
     media: mediaByNode.get(Number(node.id)) || [],
@@ -2746,6 +2818,27 @@ async function updateEdgeRemote(sourceId, targetId, label) {
   return normalizeRpcRow(data, 'Muchia actualizată')
 }
 
+async function updateEdgeGeometryRemote(
+  sourceId,
+  targetId,
+  controlX,
+  controlY
+) {
+  const { data, error } = await supabase.rpc(
+    'atlas_update_edge_geometry',
+    {
+      p_project_id: PROJECT_ID,
+      p_source_id: Number(sourceId),
+      p_target_id: Number(targetId),
+      p_control_x: controlX == null ? null : Number(controlX),
+      p_control_y: controlY == null ? null : Number(controlY)
+    }
+  )
+
+  if (error) throw error
+  return normalizeRpcRow(data, 'Traseul muchiei')
+}
+
 async function deleteEdgeRemote(sourceId, targetId) {
   const { data, error } = await supabase.rpc('atlas_delete_edge', {
     p_project_id: PROJECT_ID,
@@ -2760,6 +2853,23 @@ async function deleteEdgeRemote(sourceId, targetId) {
   }
 
   return data
+}
+
+async function updateNodeGeometryRemote(node) {
+  const { data, error } = await supabase.rpc(
+    'atlas_update_node_geometry',
+    {
+      p_project_id: PROJECT_ID,
+      p_node_id: Number(node.id),
+      p_x: Number(node.x),
+      p_y: Number(node.y),
+      p_width: node.width == null ? null : Number(node.width),
+      p_height: node.height == null ? null : Number(node.height)
+    }
+  )
+
+  if (error) throw error
+  return normalizeRpcRow(data, 'Geometria nodului')
 }
 
 async function updateNodePositionsRemote(positions) {
@@ -2845,6 +2955,90 @@ async function nudgeSelectedNode(dx, dy) {
     )
 
     await fetchAllData()
+  }
+}
+
+async function resizeSelectedNode(deltaWidth, deltaHeight) {
+  if (!canEdit || !editorMode || selectedEdge) return
+
+  const node = selectedNode()
+  if (!node) return
+
+  const originalWidth = node.width
+  const originalHeight = node.height
+  const current = nodeSize(node)
+
+  const nextWidth = clamp(
+    current.width + deltaWidth,
+    NODE_MIN_WIDTH,
+    Math.min(NODE_MAX_WIDTH, WORLD_WIDTH - node.x - 20)
+  )
+
+  const nextHeight = clamp(
+    current.height + deltaHeight,
+    NODE_MIN_HEIGHT,
+    Math.min(NODE_MAX_HEIGHT, WORLD_HEIGHT - node.y - 20)
+  )
+
+  if (
+    nextWidth === current.width &&
+    nextHeight === current.height
+  ) {
+    return
+  }
+
+  if (overlapsAny(node.id, node.x, node.y, nextWidth, nextHeight)) {
+    alert('Nodul s-ar suprapune peste alt nod.')
+    return
+  }
+
+  node.width = nextWidth
+  node.height = nextHeight
+  renderAll()
+
+  try {
+    const updated = await updateNodeGeometryRemote(node)
+    node.width = updated.width == null ? null : Number(updated.width)
+    node.height = updated.height == null ? null : Number(updated.height)
+    await refreshHistoryButtons()
+  } catch (error) {
+    node.width = originalWidth
+    node.height = originalHeight
+    renderAll()
+    throw error
+  }
+}
+
+async function resetSelectedNodeSize() {
+  if (!canEdit || !editorMode || selectedEdge) return
+
+  const node = selectedNode()
+  if (!node) return
+
+  const originalWidth = node.width
+  const originalHeight = node.height
+
+  node.width = null
+  node.height = null
+
+  const fallback = nodeSize(node)
+  if (overlapsAny(node.id, node.x, node.y, fallback.width, fallback.height)) {
+    node.width = originalWidth
+    node.height = originalHeight
+    alert('Dimensiunea automată s-ar suprapune peste alt nod.')
+    return
+  }
+
+  renderAll()
+
+  try {
+    await updateNodeGeometryRemote(node)
+    await refreshHistoryButtons()
+  } catch (error) {
+    node.width = originalWidth
+    node.height = originalHeight
+    renderAll()
+    throw error
   }
 }
 
@@ -3122,15 +3316,213 @@ function handleEdgePick(sourceId, targetId) {
   }
 }
 
+function automaticEdgeControl(source, target) {
+  const sourceSize = nodeSize(source)
+  const targetSize = nodeSize(target)
+  const ax = source.x + sourceSize.width / 2
+  const ay = source.y + sourceSize.height / 2
+  const bx = target.x + targetSize.width / 2
+  const by = target.y + targetSize.height / 2
+  const dx = bx - ax
+  const dy = by - ay
+  const dist = Math.max(Math.hypot(dx, dy), 1)
+  const mx = (ax + bx) / 2
+  const my = (ay + by) / 2
+  const nx = -dy / dist
+  const ny = dx / dist
+  const sign = source.id < target.id ? 1 : -1
+  const bend = clamp(dist * 0.16, 34, 110) * sign
+
+  return {
+    ax,
+    ay,
+    bx,
+    by,
+    cx: mx + nx * bend,
+    cy: my + ny * bend
+  }
+}
+
+function getEdgeGeometry(source, target, link) {
+  const automatic = automaticEdgeControl(source, target)
+  const hasCustom =
+    Number.isFinite(Number(link?.controlX)) &&
+    Number.isFinite(Number(link?.controlY))
+
+  const cx = hasCustom
+    ? Number(link.controlX)
+    : automatic.cx
+
+  const cy = hasCustom
+    ? Number(link.controlY)
+    : automatic.cy
+
+  return {
+    ...automatic,
+    cx,
+    cy,
+    custom: hasCustom,
+    pathD: `M ${automatic.ax} ${automatic.ay} Q ${cx} ${cy} ${automatic.bx} ${automatic.by}`,
+    labelX: 0.25 * automatic.ax + 0.5 * cx + 0.25 * automatic.bx,
+    labelY: 0.25 * automatic.ay + 0.5 * cy + 0.25 * automatic.by - 3
+  }
+}
+
+function edgeWorldPoint(clientX, clientY) {
+  return {
+    x: clamp((clientX - view.x) / view.scale, 0, WORLD_WIDTH),
+    y: clamp((clientY - view.y) / view.scale, 0, WORLD_HEIGHT)
+  }
+}
+
+function startEdgeControlDrag(event, sourceId, targetId) {
+  if (!canEdit || !editorMode) return
+  if (event.button !== 0 && event.pointerType !== 'touch') return
+
+  const info = getEdgeInfo(sourceId, targetId)
+  if (!info) return
+
+  event.preventDefault()
+  event.stopPropagation()
+
+  selectedEdge = {
+    sourceId: Number(sourceId),
+    targetId: Number(targetId)
+  }
+
+  selectedId = Number(sourceId)
+  detailOpen = false
+
+  edgeControlDragState = {
+    pointerId: event.pointerId,
+    sourceId: Number(sourceId),
+    targetId: Number(targetId),
+    originalX: info.link.controlX,
+    originalY: info.link.controlY,
+    moved: false
+  }
+
+  document.body.classList.add('edge-control-dragging')
+
+  const onMove = moveEvent => {
+    if (
+      !edgeControlDragState ||
+      moveEvent.pointerId !== edgeControlDragState.pointerId
+    ) {
+      return
+    }
+
+    moveEvent.preventDefault()
+
+    const currentInfo = getEdgeInfo(
+      edgeControlDragState.sourceId,
+      edgeControlDragState.targetId
+    )
+
+    if (!currentInfo) return
+
+    const point = edgeWorldPoint(
+      moveEvent.clientX,
+      moveEvent.clientY
+    )
+
+    currentInfo.link.controlX = point.x
+    currentInfo.link.controlY = point.y
+    edgeControlDragState.moved = true
+    renderLinks()
+  }
+
+  const finish = async upEvent => {
+    if (
+      !edgeControlDragState ||
+      upEvent.pointerId !== edgeControlDragState.pointerId
+    ) {
+      return
+    }
+
+    document.removeEventListener('pointermove', onMove)
+    document.removeEventListener('pointerup', finish)
+    document.removeEventListener('pointercancel', finish)
+    document.body.classList.remove('edge-control-dragging')
+
+    const state = edgeControlDragState
+    edgeControlDragState = null
+    const currentInfo = getEdgeInfo(state.sourceId, state.targetId)
+
+    if (!currentInfo || !state.moved) {
+      renderAll()
+      return
+    }
+
+    try {
+      const updated = await updateEdgeGeometryRemote(
+        state.sourceId,
+        state.targetId,
+        currentInfo.link.controlX,
+        currentInfo.link.controlY
+      )
+
+      currentInfo.link.controlX =
+        updated.control_x == null
+          ? null
+          : Number(updated.control_x)
+
+      currentInfo.link.controlY =
+        updated.control_y == null
+          ? null
+          : Number(updated.control_y)
+
+      await refreshHistoryButtons()
+      renderAll()
+    } catch (error) {
+      currentInfo.link.controlX = state.originalX
+      currentInfo.link.controlY = state.originalY
+      renderAll()
+      alert(error.message || 'Traseul relației nu a putut fi salvat.')
+    }
+  }
+
+  document.addEventListener('pointermove', onMove, { passive: false })
+  document.addEventListener('pointerup', finish)
+  document.addEventListener('pointercancel', finish)
+  renderLinks()
+}
+
+async function resetEdgeControl(sourceId, targetId) {
+  if (!canEdit || !editorMode) return
+
+  const info = getEdgeInfo(sourceId, targetId)
+  if (!info) return
+
+  const originalX = info.link.controlX
+  const originalY = info.link.controlY
+
+  info.link.controlX = null
+  info.link.controlY = null
+  renderLinks()
+
+  try {
+    await updateEdgeGeometryRemote(sourceId, targetId, null, null)
+    await refreshHistoryButtons()
+    renderAll()
+  } catch (error) {
+    info.link.controlX = originalX
+    info.link.controlY = originalY
+    renderAll()
+    alert(error.message || 'Traseul automat nu a putut fi restaurat.')
+  }
+}
+
 function renderLinks() {
   linkLayer.setAttribute('viewBox', `0 0 ${WORLD_WIDTH} ${WORLD_HEIGHT}`)
   linkLayer.setAttribute('width', WORLD_WIDTH)
   linkLayer.setAttribute('height', WORLD_HEIGHT)
 
   const parts = []
-  const { width: nodeWidth, height: nodeHeight } = getNodeMetrics()
   const lowMotion = prefersReducedMotion()
   const visibleIds = getVisibleNodeIdSet()
+  const controlRadius = isTouchLayout() ? 14 : 10
+  const controlCoreRadius = isTouchLayout() ? 5 : 4
 
   parts.push(`
     <defs>
@@ -3152,33 +3544,7 @@ function renderLinks() {
 
       const edgeSelected = isEdgeSelected(source.id, target.id)
       const highlight = edgeSelected || source.id === selectedId || target.id === selectedId
-
-      const ax = source.x + nodeWidth / 2
-      const ay = source.y + nodeHeight / 2
-      const bx = target.x + nodeWidth / 2
-      const by = target.y + nodeHeight / 2
-
-      const dx = bx - ax
-      const dy = by - ay
-      const dist = Math.max(Math.hypot(dx, dy), 1)
-
-      const mx = (ax + bx) / 2
-      const my = (ay + by) / 2
-
-      const nx = -dy / dist
-      const ny = dx / dist
-
-      const sign = source.id < target.id ? 1 : -1
-      const bend = clamp(dist * 0.16, 34, 110) * sign
-
-      const cx = mx + nx * bend
-      const cy = my + ny * bend
-
-      const pathD = `M ${ax} ${ay} Q ${cx} ${cy} ${bx} ${by}`
-
-      const lx = 0.25 * ax + 0.5 * cx + 0.25 * bx
-      const ly = 0.25 * ay + 0.5 * cy + 0.25 * by - 3
-
+      const geometry = getEdgeGeometry(source, target, link)
       const rawLabel = link.label || 'relație'
       const label = escapeHtml(rawLabel)
       const labelWidth = Math.max(76, rawLabel.length * 6.6)
@@ -3207,19 +3573,53 @@ function renderLinks() {
 
       const glowPath = lowMotion
         ? ''
-        : `<path class="edge-glow" d="${pathD}" fill="none" stroke="${glowColor}" stroke-width="${glowWidth}" stroke-linecap="round" />`
+        : `<path class="edge-glow" d="${geometry.pathD}" fill="none" stroke="${glowColor}" stroke-width="${glowWidth}" stroke-linecap="round" />`
 
       const flowStyle = lowMotion
         ? 'filter: none;'
         : `animation: circuitFlow ${duration}s linear infinite, circuitPulse 2s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(177,76,255,0.28));`
 
+      const editorControl = edgeSelected && canEdit && editorMode
+        ? `
+          <path
+            class="edge-control-guide"
+            d="M ${geometry.ax} ${geometry.ay} L ${geometry.cx} ${geometry.cy} L ${geometry.bx} ${geometry.by}"
+          />
+          <circle
+            class="edge-control-handle"
+            data-edge-control-source="${source.id}"
+            data-edge-control-target="${target.id}"
+            cx="${geometry.cx}"
+            cy="${geometry.cy}"
+            r="${controlRadius}"
+          />
+          <circle
+            class="edge-control-core"
+            cx="${geometry.cx}"
+            cy="${geometry.cy}"
+            r="${controlCoreRadius}"
+          />
+          ${geometry.custom ? `
+            <g
+              class="edge-control-reset"
+              data-edge-reset-source="${source.id}"
+              data-edge-reset-target="${target.id}"
+              transform="translate(${geometry.cx + 18}, ${geometry.cy - 30})"
+            >
+              <rect x="0" y="0" width="48" height="24" rx="10" ry="10"></rect>
+              <text x="24" y="16" text-anchor="middle">Auto</text>
+            </g>
+          ` : ''}
+        `
+        : ''
+
       parts.push(`
         <g class="edge-group ${edgeSelected ? 'selected' : ''}">
           ${glowPath}
-          <path class="edge-base" d="${pathD}" fill="none" stroke="${baseColor}" stroke-width="${baseWidth}" stroke-linecap="round" />
+          <path class="edge-base" d="${geometry.pathD}" fill="none" stroke="${baseColor}" stroke-width="${baseWidth}" stroke-linecap="round" />
           <path
             class="edge-flow"
-            d="${pathD}"
+            d="${geometry.pathD}"
             fill="none"
             stroke="${flowColor}"
             stroke-width="${flowWidth}"
@@ -3228,7 +3628,7 @@ function renderLinks() {
             marker-end="url(${edgeSelected ? '#edgeArrowHot' : '#edgeArrow'})"
             style="${flowStyle}"
           />
-          <g class="edge-label" transform="translate(${lx}, ${ly})">
+          <g class="edge-label" transform="translate(${geometry.labelX}, ${geometry.labelY})">
             <rect
               x="${labelX}"
               y="-12"
@@ -3249,8 +3649,8 @@ function renderLinks() {
               font-weight="${edgeSelected ? '700' : '600'}"
             >${label}</text>
           </g>
-          <path class="edge-hit" data-source="${source.id}" data-target="${target.id}" d="${pathD}"></path>
-          <g class="edge-label-hit" data-source="${source.id}" data-target="${target.id}" transform="translate(${lx}, ${ly})">
+          <path class="edge-hit" data-source="${source.id}" data-target="${target.id}" d="${geometry.pathD}"></path>
+          <g class="edge-label-hit" data-source="${source.id}" data-target="${target.id}" transform="translate(${geometry.labelX}, ${geometry.labelY})">
             <rect
               x="${labelX - 8}"
               y="-16"
@@ -3262,6 +3662,7 @@ function renderLinks() {
               pointer-events="all"
             />
           </g>
+          ${editorControl}
         </g>
       `)
     })
@@ -3277,22 +3678,58 @@ function renderLinks() {
       handleEdgePick(sourceId, targetId)
     })
   })
+
+  linkLayer.querySelectorAll('[data-edge-control-source]').forEach(handle => {
+    handle.addEventListener('pointerdown', event => {
+      startEdgeControlDrag(
+        event,
+        Number(handle.dataset.edgeControlSource),
+        Number(handle.dataset.edgeControlTarget)
+      )
+    })
+  })
+
+  linkLayer.querySelectorAll('[data-edge-reset-source]').forEach(button => {
+    button.addEventListener('pointerdown', event => {
+      event.preventDefault()
+      event.stopPropagation()
+    })
+
+    button.addEventListener('click', event => {
+      event.preventDefault()
+      event.stopPropagation()
+      resetEdgeControl(
+        Number(button.dataset.edgeResetSource),
+        Number(button.dataset.edgeResetTarget)
+      )
+    })
+  })
 }
 
 function renderNodes() {
   nodeLayer.innerHTML = ''
   const orderedNodes = getVisibleNodes()
     .sort((a, b) => (a.id === selectedId ? 1 : b.id === selectedId ? -1 : 0))
-  const { width: nodeWidth, height: nodeHeight } = getNodeMetrics()
 
   orderedNodes.forEach(node => {
+    const { width: nodeWidthValue, height: nodeHeightValue } = nodeSize(node)
     const el = document.createElement('button')
     el.type = 'button'
     el.className = `node ${node.id === selectedId ? 'active' : ''}`
     el.style.left = `${node.x}px`
     el.style.top = `${node.y}px`
+    el.style.width = `${nodeWidthValue}px`
+    el.style.height = `${nodeHeightValue}px`
+    el.style.minHeight = `${nodeHeightValue}px`
 
     const tagNames = nodeTagNames(node)
+    const resizeHandles = canEdit && editorMode && node.id === selectedId
+      ? `
+        <span class="node-resize-handle east" data-node-resize="e" aria-hidden="true"></span>
+        <span class="node-resize-handle south" data-node-resize="s" aria-hidden="true"></span>
+        <span class="node-resize-handle southeast" data-node-resize="se" aria-hidden="true"></span>
+      `
+      : ''
 
     el.innerHTML = `
       <div class="node-head">
@@ -3309,6 +3746,7 @@ function renderNodes() {
           ${tagNames.slice(0, 3).map(name => `<span class="mini-tag">${escapeHtml(name)}</span>`).join('')}
         </div>
       ` : ''}
+      ${resizeHandles}
     `
 
     let startClientX = 0
@@ -3372,13 +3810,20 @@ function renderNodes() {
 
       const dx = rawDx / view.scale
       const dy = rawDy / view.scale
-      const nextX = clamp(startNodeX + dx, 20, WORLD_WIDTH - nodeWidth - 20)
-      const nextY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - nodeHeight - 20)
+      const nextX = clamp(startNodeX + dx, 20, WORLD_WIDTH - nodeWidthValue - 20)
+      const nextY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - nodeHeightValue - 20)
 
       el.style.left = `${nextX}px`
       el.style.top = `${nextY}px`
 
-      const invalid = overlapsAny(node.id, nextX, nextY)
+      const invalid = overlapsAny(
+        node.id,
+        nextX,
+        nextY,
+        nodeWidthValue,
+        nodeHeightValue
+      )
+
       el.classList.toggle('invalid-drop', invalid)
     }
 
@@ -3396,19 +3841,13 @@ function renderNodes() {
           return
         }
 
-        if (interactionMode === 'pan') {
-          return
-        }
+        if (interactionMode === 'pan') return
       } else if (interactionMode !== 'drag') {
         handleNodeTap(node.id)
         return
       }
 
-      if (
-        !canEdit ||
-        !editorMode ||
-        interactionMode !== 'drag'
-      ) {
+      if (!canEdit || !editorMode || interactionMode !== 'drag') {
         renderAll()
         return
       }
@@ -3419,21 +3858,16 @@ function renderNodes() {
       const desiredX = clamp(
         startNodeX + dx,
         20,
-        WORLD_WIDTH - nodeWidth - 20
+        WORLD_WIDTH - nodeWidthValue - 20
       )
 
       const desiredY = clamp(
         startNodeY + dy,
         20,
-        WORLD_HEIGHT - nodeHeight - 20
+        WORLD_HEIGHT - nodeHeightValue - 20
       )
 
-      const free = findNearestFreeSpot(
-        node.id,
-        desiredX,
-        desiredY
-      )
-
+      const free = findNearestFreeSpot(node.id, desiredX, desiredY)
       const changed =
         Number(free.x) !== Number(node.x) ||
         Number(free.y) !== Number(node.y)
@@ -3455,23 +3889,14 @@ function renderNodes() {
 
           node.x = Number(updated.x)
           node.y = Number(updated.y)
-
           selectedId = node.id
           clearEdgeSelection()
-
           saveCachedNodes()
           renderAll()
-
           await refreshHistoryButtons()
         } catch (error) {
           console.error('Move node failed:', error)
-
-          alert(
-            `Eroare la mutarea nodului: ${
-              error?.message || 'necunoscută'
-            }`
-          )
-
+          alert(`Eroare la mutarea nodului: ${error?.message || 'necunoscută'}`)
           await fetchAllData()
         }
       })()
@@ -3491,12 +3916,7 @@ function renderNodes() {
       moved = false
       interactionMode = event.pointerType === 'touch' ? 'pending' : 'idle'
 
-      if (
-        event.pointerType === 'touch' &&
-        canEdit &&
-        editorMode
-      ) 
-      {
+      if (event.pointerType === 'touch' && canEdit && editorMode) {
         touchLongPressTimer = window.setTimeout(() => {
           interactionMode = 'drag'
         }, MOBILE_LONG_PRESS_MS)
@@ -3509,6 +3929,110 @@ function renderNodes() {
       document.addEventListener('pointermove', onMove)
       document.addEventListener('pointerup', onUp)
       document.addEventListener('pointercancel', onUp)
+    })
+
+    el.querySelectorAll('[data-node-resize]').forEach(handle => {
+      handle.addEventListener('pointerdown', event => {
+        if (!canEdit || !editorMode) return
+        if (event.button !== 0 && event.pointerType !== 'touch') return
+
+        event.preventDefault()
+        event.stopPropagation()
+
+        const axis = handle.dataset.nodeResize
+        const resizePointerId = event.pointerId
+        const originalWidth = node.width
+        const originalHeight = node.height
+        const startWidth = nodeWidthValue
+        const startHeight = nodeHeightValue
+        let nextWidth = startWidth
+        let nextHeight = startHeight
+        let invalid = false
+        let changed = false
+
+        document.body.classList.add('node-resizing')
+
+        const onResizeMove = moveEvent => {
+          if (moveEvent.pointerId !== resizePointerId) return
+          moveEvent.preventDefault()
+
+          const dx = (moveEvent.clientX - event.clientX) / view.scale
+          const dy = (moveEvent.clientY - event.clientY) / view.scale
+
+          nextWidth = axis.includes('e')
+            ? clamp(
+                startWidth + dx,
+                NODE_MIN_WIDTH,
+                Math.min(NODE_MAX_WIDTH, WORLD_WIDTH - node.x - 20)
+              )
+            : startWidth
+
+          nextHeight = axis.includes('s')
+            ? clamp(
+                startHeight + dy,
+                NODE_MIN_HEIGHT,
+                Math.min(NODE_MAX_HEIGHT, WORLD_HEIGHT - node.y - 20)
+              )
+            : startHeight
+
+          invalid = overlapsAny(
+            node.id,
+            node.x,
+            node.y,
+            nextWidth,
+            nextHeight
+          )
+
+          changed =
+            Math.round(nextWidth) !== Math.round(startWidth) ||
+            Math.round(nextHeight) !== Math.round(startHeight)
+
+          node.width = nextWidth
+          node.height = nextHeight
+          el.style.width = `${nextWidth}px`
+          el.style.height = `${nextHeight}px`
+          el.classList.toggle('invalid-drop', invalid)
+          renderLinks()
+        }
+
+        const finishResize = async upEvent => {
+          if (upEvent.pointerId !== resizePointerId) return
+
+          document.removeEventListener('pointermove', onResizeMove)
+          document.removeEventListener('pointerup', finishResize)
+          document.removeEventListener('pointercancel', finishResize)
+          document.body.classList.remove('node-resizing')
+          el.classList.remove('invalid-drop')
+
+          if (!changed || invalid) {
+            node.width = originalWidth
+            node.height = originalHeight
+            renderAll()
+            return
+          }
+
+          node.width = Math.round(nextWidth)
+          node.height = Math.round(nextHeight)
+          renderAll()
+
+          try {
+            const updated = await updateNodeGeometryRemote(node)
+            node.width = updated.width == null ? null : Number(updated.width)
+            node.height = updated.height == null ? null : Number(updated.height)
+            await refreshHistoryButtons()
+            renderAll()
+          } catch (error) {
+            node.width = originalWidth
+            node.height = originalHeight
+            renderAll()
+            alert(error.message || 'Dimensiunea nodului nu a putut fi salvată.')
+          }
+        }
+
+        document.addEventListener('pointermove', onResizeMove, { passive: false })
+        document.addEventListener('pointerup', finishResize)
+        document.addEventListener('pointercancel', finishResize)
+      })
     })
 
     nodeLayer.appendChild(el)
@@ -3524,7 +4048,10 @@ function renderSelectedStrip() {
       selectedStrip.innerHTML = `
         <strong>Muchie selectată</strong><br>
         ${escapeHtml(info.source.title)} → ${escapeHtml(target.title)} ·
-        ${escapeHtml(info.link.label || 'relație')}
+        ${escapeHtml(info.link.label || 'relație')}<br>
+        ${canEdit && editorMode
+          ? 'Trage punctul mov pentru a modela traseul.'
+          : ''}
       `
       return
     }
@@ -3538,11 +4065,14 @@ function renderSelectedStrip() {
     return
   }
 
+  const { width, height } = nodeSize(node)
+
   selectedStrip.innerHTML = `
     <strong>${escapeHtml(node.title)}</strong><br>
     ${escapeHtml(nodeCategoryName(node))} ·
     ${escapeHtml(nodeDifficultyName(node))} ·
-    ${node.links.length} relații
+    ${node.links.length} relații ·
+    ${Math.round(width)} × ${Math.round(height)} px
   `
 }
 
@@ -5853,6 +6383,21 @@ window.addEventListener('keydown', event => {
     !isTyping &&
     canEdit &&
     editorMode &&
+    !isAnyModalOpen() &&
+    event.altKey &&
+    event.key === '0'
+  ) {
+    event.preventDefault()
+    resetSelectedNodeSize().catch(error => {
+      alert(error.message || 'Eroare la resetarea dimensiunii.')
+    })
+    return
+  }
+
+  if (
+    !isTyping &&
+    canEdit &&
+    editorMode &&
     !isAnyModalOpen()
   ) {
     const step = event.shiftKey ? 36 : 12
@@ -5866,7 +6411,17 @@ window.addEventListener('keydown', event => {
 
     if (dx !== 0 || dy !== 0) {
       event.preventDefault()
-      nudgeSelectedNode(dx, dy).catch(error => alert(error.message || 'Eroare la mutare.'))
+
+      if (event.altKey) {
+        resizeSelectedNode(dx, dy).catch(error => {
+          alert(error.message || 'Eroare la redimensionare.')
+        })
+      } else {
+        nudgeSelectedNode(dx, dy).catch(error => {
+          alert(error.message || 'Eroare la mutare.')
+        })
+      }
+
       return
     }
   }
