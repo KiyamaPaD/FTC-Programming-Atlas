@@ -2,7 +2,7 @@
 <html lang="ro">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>FTC Programming Atlas</title>
   <style>
     :root {
@@ -2095,6 +2095,222 @@
     line-height: 1.5;
   }
 
+  .modal-body,
+  .media-manager-body,
+  .code-manager-body,
+  .taxonomy-manager-body {
+    min-height: 0;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .modal-backdrop {
+    overscroll-behavior: contain;
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    html,
+    body,
+    .app {
+      height: var(--atlas-viewport-height, 100dvh);
+      min-height: var(--atlas-viewport-height, 100dvh);
+    }
+
+    .modal-backdrop {
+      padding: 0;
+      align-items: stretch;
+      justify-content: stretch;
+      overflow: hidden;
+      touch-action: pan-y;
+    }
+
+    .modal-backdrop > .modal {
+      width: 100%;
+      height: var(--atlas-viewport-height, 100dvh);
+      max-height: var(--atlas-viewport-height, 100dvh);
+      min-height: 0;
+      margin: 0;
+      border-radius: 0;
+      border-left: 0;
+      border-right: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-head {
+      position: relative;
+      z-index: 3;
+      flex: 0 0 auto;
+      padding:
+        max(14px, env(safe-area-inset-top))
+        14px
+        12px;
+      background: rgba(8, 8, 11, 0.985);
+      backdrop-filter: blur(14px);
+    }
+
+    .modal-head > div {
+      min-width: 0;
+    }
+
+    .modal-head h3 {
+      overflow-wrap: anywhere;
+    }
+
+    .modal-head p {
+      margin-bottom: 0;
+      font-size: 0.84rem;
+      line-height: 1.45;
+    }
+
+    .modal-head .icon-btn {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      flex: 0 0 44px;
+    }
+
+    .modal-body,
+    .media-manager-body,
+    .code-manager-body,
+    .taxonomy-manager-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 14px;
+      gap: 14px;
+      touch-action: pan-y;
+      overscroll-behavior-y: auto;
+      scroll-behavior: smooth;
+      scroll-padding-top: 18px;
+      scroll-padding-bottom: 110px;
+    }
+
+    .modal-foot {
+      position: relative;
+      z-index: 3;
+      flex: 0 0 auto;
+      margin: 0;
+      padding:
+        12px
+        14px
+        max(12px, env(safe-area-inset-bottom));
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+      background: rgba(8, 8, 11, 0.985);
+      backdrop-filter: blur(14px);
+    }
+
+    .modal-foot .btn {
+      min-height: 46px;
+      flex: 1 1 140px;
+    }
+
+    .field,
+    .media-create-card,
+    .media-manager-item,
+    .code-create-card,
+    .code-manager-item {
+      scroll-margin-top: 18px;
+      scroll-margin-bottom: 110px;
+    }
+
+    .field input,
+    .field select,
+    .field textarea,
+    .relation-label-input,
+    .media-file-input {
+      font-size: 16px;
+    }
+
+    .field textarea {
+      min-height: 180px;
+      max-height: none;
+      overflow-y: auto;
+      touch-action: pan-y;
+      overscroll-behavior: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #contentInput {
+      min-height: 42dvh;
+    }
+
+    .code-editor-input,
+    .code-manager-item textarea[data-code-code] {
+      min-height: 46dvh;
+      max-height: 72dvh;
+      overflow: auto;
+      resize: vertical;
+      touch-action: pan-x pan-y;
+      overscroll-behavior: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .media-create-grid,
+    .media-manager-item {
+      grid-template-columns: 1fr;
+    }
+
+    .media-create-card,
+    .code-create-card,
+    .code-manager-item,
+    .media-manager-item {
+      padding: 14px;
+    }
+
+    .media-manager-actions,
+    .code-manager-actions {
+      width: 100%;
+    }
+
+    .tools-body,
+    .detail-content {
+      overscroll-behavior-y: auto;
+      touch-action: pan-y;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .modal-head {
+      gap: 10px;
+    }
+
+    .modal-head h3 {
+      font-size: 1.02rem;
+      line-height: 1.25;
+    }
+
+    .modal-head p {
+      font-size: 0.78rem;
+    }
+
+    .modal-body,
+    .media-manager-body,
+    .code-manager-body,
+    .taxonomy-manager-body {
+      padding: 12px;
+    }
+
+    .media-manager-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .media-manager-actions .btn {
+      width: 100% !important;
+    }
+
+    .code-manager-actions {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .code-manager-actions .btn {
+      min-height: 44px;
+    }
+  }
+
   </style>
 </head>
 <body>
@@ -2629,6 +2845,6 @@
     </div>
   </div>
 
-  <script type="module" src="./atlas-script.js?v=27"></script>
+  <script type="module" src="./atlas-script.js?v=28"></script>
 </body>
 </html>
