@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log('ATLAS SCRIPT LOADED v29 · NODE GEOMETRY')
+console.log('ATLAS SCRIPT LOADED v30 · MULTI-POINT EDGES')
 
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
@@ -39,6 +39,7 @@ const NODE_MIN_WIDTH = 172
 const NODE_MIN_HEIGHT = 104
 const NODE_MAX_WIDTH = 720
 const NODE_MAX_HEIGHT = 520
+const MAX_EDGE_CONTROL_POINTS = 12
 const activeTouchPoints = new Map()
 let pinchState = null
 let edgeControlDragState = null
@@ -251,6 +252,7 @@ function saveView() {
 let nodes = []
 let selectedId = nodes[0]?.id ?? null
 let selectedEdge = null
+let selectedEdgePointIndex = null
 let detailOpen = false
 let editingId = null
 let searchQuery = ''
@@ -313,7 +315,9 @@ const redoBtn = document.getElementById('redoBtn')
 const zoomInBtn = document.getElementById('zoomInBtn')
 const zoomOutBtn = document.getElementById('zoomOutBtn')
 const fitBtn = document.getElementById('fitBtn')
-const arrangeBtn = document.getElementById('arrangeBtn')
+const addEdgePointBtn = document.getElementById('addEdgePointBtn')
+const removeEdgePointBtn = document.getElementById('removeEdgePointBtn')
+const resetEdgePathBtn = document.getElementById('resetEdgePathBtn')
 const tutorialBtn = document.getElementById('tutorialBtn')
 const editorModeBtn =
   document.getElementById('editorModeBtn')
@@ -557,6 +561,60 @@ function getEdgeInfo(sourceId, targetId) {
   }
 }
 
+function normalizeEdgeControlPoints(value, legacyX = null, legacyY = null) {
+  let points = value
+
+  if (typeof points === 'string') {
+    try {
+      points = JSON.parse(points)
+    } catch {
+      points = []
+    }
+  }
+
+  const normalized = Array.isArray(points)
+    ? points
+        .map(point => ({
+          x: Number(point?.x),
+          y: Number(point?.y)
+        }))
+        .filter(point =>
+          Number.isFinite(point.x) &&
+          Number.isFinite(point.y)
+        )
+        .slice(0, MAX_EDGE_CONTROL_POINTS)
+        .map(point => ({
+          x: clamp(point.x, 0, WORLD_WIDTH),
+          y: clamp(point.y, 0, WORLD_HEIGHT)
+        }))
+    : []
+
+  if (normalized.length > 0) {
+    return normalized
+  }
+
+  const x = Number(legacyX)
+  const y = Number(legacyY)
+
+  if (Number.isFinite(x) && Number.isFinite(y)) {
+    return [{
+      x: clamp(x, 0, WORLD_WIDTH),
+      y: clamp(y, 0, WORLD_HEIGHT)
+    }]
+  }
+
+  return []
+}
+
+function selectedEdgeInfo() {
+  if (!selectedEdge) return null
+
+  return getEdgeInfo(
+    selectedEdge.sourceId,
+    selectedEdge.targetId
+  )
+}
+
 function isEdgeSelected(sourceId, targetId) {
   return !!(
     selectedEdge &&
@@ -567,6 +625,7 @@ function isEdgeSelected(sourceId, targetId) {
 
 function clearEdgeSelection() {
   selectedEdge = null
+  selectedEdgePointIndex = null
 }
 
 function handleNodeTap(nodeId) {
@@ -585,6 +644,7 @@ function handleNodeTap(nodeId) {
 function selectEdge(sourceId, targetId) {
   console.log('selectEdge', { sourceId, targetId })
   selectedEdge = { sourceId: Number(sourceId), targetId: Number(targetId) }
+  selectedEdgePointIndex = null
   selectedId = Number(sourceId)
   detailOpen = false
   renderAll()
@@ -627,6 +687,7 @@ async function deleteSelectedEdge() {
 
   await removeRelation(info.source.id, info.index)
   selectedEdge = null
+  selectedEdgePointIndex = null
   renderAll()
 }
 
@@ -790,6 +851,7 @@ function normalizeSelectionAfterFilters() {
   if (selectedId != null && !visibleIds.has(Number(selectedId))) {
     selectedId = visible[0]?.id ?? null
     selectedEdge = null
+    selectedEdgePointIndex = null
     detailOpen = false
   }
 
@@ -798,7 +860,10 @@ function normalizeSelectionAfterFilters() {
       visibleIds.has(Number(selectedEdge.sourceId)) &&
       visibleIds.has(Number(selectedEdge.targetId))
 
-    if (!valid) selectedEdge = null
+    if (!valid) {
+      selectedEdge = null
+      selectedEdgePointIndex = null
+    }
   }
 }
 
@@ -2103,31 +2168,28 @@ function fitCurrentSelection() {
     const sourceSize = nodeSize(info.source)
     const targetSize = nodeSize(target)
     const geometry = getEdgeGeometry(info.source, target, info.link)
+    const routePoints = geometry.routePoints || []
 
-    const minX = Math.min(
+    const xValues = [
       info.source.x,
-      target.x,
-      geometry.cx
-    ) - 120
-
-    const minY = Math.min(
-      info.source.y,
-      target.y,
-      geometry.cy
-    ) - 120
-
-    const maxX = Math.max(
       info.source.x + sourceSize.width,
+      target.x,
       target.x + targetSize.width,
-      geometry.cx
-    ) + 120
+      ...routePoints.map(point => point.x)
+    ]
 
-    const maxY = Math.max(
+    const yValues = [
+      info.source.y,
       info.source.y + sourceSize.height,
+      target.y,
       target.y + targetSize.height,
-      geometry.cy
-    ) + 120
+      ...routePoints.map(point => point.y)
+    ]
 
+    const minX = Math.min(...xValues) - 120
+    const minY = Math.min(...yValues) - 120
+    const maxX = Math.max(...xValues) + 120
+    const maxY = Math.max(...yValues) + 120
     const boxWidth = maxX - minX
     const boxHeight = maxY - minY
     const scaleX = window.innerWidth / boxWidth
@@ -2376,6 +2438,7 @@ async function fetchAllData() {
     nodes = []
     selectedId = null
     selectedEdge = null
+    selectedEdgePointIndex = null
     detailOpen = false
     renderAll()
     await refreshHistoryButtons()
@@ -2391,8 +2454,11 @@ async function fetchAllData() {
     edgesBySource.get(sourceId).push({
       targetId: Number(edge.target_id),
       label: edge.label || 'relație',
-      controlX: edge.control_x == null ? null : Number(edge.control_x),
-      controlY: edge.control_y == null ? null : Number(edge.control_y)
+      controlPoints: normalizeEdgeControlPoints(
+        edge.control_points,
+        edge.control_x,
+        edge.control_y
+      )
     })
   }
 
@@ -2469,7 +2535,22 @@ async function fetchAllData() {
 
   if (selectedEdge) {
     const stillExists = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
-    if (!stillExists) selectedEdge = null
+
+    if (!stillExists) {
+      selectedEdge = null
+      selectedEdgePointIndex = null
+    } else {
+      const pointCount =
+        normalizeEdgeControlPoints(stillExists.link.controlPoints).length
+
+      if (
+        !Number.isInteger(selectedEdgePointIndex) ||
+        selectedEdgePointIndex < 0 ||
+        selectedEdgePointIndex >= pointCount
+      ) {
+        selectedEdgePointIndex = null
+      }
+    }
   }
 
   saveCachedNodes()
@@ -2818,20 +2899,20 @@ async function updateEdgeRemote(sourceId, targetId, label) {
   return normalizeRpcRow(data, 'Muchia actualizată')
 }
 
-async function updateEdgeGeometryRemote(
+async function updateEdgeControlPointsRemote(
   sourceId,
   targetId,
-  controlX,
-  controlY
+  controlPoints
 ) {
+  const points = normalizeEdgeControlPoints(controlPoints)
+
   const { data, error } = await supabase.rpc(
-    'atlas_update_edge_geometry',
+    'atlas_update_edge_control_points',
     {
       p_project_id: PROJECT_ID,
       p_source_id: Number(sourceId),
       p_target_id: Number(targetId),
-      p_control_x: controlX == null ? null : Number(controlX),
-      p_control_y: controlY == null ? null : Number(controlY)
+      p_control_points: points
     }
   )
 
@@ -2872,32 +2953,6 @@ async function updateNodeGeometryRemote(node) {
   return normalizeRpcRow(data, 'Geometria nodului')
 }
 
-async function updateNodePositionsRemote(positions) {
-  const cleanPositions = positions.map(position => ({
-    id: Number(position.id),
-    x: Number(position.x),
-    y: Number(position.y)
-  }))
-
-  const { data, error } = await supabase.rpc(
-    'atlas_update_node_positions',
-    {
-      p_project_id: PROJECT_ID,
-      p_positions: cleanPositions
-    }
-  )
-
-  if (error) throw error
-
-  if (!data?.ok) {
-    throw new Error(
-      'Pozițiile nodurilor nu au fost actualizate.'
-    )
-  }
-
-  return data
-}
-
 async function nudgeSelectedNode(dx, dy) {
   if (!canEdit || !editorMode) return
 
@@ -2905,7 +2960,7 @@ async function nudgeSelectedNode(dx, dy) {
 
   if (!node) return
 
-  const { width, height } = getNodeMetrics()
+  const { width, height } = nodeSize(node)
 
   const desiredX = clamp(
     node.x + dx,
@@ -3118,8 +3173,23 @@ function updateAuthUI() {
   relationBtn.disabled =
     editorBlocked || !hasNodes
 
-  arrangeBtn.disabled =
-    editorBlocked || !hasNodes
+  const edgeInfo = selectedEdgeInfo()
+  const edgePointCount = edgeInfo?.link?.controlPoints?.length || 0
+
+  addEdgePointBtn.disabled =
+    editorBlocked ||
+    !selectedEdge ||
+    edgePointCount >= MAX_EDGE_CONTROL_POINTS
+
+  removeEdgePointBtn.disabled =
+    editorBlocked ||
+    !selectedEdge ||
+    edgePointCount === 0
+
+  resetEdgePathBtn.disabled =
+    editorBlocked ||
+    !selectedEdge ||
+    edgePointCount === 0
 
   editEdgeBtn.disabled =
     editorBlocked || !selectedEdge
@@ -3343,28 +3413,134 @@ function automaticEdgeControl(source, target) {
   }
 }
 
+function buildSmoothEdgePath(points) {
+  if (!Array.isArray(points) || points.length < 2) {
+    return ''
+  }
+
+  let path = `M ${points[0].x} ${points[0].y}`
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const p0 = points[index - 1] || points[index]
+    const p1 = points[index]
+    const p2 = points[index + 1]
+    const p3 = points[index + 2] || p2
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6
+    const cp1y = p1.y + (p2.y - p0.y) / 6
+    const cp2x = p2.x - (p3.x - p1.x) / 6
+    const cp2y = p2.y - (p3.y - p1.y) / 6
+
+    path += ` C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2.x} ${p2.y}`
+  }
+
+  return path
+}
+
+function pointAlongRoute(points, fraction = 0.5) {
+  if (!Array.isArray(points) || points.length === 0) {
+    return { x: 0, y: 0 }
+  }
+
+  if (points.length === 1) {
+    return { ...points[0] }
+  }
+
+  const segments = []
+  let totalLength = 0
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const start = points[index]
+    const end = points[index + 1]
+    const length = Math.hypot(end.x - start.x, end.y - start.y)
+
+    segments.push({ start, end, length })
+    totalLength += length
+  }
+
+  if (totalLength <= 0) {
+    return { ...points[0] }
+  }
+
+  const targetLength = totalLength * clamp(fraction, 0, 1)
+  let travelled = 0
+
+  for (const segment of segments) {
+    if (travelled + segment.length >= targetLength) {
+      const local = segment.length > 0
+        ? (targetLength - travelled) / segment.length
+        : 0
+
+      return {
+        x: segment.start.x + (segment.end.x - segment.start.x) * local,
+        y: segment.start.y + (segment.end.y - segment.start.y) * local
+      }
+    }
+
+    travelled += segment.length
+  }
+
+  return { ...points.at(-1) }
+}
+
 function getEdgeGeometry(source, target, link) {
   const automatic = automaticEdgeControl(source, target)
-  const hasCustom =
-    Number.isFinite(Number(link?.controlX)) &&
-    Number.isFinite(Number(link?.controlY))
+  const controlPoints = normalizeEdgeControlPoints(link?.controlPoints)
 
-  const cx = hasCustom
-    ? Number(link.controlX)
-    : automatic.cx
+  if (controlPoints.length === 0) {
+    const labelX =
+      0.25 * automatic.ax +
+      0.5 * automatic.cx +
+      0.25 * automatic.bx
 
-  const cy = hasCustom
-    ? Number(link.controlY)
-    : automatic.cy
+    const labelY =
+      0.25 * automatic.ay +
+      0.5 * automatic.cy +
+      0.25 * automatic.by -
+      3
+
+    return {
+      ...automatic,
+      custom: false,
+      controlPoints,
+      routePoints: [
+        { x: automatic.ax, y: automatic.ay },
+        { x: automatic.cx, y: automatic.cy },
+        { x: automatic.bx, y: automatic.by }
+      ],
+      guidePoints: [
+        { x: automatic.ax, y: automatic.ay },
+        { x: automatic.bx, y: automatic.by }
+      ],
+      pathD: `M ${automatic.ax} ${automatic.ay} Q ${automatic.cx} ${automatic.cy} ${automatic.bx} ${automatic.by}`,
+      guideD: `M ${automatic.ax} ${automatic.ay} L ${automatic.bx} ${automatic.by}`,
+      labelX,
+      labelY
+    }
+  }
+
+  const routePoints = [
+    { x: automatic.ax, y: automatic.ay },
+    ...controlPoints,
+    { x: automatic.bx, y: automatic.by }
+  ]
+
+  const labelPoint = pointAlongRoute(routePoints, 0.5)
 
   return {
     ...automatic,
-    cx,
-    cy,
-    custom: hasCustom,
-    pathD: `M ${automatic.ax} ${automatic.ay} Q ${cx} ${cy} ${automatic.bx} ${automatic.by}`,
-    labelX: 0.25 * automatic.ax + 0.5 * cx + 0.25 * automatic.bx,
-    labelY: 0.25 * automatic.ay + 0.5 * cy + 0.25 * automatic.by - 3
+    custom: true,
+    controlPoints,
+    routePoints,
+    guidePoints: routePoints,
+    pathD: buildSmoothEdgePath(routePoints),
+    guideD: routePoints
+      .map((point, index) =>
+        `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
+      )
+      .join(' '),
+    labelX: labelPoint.x,
+    labelY: labelPoint.y - 3
   }
 }
 
@@ -3375,12 +3551,19 @@ function edgeWorldPoint(clientX, clientY) {
   }
 }
 
-function startEdgeControlDrag(event, sourceId, targetId) {
+function startEdgeControlDrag(
+  event,
+  sourceId,
+  targetId,
+  pointIndex
+) {
   if (!canEdit || !editorMode) return
   if (event.button !== 0 && event.pointerType !== 'touch') return
 
   const info = getEdgeInfo(sourceId, targetId)
-  if (!info) return
+  const points = normalizeEdgeControlPoints(info?.link?.controlPoints)
+
+  if (!info || !points[pointIndex]) return
 
   event.preventDefault()
   event.stopPropagation()
@@ -3390,15 +3573,17 @@ function startEdgeControlDrag(event, sourceId, targetId) {
     targetId: Number(targetId)
   }
 
+  selectedEdgePointIndex = Number(pointIndex)
   selectedId = Number(sourceId)
   detailOpen = false
+  info.link.controlPoints = points
 
   edgeControlDragState = {
     pointerId: event.pointerId,
     sourceId: Number(sourceId),
     targetId: Number(targetId),
-    originalX: info.link.controlX,
-    originalY: info.link.controlY,
+    pointIndex: Number(pointIndex),
+    originalPoints: points.map(point => ({ ...point })),
     moved: false
   }
 
@@ -3426,8 +3611,12 @@ function startEdgeControlDrag(event, sourceId, targetId) {
       moveEvent.clientY
     )
 
-    currentInfo.link.controlX = point.x
-    currentInfo.link.controlY = point.y
+    const nextPoints = normalizeEdgeControlPoints(
+      currentInfo.link.controlPoints
+    )
+
+    nextPoints[edgeControlDragState.pointIndex] = point
+    currentInfo.link.controlPoints = nextPoints
     edgeControlDragState.moved = true
     renderLinks()
   }
@@ -3447,7 +3636,11 @@ function startEdgeControlDrag(event, sourceId, targetId) {
 
     const state = edgeControlDragState
     edgeControlDragState = null
-    const currentInfo = getEdgeInfo(state.sourceId, state.targetId)
+
+    const currentInfo = getEdgeInfo(
+      state.sourceId,
+      state.targetId
+    )
 
     if (!currentInfo || !state.moved) {
       renderAll()
@@ -3455,28 +3648,21 @@ function startEdgeControlDrag(event, sourceId, targetId) {
     }
 
     try {
-      const updated = await updateEdgeGeometryRemote(
+      const updated = await updateEdgeControlPointsRemote(
         state.sourceId,
         state.targetId,
-        currentInfo.link.controlX,
-        currentInfo.link.controlY
+        currentInfo.link.controlPoints
       )
 
-      currentInfo.link.controlX =
-        updated.control_x == null
-          ? null
-          : Number(updated.control_x)
-
-      currentInfo.link.controlY =
-        updated.control_y == null
-          ? null
-          : Number(updated.control_y)
+      currentInfo.link.controlPoints =
+        normalizeEdgeControlPoints(updated.control_points)
 
       await refreshHistoryButtons()
       renderAll()
     } catch (error) {
-      currentInfo.link.controlX = state.originalX
-      currentInfo.link.controlY = state.originalY
+      currentInfo.link.controlPoints =
+        state.originalPoints.map(point => ({ ...point }))
+
       renderAll()
       alert(error.message || 'Traseul relației nu a putut fi salvat.')
     }
@@ -3488,26 +3674,190 @@ function startEdgeControlDrag(event, sourceId, targetId) {
   renderLinks()
 }
 
+function findEdgePointInsertion(source, target, controlPoints) {
+  const sourceGeometry = automaticEdgeControl(source, target)
+  const routePoints = [
+    { x: sourceGeometry.ax, y: sourceGeometry.ay },
+    ...controlPoints,
+    { x: sourceGeometry.bx, y: sourceGeometry.by }
+  ]
+
+  let longestIndex = 0
+  let longestLength = -1
+
+  for (let index = 0; index < routePoints.length - 1; index += 1) {
+    const start = routePoints[index]
+    const end = routePoints[index + 1]
+    const length = Math.hypot(end.x - start.x, end.y - start.y)
+
+    if (length > longestLength) {
+      longestLength = length
+      longestIndex = index
+    }
+  }
+
+  if (controlPoints.length === 0) {
+    return {
+      index: 0,
+      point: {
+        x:
+          0.25 * sourceGeometry.ax +
+          0.5 * sourceGeometry.cx +
+          0.25 * sourceGeometry.bx,
+        y:
+          0.25 * sourceGeometry.ay +
+          0.5 * sourceGeometry.cy +
+          0.25 * sourceGeometry.by
+      }
+    }
+  }
+
+  const start = routePoints[longestIndex]
+  const end = routePoints[longestIndex + 1]
+
+  return {
+    index: longestIndex,
+    point: {
+      x: (start.x + end.x) / 2,
+      y: (start.y + end.y) / 2
+    }
+  }
+}
+
+async function addEdgeControlPoint() {
+  if (!canEdit || !editorMode) return
+
+  const info = selectedEdgeInfo()
+  if (!info) {
+    alert('Selectează mai întâi o muchie.')
+    return
+  }
+
+  const target = findNode(info.link.targetId)
+  if (!target) return
+
+  const originalPoints = normalizeEdgeControlPoints(
+    info.link.controlPoints
+  )
+
+  if (originalPoints.length >= MAX_EDGE_CONTROL_POINTS) {
+    alert(`Poți folosi maximum ${MAX_EDGE_CONTROL_POINTS} puncte pe o muchie.`)
+    return
+  }
+
+  const insertion = findEdgePointInsertion(
+    info.source,
+    target,
+    originalPoints
+  )
+
+  const nextPoints = originalPoints.map(point => ({ ...point }))
+  nextPoints.splice(insertion.index, 0, insertion.point)
+
+  info.link.controlPoints = nextPoints
+  selectedEdgePointIndex = insertion.index
+  renderAll()
+
+  try {
+    const updated = await updateEdgeControlPointsRemote(
+      info.source.id,
+      target.id,
+      nextPoints
+    )
+
+    info.link.controlPoints =
+      normalizeEdgeControlPoints(updated.control_points)
+
+    await refreshHistoryButtons()
+    renderAll()
+  } catch (error) {
+    info.link.controlPoints = originalPoints
+    selectedEdgePointIndex = null
+    renderAll()
+    alert(error.message || 'Punctul nu a putut fi adăugat.')
+  }
+}
+
+async function removeSelectedEdgeControlPoint() {
+  if (!canEdit || !editorMode) return
+
+  const info = selectedEdgeInfo()
+  if (!info) {
+    alert('Selectează mai întâi o muchie.')
+    return
+  }
+
+  const originalPoints = normalizeEdgeControlPoints(
+    info.link.controlPoints
+  )
+
+  if (originalPoints.length === 0) return
+
+  const pointIndex =
+    Number.isInteger(selectedEdgePointIndex) &&
+    selectedEdgePointIndex >= 0 &&
+    selectedEdgePointIndex < originalPoints.length
+      ? selectedEdgePointIndex
+      : originalPoints.length - 1
+
+  const nextPoints = originalPoints.map(point => ({ ...point }))
+  nextPoints.splice(pointIndex, 1)
+
+  info.link.controlPoints = nextPoints
+  selectedEdgePointIndex = nextPoints.length
+    ? Math.min(pointIndex, nextPoints.length - 1)
+    : null
+
+  renderAll()
+
+  try {
+    const updated = await updateEdgeControlPointsRemote(
+      info.source.id,
+      info.link.targetId,
+      nextPoints
+    )
+
+    info.link.controlPoints =
+      normalizeEdgeControlPoints(updated.control_points)
+
+    await refreshHistoryButtons()
+    renderAll()
+  } catch (error) {
+    info.link.controlPoints = originalPoints
+    selectedEdgePointIndex = pointIndex
+    renderAll()
+    alert(error.message || 'Punctul nu a putut fi șters.')
+  }
+}
+
 async function resetEdgeControl(sourceId, targetId) {
   if (!canEdit || !editorMode) return
 
   const info = getEdgeInfo(sourceId, targetId)
   if (!info) return
 
-  const originalX = info.link.controlX
-  const originalY = info.link.controlY
+  const originalPoints = normalizeEdgeControlPoints(
+    info.link.controlPoints
+  )
 
-  info.link.controlX = null
-  info.link.controlY = null
-  renderLinks()
+  info.link.controlPoints = []
+  selectedEdgePointIndex = null
+  renderAll()
 
   try {
-    await updateEdgeGeometryRemote(sourceId, targetId, null, null)
+    const updated = await updateEdgeControlPointsRemote(
+      sourceId,
+      targetId,
+      []
+    )
+
+    info.link.controlPoints =
+      normalizeEdgeControlPoints(updated.control_points)
+
     await refreshHistoryButtons()
     renderAll()
   } catch (error) {
-    info.link.controlX = originalX
-    info.link.controlY = originalY
+    info.link.controlPoints = originalPoints
     renderAll()
     alert(error.message || 'Traseul automat nu a putut fi restaurat.')
   }
@@ -3583,33 +3933,31 @@ function renderLinks() {
         ? `
           <path
             class="edge-control-guide"
-            d="M ${geometry.ax} ${geometry.ay} L ${geometry.cx} ${geometry.cy} L ${geometry.bx} ${geometry.by}"
+            d="${geometry.guideD}"
           />
-          <circle
-            class="edge-control-handle"
-            data-edge-control-source="${source.id}"
-            data-edge-control-target="${target.id}"
-            cx="${geometry.cx}"
-            cy="${geometry.cy}"
-            r="${controlRadius}"
-          />
-          <circle
-            class="edge-control-core"
-            cx="${geometry.cx}"
-            cy="${geometry.cy}"
-            r="${controlCoreRadius}"
-          />
-          ${geometry.custom ? `
-            <g
-              class="edge-control-reset"
-              data-edge-reset-source="${source.id}"
-              data-edge-reset-target="${target.id}"
-              transform="translate(${geometry.cx + 18}, ${geometry.cy - 30})"
-            >
-              <rect x="0" y="0" width="48" height="24" rx="10" ry="10"></rect>
-              <text x="24" y="16" text-anchor="middle">Auto</text>
-            </g>
-          ` : ''}
+          ${geometry.controlPoints.map((point, pointIndex) => `
+            <circle
+              class="edge-control-handle ${selectedEdgePointIndex === pointIndex ? 'selected' : ''}"
+              data-edge-control-source="${source.id}"
+              data-edge-control-target="${target.id}"
+              data-edge-point-index="${pointIndex}"
+              cx="${point.x}"
+              cy="${point.y}"
+              r="${controlRadius}"
+            />
+            <circle
+              class="edge-control-core"
+              cx="${point.x}"
+              cy="${point.y}"
+              r="${controlCoreRadius}"
+            />
+            <text
+              class="edge-control-number"
+              x="${point.x}"
+              y="${point.y - controlRadius - 6}"
+              text-anchor="middle"
+            >${pointIndex + 1}</text>
+          `).join('')}
         `
         : ''
 
@@ -3684,23 +4032,8 @@ function renderLinks() {
       startEdgeControlDrag(
         event,
         Number(handle.dataset.edgeControlSource),
-        Number(handle.dataset.edgeControlTarget)
-      )
-    })
-  })
-
-  linkLayer.querySelectorAll('[data-edge-reset-source]').forEach(button => {
-    button.addEventListener('pointerdown', event => {
-      event.preventDefault()
-      event.stopPropagation()
-    })
-
-    button.addEventListener('click', event => {
-      event.preventDefault()
-      event.stopPropagation()
-      resetEdgeControl(
-        Number(button.dataset.edgeResetSource),
-        Number(button.dataset.edgeResetTarget)
+        Number(handle.dataset.edgeControlTarget),
+        Number(handle.dataset.edgePointIndex)
       )
     })
   })
@@ -4045,12 +4378,23 @@ function renderSelectedStrip() {
     const target = info ? findNode(info.link.targetId) : null
 
     if (info && target) {
+      const pointCount =
+        normalizeEdgeControlPoints(info.link.controlPoints).length
+
+      const selectedPointText =
+        Number.isInteger(selectedEdgePointIndex) &&
+        selectedEdgePointIndex >= 0 &&
+        selectedEdgePointIndex < pointCount
+          ? ` · punctul ${selectedEdgePointIndex + 1} selectat`
+          : ''
+
       selectedStrip.innerHTML = `
         <strong>Muchie selectată</strong><br>
         ${escapeHtml(info.source.title)} → ${escapeHtml(target.title)} ·
         ${escapeHtml(info.link.label || 'relație')}<br>
+        ${pointCount} ${pointCount === 1 ? 'punct de traseu' : 'puncte de traseu'}${selectedPointText}<br>
         ${canEdit && editorMode
-          ? 'Trage punctul mov pentru a modela traseul.'
+          ? 'Folosește „+ Punct muchie”, apoi trage fiecare punct numerotat.'
           : ''}
       `
       return
@@ -5058,8 +5402,8 @@ function renderDetailPanel() {
           <button class="icon-btn" id="detailAddRelationBtn" aria-label="Add relation">＋</button>
           <button class="icon-btn" id="detailEditBtn" aria-label="Edit">✎</button>
           <button class="icon-btn" id="detailDeleteBtn" aria-label="Delete">🗑</button>
-          <button class="icon-btn" id="detailCloseBtn" aria-label="Close">✕</button>
         </div>
+        <button class="icon-btn" id="detailCloseBtn" aria-label="Close">✕</button>
       </div>
     </div>
     <div class="detail-content">
@@ -5673,6 +6017,7 @@ async function deleteSelected() {
       )
     ) {
       selectedEdge = null
+      selectedEdgePointIndex = null
     }
 
     selectedId = nodes[0]?.id ?? null
@@ -5726,6 +6071,7 @@ async function removeRelation(sourceId, relationIndex) {
       Number(selectedEdge.targetId) === targetId
     ) {
       selectedEdge = null
+      selectedEdgePointIndex = null
     }
 
     saveCachedNodes()
@@ -5798,80 +6144,6 @@ function handleRelationNodeClick(targetId) {
   detailOpen = true
   renderAll()
   openRelationEdit(sourceId, relationIndex)
-}
-
-async function autoArrange() {
-  if (!requireAuth()) return
-
-  const initialMap = new Map(
-    initialNodes.map(node => [
-      Number(node.id),
-      {
-        x: Number(node.x),
-        y: Number(node.y)
-      }
-    ])
-  )
-
-  const plannedPositions = []
-
-  nodes.forEach(node => {
-    const initialPosition = initialMap.get(Number(node.id))
-
-    if (!initialPosition) return
-
-    const positionChanged =
-      Number(node.x) !== initialPosition.x ||
-      Number(node.y) !== initialPosition.y
-
-    if (!positionChanged) return
-
-    plannedPositions.push({
-      id: Number(node.id),
-      x: initialPosition.x,
-      y: initialPosition.y
-    })
-  })
-
-  if (plannedPositions.length === 0) {
-    fitView()
-    renderAll()
-    return
-  }
-
-  try {
-    await updateNodePositionsRemote(plannedPositions)
-
-    const positionsById = new Map(
-      plannedPositions.map(position => [
-        Number(position.id),
-        position
-      ])
-    )
-
-    nodes.forEach(node => {
-      const position = positionsById.get(Number(node.id))
-
-      if (!position) return
-
-      node.x = Number(position.x)
-      node.y = Number(position.y)
-    })
-
-    saveCachedNodes()
-    fitView()
-    renderAll()
-  } catch (error) {
-    console.error('Auto arrange failed:', error)
-
-    alert(
-      `Eroare la resetarea pozițiilor: ${
-        error?.message || 'necunoscută'
-      }`
-    )
-
-    await fetchAllData()
-  }
 }
 
 function shouldIgnoreSurfaceGesture(event) {
@@ -6060,8 +6332,25 @@ redoBtn.addEventListener('click', () => {
 zoomInBtn.addEventListener('click', () => setScale(view.scale * 1.12))
 zoomOutBtn.addEventListener('click', () => setScale(view.scale * 0.88))
 fitBtn.addEventListener('click', fitView)
-arrangeBtn.addEventListener('click', () => {
-  autoArrange().catch(error => alert(error.message || 'Eroare la resetarea pozițiilor.'))
+addEdgePointBtn.addEventListener('click', () => {
+  addEdgeControlPoint().catch(error => {
+    alert(error.message || 'Punctul nu a putut fi adăugat.')
+  })
+})
+removeEdgePointBtn.addEventListener('click', () => {
+  removeSelectedEdgeControlPoint().catch(error => {
+    alert(error.message || 'Punctul nu a putut fi șters.')
+  })
+})
+resetEdgePathBtn.addEventListener('click', () => {
+  if (!selectedEdge) return
+
+  resetEdgeControl(
+    selectedEdge.sourceId,
+    selectedEdge.targetId
+  ).catch(error => {
+    alert(error.message || 'Traseul automat nu a putut fi restaurat.')
+  })
 })
 resetViewBtn.addEventListener('click', () => {
   view = { ...DEFAULT_VIEW }
