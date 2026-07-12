@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log('ATLAS SCRIPT LOADED v26')
+console.log('ATLAS SCRIPT LOADED v28 · MOBILE SCROLL')
 
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
@@ -40,6 +40,63 @@ let pinchState = null
 
 function isTouchLayout() {
   return window.matchMedia('(pointer: coarse), (max-width: 920px)').matches
+}
+
+
+let mobileFieldScrollTimer = null
+
+function updateAtlasViewportHeight() {
+  const viewportHeight =
+    window.visualViewport?.height ||
+    window.innerHeight
+
+  if (!Number.isFinite(viewportHeight)) return
+
+  document.documentElement.style.setProperty(
+    '--atlas-viewport-height',
+    `${Math.round(viewportHeight)}px`
+  )
+}
+
+function keepFocusedEditorFieldVisible(target) {
+  if (!isTouchLayout()) return
+  if (!(target instanceof HTMLElement)) return
+
+  const isEditorField = target.matches(
+    'input, textarea, select, button'
+  )
+
+  if (!isEditorField) return
+
+  const openModal = target.closest(
+    '.modal-backdrop.open'
+  )
+
+  if (!openModal) return
+
+  if (mobileFieldScrollTimer) {
+    clearTimeout(mobileFieldScrollTimer)
+  }
+
+  mobileFieldScrollTimer = window.setTimeout(() => {
+    mobileFieldScrollTimer = null
+
+    if (!target.isConnected) return
+
+    target.scrollIntoView({
+      block: 'center',
+      inline: 'nearest',
+      behavior: 'smooth'
+    })
+  }, 220)
+}
+
+function restoreModalScrollPosition(container, scrollTop) {
+  if (!container) return
+
+  requestAnimationFrame(() => {
+    container.scrollTop = Math.max(0, Number(scrollTop) || 0)
+  })
 }
 
 function prefersReducedMotion() {
@@ -3668,11 +3725,21 @@ function renderMediaManager() {
 
 async function refreshAfterMediaMutation() {
   const nodeId = mediaManagerNodeId
+  const body = mediaManagerBackdrop.querySelector(
+    '.media-manager-body'
+  )
+  const previousScrollTop = body?.scrollTop || 0
+
   await fetchAllData()
   mediaManagerNodeId = nodeId
 
   if (isMediaManagerOpen()) {
     renderMediaManager()
+
+    restoreModalScrollPosition(
+      mediaManagerBackdrop.querySelector('.media-manager-body'),
+      previousScrollTop
+    )
   }
 }
 
@@ -4265,11 +4332,21 @@ function renderCodeManager() {
 
 async function refreshAfterCodeMutation() {
   const nodeId = codeManagerNodeId
+  const body = codeManagerBackdrop.querySelector(
+    '.code-manager-body'
+  )
+  const previousScrollTop = body?.scrollTop || 0
+
   await fetchAllData()
   codeManagerNodeId = nodeId
 
   if (isCodeManagerOpen()) {
     renderCodeManager()
+
+    restoreModalScrollPosition(
+      codeManagerBackdrop.querySelector('.code-manager-body'),
+      previousScrollTop
+    )
   }
 }
 
@@ -5826,10 +5903,36 @@ if (savedPanelState === '1' || (savedPanelState == null && isTouchLayout())) {
 
 if (introDismissed) introScreen.classList.add('hidden')
 
+updateAtlasViewportHeight()
+
+document.addEventListener('focusin', event => {
+  keepFocusedEditorFieldVisible(event.target)
+})
+
 window.addEventListener('resize', () => {
+  updateAtlasViewportHeight()
   renderAll()
   applyView()
 })
+
+if (window.visualViewport) {
+  window.visualViewport.addEventListener(
+    'resize',
+    () => {
+      updateAtlasViewportHeight()
+
+      const activeElement = document.activeElement
+      if (activeElement instanceof HTMLElement) {
+        keepFocusedEditorFieldVisible(activeElement)
+      }
+    }
+  )
+
+  window.visualViewport.addEventListener(
+    'scroll',
+    updateAtlasViewportHeight
+  )
+}
 
 supabase.auth.onAuthStateChange(
   (event, session) => {
