@@ -2095,6 +2095,7 @@
     line-height: 1.5;
   }
 
+  
   .modal-body,
   .media-manager-body,
   .code-manager-body,
@@ -2311,6 +2312,126 @@
     }
   }
 
+
+  .node {
+    overflow: hidden;
+  }
+
+  .node-resize-handle {
+    position: absolute;
+    z-index: 6;
+    display: block;
+    border: 1px solid rgba(255, 190, 205, 0.9);
+    background: rgba(177, 76, 255, 0.88);
+    box-shadow: 0 0 0 3px rgba(177, 76, 255, 0.14), 0 0 14px rgba(177, 76, 255, 0.38);
+    pointer-events: auto;
+    touch-action: none;
+  }
+
+  .node-resize-handle.east {
+    top: 50%;
+    right: -6px;
+    width: 12px;
+    height: 34px;
+    border-radius: 8px;
+    cursor: ew-resize;
+    transform: translateY(-50%);
+  }
+
+  .node-resize-handle.south {
+    left: 50%;
+    bottom: -6px;
+    width: 34px;
+    height: 12px;
+    border-radius: 8px;
+    cursor: ns-resize;
+    transform: translateX(-50%);
+  }
+
+  .node-resize-handle.southeast {
+    right: -7px;
+    bottom: -7px;
+    width: 16px;
+    height: 16px;
+    border-radius: 6px;
+    cursor: nwse-resize;
+  }
+
+  .node-resizing .node,
+  .edge-control-dragging .edge-group path {
+    transition: none !important;
+  }
+
+  .edge-control-guide {
+    fill: none;
+    stroke: rgba(205, 169, 255, 0.5);
+    stroke-width: 1.2;
+    stroke-dasharray: 5 7;
+    pointer-events: none;
+  }
+
+  .edge-control-handle {
+    fill: rgba(177, 76, 255, 0.34);
+    stroke: rgba(255, 208, 220, 0.96);
+    stroke-width: 2;
+    cursor: grab;
+    pointer-events: all;
+    touch-action: none;
+  }
+
+  .edge-control-handle:hover {
+    fill: rgba(177, 76, 255, 0.62);
+  }
+
+  .edge-control-core {
+    fill: #ff8ca3;
+    pointer-events: none;
+  }
+
+  .edge-control-reset {
+    cursor: pointer;
+    pointer-events: all;
+    touch-action: manipulation;
+  }
+
+  .edge-control-reset rect {
+    fill: rgba(10, 8, 14, 0.98);
+    stroke: rgba(255, 77, 109, 0.46);
+  }
+
+  .edge-control-reset text {
+    fill: #ffdce5;
+    font-family: Inter, system-ui;
+    font-size: 10px;
+    font-weight: 750;
+    pointer-events: none;
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .node-resize-handle.east {
+      right: -9px;
+      width: 18px;
+      height: 44px;
+    }
+
+    .node-resize-handle.south {
+      bottom: -9px;
+      width: 44px;
+      height: 18px;
+    }
+
+    .node-resize-handle.southeast {
+      right: -10px;
+      bottom: -10px;
+      width: 22px;
+      height: 22px;
+    }
+
+    .edge-control-handle {
+      stroke-width: 3;
+    }
+  }
+
   </style>
 </head>
 <body>
@@ -2469,7 +2590,7 @@
           <div class="mode-strip" id="modeStrip"></div>
           <div class="tools-note">
             Click sau tap pe un nod pentru documentație. Zoom cu scroll și pan cu drag pe fundal.
-            În Editor Mode poți muta nodurile; Shift + săgeți folosește un pas mai mare.
+            În Editor Mode poți muta nodurile, le poți redimensiona din mânere sau cu Alt + săgeți și poți modela relațiile din punctul lor de control.
           </div>
         </div>
       </div>
@@ -2845,6 +2966,6 @@
     </div>
   </div>
 
-  <script type="module" src="./atlas-script.js?v=28"></script>
+  <script type="module" src="./atlas-script.js?v=29"></script>
 </body>
 </html>
