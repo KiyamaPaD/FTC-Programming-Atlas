@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 console.log('ATLAS SCRIPT LOADED v30 · MULTI-POINT EDGES')
 
+// Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
 const PROJECT_ID = 'ftc-main'
@@ -23,7 +24,7 @@ const CACHE_KEYS = {
   intro: 'ftc_atlas_intro_v1',
   editorMode: 'ftc_atlas_editor_mode_v1',
   codeDrafts: 'ftc_atlas_code_drafts_v1',
-  codeManagerOpen: 'ftc_atlas_code_manager_open_v1',
+  codeManagerOpen: 'ftc_atlas_code_manager_open_v1'
 }
 
 const DEFAULT_VIEW = { x: -120, y: -80, scale: 1 }
@@ -44,17 +45,15 @@ const activeTouchPoints = new Map()
 let pinchState = null
 let edgeControlDragState = null
 
+// Responsive layout and mobile viewport helpers
 function isTouchLayout() {
   return window.matchMedia('(pointer: coarse), (max-width: 920px)').matches
 }
 
-
 let mobileFieldScrollTimer = null
 
 function updateAtlasViewportHeight() {
-  const viewportHeight =
-    window.visualViewport?.height ||
-    window.innerHeight
+  const viewportHeight = window.visualViewport?.height || window.innerHeight
 
   if (!Number.isFinite(viewportHeight)) return
 
@@ -68,15 +67,11 @@ function keepFocusedEditorFieldVisible(target) {
   if (!isTouchLayout()) return
   if (!(target instanceof HTMLElement)) return
 
-  const isEditorField = target.matches(
-    'input, textarea, select, button'
-  )
+  const isEditorField = target.matches('input, textarea, select, button')
 
   if (!isEditorField) return
 
-  const openModal = target.closest(
-    '.modal-backdrop.open'
-  )
+  const openModal = target.closest('.modal-backdrop.open')
 
   if (!openModal) return
 
@@ -118,7 +113,7 @@ function getCssPx(varName, fallback) {
 function getNodeMetrics() {
   return {
     width: getCssPx('--node-width', NODE_WIDTH),
-    height: getCssPx('--node-height', NODE_HEIGHT),
+    height: getCssPx('--node-height', NODE_HEIGHT)
   }
 }
 
@@ -150,18 +145,20 @@ function getTouchDistance(a, b) {
 function getTouchCenter(a, b) {
   return {
     x: (a.x + b.x) / 2,
-    y: (a.y + b.y) / 2,
+    y: (a.y + b.y) / 2
   }
 }
 
+// Supabase client configuration
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
+    detectSessionInUrl: true
   }
 })
 
+// Default tutorial shown when no project-specific tutorial is stored
 const DEFAULT_TUTORIAL_CONTENT = `1. Ce este site-ul
 
 Acest site este un atlas interactiv pentru documentația de programare FTC. Fiecare nod reprezintă un subiect sau un capitol.
@@ -215,9 +212,10 @@ Introduci email-ul și apeși pe Trimite magic link. După ce deschizi link-ul d
 
 Nodurile, relațiile, categoriile, dificultățile, etichetele, media, snippet-urile de cod și tutorialul sunt în Supabase.`
 
-function saveCachedNodes() {
-}
+// Compatibility hook retained for earlier local-cache versions
+function saveCachedNodes() {}
 
+// Persisted map view state
 function loadView() {
   const saved = localStorage.getItem(CACHE_KEYS.view)
 
@@ -235,9 +233,7 @@ function loadView() {
     return {
       x: Number.isFinite(x) ? x : DEFAULT_VIEW.x,
       y: Number.isFinite(y) ? y : DEFAULT_VIEW.y,
-      scale: Number.isFinite(scale)
-        ? Math.min(Math.max(scale, 0.45), 1.8)
-        : DEFAULT_VIEW.scale
+      scale: Number.isFinite(scale) ? Math.min(Math.max(scale, 0.45), 1.8) : DEFAULT_VIEW.scale
     }
   } catch (error) {
     console.warn('Saved atlas view is invalid:', error)
@@ -249,6 +245,7 @@ function saveView() {
   localStorage.setItem(CACHE_KEYS.view, JSON.stringify(view))
 }
 
+// Runtime application state
 let nodes = []
 let selectedId = nodes[0]?.id ?? null
 let selectedEdge = null
@@ -271,8 +268,7 @@ let view = loadView()
 let currentUser = null
 let canEdit = false
 
-let editorMode =
-  localStorage.getItem(CACHE_KEYS.editorMode) === '1'
+let editorMode = localStorage.getItem(CACHE_KEYS.editorMode) === '1'
 
 let isAtlasLoading = true
 let atlasLoadPromise = null
@@ -293,6 +289,7 @@ let codeDraftSaveTimer = null
 let edgeClickState = { key: null, time: 0 }
 let panState = null
 
+// Frequently used DOM references
 const mapSurface = document.getElementById('mapSurface')
 const world = document.getElementById('world')
 const nodeLayer = document.getElementById('nodeLayer')
@@ -319,20 +316,15 @@ const addEdgePointBtn = document.getElementById('addEdgePointBtn')
 const removeEdgePointBtn = document.getElementById('removeEdgePointBtn')
 const resetEdgePathBtn = document.getElementById('resetEdgePathBtn')
 const tutorialBtn = document.getElementById('tutorialBtn')
-const editorModeBtn =
-  document.getElementById('editorModeBtn')
+const editorModeBtn = document.getElementById('editorModeBtn')
 
-const editorToolsSection =
-  document.getElementById('editorToolsSection')
+const editorToolsSection = document.getElementById('editorToolsSection')
 
-const taxonomyManagerBtn =
-  document.getElementById('taxonomyManagerBtn')
+const taxonomyManagerBtn = document.getElementById('taxonomyManagerBtn')
 
-const mediaManagerBtn =
-  document.getElementById('mediaManagerBtn')
+const mediaManagerBtn = document.getElementById('mediaManagerBtn')
 
-const codeManagerBtn =
-  document.getElementById('codeManagerBtn')
+const codeManagerBtn = document.getElementById('codeManagerBtn')
 
 const resetViewBtn = document.getElementById('resetViewBtn')
 const fitSelectionBtn = document.getElementById('fitSelectionBtn')
@@ -370,189 +362,133 @@ const saveBtn = document.getElementById('saveBtn')
 const introScreen = document.getElementById('introScreen')
 const enterBtn = document.getElementById('enterBtn')
 
-const atlasStatusOverlay =
-  document.getElementById('atlasStatusOverlay')
+const atlasStatusOverlay = document.getElementById('atlasStatusOverlay')
 
-const atlasLoader =
-  document.getElementById('atlasLoader')
+const atlasLoader = document.getElementById('atlasLoader')
 
-const atlasStatusKicker =
-  document.getElementById('atlasStatusKicker')
+const atlasStatusKicker = document.getElementById('atlasStatusKicker')
 
-const atlasStatusTitle =
-  document.getElementById('atlasStatusTitle')
+const atlasStatusTitle = document.getElementById('atlasStatusTitle')
 
-const atlasStatusMessage =
-  document.getElementById('atlasStatusMessage')
+const atlasStatusMessage = document.getElementById('atlasStatusMessage')
 
-const retryLoadBtn =
-  document.getElementById('retryLoadBtn')
+const retryLoadBtn = document.getElementById('retryLoadBtn')
 
-const mediaManagerBackdrop =
-  document.getElementById('mediaManagerBackdrop')
+const mediaManagerBackdrop = document.getElementById('mediaManagerBackdrop')
 
-const closeMediaManagerBtn =
-  document.getElementById('closeMediaManagerBtn')
+const closeMediaManagerBtn = document.getElementById('closeMediaManagerBtn')
 
-const mediaManagerTitle =
-  document.getElementById('mediaManagerTitle')
+const mediaManagerTitle = document.getElementById('mediaManagerTitle')
 
-const mediaManagerSummary =
-  document.getElementById('mediaManagerSummary')
+const mediaManagerSummary = document.getElementById('mediaManagerSummary')
 
-const mediaFileInput =
-  document.getElementById('mediaFileInput')
+const mediaFileInput = document.getElementById('mediaFileInput')
 
-const mediaUploadTitleInput =
-  document.getElementById('mediaUploadTitleInput')
+const mediaUploadTitleInput = document.getElementById('mediaUploadTitleInput')
 
-const mediaUploadCaptionInput =
-  document.getElementById('mediaUploadCaptionInput')
+const mediaUploadCaptionInput = document.getElementById('mediaUploadCaptionInput')
 
-const uploadMediaBtn =
-  document.getElementById('uploadMediaBtn')
+const uploadMediaBtn = document.getElementById('uploadMediaBtn')
 
-const mediaUploadStatus =
-  document.getElementById('mediaUploadStatus')
+const mediaUploadStatus = document.getElementById('mediaUploadStatus')
 
-const mediaExternalUrlInput =
-  document.getElementById('mediaExternalUrlInput')
+const mediaExternalUrlInput = document.getElementById('mediaExternalUrlInput')
 
-const mediaExternalTitleInput =
-  document.getElementById('mediaExternalTitleInput')
+const mediaExternalTitleInput = document.getElementById('mediaExternalTitleInput')
 
-const mediaExternalCaptionInput =
-  document.getElementById('mediaExternalCaptionInput')
+const mediaExternalCaptionInput = document.getElementById('mediaExternalCaptionInput')
 
-const addExternalMediaBtn =
-  document.getElementById('addExternalMediaBtn')
+const addExternalMediaBtn = document.getElementById('addExternalMediaBtn')
 
-const mediaManagerList =
-  document.getElementById('mediaManagerList')
+const mediaManagerList = document.getElementById('mediaManagerList')
 
-const closeMediaManagerFooterBtn =
-  document.getElementById('closeMediaManagerFooterBtn')
+const closeMediaManagerFooterBtn = document.getElementById('closeMediaManagerFooterBtn')
 
-const codeManagerBackdrop =
-  document.getElementById('codeManagerBackdrop')
+const codeManagerBackdrop = document.getElementById('codeManagerBackdrop')
 
-const closeCodeManagerBtn =
-  document.getElementById('closeCodeManagerBtn')
+const closeCodeManagerBtn = document.getElementById('closeCodeManagerBtn')
 
-const closeCodeManagerFooterBtn =
-  document.getElementById('closeCodeManagerFooterBtn')
+const closeCodeManagerFooterBtn = document.getElementById('closeCodeManagerFooterBtn')
 
-const codeManagerTitle =
-  document.getElementById('codeManagerTitle')
+const codeManagerTitle = document.getElementById('codeManagerTitle')
 
-const codeManagerSummary =
-  document.getElementById('codeManagerSummary')
+const codeManagerSummary = document.getElementById('codeManagerSummary')
 
-const codeCreateTitleInput =
-  document.getElementById('codeCreateTitleInput')
+const codeCreateTitleInput = document.getElementById('codeCreateTitleInput')
 
-const codeCreateLanguageInput =
-  document.getElementById('codeCreateLanguageInput')
+const codeCreateLanguageInput = document.getElementById('codeCreateLanguageInput')
 
-const codeCreateDescriptionInput =
-  document.getElementById('codeCreateDescriptionInput')
+const codeCreateDescriptionInput = document.getElementById('codeCreateDescriptionInput')
 
-const codeCreateCodeInput =
-  document.getElementById('codeCreateCodeInput')
+const codeCreateCodeInput = document.getElementById('codeCreateCodeInput')
 
-const addCodeSnippetBtn =
-  document.getElementById('addCodeSnippetBtn')
+const addCodeSnippetBtn = document.getElementById('addCodeSnippetBtn')
 
-const codeManagerStatus =
-  document.getElementById('codeManagerStatus')
+const codeManagerStatus = document.getElementById('codeManagerStatus')
 
-const codeManagerList =
-  document.getElementById('codeManagerList')
+const codeManagerList = document.getElementById('codeManagerList')
 
-const taxonomyManagerBackdrop =
-  document.getElementById('taxonomyManagerBackdrop')
+const taxonomyManagerBackdrop = document.getElementById('taxonomyManagerBackdrop')
 
-const closeTaxonomyManagerBtn =
-  document.getElementById('closeTaxonomyManagerBtn')
+const closeTaxonomyManagerBtn = document.getElementById('closeTaxonomyManagerBtn')
 
-const taxonomyAddBtn =
-  document.getElementById('taxonomyAddBtn')
+const taxonomyAddBtn = document.getElementById('taxonomyAddBtn')
 
-const taxonomyManagerSummary =
-  document.getElementById('taxonomyManagerSummary')
+const taxonomyManagerSummary = document.getElementById('taxonomyManagerSummary')
 
-const taxonomyManagerList =
-  document.getElementById('taxonomyManagerList')
+const taxonomyManagerList = document.getElementById('taxonomyManagerList')
 
-const taxonomyItemBackdrop =
-  document.getElementById('taxonomyItemBackdrop')
+const taxonomyItemBackdrop = document.getElementById('taxonomyItemBackdrop')
 
-const taxonomyItemTitle =
-  document.getElementById('taxonomyItemTitle')
+const taxonomyItemTitle = document.getElementById('taxonomyItemTitle')
 
-const taxonomyItemSubtitle =
-  document.getElementById('taxonomyItemSubtitle')
+const taxonomyItemSubtitle = document.getElementById('taxonomyItemSubtitle')
 
-const closeTaxonomyItemBtn =
-  document.getElementById('closeTaxonomyItemBtn')
+const closeTaxonomyItemBtn = document.getElementById('closeTaxonomyItemBtn')
 
-const taxonomyNameInput =
-  document.getElementById('taxonomyNameInput')
+const taxonomyNameInput = document.getElementById('taxonomyNameInput')
 
-const taxonomyOrderInput =
-  document.getElementById('taxonomyOrderInput')
+const taxonomyOrderInput = document.getElementById('taxonomyOrderInput')
 
-const taxonomyDescriptionInput =
-  document.getElementById('taxonomyDescriptionInput')
+const taxonomyDescriptionInput = document.getElementById('taxonomyDescriptionInput')
 
-const taxonomyActiveInput =
-  document.getElementById('taxonomyActiveInput')
+const taxonomyActiveInput = document.getElementById('taxonomyActiveInput')
 
-const taxonomyDeleteNote =
-  document.getElementById('taxonomyDeleteNote')
+const taxonomyDeleteNote = document.getElementById('taxonomyDeleteNote')
 
-const taxonomyDeleteBtn =
-  document.getElementById('taxonomyDeleteBtn')
+const taxonomyDeleteBtn = document.getElementById('taxonomyDeleteBtn')
 
-const cancelTaxonomyItemBtn =
-  document.getElementById('cancelTaxonomyItemBtn')
+const cancelTaxonomyItemBtn = document.getElementById('cancelTaxonomyItemBtn')
 
-const saveTaxonomyItemBtn =
-  document.getElementById('saveTaxonomyItemBtn')
+const saveTaxonomyItemBtn = document.getElementById('saveTaxonomyItemBtn')
 
-const taxonomyReplaceBackdrop =
-  document.getElementById('taxonomyReplaceBackdrop')
+const taxonomyReplaceBackdrop = document.getElementById('taxonomyReplaceBackdrop')
 
-const taxonomyReplaceTitle =
-  document.getElementById('taxonomyReplaceTitle')
+const taxonomyReplaceTitle = document.getElementById('taxonomyReplaceTitle')
 
-const taxonomyReplaceMessage =
-  document.getElementById('taxonomyReplaceMessage')
+const taxonomyReplaceMessage = document.getElementById('taxonomyReplaceMessage')
 
-const taxonomyReplacementSelect =
-  document.getElementById('taxonomyReplacementSelect')
+const taxonomyReplacementSelect = document.getElementById('taxonomyReplacementSelect')
 
-const closeTaxonomyReplaceBtn =
-  document.getElementById('closeTaxonomyReplaceBtn')
+const closeTaxonomyReplaceBtn = document.getElementById('closeTaxonomyReplaceBtn')
 
-const cancelTaxonomyReplaceBtn =
-  document.getElementById('cancelTaxonomyReplaceBtn')
+const cancelTaxonomyReplaceBtn = document.getElementById('cancelTaxonomyReplaceBtn')
 
-const confirmTaxonomyReplaceBtn =
-  document.getElementById('confirmTaxonomyReplaceBtn')
+const confirmTaxonomyReplaceBtn = document.getElementById('confirmTaxonomyReplaceBtn')
 
+// Node and relationship selection helpers
 function selectedNode() {
-  return nodes.find(node => String(node.id) === String(selectedId)) || null
+  return nodes.find((node) => String(node.id) === String(selectedId)) || null
 }
 
 function findNode(id) {
-  return nodes.find(node => String(node.id) === String(id)) || null
+  return nodes.find((node) => String(node.id) === String(id)) || null
 }
 
 function getEdgeInfo(sourceId, targetId) {
   const source = findNode(sourceId)
   if (!source) return null
-  const index = source.links.findIndex(link => Number(link.targetId) === Number(targetId))
+  const index = source.links.findIndex((link) => Number(link.targetId) === Number(targetId))
   if (index === -1) return null
   return {
     source,
@@ -561,6 +497,7 @@ function getEdgeInfo(sourceId, targetId) {
   }
 }
 
+// Supports both the current multi-point format and legacy single-point columns
 function normalizeEdgeControlPoints(value, legacyX = null, legacyY = null) {
   let points = value
 
@@ -574,16 +511,13 @@ function normalizeEdgeControlPoints(value, legacyX = null, legacyY = null) {
 
   const normalized = Array.isArray(points)
     ? points
-        .map(point => ({
+        .map((point) => ({
           x: Number(point?.x),
           y: Number(point?.y)
         }))
-        .filter(point =>
-          Number.isFinite(point.x) &&
-          Number.isFinite(point.y)
-        )
+        .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
         .slice(0, MAX_EDGE_CONTROL_POINTS)
-        .map(point => ({
+        .map((point) => ({
           x: clamp(point.x, 0, WORLD_WIDTH),
           y: clamp(point.y, 0, WORLD_HEIGHT)
         }))
@@ -597,10 +531,12 @@ function normalizeEdgeControlPoints(value, legacyX = null, legacyY = null) {
   const y = Number(legacyY)
 
   if (Number.isFinite(x) && Number.isFinite(y)) {
-    return [{
-      x: clamp(x, 0, WORLD_WIDTH),
-      y: clamp(y, 0, WORLD_HEIGHT)
-    }]
+    return [
+      {
+        x: clamp(x, 0, WORLD_WIDTH),
+        y: clamp(y, 0, WORLD_HEIGHT)
+      }
+    ]
   }
 
   return []
@@ -609,10 +545,7 @@ function normalizeEdgeControlPoints(value, legacyX = null, legacyY = null) {
 function selectedEdgeInfo() {
   if (!selectedEdge) return null
 
-  return getEdgeInfo(
-    selectedEdge.sourceId,
-    selectedEdge.targetId
-  )
+  return getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
 }
 
 function isEdgeSelected(sourceId, targetId) {
@@ -682,7 +615,9 @@ async function deleteSelectedEdge() {
   }
 
   const target = findNode(info.link.targetId)
-  const ok = confirm(`Sigur vrei să ștergi muchia "${info.source.title} → ${target?.title || 'nod'}"?`)
+  const ok = confirm(
+    `Sigur vrei să ștergi muchia "${info.source.title} → ${target?.title || 'nod'}"?`
+  )
   if (!ok) return
 
   await removeRelation(info.source.id, info.index)
@@ -691,6 +626,7 @@ async function deleteSelectedEdge() {
   renderAll()
 }
 
+// Taxonomy lookup, filtering and search
 function slugTag(tag) {
   return String(tag || 'general')
     .toLowerCase()
@@ -701,60 +637,44 @@ function slugTag(tag) {
 }
 
 function getCategoryById(id) {
-  return categories.find(item => Number(item.id) === Number(id)) || null
+  return categories.find((item) => Number(item.id) === Number(id)) || null
 }
 
 function getDifficultyById(id) {
-  return difficulties.find(item => Number(item.id) === Number(id)) || null
+  return difficulties.find((item) => Number(item.id) === Number(id)) || null
 }
 
 function getTagById(id) {
-  return taxonomyTags.find(item => Number(item.id) === Number(id)) || null
+  return taxonomyTags.find((item) => Number(item.id) === Number(id)) || null
 }
 
 function normalizeTaxonomyState() {
   const activeCategoryIds = new Set(
-    categories
-      .filter(item => item.is_active !== false)
-      .map(item => Number(item.id))
+    categories.filter((item) => item.is_active !== false).map((item) => Number(item.id))
   )
 
   const activeDifficultyIds = new Set(
-    difficulties
-      .filter(item => item.is_active !== false)
-      .map(item => Number(item.id))
+    difficulties.filter((item) => item.is_active !== false).map((item) => Number(item.id))
   )
 
   const activeTagIds = new Set(
-    taxonomyTags
-      .filter(item => item.is_active !== false)
-      .map(item => Number(item.id))
+    taxonomyTags.filter((item) => item.is_active !== false).map((item) => Number(item.id))
   )
 
-  if (
-    categoryFilterId != null &&
-    !activeCategoryIds.has(Number(categoryFilterId))
-  ) {
+  if (categoryFilterId != null && !activeCategoryIds.has(Number(categoryFilterId))) {
     categoryFilterId = null
   }
 
-  if (
-    difficultyFilterId != null &&
-    !activeDifficultyIds.has(Number(difficultyFilterId))
-  ) {
+  if (difficultyFilterId != null && !activeDifficultyIds.has(Number(difficultyFilterId))) {
     difficultyFilterId = null
   }
 
-  tagFilterIds = new Set(
-    [...tagFilterIds]
-      .map(Number)
-      .filter(id => activeTagIds.has(id))
-  )
+  tagFilterIds = new Set([...tagFilterIds].map(Number).filter((id) => activeTagIds.has(id)))
 
   nodeTagDraft = new Set(
     [...nodeTagDraft]
       .map(Number)
-      .filter(id => taxonomyTags.some(item => Number(item.id) === id))
+      .filter((id) => taxonomyTags.some((item) => Number(item.id) === id))
   )
 }
 
@@ -767,9 +687,7 @@ function nodeDifficultyName(node) {
 }
 
 function nodeTagNames(node) {
-  return (node.tagIds || [])
-    .map(id => getTagById(id)?.name)
-    .filter(Boolean)
+  return (node.tagIds || []).map((id) => getTagById(id)?.name).filter(Boolean)
 }
 
 function matchesSearch(node) {
@@ -782,11 +700,8 @@ function matchesSearch(node) {
     nodeCategoryName(node),
     nodeDifficultyName(node),
     ...nodeTagNames(node),
-    ...(node.media || []).flatMap(media => [
-      media.title || '',
-      media.caption || ''
-    ]),
-    ...(node.codeSnippets || []).flatMap(snippet => [
+    ...(node.media || []).flatMap((media) => [media.title || '', media.caption || '']),
+    ...(node.codeSnippets || []).flatMap((snippet) => [
       snippet.title || '',
       snippet.description || '',
       snippet.language || '',
@@ -800,17 +715,11 @@ function matchesSearch(node) {
 }
 
 function matchesTaxonomyFilters(node) {
-  if (
-    categoryFilterId != null &&
-    Number(node.categoryId) !== Number(categoryFilterId)
-  ) {
+  if (categoryFilterId != null && Number(node.categoryId) !== Number(categoryFilterId)) {
     return false
   }
 
-  if (
-    difficultyFilterId != null &&
-    Number(node.difficultyId) !== Number(difficultyFilterId)
-  ) {
+  if (difficultyFilterId != null && Number(node.difficultyId) !== Number(difficultyFilterId)) {
     return false
   }
 
@@ -826,13 +735,11 @@ function matchesTaxonomyFilters(node) {
 }
 
 function getVisibleNodes() {
-  return nodes.filter(node =>
-    matchesSearch(node) && matchesTaxonomyFilters(node)
-  )
+  return nodes.filter((node) => matchesSearch(node) && matchesTaxonomyFilters(node))
 }
 
 function getVisibleNodeIdSet() {
-  return new Set(getVisibleNodes().map(node => Number(node.id)))
+  return new Set(getVisibleNodes().map((node) => Number(node.id)))
 }
 
 function hasActiveFilters() {
@@ -846,7 +753,7 @@ function hasActiveFilters() {
 
 function normalizeSelectionAfterFilters() {
   const visible = getVisibleNodes()
-  const visibleIds = new Set(visible.map(node => Number(node.id)))
+  const visibleIds = new Set(visible.map((node) => Number(node.id)))
 
   if (selectedId != null && !visibleIds.has(Number(selectedId))) {
     selectedId = visible[0]?.id ?? null
@@ -857,8 +764,7 @@ function normalizeSelectionAfterFilters() {
 
   if (selectedEdge) {
     const valid =
-      visibleIds.has(Number(selectedEdge.sourceId)) &&
-      visibleIds.has(Number(selectedEdge.targetId))
+      visibleIds.has(Number(selectedEdge.sourceId)) && visibleIds.has(Number(selectedEdge.targetId))
 
     if (!valid) {
       selectedEdge = null
@@ -867,9 +773,7 @@ function normalizeSelectionAfterFilters() {
   }
 }
 
-
-
-
+// Output sanitization and URL validation
 function escapeHtml(str) {
   return String(str)
     .replaceAll('&', '&amp;')
@@ -879,7 +783,6 @@ function escapeHtml(str) {
     .replaceAll("'", '&#039;')
     .replaceAll('\n', '<br>')
 }
-
 
 function escapeHtmlText(str) {
   return String(str)
@@ -923,9 +826,7 @@ function getYoutubeEmbedUrl(value) {
 
       if (!videoId) {
         const parts = url.pathname.split('/').filter(Boolean)
-        const markerIndex = parts.findIndex(part =>
-          ['embed', 'shorts', 'live'].includes(part)
-        )
+        const markerIndex = parts.findIndex((part) => ['embed', 'shorts', 'live'].includes(part))
         if (markerIndex >= 0) videoId = parts[markerIndex + 1] || null
       }
     }
@@ -942,9 +843,7 @@ function getYoutubeEmbedUrl(value) {
 
 function mediaPublicUrl(media) {
   if (media?.storagePath) {
-    const { data } = supabase.storage
-      .from(MEDIA_BUCKET)
-      .getPublicUrl(media.storagePath)
+    const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(media.storagePath)
 
     return data?.publicUrl || null
   }
@@ -955,17 +854,22 @@ function mediaPublicUrl(media) {
 function sanitizeStorageFilename(filename) {
   const raw = String(filename || 'media')
   const dotIndex = raw.lastIndexOf('.')
-  const extension = dotIndex >= 0
-    ? raw.slice(dotIndex).toLowerCase().replace(/[^a-z0-9.]/g, '')
-    : ''
+  const extension =
+    dotIndex >= 0
+      ? raw
+          .slice(dotIndex)
+          .toLowerCase()
+          .replace(/[^a-z0-9.]/g, '')
+      : ''
 
-  const base = (dotIndex >= 0 ? raw.slice(0, dotIndex) : raw)
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 70) || 'media'
+  const base =
+    (dotIndex >= 0 ? raw.slice(0, dotIndex) : raw)
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 70) || 'media'
 
   return `${base}${extension.slice(0, 10)}`
 }
@@ -974,7 +878,7 @@ function humanFileSize(bytes) {
   const value = Number(bytes) || 0
   if (value < 1024) return `${value} B`
   if (value < 1024 ** 2) return `${(value / 1024).toFixed(1)} KB`
-  return `${(value / (1024 ** 2)).toFixed(1)} MB`
+  return `${(value / 1024 ** 2).toFixed(1)} MB`
 }
 
 function mediaTypeLabel(media) {
@@ -983,6 +887,7 @@ function mediaTypeLabel(media) {
   return 'Videoclip'
 }
 
+// Media presentation helpers
 function renderMediaPreview(media, compact = false) {
   const url = mediaPublicUrl(media)
   if (!url) {
@@ -1007,7 +912,7 @@ function renderMediaPreview(media, compact = false) {
       <div class="media-video-frame">
         <iframe
           src="${escapeHtml(embedUrl)}"
-          title="${escapeHtml(media.title || 'Videoclip YouTube') }"
+          title="${escapeHtml(media.title || 'Videoclip YouTube')}"
           loading="lazy"
           referrerpolicy="strict-origin-when-cross-origin"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -1054,31 +959,41 @@ function renderNodeMediaGallery(node) {
           <span>media</span>
           <h3>Screenshoturi și videoclipuri</h3>
         </div>
-        ${canEdit && editorMode
-          ? '<button class="btn" type="button" data-open-node-media>Administrează</button>'
-          : ''}
+        ${
+          canEdit && editorMode
+            ? '<button class="btn" type="button" data-open-node-media>Administrează</button>'
+            : ''
+        }
       </div>
 
       <div class="media-gallery">
-        ${mediaItems.map(media => `
+        ${mediaItems
+          .map(
+            (media) => `
           <article class="media-card">
             <div class="media-preview">
               ${renderMediaPreview(media)}
             </div>
-            ${(media.title || media.caption) ? `
+            ${
+              media.title || media.caption
+                ? `
               <div class="media-card-copy">
                 ${media.title ? `<strong>${escapeHtml(media.title)}</strong>` : ''}
                 ${media.caption ? `<p>${escapeHtml(media.caption)}</p>` : ''}
               </div>
-            ` : ''}
+            `
+                : ''
+            }
           </article>
-        `).join('')}
+        `
+          )
+          .join('')}
       </div>
     </section>
   `
 }
 
-
+// Code snippet presentation helpers
 const CODE_LANGUAGES = [
   ['java', 'Java'],
   ['python', 'Python'],
@@ -1099,9 +1014,11 @@ function codeLanguageLabel(language) {
 function codeLanguageOptions(selectedLanguage) {
   const selected = String(selectedLanguage || 'java').toLowerCase()
 
-  return CODE_LANGUAGES.map(([value, label]) => `
+  return CODE_LANGUAGES.map(
+    ([value, label]) => `
     <option value="${value}" ${value === selected ? 'selected' : ''}>${escapeHtml(label)}</option>
-  `).join('')
+  `
+  ).join('')
 }
 
 async function copyTextToClipboard(text) {
@@ -1155,20 +1072,26 @@ function renderNodeCodeSnippets(node) {
           <span>nod cod</span>
           <h3>Snippet-uri de cod</h3>
         </div>
-        ${canEdit && editorMode
-          ? '<button class="btn" type="button" data-open-node-code>Administrează</button>'
-          : ''}
+        ${
+          canEdit && editorMode
+            ? '<button class="btn" type="button" data-open-node-code>Administrează</button>'
+            : ''
+        }
       </div>
 
       <div class="code-snippet-list">
-        ${snippets.map(snippet => `
+        ${snippets
+          .map(
+            (snippet) => `
           <article class="code-snippet-card">
             <div class="code-snippet-header">
               <div class="code-snippet-title-wrap">
                 <span class="code-language-badge">${escapeHtml(codeLanguageLabel(snippet.language))}</span>
-                ${snippet.title
-                  ? `<h4 class="code-snippet-title">${escapeHtml(snippet.title)}</h4>`
-                  : ''}
+                ${
+                  snippet.title
+                    ? `<h4 class="code-snippet-title">${escapeHtml(snippet.title)}</h4>`
+                    : ''
+                }
               </div>
               <button
                 class="btn code-copy-btn"
@@ -1177,29 +1100,31 @@ function renderNodeCodeSnippets(node) {
               >Copiază</button>
             </div>
 
-            ${snippet.description
-              ? `<p class="code-snippet-description">${escapeHtml(snippet.description)}</p>`
-              : ''}
+            ${
+              snippet.description
+                ? `<p class="code-snippet-description">${escapeHtml(snippet.description)}</p>`
+                : ''
+            }
 
             <div class="code-block-shell">
               <pre tabindex="0"><code>${escapeHtmlText(snippet.code)}</code></pre>
             </div>
           </article>
-        `).join('')}
+        `
+          )
+          .join('')}
       </div>
     </section>
   `
 }
 
-
+// Taxonomy filters and node taxonomy fields
 function fillSelect(select, items, placeholder, selectedValue = '') {
   const safeValue = selectedValue == null ? '' : String(selectedValue)
 
   select.innerHTML = [
     `<option value="">${escapeHtml(placeholder)}</option>`,
-    ...items.map(item =>
-      `<option value="${Number(item.id)}">${escapeHtml(item.name)}</option>`
-    )
+    ...items.map((item) => `<option value="${Number(item.id)}">${escapeHtml(item.name)}</option>`)
   ].join('')
 
   select.value = safeValue
@@ -1208,22 +1133,24 @@ function fillSelect(select, items, placeholder, selectedValue = '') {
 function renderTaxonomyControls() {
   fillSelect(
     categoryFilter,
-    categories.filter(item => item.is_active !== false),
+    categories.filter((item) => item.is_active !== false),
     'Toate categoriile',
     categoryFilterId
   )
 
   fillSelect(
     difficultyFilter,
-    difficulties.filter(item => item.is_active !== false),
+    difficulties.filter((item) => item.is_active !== false),
     'Toate dificultățile',
     difficultyFilterId
   )
 
-  const activeTags = taxonomyTags.filter(item => item.is_active !== false)
+  const activeTags = taxonomyTags.filter((item) => item.is_active !== false)
 
   tagFilterChips.innerHTML = activeTags.length
-    ? activeTags.map(tag => `
+    ? activeTags
+        .map(
+          (tag) => `
         <button
           type="button"
           class="taxonomy-chip ${tagFilterIds.has(Number(tag.id)) ? 'active' : ''}"
@@ -1231,61 +1158,50 @@ function renderTaxonomyControls() {
         >
           ${escapeHtml(tag.name)}
         </button>
-      `).join('')
+      `
+        )
+        .join('')
     : '<span class="chip-empty">Nu există etichete active.</span>'
 
-  tagFilterChips
-    .querySelectorAll('[data-filter-tag-id]')
-    .forEach(button => {
-      button.addEventListener('click', () => {
-        const id = Number(button.dataset.filterTagId)
+  tagFilterChips.querySelectorAll('[data-filter-tag-id]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const id = Number(button.dataset.filterTagId)
 
-        if (tagFilterIds.has(id)) tagFilterIds.delete(id)
-        else tagFilterIds.add(id)
+      if (tagFilterIds.has(id)) tagFilterIds.delete(id)
+      else tagFilterIds.add(id)
 
-        normalizeSelectionAfterFilters()
-        renderAll()
-        requestAnimationFrame(fitView)
-      })
+      normalizeSelectionAfterFilters()
+      renderAll()
+      requestAnimationFrame(fitView)
     })
+  })
 
   clearFiltersBtn.hidden = !hasActiveFilters()
 }
 
-function populateNodeTaxonomyFields(
-  selectedCategoryId = null,
-  selectedDifficultyId = null
-) {
-  const availableCategories = categories.filter(item =>
-    item.is_active !== false || Number(item.id) === Number(selectedCategoryId)
+function populateNodeTaxonomyFields(selectedCategoryId = null, selectedDifficultyId = null) {
+  const availableCategories = categories.filter(
+    (item) => item.is_active !== false || Number(item.id) === Number(selectedCategoryId)
   )
 
-  const availableDifficulties = difficulties.filter(item =>
-    item.is_active !== false || Number(item.id) === Number(selectedDifficultyId)
+  const availableDifficulties = difficulties.filter(
+    (item) => item.is_active !== false || Number(item.id) === Number(selectedDifficultyId)
   )
 
-  fillSelect(
-    categoryInput,
-    availableCategories,
-    'Alege categoria',
-    selectedCategoryId
-  )
+  fillSelect(categoryInput, availableCategories, 'Alege categoria', selectedCategoryId)
 
-  fillSelect(
-    difficultyInput,
-    availableDifficulties,
-    'Alege dificultatea',
-    selectedDifficultyId
-  )
+  fillSelect(difficultyInput, availableDifficulties, 'Alege dificultatea', selectedDifficultyId)
 }
 
 function renderNodeTagPicker() {
-  const availableTags = taxonomyTags.filter(item =>
-    item.is_active !== false || nodeTagDraft.has(Number(item.id))
+  const availableTags = taxonomyTags.filter(
+    (item) => item.is_active !== false || nodeTagDraft.has(Number(item.id))
   )
 
   nodeTagPicker.innerHTML = availableTags.length
-    ? availableTags.map(tag => `
+    ? availableTags
+        .map(
+          (tag) => `
         <button
           type="button"
           class="taxonomy-chip ${nodeTagDraft.has(Number(tag.id)) ? 'active' : ''}"
@@ -1293,24 +1209,24 @@ function renderNodeTagPicker() {
         >
           ${escapeHtml(tag.name)}
         </button>
-      `).join('')
+      `
+        )
+        .join('')
     : '<span class="chip-empty">Nu există etichete. Le vom administra din Taxonomy Manager.</span>'
 
-  nodeTagPicker
-    .querySelectorAll('[data-node-tag-id]')
-    .forEach(button => {
-      button.addEventListener('click', () => {
-        const id = Number(button.dataset.nodeTagId)
+  nodeTagPicker.querySelectorAll('[data-node-tag-id]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const id = Number(button.dataset.nodeTagId)
 
-        if (nodeTagDraft.has(id)) nodeTagDraft.delete(id)
-        else nodeTagDraft.add(id)
+      if (nodeTagDraft.has(id)) nodeTagDraft.delete(id)
+      else nodeTagDraft.add(id)
 
-        renderNodeTagPicker()
-      })
+      renderNodeTagPicker()
     })
+  })
 }
 
-
+// Taxonomy Manager
 function taxonomyKindMeta(kind = taxonomyManagerKind) {
   const map = {
     category: {
@@ -1346,27 +1262,21 @@ function taxonomyItems(kind = taxonomyManagerKind) {
 }
 
 function taxonomyItemOrder(item, kind = taxonomyManagerKind) {
-  return Number(
-    kind === 'difficulty'
-      ? item.rank ?? 0
-      : item.sort_order ?? 0
-  )
+  return Number(kind === 'difficulty' ? (item.rank ?? 0) : (item.sort_order ?? 0))
 }
 
 function taxonomyUsageCount(kind, itemId) {
   const id = Number(itemId)
 
   if (kind === 'category') {
-    return nodes.filter(node => Number(node.categoryId) === id).length
+    return nodes.filter((node) => Number(node.categoryId) === id).length
   }
 
   if (kind === 'difficulty') {
-    return nodes.filter(node => Number(node.difficultyId) === id).length
+    return nodes.filter((node) => Number(node.difficultyId) === id).length
   }
 
-  return nodes.filter(node =>
-    (node.tagIds || []).some(tagId => Number(tagId) === id)
-  ).length
+  return nodes.filter((node) => (node.tagIds || []).some((tagId) => Number(tagId) === id)).length
 }
 
 function isTaxonomyManagerOpen() {
@@ -1392,11 +1302,9 @@ function setTaxonomyMutationBusy(nextValue) {
   taxonomyDeleteBtn.disabled = taxonomyMutationBusy
   confirmTaxonomyReplaceBtn.disabled = taxonomyMutationBusy
 
-  taxonomyManagerList
-    .querySelectorAll('button')
-    .forEach(button => {
-      button.disabled = taxonomyMutationBusy || button.dataset.baseDisabled === 'true'
-    })
+  taxonomyManagerList.querySelectorAll('button').forEach((button) => {
+    button.disabled = taxonomyMutationBusy || button.dataset.baseDisabled === 'true'
+  })
 }
 
 function renderTaxonomyManager() {
@@ -1404,37 +1312,23 @@ function renderTaxonomyManager() {
 
   const meta = taxonomyKindMeta()
   const items = [...taxonomyItems()].sort((a, b) => {
-    const orderDifference =
-      taxonomyItemOrder(a) - taxonomyItemOrder(b)
+    const orderDifference = taxonomyItemOrder(a) - taxonomyItemOrder(b)
 
     if (orderDifference !== 0) return orderDifference
 
-    return String(a.name).localeCompare(
-      String(b.name),
-      'ro',
-      { sensitivity: 'base' }
-    )
+    return String(a.name).localeCompare(String(b.name), 'ro', { sensitivity: 'base' })
   })
 
-  document
-    .querySelectorAll('[data-taxonomy-kind]')
-    .forEach(button => {
-      button.classList.toggle(
-        'active',
-        button.dataset.taxonomyKind === taxonomyManagerKind
-      )
-    })
+  document.querySelectorAll('[data-taxonomy-kind]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.taxonomyKind === taxonomyManagerKind)
+  })
 
-  taxonomyAddBtn.textContent =
-    `+ ${meta.singularTitle}`
+  taxonomyAddBtn.textContent = `+ ${meta.singularTitle}`
 
-  const activeCount = items.filter(
-    item => item.is_active !== false
-  ).length
+  const activeCount = items.filter((item) => item.is_active !== false).length
 
   const totalUsage = items.reduce(
-    (sum, item) =>
-      sum + taxonomyUsageCount(taxonomyManagerKind, item.id),
+    (sum, item) => sum + taxonomyUsageCount(taxonomyManagerKind, item.id),
     0
   )
 
@@ -1454,16 +1348,14 @@ function renderTaxonomyManager() {
     return
   }
 
-  taxonomyManagerList.innerHTML = items.map((item, index) => {
-    const usageCount = taxonomyUsageCount(
-      taxonomyManagerKind,
-      item.id
-    )
+  taxonomyManagerList.innerHTML = items
+    .map((item, index) => {
+      const usageCount = taxonomyUsageCount(taxonomyManagerKind, item.id)
 
-    const isActive = item.is_active !== false
-    const order = taxonomyItemOrder(item)
+      const isActive = item.is_active !== false
+      const order = taxonomyItemOrder(item)
 
-    return `
+      return `
       <article class="taxonomy-item-card ${isActive ? '' : 'inactive'}">
         <div class="taxonomy-item-main">
           <div class="taxonomy-item-title-row">
@@ -1540,44 +1432,35 @@ function renderTaxonomyManager() {
         </div>
       </article>
     `
-  }).join('')
+    })
+    .join('')
 
-  taxonomyManagerList
-    .querySelectorAll('[data-taxonomy-edit]')
-    .forEach(button => {
-      button.addEventListener('click', () => {
-        openTaxonomyItemEditor(
-          Number(button.dataset.taxonomyEdit)
-        )
+  taxonomyManagerList.querySelectorAll('[data-taxonomy-edit]').forEach((button) => {
+    button.addEventListener('click', () => {
+      openTaxonomyItemEditor(Number(button.dataset.taxonomyEdit))
+    })
+  })
+
+  taxonomyManagerList.querySelectorAll('[data-taxonomy-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      toggleTaxonomyItemActive(Number(button.dataset.taxonomyToggle)).catch((error) => {
+        console.error(error)
+        alert(error.message || 'Eroare la actualizarea elementului.')
       })
     })
+  })
 
-  taxonomyManagerList
-    .querySelectorAll('[data-taxonomy-toggle]')
-    .forEach(button => {
-      button.addEventListener('click', () => {
-        toggleTaxonomyItemActive(
-          Number(button.dataset.taxonomyToggle)
-        ).catch(error => {
-          console.error(error)
-          alert(error.message || 'Eroare la actualizarea elementului.')
-        })
+  taxonomyManagerList.querySelectorAll('[data-taxonomy-move]').forEach((button) => {
+    button.addEventListener('click', () => {
+      moveTaxonomyItem(
+        Number(button.dataset.taxonomyId),
+        Number(button.dataset.taxonomyMove)
+      ).catch((error) => {
+        console.error(error)
+        alert(error.message || 'Eroare la reordonare.')
       })
     })
-
-  taxonomyManagerList
-    .querySelectorAll('[data-taxonomy-move]')
-    .forEach(button => {
-      button.addEventListener('click', () => {
-        moveTaxonomyItem(
-          Number(button.dataset.taxonomyId),
-          Number(button.dataset.taxonomyMove)
-        ).catch(error => {
-          console.error(error)
-          alert(error.message || 'Eroare la reordonare.')
-        })
-      })
-    })
+  })
 
   setTaxonomyMutationBusy(taxonomyMutationBusy)
 }
@@ -1585,10 +1468,7 @@ function renderTaxonomyManager() {
 function openTaxonomyManager(kind = taxonomyManagerKind) {
   if (!requireAuth()) return
 
-  taxonomyManagerKind =
-    ['category', 'difficulty', 'tag'].includes(kind)
-      ? kind
-      : 'category'
+  taxonomyManagerKind = ['category', 'difficulty', 'tag'].includes(kind) ? kind : 'category'
 
   taxonomyManagerBackdrop.classList.add('open')
   renderTaxonomyManager()
@@ -1605,31 +1485,26 @@ function openTaxonomyItemEditor(itemId = null) {
 
   const meta = taxonomyKindMeta()
 
-  const item = itemId == null
-    ? null
-    : taxonomyItems().find(
-        current => Number(current.id) === Number(itemId)
-      )
+  const item =
+    itemId == null ? null : taxonomyItems().find((current) => Number(current.id) === Number(itemId))
 
   if (itemId != null && !item) {
     alert('Elementul nu mai există.')
     return
   }
 
-  const defaultOrder = taxonomyItems().reduce(
-    (maxOrder, current) =>
-      Math.max(maxOrder, taxonomyItemOrder(current)),
-    0
-  ) + 10
+  const defaultOrder =
+    taxonomyItems().reduce(
+      (maxOrder, current) => Math.max(maxOrder, taxonomyItemOrder(current)),
+      0
+    ) + 10
 
   taxonomyItemDraft = {
     kind: taxonomyManagerKind,
     id: item ? Number(item.id) : null
   }
 
-  taxonomyItemTitle.textContent = item
-    ? `Editează ${meta.singular}`
-    : `Adaugă ${meta.singular}`
+  taxonomyItemTitle.textContent = item ? `Editează ${meta.singular}` : `Adaugă ${meta.singular}`
 
   taxonomyItemSubtitle.textContent = item
     ? 'Modificările apar imediat în filtre și în editorul nodurilor.'
@@ -1637,28 +1512,21 @@ function openTaxonomyItemEditor(itemId = null) {
 
   taxonomyNameInput.value = item?.name || ''
   taxonomyDescriptionInput.value = item?.description || ''
-  taxonomyOrderInput.value = item
-    ? taxonomyItemOrder(item)
-    : defaultOrder
+  taxonomyOrderInput.value = item ? taxonomyItemOrder(item) : defaultOrder
 
-  taxonomyActiveInput.checked =
-    item?.is_active !== false
+  taxonomyActiveInput.checked = item?.is_active !== false
 
   taxonomyDeleteBtn.hidden = !item
 
   if (item) {
-    const usageCount = taxonomyUsageCount(
-      taxonomyManagerKind,
-      item.id
-    )
+    const usageCount = taxonomyUsageCount(taxonomyManagerKind, item.id)
 
     taxonomyDeleteNote.textContent =
       taxonomyManagerKind === 'tag'
         ? `Folosită de ${usageCount} ${usageCount === 1 ? 'nod' : 'noduri'}. La ștergere, eticheta este eliminată din noduri, nodurile rămân intacte, iar istoricul Undo/Redo este resetat pentru siguranță.`
         : `Folosită de ${usageCount} ${usageCount === 1 ? 'nod' : 'noduri'}. Dacă este în uz, vei putea muta nodurile într-un element înlocuitor înainte de ștergere. Orice ștergere resetează istoricul Undo/Redo pentru siguranță.`
   } else {
-    taxonomyDeleteNote.textContent =
-      'Numele și ordinea pot fi schimbate ulterior din acest panou.'
+    taxonomyDeleteNote.textContent = 'Numele și ordinea pot fi schimbate ulterior din acest panou.'
   }
 
   taxonomyItemBackdrop.classList.add('open')
@@ -1682,10 +1550,7 @@ async function saveTaxonomyItem() {
 
   const name = taxonomyNameInput.value.trim()
   const description = taxonomyDescriptionInput.value.trim()
-  const order = Number.parseInt(
-    taxonomyOrderInput.value,
-    10
-  )
+  const order = Number.parseInt(taxonomyOrderInput.value, 10)
 
   if (!name) {
     alert('Scrie un nume.')
@@ -1699,40 +1564,30 @@ async function saveTaxonomyItem() {
 
   try {
     if (taxonomyItemDraft.id == null) {
-      const created = await createTaxonomyItemRemote(
-        taxonomyItemDraft.kind,
-        {
-          name,
-          description,
-          order: safeOrder
-        }
-      )
+      const created = await createTaxonomyItemRemote(taxonomyItemDraft.kind, {
+        name,
+        description,
+        order: safeOrder
+      })
 
       if (!taxonomyActiveInput.checked) {
-        await updateTaxonomyItemRemote(
-          taxonomyItemDraft.kind,
-          created.id,
-          {
-            name: created.name,
-            description: created.description || '',
-            order: taxonomyItemDraft.kind === 'difficulty'
+        await updateTaxonomyItemRemote(taxonomyItemDraft.kind, created.id, {
+          name: created.name,
+          description: created.description || '',
+          order:
+            taxonomyItemDraft.kind === 'difficulty'
               ? Number(created.rank ?? safeOrder)
               : Number(created.sort_order ?? safeOrder),
-            isActive: false
-          }
-        )
+          isActive: false
+        })
       }
     } else {
-      await updateTaxonomyItemRemote(
-        taxonomyItemDraft.kind,
-        taxonomyItemDraft.id,
-        {
-          name,
-          description,
-          order: safeOrder,
-          isActive: taxonomyActiveInput.checked
-        }
-      )
+      await updateTaxonomyItemRemote(taxonomyItemDraft.kind, taxonomyItemDraft.id, {
+        name,
+        description,
+        order: safeOrder,
+        isActive: taxonomyActiveInput.checked
+      })
     }
 
     closeTaxonomyItemEditor()
@@ -1746,9 +1601,7 @@ async function saveTaxonomyItem() {
 async function toggleTaxonomyItemActive(itemId) {
   if (!requireAuth() || taxonomyMutationBusy) return
 
-  const item = taxonomyItems().find(
-    current => Number(current.id) === Number(itemId)
-  )
+  const item = taxonomyItems().find((current) => Number(current.id) === Number(itemId))
 
   if (!item) {
     throw new Error('Elementul nu mai există.')
@@ -1757,16 +1610,12 @@ async function toggleTaxonomyItemActive(itemId) {
   setTaxonomyMutationBusy(true)
 
   try {
-    await updateTaxonomyItemRemote(
-      taxonomyManagerKind,
-      item.id,
-      {
-        name: item.name,
-        description: item.description || '',
-        order: taxonomyItemOrder(item),
-        isActive: item.is_active === false
-      }
-    )
+    await updateTaxonomyItemRemote(taxonomyManagerKind, item.id, {
+      name: item.name,
+      description: item.description || '',
+      order: taxonomyItemOrder(item),
+      isActive: item.is_active === false
+    })
 
     await fetchAllData()
     renderTaxonomyManager()
@@ -1779,34 +1628,22 @@ async function moveTaxonomyItem(itemId, direction) {
   if (!requireAuth() || taxonomyMutationBusy) return
 
   const items = [...taxonomyItems()].sort((a, b) => {
-    const difference =
-      taxonomyItemOrder(a) - taxonomyItemOrder(b)
+    const difference = taxonomyItemOrder(a) - taxonomyItemOrder(b)
 
     if (difference !== 0) return difference
 
-    return String(a.name).localeCompare(
-      String(b.name),
-      'ro',
-      { sensitivity: 'base' }
-    )
+    return String(a.name).localeCompare(String(b.name), 'ro', { sensitivity: 'base' })
   })
 
-  const index = items.findIndex(
-    item => Number(item.id) === Number(itemId)
-  )
+  const index = items.findIndex((item) => Number(item.id) === Number(itemId))
 
   const targetIndex = index + direction
 
-  if (
-    index < 0 ||
-    targetIndex < 0 ||
-    targetIndex >= items.length
-  ) {
+  if (index < 0 || targetIndex < 0 || targetIndex >= items.length) {
     return
   }
 
-  ;[items[index], items[targetIndex]] =
-    [items[targetIndex], items[index]]
+  ;[items[index], items[targetIndex]] = [items[targetIndex], items[index]]
 
   const payload = items.map((item, itemIndex) => ({
     id: Number(item.id),
@@ -1816,10 +1653,7 @@ async function moveTaxonomyItem(itemId, direction) {
   setTaxonomyMutationBusy(true)
 
   try {
-    await reorderTaxonomyItemsRemote(
-      taxonomyManagerKind,
-      payload
-    )
+    await reorderTaxonomyItemsRemote(taxonomyManagerKind, payload)
 
     await fetchAllData()
     renderTaxonomyManager()
@@ -1832,11 +1666,8 @@ async function requestTaxonomyDelete() {
   if (!requireAuth() || !taxonomyItemDraft) return
   if (taxonomyItemDraft.id == null || taxonomyMutationBusy) return
 
-  const item = taxonomyItems(
-    taxonomyItemDraft.kind
-  ).find(
-    current =>
-      Number(current.id) === Number(taxonomyItemDraft.id)
+  const item = taxonomyItems(taxonomyItemDraft.kind).find(
+    (current) => Number(current.id) === Number(taxonomyItemDraft.id)
   )
 
   if (!item) {
@@ -1844,40 +1675,25 @@ async function requestTaxonomyDelete() {
     return
   }
 
-  const meta = taxonomyKindMeta(
-    taxonomyItemDraft.kind
-  )
+  const meta = taxonomyKindMeta(taxonomyItemDraft.kind)
 
-  const usageCount = taxonomyUsageCount(
-    taxonomyItemDraft.kind,
-    item.id
-  )
+  const usageCount = taxonomyUsageCount(taxonomyItemDraft.kind, item.id)
 
-  const confirmed = confirm(
-    `Sigur vrei să ștergi ${meta.singular} „${item.name}”?`
-  )
+  const confirmed = confirm(`Sigur vrei să ștergi ${meta.singular} „${item.name}”?`)
 
   if (!confirmed) return
 
   setTaxonomyMutationBusy(true)
 
   try {
-    const result = await deleteTaxonomyItemRemote(
-      taxonomyItemDraft.kind,
-      item.id
-    )
+    const result = await deleteTaxonomyItemRemote(taxonomyItemDraft.kind, item.id)
 
-    if (
-      result?.ok === false &&
-      result?.reason === 'in_use'
-    ) {
+    if (result?.ok === false && result?.reason === 'in_use') {
       openTaxonomyReplaceDialog({
         kind: taxonomyItemDraft.kind,
         id: Number(item.id),
         name: item.name,
-        usageCount: Number(
-          result.usage_count ?? usageCount
-        )
+        usageCount: Number(result.usage_count ?? usageCount)
       })
 
       return
@@ -1893,18 +1709,15 @@ async function requestTaxonomyDelete() {
 
 function openTaxonomyReplaceDialog(draft) {
   const replacements = taxonomyItems(draft.kind)
-    .filter(item => Number(item.id) !== Number(draft.id))
+    .filter((item) => Number(item.id) !== Number(draft.id))
     .sort((a, b) => {
-      const activeDifference =
-        Number(b.is_active !== false) -
-        Number(a.is_active !== false)
+      const activeDifference = Number(b.is_active !== false) - Number(a.is_active !== false)
 
       if (activeDifference !== 0) {
         return activeDifference
       }
 
-      return taxonomyItemOrder(a, draft.kind) -
-        taxonomyItemOrder(b, draft.kind)
+      return taxonomyItemOrder(a, draft.kind) - taxonomyItemOrder(b, draft.kind)
     })
 
   if (replacements.length === 0) {
@@ -1918,18 +1731,19 @@ function openTaxonomyReplaceDialog(draft) {
 
   const meta = taxonomyKindMeta(draft.kind)
 
-  taxonomyReplaceTitle.textContent =
-    `Înlocuiește ${meta.singular}`
+  taxonomyReplaceTitle.textContent = `Înlocuiește ${meta.singular}`
 
-  taxonomyReplaceMessage.textContent =
-    `„${draft.name}” este folosită de ${draft.usageCount} ${draft.usageCount === 1 ? 'nod' : 'noduri'}. Nodurile vor fi mutate în elementul ales, apoi elementul vechi va fi șters.`
+  taxonomyReplaceMessage.textContent = `„${draft.name}” este folosită de ${draft.usageCount} ${draft.usageCount === 1 ? 'nod' : 'noduri'}. Nodurile vor fi mutate în elementul ales, apoi elementul vechi va fi șters.`
 
-  taxonomyReplacementSelect.innerHTML =
-    replacements.map(item => `
+  taxonomyReplacementSelect.innerHTML = replacements
+    .map(
+      (item) => `
       <option value="${Number(item.id)}">
         ${escapeHtml(item.name)}${item.is_active === false ? ' — inactiv' : ''}
       </option>
-    `).join('')
+    `
+    )
+    .join('')
 
   taxonomyReplaceBackdrop.classList.add('open')
 }
@@ -1938,9 +1752,7 @@ async function confirmTaxonomyReplacementDelete() {
   if (!requireAuth() || !taxonomyDeleteDraft) return
   if (taxonomyMutationBusy) return
 
-  const replacementId = Number(
-    taxonomyReplacementSelect.value
-  )
+  const replacementId = Number(taxonomyReplacementSelect.value)
 
   if (!replacementId) {
     alert('Alege un înlocuitor.')
@@ -1965,25 +1777,20 @@ async function confirmTaxonomyReplacementDelete() {
   }
 }
 
+// Atlas loading and empty-state UI
 function showAtlasLoading(
   message = 'Pregătim nodurile, documentația și relațiile dintre concepte.'
 ) {
   isAtlasLoading = true
 
-  atlasStatusOverlay.classList.remove(
-    'hidden',
-    'error',
-    'empty'
-  )
+  atlasStatusOverlay.classList.remove('hidden', 'error', 'empty')
 
   atlasLoader.hidden = false
   retryLoadBtn.hidden = true
 
-  atlasStatusKicker.textContent =
-    'FTC Programming Atlas'
+  atlasStatusKicker.textContent = 'FTC Programming Atlas'
 
-  atlasStatusTitle.textContent =
-    'Se încarcă harta...'
+  atlasStatusTitle.textContent = 'Se încarcă harta...'
 
   atlasStatusMessage.textContent = message
 
@@ -1993,10 +1800,7 @@ function showAtlasLoading(
 function showAtlasLoadError(error) {
   isAtlasLoading = false
 
-  atlasStatusOverlay.classList.remove(
-    'hidden',
-    'empty'
-  )
+  atlasStatusOverlay.classList.remove('hidden', 'empty')
 
   atlasStatusOverlay.classList.add('error')
 
@@ -2004,27 +1808,21 @@ function showAtlasLoadError(error) {
   retryLoadBtn.hidden = false
   retryLoadBtn.textContent = 'Reîncearcă'
 
-  atlasStatusKicker.textContent =
-    'Conexiune indisponibilă'
+  atlasStatusKicker.textContent = 'Conexiune indisponibilă'
 
-  atlasStatusTitle.textContent =
-    'Atlasul nu a putut fi încărcat'
+  atlasStatusTitle.textContent = 'Atlasul nu a putut fi încărcat'
 
-  atlasStatusMessage.textContent =
-    error?.message
-      ? `Supabase a răspuns cu eroarea: ${error.message}`
-      : 'Verifică internetul și încearcă din nou.'
-  
+  atlasStatusMessage.textContent = error?.message
+    ? `Supabase a răspuns cu eroarea: ${error.message}`
+    : 'Verifică internetul și încearcă din nou.'
+
   updateAuthUI()
 }
 
 function showEmptyAtlasState() {
   isAtlasLoading = false
 
-  atlasStatusOverlay.classList.remove(
-    'hidden',
-    'error'
-  )
+  atlasStatusOverlay.classList.remove('hidden', 'error')
 
   atlasStatusOverlay.classList.add('empty')
 
@@ -2032,16 +1830,13 @@ function showEmptyAtlasState() {
   retryLoadBtn.hidden = false
   retryLoadBtn.textContent = 'Verifică din nou'
 
-  atlasStatusKicker.textContent =
-    'Atlas gol'
+  atlasStatusKicker.textContent = 'Atlas gol'
 
-  atlasStatusTitle.textContent =
-    'Nu există încă noduri'
+  atlasStatusTitle.textContent = 'Nu există încă noduri'
 
-  atlasStatusMessage.textContent =
-    canEdit
-      ? 'Poți crea primul nod folosind butonul „Nod nou” din Editor Tools.'
-      : 'Atlasul nu conține momentan documentație publicată.'
+  atlasStatusMessage.textContent = canEdit
+    ? 'Poți crea primul nod folosind butonul „Nod nou” din Editor Tools.'
+    : 'Atlasul nu conține momentan documentație publicată.'
 
   updateAuthUI()
 }
@@ -2050,10 +1845,7 @@ function hideAtlasStatus() {
   isAtlasLoading = false
 
   atlasStatusOverlay.classList.add('hidden')
-  atlasStatusOverlay.classList.remove(
-    'error',
-    'empty'
-  )
+  atlasStatusOverlay.classList.remove('error', 'empty')
 
   updateAuthUI()
 }
@@ -2082,10 +1874,7 @@ async function loadAtlasWithUi() {
 
       return true
     } catch (error) {
-      console.error(
-        'Atlas initial load failed:',
-        error
-      )
+      console.error('Atlas initial load failed:', error)
 
       showAtlasLoadError(error)
 
@@ -2100,6 +1889,7 @@ async function loadAtlasWithUi() {
   }
 }
 
+// Map viewport and node collision geometry
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
 }
@@ -2139,7 +1929,7 @@ function fitView() {
   let maxX = -Infinity
   let maxY = -Infinity
 
-  visibleNodes.forEach(node => {
+  visibleNodes.forEach((node) => {
     const { width, height } = nodeSize(node)
     minX = Math.min(minX, node.x)
     minY = Math.min(minY, node.y)
@@ -2175,7 +1965,7 @@ function fitCurrentSelection() {
       info.source.x + sourceSize.width,
       target.x,
       target.x + targetSize.width,
-      ...routePoints.map(point => point.x)
+      ...routePoints.map((point) => point.x)
     ]
 
     const yValues = [
@@ -2183,7 +1973,7 @@ function fitCurrentSelection() {
       info.source.y + sourceSize.height,
       target.y,
       target.y + targetSize.height,
-      ...routePoints.map(point => point.y)
+      ...routePoints.map((point) => point.y)
     ]
 
     const minX = Math.min(...xValues) - 120
@@ -2240,12 +2030,12 @@ function overlapsAny(nodeId, x, y, width = null, height = null) {
     height ?? nodeHeight(node)
   )
 
-  return nodes.some(other =>
-    Number(other.id) !== Number(nodeId) &&
-    rectsOverlap(rect, nodeRect(other))
+  return nodes.some(
+    (other) => Number(other.id) !== Number(nodeId) && rectsOverlap(rect, nodeRect(other))
   )
 }
 
+// Searches outward until a non-overlapping position is found
 function findNearestFreeSpot(nodeId, desiredX, desiredY) {
   const node = findNode(nodeId)
   const { width, height } = nodeSize(node)
@@ -2276,6 +2066,7 @@ function findNearestFreeSpot(nodeId, desiredX, desiredY) {
   return { x: startX, y: startY }
 }
 
+// Positions are loaded from Supabase; this hook remains for compatibility
 function ensureNodePositions() {
   return
 }
@@ -2287,6 +2078,7 @@ function updateUndoRedoButtons() {
   }
 }
 
+// Supabase-backed Undo and Redo
 async function undo() {
   if (!canEdit || !editorMode) return
 
@@ -2331,6 +2123,7 @@ async function redo() {
   await refreshHistoryButtons()
 }
 
+// Loads the complete atlas state and rebuilds the client-side model
 async function fetchAllData() {
   console.log('fetchAllData START')
 
@@ -2379,10 +2172,7 @@ async function fetchAllData() {
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true }),
 
-    supabase
-      .from('atlas_node_tags')
-      .select('node_id, tag_id')
-      .eq('project_id', PROJECT_ID),
+    supabase.from('atlas_node_tags').select('node_id, tag_id').eq('project_id', PROJECT_ID),
 
     supabase
       .from('atlas_node_media')
@@ -2454,11 +2244,7 @@ async function fetchAllData() {
     edgesBySource.get(sourceId).push({
       targetId: Number(edge.target_id),
       label: edge.label || 'relație',
-      controlPoints: normalizeEdgeControlPoints(
-        edge.control_points,
-        edge.control_x,
-        edge.control_y
-      )
+      controlPoints: normalizeEdgeControlPoints(edge.control_points, edge.control_x, edge.control_y)
     })
   }
 
@@ -2489,8 +2275,6 @@ async function fetchAllData() {
     })
   }
 
-
-
   const codeByNode = new Map()
   for (const row of codeData) {
     const nodeId = Number(row.node_id)
@@ -2509,7 +2293,7 @@ async function fetchAllData() {
     })
   }
 
-  nodes = nodesData.map(node => ({
+  nodes = nodesData.map((node) => ({
     id: Number(node.id),
     title: node.title,
     legacyTag: node.tag,
@@ -2540,8 +2324,7 @@ async function fetchAllData() {
       selectedEdge = null
       selectedEdgePointIndex = null
     } else {
-      const pointCount =
-        normalizeEdgeControlPoints(stillExists.link.controlPoints).length
+      const pointCount = normalizeEdgeControlPoints(stillExists.link.controlPoints).length
 
       if (
         !Number.isInteger(selectedEdgePointIndex) ||
@@ -2567,6 +2350,7 @@ async function fetchAllData() {
   })
 }
 
+// Supabase RPC wrappers
 function normalizeRpcRow(data, entityName) {
   const row = Array.isArray(data) ? data[0] : data
 
@@ -2625,52 +2409,42 @@ async function deleteNodeRemote(nodeId) {
   return data
 }
 
-
 async function createMediaRemote(item) {
-  const { data, error } = await supabase.rpc(
-    'atlas_media_create',
-    {
-      p_project_id: PROJECT_ID,
-      p_node_id: Number(item.nodeId),
-      p_media_type: item.mediaType,
-      p_storage_path: item.storagePath || null,
-      p_external_url: item.externalUrl || null,
-      p_mime_type: item.mimeType || '',
-      p_file_size: Number(item.fileSize || 0),
-      p_title: item.title || '',
-      p_caption: item.caption || '',
-      p_sort_order: Number(item.sortOrder || 0)
-    }
-  )
+  const { data, error } = await supabase.rpc('atlas_media_create', {
+    p_project_id: PROJECT_ID,
+    p_node_id: Number(item.nodeId),
+    p_media_type: item.mediaType,
+    p_storage_path: item.storagePath || null,
+    p_external_url: item.externalUrl || null,
+    p_mime_type: item.mimeType || '',
+    p_file_size: Number(item.fileSize || 0),
+    p_title: item.title || '',
+    p_caption: item.caption || '',
+    p_sort_order: Number(item.sortOrder || 0)
+  })
 
   if (error) throw error
   return normalizeRpcRow(data, 'Elementul media')
 }
 
 async function updateMediaRemote(item) {
-  const { data, error } = await supabase.rpc(
-    'atlas_media_update',
-    {
-      p_project_id: PROJECT_ID,
-      p_media_id: Number(item.id),
-      p_title: item.title || '',
-      p_caption: item.caption || '',
-      p_sort_order: Number(item.sortOrder || 0)
-    }
-  )
+  const { data, error } = await supabase.rpc('atlas_media_update', {
+    p_project_id: PROJECT_ID,
+    p_media_id: Number(item.id),
+    p_title: item.title || '',
+    p_caption: item.caption || '',
+    p_sort_order: Number(item.sortOrder || 0)
+  })
 
   if (error) throw error
   return normalizeRpcRow(data, 'Elementul media')
 }
 
 async function deleteMediaRemote(mediaId) {
-  const { data, error } = await supabase.rpc(
-    'atlas_media_delete',
-    {
-      p_project_id: PROJECT_ID,
-      p_media_id: Number(mediaId)
-    }
-  )
+  const { data, error } = await supabase.rpc('atlas_media_delete', {
+    p_project_id: PROJECT_ID,
+    p_media_id: Number(mediaId)
+  })
 
   if (error) throw error
   if (!data?.ok) throw new Error('Elementul media nu a fost șters.')
@@ -2678,65 +2452,52 @@ async function deleteMediaRemote(mediaId) {
 }
 
 async function reorderMediaRemote(nodeId, items) {
-  const { data, error } = await supabase.rpc(
-    'atlas_media_reorder',
-    {
-      p_project_id: PROJECT_ID,
-      p_node_id: Number(nodeId),
-      p_items: items
-    }
-  )
+  const { data, error } = await supabase.rpc('atlas_media_reorder', {
+    p_project_id: PROJECT_ID,
+    p_node_id: Number(nodeId),
+    p_items: items
+  })
 
   if (error) throw error
   if (!data?.ok) throw new Error('Ordinea media nu a fost salvată.')
   return data
 }
 
-
 async function createCodeRemote(item) {
-  const { data, error } = await supabase.rpc(
-    'atlas_code_create',
-    {
-      p_project_id: PROJECT_ID,
-      p_node_id: Number(item.nodeId),
-      p_language: item.language || 'text',
-      p_title: item.title || '',
-      p_description: item.description || '',
-      p_code: item.code || '',
-      p_sort_order: Number(item.sortOrder || 0)
-    }
-  )
+  const { data, error } = await supabase.rpc('atlas_code_create', {
+    p_project_id: PROJECT_ID,
+    p_node_id: Number(item.nodeId),
+    p_language: item.language || 'text',
+    p_title: item.title || '',
+    p_description: item.description || '',
+    p_code: item.code || '',
+    p_sort_order: Number(item.sortOrder || 0)
+  })
 
   if (error) throw error
   return normalizeRpcRow(data, 'Snippet-ul de cod')
 }
 
 async function updateCodeRemote(item) {
-  const { data, error } = await supabase.rpc(
-    'atlas_code_update',
-    {
-      p_project_id: PROJECT_ID,
-      p_code_id: Number(item.id),
-      p_language: item.language || 'text',
-      p_title: item.title || '',
-      p_description: item.description || '',
-      p_code: item.code || '',
-      p_sort_order: Number(item.sortOrder || 0)
-    }
-  )
+  const { data, error } = await supabase.rpc('atlas_code_update', {
+    p_project_id: PROJECT_ID,
+    p_code_id: Number(item.id),
+    p_language: item.language || 'text',
+    p_title: item.title || '',
+    p_description: item.description || '',
+    p_code: item.code || '',
+    p_sort_order: Number(item.sortOrder || 0)
+  })
 
   if (error) throw error
   return normalizeRpcRow(data, 'Snippet-ul de cod')
 }
 
 async function deleteCodeRemote(codeId) {
-  const { data, error } = await supabase.rpc(
-    'atlas_code_delete',
-    {
-      p_project_id: PROJECT_ID,
-      p_code_id: Number(codeId)
-    }
-  )
+  const { data, error } = await supabase.rpc('atlas_code_delete', {
+    p_project_id: PROJECT_ID,
+    p_code_id: Number(codeId)
+  })
 
   if (error) throw error
   if (!data?.ok) throw new Error('Snippet-ul de cod nu a fost șters.')
@@ -2744,130 +2505,87 @@ async function deleteCodeRemote(codeId) {
 }
 
 async function reorderCodeRemote(nodeId, items) {
-  const { data, error } = await supabase.rpc(
-    'atlas_code_reorder',
-    {
-      p_project_id: PROJECT_ID,
-      p_node_id: Number(nodeId),
-      p_items: items
-    }
-  )
+  const { data, error } = await supabase.rpc('atlas_code_reorder', {
+    p_project_id: PROJECT_ID,
+    p_node_id: Number(nodeId),
+    p_items: items
+  })
 
   if (error) throw error
   if (!data?.ok) throw new Error('Ordinea snippet-urilor nu a fost salvată.')
   return data
 }
 
-
 async function createTaxonomyItemRemote(kind, item) {
-  const { data, error } = await supabase.rpc(
-    'atlas_taxonomy_create',
-    {
-      p_project_id: PROJECT_ID,
-      p_kind: kind,
-      p_name: item.name,
-      p_description: item.description || '',
-      p_order: Number(item.order) || 0
-    }
-  )
+  const { data, error } = await supabase.rpc('atlas_taxonomy_create', {
+    p_project_id: PROJECT_ID,
+    p_kind: kind,
+    p_name: item.name,
+    p_description: item.description || '',
+    p_order: Number(item.order) || 0
+  })
 
   if (error) throw error
 
-  return normalizeRpcRow(
-    data,
-    'Elementul taxonomiei'
-  )
+  return normalizeRpcRow(data, 'Elementul taxonomiei')
 }
 
-async function updateTaxonomyItemRemote(
-  kind,
-  itemId,
-  item
-) {
-  const { data, error } = await supabase.rpc(
-    'atlas_taxonomy_update',
-    {
-      p_project_id: PROJECT_ID,
-      p_kind: kind,
-      p_id: Number(itemId),
-      p_name: item.name,
-      p_description: item.description || '',
-      p_order: Number(item.order) || 0,
-      p_is_active: item.isActive !== false
-    }
-  )
+async function updateTaxonomyItemRemote(kind, itemId, item) {
+  const { data, error } = await supabase.rpc('atlas_taxonomy_update', {
+    p_project_id: PROJECT_ID,
+    p_kind: kind,
+    p_id: Number(itemId),
+    p_name: item.name,
+    p_description: item.description || '',
+    p_order: Number(item.order) || 0,
+    p_is_active: item.isActive !== false
+  })
 
   if (error) throw error
 
-  return normalizeRpcRow(
-    data,
-    'Elementul taxonomiei'
-  )
+  return normalizeRpcRow(data, 'Elementul taxonomiei')
 }
 
-async function deleteTaxonomyItemRemote(
-  kind,
-  itemId
-) {
-  const { data, error } = await supabase.rpc(
-    'atlas_taxonomy_delete',
-    {
-      p_project_id: PROJECT_ID,
-      p_kind: kind,
-      p_id: Number(itemId)
-    }
-  )
+async function deleteTaxonomyItemRemote(kind, itemId) {
+  const { data, error } = await supabase.rpc('atlas_taxonomy_delete', {
+    p_project_id: PROJECT_ID,
+    p_kind: kind,
+    p_id: Number(itemId)
+  })
 
   if (error) throw error
 
   return data
 }
 
-async function reorderTaxonomyItemsRemote(
-  kind,
-  items
-) {
-  const { data, error } = await supabase.rpc(
-    'atlas_taxonomy_reorder',
-    {
-      p_project_id: PROJECT_ID,
-      p_kind: kind,
-      p_items: items
-    }
-  )
+async function reorderTaxonomyItemsRemote(kind, items) {
+  const { data, error } = await supabase.rpc('atlas_taxonomy_reorder', {
+    p_project_id: PROJECT_ID,
+    p_kind: kind,
+    p_items: items
+  })
 
   if (error) throw error
 
   if (!data?.ok) {
-    throw new Error(
-      'Ordinea nu a putut fi salvată.'
-    )
+    throw new Error('Ordinea nu a putut fi salvată.')
   }
 
   return data
 }
 
-async function replaceAndDeleteTaxonomyItemRemote(
-  kind,
-  itemId,
-  replacementId
-) {
-  const { data, error } = await supabase.rpc(
-    'atlas_taxonomy_replace_and_delete',
-    {
-      p_project_id: PROJECT_ID,
-      p_kind: kind,
-      p_id: Number(itemId),
-      p_replacement_id: Number(replacementId)
-    }
-  )
+async function replaceAndDeleteTaxonomyItemRemote(kind, itemId, replacementId) {
+  const { data, error } = await supabase.rpc('atlas_taxonomy_replace_and_delete', {
+    p_project_id: PROJECT_ID,
+    p_kind: kind,
+    p_id: Number(itemId),
+    p_replacement_id: Number(replacementId)
+  })
 
   if (error) throw error
 
   if (!data?.ok) {
-    throw new Error(
-      'Elementul nu a putut fi înlocuit și șters.'
-    )
+    throw new Error('Elementul nu a putut fi înlocuit și șters.')
   }
 
   return data
@@ -2899,22 +2617,15 @@ async function updateEdgeRemote(sourceId, targetId, label) {
   return normalizeRpcRow(data, 'Muchia actualizată')
 }
 
-async function updateEdgeControlPointsRemote(
-  sourceId,
-  targetId,
-  controlPoints
-) {
+async function updateEdgeControlPointsRemote(sourceId, targetId, controlPoints) {
   const points = normalizeEdgeControlPoints(controlPoints)
 
-  const { data, error } = await supabase.rpc(
-    'atlas_update_edge_control_points',
-    {
-      p_project_id: PROJECT_ID,
-      p_source_id: Number(sourceId),
-      p_target_id: Number(targetId),
-      p_control_points: points
-    }
-  )
+  const { data, error } = await supabase.rpc('atlas_update_edge_control_points', {
+    p_project_id: PROJECT_ID,
+    p_source_id: Number(sourceId),
+    p_target_id: Number(targetId),
+    p_control_points: points
+  })
 
   if (error) throw error
   return normalizeRpcRow(data, 'Traseul muchiei')
@@ -2937,22 +2648,20 @@ async function deleteEdgeRemote(sourceId, targetId) {
 }
 
 async function updateNodeGeometryRemote(node) {
-  const { data, error } = await supabase.rpc(
-    'atlas_update_node_geometry',
-    {
-      p_project_id: PROJECT_ID,
-      p_node_id: Number(node.id),
-      p_x: Number(node.x),
-      p_y: Number(node.y),
-      p_width: node.width == null ? null : Number(node.width),
-      p_height: node.height == null ? null : Number(node.height)
-    }
-  )
+  const { data, error } = await supabase.rpc('atlas_update_node_geometry', {
+    p_project_id: PROJECT_ID,
+    p_node_id: Number(node.id),
+    p_x: Number(node.x),
+    p_y: Number(node.y),
+    p_width: node.width == null ? null : Number(node.width),
+    p_height: node.height == null ? null : Number(node.height)
+  })
 
   if (error) throw error
   return normalizeRpcRow(data, 'Geometria nodului')
 }
 
+// Node movement and resizing
 async function nudgeSelectedNode(dx, dy) {
   if (!canEdit || !editorMode) return
 
@@ -2962,27 +2671,13 @@ async function nudgeSelectedNode(dx, dy) {
 
   const { width, height } = nodeSize(node)
 
-  const desiredX = clamp(
-    node.x + dx,
-    20,
-    WORLD_WIDTH - width - 20
-  )
+  const desiredX = clamp(node.x + dx, 20, WORLD_WIDTH - width - 20)
 
-  const desiredY = clamp(
-    node.y + dy,
-    20,
-    WORLD_HEIGHT - height - 20
-  )
+  const desiredY = clamp(node.y + dy, 20, WORLD_HEIGHT - height - 20)
 
-  const free = findNearestFreeSpot(
-    node.id,
-    desiredX,
-    desiredY
-  )
+  const free = findNearestFreeSpot(node.id, desiredX, desiredY)
 
-  const changed =
-    Number(free.x) !== Number(node.x) ||
-    Number(free.y) !== Number(node.y)
+  const changed = Number(free.x) !== Number(node.x) || Number(free.y) !== Number(node.y)
 
   if (!changed) return
 
@@ -3003,11 +2698,7 @@ async function nudgeSelectedNode(dx, dy) {
   } catch (error) {
     console.error('Move node with keyboard failed:', error)
 
-    alert(
-      `Eroare la mutarea nodului: ${
-        error?.message || 'necunoscută'
-      }`
-    )
+    alert(`Eroare la mutarea nodului: ${error?.message || 'necunoscută'}`)
 
     await fetchAllData()
   }
@@ -3035,10 +2726,7 @@ async function resizeSelectedNode(deltaWidth, deltaHeight) {
     Math.min(NODE_MAX_HEIGHT, WORLD_HEIGHT - node.y - 20)
   )
 
-  if (
-    nextWidth === current.width &&
-    nextHeight === current.height
-  ) {
+  if (nextWidth === current.width && nextHeight === current.height) {
     return
   }
 
@@ -3097,53 +2785,37 @@ async function resetSelectedNodeSize() {
   }
 }
 
+// Authentication, permissions and Editor Mode
 function updateAuthUI() {
   if (!currentUser) {
-    authStatusBox.innerHTML =
-      'Neautentificat. Atlasul este în Reader Mode.'
+    authStatusBox.innerHTML = 'Neautentificat. Atlasul este în Reader Mode.'
   } else if (canEdit && editorMode) {
-    authStatusBox.innerHTML =
-      `<strong>Editor Mode activ</strong><br>${escapeHtml(currentUser.email)}`
+    authStatusBox.innerHTML = `<strong>Editor Mode activ</strong><br>${escapeHtml(currentUser.email)}`
   } else if (canEdit) {
-    authStatusBox.innerHTML =
-      `<strong>Logat ca editor</strong><br>${escapeHtml(currentUser.email)}<br>Momentan ești în Reader Mode.`
+    authStatusBox.innerHTML = `<strong>Logat ca editor</strong><br>${escapeHtml(currentUser.email)}<br>Momentan ești în Reader Mode.`
   } else {
-    authStatusBox.innerHTML =
-      `<strong>Logat doar pentru view:</strong><br>${escapeHtml(currentUser.email)}`
+    authStatusBox.innerHTML = `<strong>Logat doar pentru view:</strong><br>${escapeHtml(currentUser.email)}`
   }
 
   if (!canEdit && editorMode) {
     editorMode = false
 
-    localStorage.setItem(
-      CACHE_KEYS.editorMode,
-      '0'
-    )
+    localStorage.setItem(CACHE_KEYS.editorMode, '0')
   }
 
-  const editorActive =
-    canEdit && editorMode
+  const editorActive = canEdit && editorMode
 
-  const editorBlocked =
-    isAtlasLoading || !editorActive
+  const editorBlocked = isAtlasLoading || !editorActive
 
-  const hasSelectedNode =
-    Boolean(selectedNode())
+  const hasSelectedNode = Boolean(selectedNode())
 
-  const hasNodes =
-    nodes.length > 0
+  const hasNodes = nodes.length > 0
 
   editorModeBtn.hidden = !canEdit
 
-  editorModeBtn.textContent =
-    editorMode
-      ? 'Ieși din Editor'
-      : 'Editor mode'
+  editorModeBtn.textContent = editorMode ? 'Ieși din Editor' : 'Editor mode'
 
-  editorModeBtn.classList.toggle(
-    'active',
-    editorMode
-  )
+  editorModeBtn.classList.toggle('active', editorMode)
 
   editorToolsSection.hidden = !editorActive
   taxonomyManagerBtn.disabled = editorBlocked
@@ -3164,38 +2836,25 @@ function updateAuthUI() {
 
   createBtn.disabled = editorBlocked
 
-  editBtn.disabled =
-    editorBlocked || !hasSelectedNode
+  editBtn.disabled = editorBlocked || !hasSelectedNode
 
-  deleteBtn.disabled =
-    editorBlocked || !hasSelectedNode
+  deleteBtn.disabled = editorBlocked || !hasSelectedNode
 
-  relationBtn.disabled =
-    editorBlocked || !hasNodes
+  relationBtn.disabled = editorBlocked || !hasNodes
 
   const edgeInfo = selectedEdgeInfo()
   const edgePointCount = edgeInfo?.link?.controlPoints?.length || 0
 
   addEdgePointBtn.disabled =
-    editorBlocked ||
-    !selectedEdge ||
-    edgePointCount >= MAX_EDGE_CONTROL_POINTS
+    editorBlocked || !selectedEdge || edgePointCount >= MAX_EDGE_CONTROL_POINTS
 
-  removeEdgePointBtn.disabled =
-    editorBlocked ||
-    !selectedEdge ||
-    edgePointCount === 0
+  removeEdgePointBtn.disabled = editorBlocked || !selectedEdge || edgePointCount === 0
 
-  resetEdgePathBtn.disabled =
-    editorBlocked ||
-    !selectedEdge ||
-    edgePointCount === 0
+  resetEdgePathBtn.disabled = editorBlocked || !selectedEdge || edgePointCount === 0
 
-  editEdgeBtn.disabled =
-    editorBlocked || !selectedEdge
+  editEdgeBtn.disabled = editorBlocked || !selectedEdge
 
-  deleteEdgeBtn.disabled =
-    editorBlocked || !selectedEdge
+  deleteEdgeBtn.disabled = editorBlocked || !selectedEdge
 
   logoutBtn.disabled = !currentUser
 
@@ -3204,22 +2863,17 @@ function updateAuthUI() {
   difficultyFilter.disabled = isAtlasLoading
   clearFiltersBtn.disabled = isAtlasLoading
 
-  tagFilterChips.querySelectorAll('button').forEach(button => {
+  tagFilterChips.querySelectorAll('button').forEach((button) => {
     button.disabled = isAtlasLoading
   })
 
-  zoomInBtn.disabled =
-    isAtlasLoading || !hasNodes
+  zoomInBtn.disabled = isAtlasLoading || !hasNodes
 
-  zoomOutBtn.disabled =
-    isAtlasLoading || !hasNodes
+  zoomOutBtn.disabled = isAtlasLoading || !hasNodes
 
-  fitBtn.disabled =
-    isAtlasLoading || !hasNodes
+  fitBtn.disabled = isAtlasLoading || !hasNodes
 
-  fitSelectionBtn.disabled =
-    isAtlasLoading ||
-    (!selectedEdge && !hasSelectedNode)
+  fitSelectionBtn.disabled = isAtlasLoading || (!selectedEdge && !hasSelectedNode)
 
   resetViewBtn.disabled = isAtlasLoading
 
@@ -3228,28 +2882,20 @@ function updateAuthUI() {
     redoBtn.disabled = true
   }
 
-  if (
-    modalMode === 'tutorial' &&
-    modalBackdrop.classList.contains('open')
-  ) {
+  if (modalMode === 'tutorial' && modalBackdrop.classList.contains('open')) {
     applyTutorialPermissions()
   }
 }
 
 function setEditorMode(nextValue) {
   if (nextValue && !canEdit) {
-    alert(
-      'Trebuie să fii autentificat ca editor.'
-    )
+    alert('Trebuie să fii autentificat ca editor.')
     return
   }
 
   editorMode = Boolean(nextValue)
 
-  localStorage.setItem(
-    CACHE_KEYS.editorMode,
-    editorMode ? '1' : '0'
-  )
+  localStorage.setItem(CACHE_KEYS.editorMode, editorMode ? '1' : '0')
 
   if (!editorMode) {
     relationMode = {
@@ -3268,23 +2914,19 @@ function setEditorMode(nextValue) {
 
   renderAll()
 
-  refreshHistoryButtons().catch(error => {
+  refreshHistoryButtons().catch((error) => {
     console.error('History refresh after editor mode change failed:', error)
   })
 }
 
 function requireAuth() {
   if (!canEdit) {
-    alert(
-      'Doar editorii aprobați pot modifica atlasul.'
-    )
+    alert('Doar editorii aprobați pot modifica atlasul.')
     return false
   }
 
   if (!editorMode) {
-    alert(
-      'Activează mai întâi Editor Mode.'
-    )
+    alert('Activează mai întâi Editor Mode.')
     return false
   }
 
@@ -3292,26 +2934,18 @@ function requireAuth() {
 }
 
 async function refreshSession() {
-  const { data: sessionData, error: sessionError } =
-    await supabase.auth.getSession()
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
 
   if (sessionError) {
-    console.error(
-      'Session load failed:',
-      sessionError
-    )
+    console.error('Session load failed:', sessionError)
   }
 
-  currentUser =
-    sessionData?.session?.user || null
+  currentUser = sessionData?.session?.user || null
 
   if (!currentUser) {
-    const { data, error } =
-      await supabase.auth.getUser()
+    const { data, error } = await supabase.auth.getUser()
 
-    currentUser = error
-      ? null
-      : data?.user || null
+    currentUser = error ? null : data?.user || null
   }
 
   await refreshEditorAccess()
@@ -3352,15 +2986,10 @@ async function refreshEditorAccess() {
     return false
   }
 
-  const { data, error } = await supabase.rpc(
-    'is_atlas_editor'
-  )
+  const { data, error } = await supabase.rpc('is_atlas_editor')
 
   if (error) {
-    console.error(
-      'Editor access check failed:',
-      error
-    )
+    console.error('Editor access check failed:', error)
 
     canEdit = false
     return false
@@ -3371,6 +3000,7 @@ async function refreshEditorAccess() {
   return canEdit
 }
 
+// Relationship routing and multi-point geometry
 function handleEdgePick(sourceId, targetId) {
   if (relationMode.active) return
 
@@ -3413,6 +3043,7 @@ function automaticEdgeControl(source, target) {
   }
 }
 
+// Builds a smooth cubic Bézier route through every control point
 function buildSmoothEdgePath(points) {
   if (!Array.isArray(points) || points.length < 2) {
     return ''
@@ -3467,9 +3098,7 @@ function pointAlongRoute(points, fraction = 0.5) {
 
   for (const segment of segments) {
     if (travelled + segment.length >= targetLength) {
-      const local = segment.length > 0
-        ? (targetLength - travelled) / segment.length
-        : 0
+      const local = segment.length > 0 ? (targetLength - travelled) / segment.length : 0
 
       return {
         x: segment.start.x + (segment.end.x - segment.start.x) * local,
@@ -3488,16 +3117,9 @@ function getEdgeGeometry(source, target, link) {
   const controlPoints = normalizeEdgeControlPoints(link?.controlPoints)
 
   if (controlPoints.length === 0) {
-    const labelX =
-      0.25 * automatic.ax +
-      0.5 * automatic.cx +
-      0.25 * automatic.bx
+    const labelX = 0.25 * automatic.ax + 0.5 * automatic.cx + 0.25 * automatic.bx
 
-    const labelY =
-      0.25 * automatic.ay +
-      0.5 * automatic.cy +
-      0.25 * automatic.by -
-      3
+    const labelY = 0.25 * automatic.ay + 0.5 * automatic.cy + 0.25 * automatic.by - 3
 
     return {
       ...automatic,
@@ -3535,9 +3157,7 @@ function getEdgeGeometry(source, target, link) {
     guidePoints: routePoints,
     pathD: buildSmoothEdgePath(routePoints),
     guideD: routePoints
-      .map((point, index) =>
-        `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
-      )
+      .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
       .join(' '),
     labelX: labelPoint.x,
     labelY: labelPoint.y - 3
@@ -3551,12 +3171,7 @@ function edgeWorldPoint(clientX, clientY) {
   }
 }
 
-function startEdgeControlDrag(
-  event,
-  sourceId,
-  targetId,
-  pointIndex
-) {
+function startEdgeControlDrag(event, sourceId, targetId, pointIndex) {
   if (!canEdit || !editorMode) return
   if (event.button !== 0 && event.pointerType !== 'touch') return
 
@@ -3583,37 +3198,26 @@ function startEdgeControlDrag(
     sourceId: Number(sourceId),
     targetId: Number(targetId),
     pointIndex: Number(pointIndex),
-    originalPoints: points.map(point => ({ ...point })),
+    originalPoints: points.map((point) => ({ ...point })),
     moved: false
   }
 
   document.body.classList.add('edge-control-dragging')
 
-  const onMove = moveEvent => {
-    if (
-      !edgeControlDragState ||
-      moveEvent.pointerId !== edgeControlDragState.pointerId
-    ) {
+  const onMove = (moveEvent) => {
+    if (!edgeControlDragState || moveEvent.pointerId !== edgeControlDragState.pointerId) {
       return
     }
 
     moveEvent.preventDefault()
 
-    const currentInfo = getEdgeInfo(
-      edgeControlDragState.sourceId,
-      edgeControlDragState.targetId
-    )
+    const currentInfo = getEdgeInfo(edgeControlDragState.sourceId, edgeControlDragState.targetId)
 
     if (!currentInfo) return
 
-    const point = edgeWorldPoint(
-      moveEvent.clientX,
-      moveEvent.clientY
-    )
+    const point = edgeWorldPoint(moveEvent.clientX, moveEvent.clientY)
 
-    const nextPoints = normalizeEdgeControlPoints(
-      currentInfo.link.controlPoints
-    )
+    const nextPoints = normalizeEdgeControlPoints(currentInfo.link.controlPoints)
 
     nextPoints[edgeControlDragState.pointIndex] = point
     currentInfo.link.controlPoints = nextPoints
@@ -3621,11 +3225,8 @@ function startEdgeControlDrag(
     renderLinks()
   }
 
-  const finish = async upEvent => {
-    if (
-      !edgeControlDragState ||
-      upEvent.pointerId !== edgeControlDragState.pointerId
-    ) {
+  const finish = async (upEvent) => {
+    if (!edgeControlDragState || upEvent.pointerId !== edgeControlDragState.pointerId) {
       return
     }
 
@@ -3637,10 +3238,7 @@ function startEdgeControlDrag(
     const state = edgeControlDragState
     edgeControlDragState = null
 
-    const currentInfo = getEdgeInfo(
-      state.sourceId,
-      state.targetId
-    )
+    const currentInfo = getEdgeInfo(state.sourceId, state.targetId)
 
     if (!currentInfo || !state.moved) {
       renderAll()
@@ -3654,14 +3252,12 @@ function startEdgeControlDrag(
         currentInfo.link.controlPoints
       )
 
-      currentInfo.link.controlPoints =
-        normalizeEdgeControlPoints(updated.control_points)
+      currentInfo.link.controlPoints = normalizeEdgeControlPoints(updated.control_points)
 
       await refreshHistoryButtons()
       renderAll()
     } catch (error) {
-      currentInfo.link.controlPoints =
-        state.originalPoints.map(point => ({ ...point }))
+      currentInfo.link.controlPoints = state.originalPoints.map((point) => ({ ...point }))
 
       renderAll()
       alert(error.message || 'Traseul relației nu a putut fi salvat.')
@@ -3700,14 +3296,8 @@ function findEdgePointInsertion(source, target, controlPoints) {
     return {
       index: 0,
       point: {
-        x:
-          0.25 * sourceGeometry.ax +
-          0.5 * sourceGeometry.cx +
-          0.25 * sourceGeometry.bx,
-        y:
-          0.25 * sourceGeometry.ay +
-          0.5 * sourceGeometry.cy +
-          0.25 * sourceGeometry.by
+        x: 0.25 * sourceGeometry.ax + 0.5 * sourceGeometry.cx + 0.25 * sourceGeometry.bx,
+        y: 0.25 * sourceGeometry.ay + 0.5 * sourceGeometry.cy + 0.25 * sourceGeometry.by
       }
     }
   }
@@ -3736,22 +3326,16 @@ async function addEdgeControlPoint() {
   const target = findNode(info.link.targetId)
   if (!target) return
 
-  const originalPoints = normalizeEdgeControlPoints(
-    info.link.controlPoints
-  )
+  const originalPoints = normalizeEdgeControlPoints(info.link.controlPoints)
 
   if (originalPoints.length >= MAX_EDGE_CONTROL_POINTS) {
     alert(`Poți folosi maximum ${MAX_EDGE_CONTROL_POINTS} puncte pe o muchie.`)
     return
   }
 
-  const insertion = findEdgePointInsertion(
-    info.source,
-    target,
-    originalPoints
-  )
+  const insertion = findEdgePointInsertion(info.source, target, originalPoints)
 
-  const nextPoints = originalPoints.map(point => ({ ...point }))
+  const nextPoints = originalPoints.map((point) => ({ ...point }))
   nextPoints.splice(insertion.index, 0, insertion.point)
 
   info.link.controlPoints = nextPoints
@@ -3759,14 +3343,9 @@ async function addEdgeControlPoint() {
   renderAll()
 
   try {
-    const updated = await updateEdgeControlPointsRemote(
-      info.source.id,
-      target.id,
-      nextPoints
-    )
+    const updated = await updateEdgeControlPointsRemote(info.source.id, target.id, nextPoints)
 
-    info.link.controlPoints =
-      normalizeEdgeControlPoints(updated.control_points)
+    info.link.controlPoints = normalizeEdgeControlPoints(updated.control_points)
 
     await refreshHistoryButtons()
     renderAll()
@@ -3787,9 +3366,7 @@ async function removeSelectedEdgeControlPoint() {
     return
   }
 
-  const originalPoints = normalizeEdgeControlPoints(
-    info.link.controlPoints
-  )
+  const originalPoints = normalizeEdgeControlPoints(info.link.controlPoints)
 
   if (originalPoints.length === 0) return
 
@@ -3800,13 +3377,11 @@ async function removeSelectedEdgeControlPoint() {
       ? selectedEdgePointIndex
       : originalPoints.length - 1
 
-  const nextPoints = originalPoints.map(point => ({ ...point }))
+  const nextPoints = originalPoints.map((point) => ({ ...point }))
   nextPoints.splice(pointIndex, 1)
 
   info.link.controlPoints = nextPoints
-  selectedEdgePointIndex = nextPoints.length
-    ? Math.min(pointIndex, nextPoints.length - 1)
-    : null
+  selectedEdgePointIndex = nextPoints.length ? Math.min(pointIndex, nextPoints.length - 1) : null
 
   renderAll()
 
@@ -3817,8 +3392,7 @@ async function removeSelectedEdgeControlPoint() {
       nextPoints
     )
 
-    info.link.controlPoints =
-      normalizeEdgeControlPoints(updated.control_points)
+    info.link.controlPoints = normalizeEdgeControlPoints(updated.control_points)
 
     await refreshHistoryButtons()
     renderAll()
@@ -3836,23 +3410,16 @@ async function resetEdgeControl(sourceId, targetId) {
   const info = getEdgeInfo(sourceId, targetId)
   if (!info) return
 
-  const originalPoints = normalizeEdgeControlPoints(
-    info.link.controlPoints
-  )
+  const originalPoints = normalizeEdgeControlPoints(info.link.controlPoints)
 
   info.link.controlPoints = []
   selectedEdgePointIndex = null
   renderAll()
 
   try {
-    const updated = await updateEdgeControlPointsRemote(
-      sourceId,
-      targetId,
-      []
-    )
+    const updated = await updateEdgeControlPointsRemote(sourceId, targetId, [])
 
-    info.link.controlPoints =
-      normalizeEdgeControlPoints(updated.control_points)
+    info.link.controlPoints = normalizeEdgeControlPoints(updated.control_points)
 
     await refreshHistoryButtons()
     renderAll()
@@ -3863,6 +3430,7 @@ async function resetEdgeControl(sourceId, targetId) {
   }
 }
 
+// Atlas rendering
 function renderLinks() {
   linkLayer.setAttribute('viewBox', `0 0 ${WORLD_WIDTH} ${WORLD_HEIGHT}`)
   linkLayer.setAttribute('width', WORLD_WIDTH)
@@ -3885,10 +3453,10 @@ function renderLinks() {
     </defs>
   `)
 
-  nodes.forEach(source => {
+  nodes.forEach((source) => {
     if (!visibleIds.has(Number(source.id))) return
 
-    source.links.forEach(link => {
+    source.links.forEach((link) => {
       const target = findNode(link.targetId)
       if (!target || !visibleIds.has(Number(target.id))) return
 
@@ -3906,9 +3474,7 @@ function renderLinks() {
           ? 'rgba(205, 112, 255, 0.34)'
           : 'rgba(177, 76, 255, 0.24)'
 
-      const glowColor = edgeSelected
-        ? 'rgba(255, 77, 109, 0.18)'
-        : 'rgba(177, 76, 255, 0.10)'
+      const glowColor = edgeSelected ? 'rgba(255, 77, 109, 0.18)' : 'rgba(177, 76, 255, 0.10)'
 
       const flowColor = edgeSelected
         ? 'rgba(255, 190, 205, 0.98)'
@@ -3929,13 +3495,16 @@ function renderLinks() {
         ? 'filter: none;'
         : `animation: circuitFlow ${duration}s linear infinite, circuitPulse 2s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(177,76,255,0.28));`
 
-      const editorControl = edgeSelected && canEdit && editorMode
-        ? `
+      const editorControl =
+        edgeSelected && canEdit && editorMode
+          ? `
           <path
             class="edge-control-guide"
             d="${geometry.guideD}"
           />
-          ${geometry.controlPoints.map((point, pointIndex) => `
+          ${geometry.controlPoints
+            .map(
+              (point, pointIndex) => `
             <circle
               class="edge-control-handle ${selectedEdgePointIndex === pointIndex ? 'selected' : ''}"
               data-edge-control-source="${source.id}"
@@ -3957,9 +3526,11 @@ function renderLinks() {
               y="${point.y - controlRadius - 6}"
               text-anchor="middle"
             >${pointIndex + 1}</text>
-          `).join('')}
+          `
+            )
+            .join('')}
         `
-        : ''
+          : ''
 
       parts.push(`
         <g class="edge-group ${edgeSelected ? 'selected' : ''}">
@@ -4018,8 +3589,8 @@ function renderLinks() {
 
   linkLayer.innerHTML = parts.join('')
 
-  linkLayer.querySelectorAll('.edge-hit, .edge-label-hit').forEach(hit => {
-    hit.addEventListener('click', event => {
+  linkLayer.querySelectorAll('.edge-hit, .edge-label-hit').forEach((hit) => {
+    hit.addEventListener('click', (event) => {
       event.stopPropagation()
       const sourceId = Number(hit.dataset.source)
       const targetId = Number(hit.dataset.target)
@@ -4027,8 +3598,8 @@ function renderLinks() {
     })
   })
 
-  linkLayer.querySelectorAll('[data-edge-control-source]').forEach(handle => {
-    handle.addEventListener('pointerdown', event => {
+  linkLayer.querySelectorAll('[data-edge-control-source]').forEach((handle) => {
+    handle.addEventListener('pointerdown', (event) => {
       startEdgeControlDrag(
         event,
         Number(handle.dataset.edgeControlSource),
@@ -4041,10 +3612,11 @@ function renderLinks() {
 
 function renderNodes() {
   nodeLayer.innerHTML = ''
-  const orderedNodes = getVisibleNodes()
-    .sort((a, b) => (a.id === selectedId ? 1 : b.id === selectedId ? -1 : 0))
+  const orderedNodes = getVisibleNodes().sort((a, b) =>
+    a.id === selectedId ? 1 : b.id === selectedId ? -1 : 0
+  )
 
-  orderedNodes.forEach(node => {
+  orderedNodes.forEach((node) => {
     const { width: nodeWidthValue, height: nodeHeightValue } = nodeSize(node)
     const el = document.createElement('button')
     el.type = 'button'
@@ -4056,13 +3628,14 @@ function renderNodes() {
     el.style.minHeight = `${nodeHeightValue}px`
 
     const tagNames = nodeTagNames(node)
-    const resizeHandles = canEdit && editorMode && node.id === selectedId
-      ? `
+    const resizeHandles =
+      canEdit && editorMode && node.id === selectedId
+        ? `
         <span class="node-resize-handle east" data-node-resize="e" aria-hidden="true"></span>
         <span class="node-resize-handle south" data-node-resize="s" aria-hidden="true"></span>
         <span class="node-resize-handle southeast" data-node-resize="se" aria-hidden="true"></span>
       `
-      : ''
+        : ''
 
     el.innerHTML = `
       <div class="node-head">
@@ -4074,11 +3647,18 @@ function renderNodes() {
       </div>
       <h3 class="node-title">${escapeHtml(node.title)}</h3>
       <p class="node-preview">${escapeHtml(node.content)}</p>
-      ${tagNames.length ? `
+      ${
+        tagNames.length
+          ? `
         <div class="node-tags-preview">
-          ${tagNames.slice(0, 3).map(name => `<span class="mini-tag">${escapeHtml(name)}</span>`).join('')}
+          ${tagNames
+            .slice(0, 3)
+            .map((name) => `<span class="mini-tag">${escapeHtml(name)}</span>`)
+            .join('')}
         </div>
-      ` : ''}
+      `
+          : ''
+      }
       ${resizeHandles}
     `
 
@@ -4107,7 +3687,7 @@ function renderNodes() {
       mapSurface.classList.remove('panning')
     }
 
-    const onMove = event => {
+    const onMove = (event) => {
       if (event.pointerId !== pointerId) return
 
       const rawDx = event.clientX - startClientX
@@ -4149,18 +3729,12 @@ function renderNodes() {
       el.style.left = `${nextX}px`
       el.style.top = `${nextY}px`
 
-      const invalid = overlapsAny(
-        node.id,
-        nextX,
-        nextY,
-        nodeWidthValue,
-        nodeHeightValue
-      )
+      const invalid = overlapsAny(node.id, nextX, nextY, nodeWidthValue, nodeHeightValue)
 
       el.classList.toggle('invalid-drop', invalid)
     }
 
-    const onUp = event => {
+    const onUp = (event) => {
       if (event.pointerId !== pointerId) return
       cleanup()
 
@@ -4188,22 +3762,12 @@ function renderNodes() {
       const dx = (event.clientX - startClientX) / view.scale
       const dy = (event.clientY - startClientY) / view.scale
 
-      const desiredX = clamp(
-        startNodeX + dx,
-        20,
-        WORLD_WIDTH - nodeWidthValue - 20
-      )
+      const desiredX = clamp(startNodeX + dx, 20, WORLD_WIDTH - nodeWidthValue - 20)
 
-      const desiredY = clamp(
-        startNodeY + dy,
-        20,
-        WORLD_HEIGHT - nodeHeightValue - 20
-      )
+      const desiredY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - nodeHeightValue - 20)
 
       const free = findNearestFreeSpot(node.id, desiredX, desiredY)
-      const changed =
-        Number(free.x) !== Number(node.x) ||
-        Number(free.y) !== Number(node.y)
+      const changed = Number(free.x) !== Number(node.x) || Number(free.y) !== Number(node.y)
 
       if (!changed) {
         selectedId = node.id
@@ -4235,7 +3799,7 @@ function renderNodes() {
       })()
     }
 
-    el.addEventListener('pointerdown', event => {
+    el.addEventListener('pointerdown', (event) => {
       if (event.button !== 0 && event.pointerType !== 'touch') return
       event.stopPropagation()
 
@@ -4264,8 +3828,8 @@ function renderNodes() {
       document.addEventListener('pointercancel', onUp)
     })
 
-    el.querySelectorAll('[data-node-resize]').forEach(handle => {
-      handle.addEventListener('pointerdown', event => {
+    el.querySelectorAll('[data-node-resize]').forEach((handle) => {
+      handle.addEventListener('pointerdown', (event) => {
         if (!canEdit || !editorMode) return
         if (event.button !== 0 && event.pointerType !== 'touch') return
 
@@ -4285,7 +3849,7 @@ function renderNodes() {
 
         document.body.classList.add('node-resizing')
 
-        const onResizeMove = moveEvent => {
+        const onResizeMove = (moveEvent) => {
           if (moveEvent.pointerId !== resizePointerId) return
           moveEvent.preventDefault()
 
@@ -4308,13 +3872,7 @@ function renderNodes() {
               )
             : startHeight
 
-          invalid = overlapsAny(
-            node.id,
-            node.x,
-            node.y,
-            nextWidth,
-            nextHeight
-          )
+          invalid = overlapsAny(node.id, node.x, node.y, nextWidth, nextHeight)
 
           changed =
             Math.round(nextWidth) !== Math.round(startWidth) ||
@@ -4328,7 +3886,7 @@ function renderNodes() {
           renderLinks()
         }
 
-        const finishResize = async upEvent => {
+        const finishResize = async (upEvent) => {
           if (upEvent.pointerId !== resizePointerId) return
 
           document.removeEventListener('pointermove', onResizeMove)
@@ -4378,8 +3936,7 @@ function renderSelectedStrip() {
     const target = info ? findNode(info.link.targetId) : null
 
     if (info && target) {
-      const pointCount =
-        normalizeEdgeControlPoints(info.link.controlPoints).length
+      const pointCount = normalizeEdgeControlPoints(info.link.controlPoints).length
 
       const selectedPointText =
         Number.isInteger(selectedEdgePointIndex) &&
@@ -4393,9 +3950,11 @@ function renderSelectedStrip() {
         ${escapeHtml(info.source.title)} → ${escapeHtml(target.title)} ·
         ${escapeHtml(info.link.label || 'relație')}<br>
         ${pointCount} ${pointCount === 1 ? 'punct de traseu' : 'puncte de traseu'}${selectedPointText}<br>
-        ${canEdit && editorMode
-          ? 'Folosește „+ Punct muchie”, apoi trage fiecare punct numerotat.'
-          : ''}
+        ${
+          canEdit && editorMode
+            ? 'Folosește „+ Punct muchie”, apoi trage fiecare punct numerotat.'
+            : ''
+        }
       `
       return
     }
@@ -4434,7 +3993,8 @@ function renderModeStrip() {
   modeStrip.classList.add('show')
 
   if (!relationMode.sourceId) {
-    modeStrip.innerHTML = '<strong>Mod relație activ</strong><br>Alege mai întâi nodul sursă, apoi apasă pe nodul destinație.'
+    modeStrip.innerHTML =
+      '<strong>Mod relație activ</strong><br>Alege mai întâi nodul sursă, apoi apasă pe nodul destinație.'
     return
   }
 
@@ -4442,7 +4002,7 @@ function renderModeStrip() {
   modeStrip.innerHTML = `<strong>Mod relație activ</strong><br>Sursa: ${escapeHtml(source?.title || '—')}. Acum apasă pe nodul destinație.`
 }
 
-
+// Media Manager
 function currentMediaNode() {
   return findNode(mediaManagerNodeId)
 }
@@ -4459,11 +4019,9 @@ function setMediaMutationBusy(nextValue, status = '') {
   closeMediaManagerBtn.disabled = mediaMutationBusy
   closeMediaManagerFooterBtn.disabled = mediaMutationBusy
 
-  mediaManagerList
-    .querySelectorAll('button, input, textarea')
-    .forEach(element => {
-      element.disabled = mediaMutationBusy
-    })
+  mediaManagerList.querySelectorAll('button, input, textarea').forEach((element) => {
+    element.disabled = mediaMutationBusy
+  })
 
   if (status) mediaUploadStatus.textContent = status
 }
@@ -4529,7 +4087,9 @@ function renderMediaManager() {
     return
   }
 
-  mediaManagerList.innerHTML = items.map((media, index) => `
+  mediaManagerList.innerHTML = items
+    .map(
+      (media, index) => `
     <article class="media-manager-item" data-media-id="${media.id}">
       <div class="media-manager-preview">
         ${renderMediaPreview(media, true)}
@@ -4559,38 +4119,39 @@ function renderMediaManager() {
         </div>
       </div>
     </article>
-  `).join('')
+  `
+    )
+    .join('')
 
-  mediaManagerList.querySelectorAll('[data-media-save]').forEach(button => {
+  mediaManagerList.querySelectorAll('[data-media-save]').forEach((button) => {
     button.addEventListener('click', () => {
       const card = button.closest('[data-media-id]')
-      saveMediaCard(card).catch(error => {
+      saveMediaCard(card).catch((error) => {
         console.error('Media metadata update failed:', error)
         alert(error.message || 'Eroare la salvarea media.')
       })
     })
   })
 
-  mediaManagerList.querySelectorAll('[data-media-delete]').forEach(button => {
+  mediaManagerList.querySelectorAll('[data-media-delete]').forEach((button) => {
     button.addEventListener('click', () => {
       const card = button.closest('[data-media-id]')
-      deleteMediaItem(Number(card.dataset.mediaId)).catch(error => {
+      deleteMediaItem(Number(card.dataset.mediaId)).catch((error) => {
         console.error('Media delete failed:', error)
         alert(error.message || 'Eroare la ștergerea media.')
       })
     })
   })
 
-  mediaManagerList.querySelectorAll('[data-media-move]').forEach(button => {
+  mediaManagerList.querySelectorAll('[data-media-move]').forEach((button) => {
     button.addEventListener('click', () => {
       const card = button.closest('[data-media-id]')
-      moveMediaItem(
-        Number(card.dataset.mediaId),
-        Number(button.dataset.mediaMove)
-      ).catch(error => {
-        console.error('Media reorder failed:', error)
-        alert(error.message || 'Eroare la reordonarea media.')
-      })
+      moveMediaItem(Number(card.dataset.mediaId), Number(button.dataset.mediaMove)).catch(
+        (error) => {
+          console.error('Media reorder failed:', error)
+          alert(error.message || 'Eroare la reordonarea media.')
+        }
+      )
     })
   })
 
@@ -4599,9 +4160,7 @@ function renderMediaManager() {
 
 async function refreshAfterMediaMutation() {
   const nodeId = mediaManagerNodeId
-  const body = mediaManagerBackdrop.querySelector(
-    '.media-manager-body'
-  )
+  const body = mediaManagerBackdrop.querySelector('.media-manager-body')
   const previousScrollTop = body?.scrollTop || 0
 
   await fetchAllData()
@@ -4637,9 +4196,7 @@ async function uploadSelectedMedia() {
   }
 
   if (!ALLOWED_MEDIA_MIME_TYPES.has(file.type)) {
-    throw new Error(
-      'Format neacceptat. Folosește JPG, PNG, WEBP, GIF, MP4, WebM sau MOV.'
-    )
+    throw new Error('Format neacceptat. Folosește JPG, PNG, WEBP, GIF, MP4, WebM sau MOV.')
   }
 
   if (file.size > MAX_MEDIA_FILE_SIZE) {
@@ -4648,10 +4205,8 @@ async function uploadSelectedMedia() {
 
   const safeName = sanitizeStorageFilename(file.name)
   const storagePath = `${PROJECT_ID}/${node.id}/${Date.now()}-${safeName}`
-  const nextOrder = (node.media || []).reduce(
-    (max, item) => Math.max(max, Number(item.sortOrder || 0)),
-    0
-  ) + 10
+  const nextOrder =
+    (node.media || []).reduce((max, item) => Math.max(max, Number(item.sortOrder || 0)), 0) + 10
 
   setMediaMutationBusy(true, `Se încarcă ${file.name}...`)
 
@@ -4709,10 +4264,8 @@ async function addExternalMedia() {
   }
 
   const youtubeEmbed = getYoutubeEmbedUrl(url)
-  const nextOrder = (node.media || []).reduce(
-    (max, item) => Math.max(max, Number(item.sortOrder || 0)),
-    0
-  ) + 10
+  const nextOrder =
+    (node.media || []).reduce((max, item) => Math.max(max, Number(item.sortOrder || 0)), 0) + 10
 
   setMediaMutationBusy(true, 'Se adaugă linkul...')
 
@@ -4721,7 +4274,9 @@ async function addExternalMedia() {
       nodeId: node.id,
       mediaType: youtubeEmbed ? 'youtube' : 'video',
       externalUrl: url,
-      title: mediaExternalTitleInput.value.trim() || (youtubeEmbed ? 'Videoclip YouTube' : 'Videoclip extern'),
+      title:
+        mediaExternalTitleInput.value.trim() ||
+        (youtubeEmbed ? 'Videoclip YouTube' : 'Videoclip extern'),
       caption: mediaExternalCaptionInput.value.trim(),
       sortOrder: nextOrder
     })
@@ -4740,9 +4295,7 @@ async function saveMediaCard(card) {
   if (!requireAuth() || mediaMutationBusy || !card) return
 
   const node = currentMediaNode()
-  const media = node?.media?.find(item =>
-    Number(item.id) === Number(card.dataset.mediaId)
-  )
+  const media = node?.media?.find((item) => Number(item.id) === Number(card.dataset.mediaId))
 
   if (!media) throw new Error('Elementul media nu mai există.')
 
@@ -4766,12 +4319,10 @@ async function deleteMediaItem(mediaId) {
   if (!requireAuth() || mediaMutationBusy) return
 
   const node = currentMediaNode()
-  const media = node?.media?.find(item => Number(item.id) === Number(mediaId))
+  const media = node?.media?.find((item) => Number(item.id) === Number(mediaId))
   if (!media) throw new Error('Elementul media nu mai există.')
 
-  const confirmed = confirm(
-    `Sigur vrei să ștergi „${media.title || mediaTypeLabel(media)}”?`
-  )
+  const confirmed = confirm(`Sigur vrei să ștergi „${media.title || mediaTypeLabel(media)}”?`)
   if (!confirmed) return
 
   setMediaMutationBusy(true, 'Se șterge elementul...')
@@ -4803,7 +4354,7 @@ async function moveMediaItem(mediaId, direction) {
   if (!node) throw new Error('Nodul nu mai există.')
 
   const ordered = [...(node.media || [])]
-  const index = ordered.findIndex(item => Number(item.id) === Number(mediaId))
+  const index = ordered.findIndex((item) => Number(item.id) === Number(mediaId))
   const targetIndex = index + Number(direction)
 
   if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) return
@@ -4826,6 +4377,7 @@ async function moveMediaItem(mediaId, direction) {
   }
 }
 
+// Code Manager and local draft persistence
 function currentCodeNode() {
   return findNode(codeManagerNodeId)
 }
@@ -4841,11 +4393,9 @@ function setCodeMutationBusy(nextValue, status = '') {
   closeCodeManagerBtn.disabled = codeMutationBusy
   closeCodeManagerFooterBtn.disabled = codeMutationBusy
 
-  codeManagerList
-    .querySelectorAll('button, input, textarea, select')
-    .forEach(element => {
-      element.disabled = codeMutationBusy
-    })
+  codeManagerList.querySelectorAll('button, input, textarea, select').forEach((element) => {
+    element.disabled = codeMutationBusy
+  })
 
   if (status) codeManagerStatus.textContent = status
 }
@@ -4873,10 +4423,7 @@ function readCodeDraftStore() {
 
 function writeCodeDraftStore(store) {
   try {
-    localStorage.setItem(
-      CACHE_KEYS.codeDrafts,
-      JSON.stringify(store)
-    )
+    localStorage.setItem(CACHE_KEYS.codeDrafts, JSON.stringify(store))
   } catch (error) {
     console.warn('Code draft could not be saved:', error)
   }
@@ -4886,10 +4433,7 @@ function codeCreateDraftKey(nodeId = codeManagerNodeId) {
   return `create:${Number(nodeId)}`
 }
 
-function codeEditDraftKey(
-  snippetId,
-  nodeId = codeManagerNodeId
-) {
+function codeEditDraftKey(snippetId, nodeId = codeManagerNodeId) {
   return `edit:${Number(nodeId)}:${Number(snippetId)}`
 }
 
@@ -4930,13 +4474,8 @@ function saveCodeCreateDraft({ showStatus = false } = {}) {
   store[key] = draft
   writeCodeDraftStore(store)
 
-  if (
-    showStatus &&
-    isCodeManagerOpen() &&
-    !codeMutationBusy
-  ) {
-    codeManagerStatus.textContent =
-      'Ciornă salvată automat în acest browser.'
+  if (showStatus && isCodeManagerOpen() && !codeMutationBusy) {
+    codeManagerStatus.textContent = 'Ciornă salvată automat în acest browser.'
   }
 }
 
@@ -4952,8 +4491,7 @@ function restoreCodeCreateDraft() {
   codeCreateDescriptionInput.value = draft.description || ''
   codeCreateCodeInput.value = draft.code || ''
 
-  codeManagerStatus.textContent =
-    'Am restaurat automat ciorna nesalvată.'
+  codeManagerStatus.textContent = 'Am restaurat automat ciorna nesalvată.'
 
   return true
 }
@@ -4982,29 +4520,26 @@ function restoreCodeCardDrafts() {
   const store = readCodeDraftStore()
   let restored = false
 
-  codeManagerList
-    .querySelectorAll('[data-code-id]')
-    .forEach(card => {
-      const snippetId = Number(card.dataset.codeId)
-      const draft = store[codeEditDraftKey(snippetId)]
-      if (!draft) return
+  codeManagerList.querySelectorAll('[data-code-id]').forEach((card) => {
+    const snippetId = Number(card.dataset.codeId)
+    const draft = store[codeEditDraftKey(snippetId)]
+    if (!draft) return
 
-      const title = card.querySelector('[data-code-title]')
-      const language = card.querySelector('[data-code-language]')
-      const description = card.querySelector('[data-code-description]')
-      const code = card.querySelector('[data-code-code]')
+    const title = card.querySelector('[data-code-title]')
+    const language = card.querySelector('[data-code-language]')
+    const description = card.querySelector('[data-code-description]')
+    const code = card.querySelector('[data-code-code]')
 
-      if (title) title.value = draft.title || ''
-      if (language) language.value = draft.language || 'text'
-      if (description) description.value = draft.description || ''
-      if (code) code.value = draft.code || ''
+    if (title) title.value = draft.title || ''
+    if (language) language.value = draft.language || 'text'
+    if (description) description.value = draft.description || ''
+    if (code) code.value = draft.code || ''
 
-      restored = true
-    })
+    restored = true
+  })
 
   if (restored && !codeManagerStatus.textContent) {
-    codeManagerStatus.textContent =
-      'Am restaurat modificările nesalvate.'
+    codeManagerStatus.textContent = 'Am restaurat modificările nesalvate.'
   }
 }
 
@@ -5013,9 +4548,7 @@ function saveAllCodeDrafts({ showStatus = false } = {}) {
 
   saveCodeCreateDraft({ showStatus })
 
-  codeManagerList
-    .querySelectorAll('[data-code-id]')
-    .forEach(saveCodeCardDraft)
+  codeManagerList.querySelectorAll('[data-code-id]').forEach(saveCodeCardDraft)
 }
 
 function scheduleCodeDraftSave() {
@@ -5030,16 +4563,9 @@ function scheduleCodeDraftSave() {
 }
 
 function restoreCodeManagerWindow() {
-  const savedNodeId = Number(
-    localStorage.getItem(CACHE_KEYS.codeManagerOpen)
-  )
+  const savedNodeId = Number(localStorage.getItem(CACHE_KEYS.codeManagerOpen))
 
-  if (
-    !savedNodeId ||
-    !canEdit ||
-    !editorMode ||
-    !findNode(savedNodeId)
-  ) {
+  if (!savedNodeId || !canEdit || !editorMode || !findNode(savedNodeId)) {
     return
   }
 
@@ -5058,10 +4584,7 @@ function openCodeManager(nodeId = selectedId) {
   codeManagerNodeId = Number(node.id)
   resetCodeCreateForm()
 
-  localStorage.setItem(
-    CACHE_KEYS.codeManagerOpen,
-    String(codeManagerNodeId)
-  )
+  localStorage.setItem(CACHE_KEYS.codeManagerOpen, String(codeManagerNodeId))
 
   codeManagerBackdrop.classList.add('open')
   renderCodeManager()
@@ -5113,7 +4636,9 @@ function renderCodeManager() {
     return
   }
 
-  codeManagerList.innerHTML = items.map((snippet, index) => `
+  codeManagerList.innerHTML = items
+    .map(
+      (snippet, index) => `
     <article class="code-manager-item" data-code-id="${snippet.id}">
       <div class="code-manager-item-head">
         <strong>${escapeHtml(snippet.title || `Snippet ${index + 1}`)}</strong>
@@ -5157,35 +4682,34 @@ function renderCodeManager() {
         <button class="btn danger" type="button" data-code-delete>Șterge</button>
       </div>
     </article>
-  `).join('')
+  `
+    )
+    .join('')
 
-  codeManagerList.querySelectorAll('[data-code-save]').forEach(button => {
+  codeManagerList.querySelectorAll('[data-code-save]').forEach((button) => {
     button.addEventListener('click', () => {
       const card = button.closest('[data-code-id]')
-      saveCodeCard(card).catch(error => {
+      saveCodeCard(card).catch((error) => {
         console.error('Code snippet update failed:', error)
         alert(error.message || 'Eroare la salvarea codului.')
       })
     })
   })
 
-  codeManagerList.querySelectorAll('[data-code-delete]').forEach(button => {
+  codeManagerList.querySelectorAll('[data-code-delete]').forEach((button) => {
     button.addEventListener('click', () => {
       const card = button.closest('[data-code-id]')
-      deleteCodeItem(Number(card.dataset.codeId)).catch(error => {
+      deleteCodeItem(Number(card.dataset.codeId)).catch((error) => {
         console.error('Code snippet delete failed:', error)
         alert(error.message || 'Eroare la ștergerea codului.')
       })
     })
   })
 
-  codeManagerList.querySelectorAll('[data-code-move]').forEach(button => {
+  codeManagerList.querySelectorAll('[data-code-move]').forEach((button) => {
     button.addEventListener('click', () => {
       const card = button.closest('[data-code-id]')
-      moveCodeItem(
-        Number(card.dataset.codeId),
-        Number(button.dataset.codeMove)
-      ).catch(error => {
+      moveCodeItem(Number(card.dataset.codeId), Number(button.dataset.codeMove)).catch((error) => {
         console.error('Code snippet reorder failed:', error)
         alert(error.message || 'Eroare la reordonarea codului.')
       })
@@ -5194,21 +4718,17 @@ function renderCodeManager() {
 
   restoreCodeCardDrafts()
 
-  codeManagerList
-    .querySelectorAll('input, textarea, select')
-    .forEach(element => {
-      element.addEventListener('input', scheduleCodeDraftSave)
-      element.addEventListener('change', scheduleCodeDraftSave)
-    })
+  codeManagerList.querySelectorAll('input, textarea, select').forEach((element) => {
+    element.addEventListener('input', scheduleCodeDraftSave)
+    element.addEventListener('change', scheduleCodeDraftSave)
+  })
 
   setCodeMutationBusy(codeMutationBusy)
 }
 
 async function refreshAfterCodeMutation() {
   const nodeId = codeManagerNodeId
-  const body = codeManagerBackdrop.querySelector(
-    '.code-manager-body'
-  )
+  const body = codeManagerBackdrop.querySelector('.code-manager-body')
   const previousScrollTop = body?.scrollTop || 0
 
   await fetchAllData()
@@ -5236,10 +4756,9 @@ async function createCodeSnippetFromForm() {
     throw new Error('Scrie sau lipește codul înainte de salvare.')
   }
 
-  const nextOrder = (node.codeSnippets || []).reduce(
-    (max, item) => Math.max(max, Number(item.sortOrder || 0)),
-    0
-  ) + 10
+  const nextOrder =
+    (node.codeSnippets || []).reduce((max, item) => Math.max(max, Number(item.sortOrder || 0)), 0) +
+    10
 
   setCodeMutationBusy(true, 'Se salvează snippet-ul...')
 
@@ -5266,8 +4785,8 @@ async function saveCodeCard(card) {
   if (!requireAuth() || codeMutationBusy || !card) return
 
   const node = currentCodeNode()
-  const snippet = node?.codeSnippets?.find(item =>
-    Number(item.id) === Number(card.dataset.codeId)
+  const snippet = node?.codeSnippets?.find(
+    (item) => Number(item.id) === Number(card.dataset.codeId)
   )
 
   if (!snippet) throw new Error('Snippet-ul nu mai există.')
@@ -5301,7 +4820,7 @@ async function deleteCodeItem(codeId) {
   if (!requireAuth() || codeMutationBusy) return
 
   const node = currentCodeNode()
-  const snippet = node?.codeSnippets?.find(item => Number(item.id) === Number(codeId))
+  const snippet = node?.codeSnippets?.find((item) => Number(item.id) === Number(codeId))
   if (!snippet) throw new Error('Snippet-ul nu mai există.')
 
   const confirmed = confirm(
@@ -5328,7 +4847,7 @@ async function moveCodeItem(codeId, direction) {
   if (!node) throw new Error('Nodul nu mai există.')
 
   const ordered = [...(node.codeSnippets || [])]
-  const index = ordered.findIndex(item => Number(item.id) === Number(codeId))
+  const index = ordered.findIndex((item) => Number(item.id) === Number(codeId))
   const targetIndex = index + Number(direction)
 
   if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) return
@@ -5351,7 +4870,7 @@ async function moveCodeItem(codeId, direction) {
   }
 }
 
-
+// Full-screen node documentation and editor modals
 function renderDetailPanel() {
   const node = selectedNode()
 
@@ -5367,11 +4886,13 @@ function renderDetailPanel() {
   const difficultyName = nodeDifficultyName(node)
   const tagNames = nodeTagNames(node)
 
-  const relations = node.links.map((link, index) => {
-    const target = findNode(link.targetId)
-    if (!target) return ''
+  const relations =
+    node.links
+      .map((link, index) => {
+        const target = findNode(link.targetId)
+        if (!target) return ''
 
-    return `
+        return `
       <div class="relation-item">
         <div>
           <strong>${escapeHtml(target.title)}</strong>
@@ -5383,7 +4904,9 @@ function renderDetailPanel() {
         </div>
       </div>
     `
-  }).join('') || '<div class="relation-item"><div><strong>Nicio relație încă</strong><span>Poți adăuga una din Editor Mode.</span></div></div>'
+      })
+      .join('') ||
+    '<div class="relation-item"><div><strong>Nicio relație încă</strong><span>Poți adăuga una din Editor Mode.</span></div></div>'
 
   detailPanel.innerHTML = `
     <div class="detail-top">
@@ -5413,9 +4936,13 @@ function renderDetailPanel() {
         <div class="fact-box">
           <strong>Etichete</strong>
           <div class="detail-tags">
-            ${tagNames.length
-              ? tagNames.map(name => `<span class="mini-tag">${escapeHtml(name)}</span>`).join('')
-              : '<span>Fără etichete</span>'}
+            ${
+              tagNames.length
+                ? tagNames
+                    .map((name) => `<span class="mini-tag">${escapeHtml(name)}</span>`)
+                    .join('')
+                : '<span>Fără etichete</span>'
+            }
           </div>
         </div>
         <div class="relation-card">
@@ -5468,21 +4995,21 @@ function renderDetailPanel() {
   detailAddRelationBtn.addEventListener('click', () => activateRelationMode(node.id))
   detailEditBtn.addEventListener('click', () => openEdit(node.id))
   detailDeleteBtn.addEventListener('click', () => {
-    deleteSelected().catch(error => alert(error.message || 'Eroare la ștergere.'))
+    deleteSelected().catch((error) => alert(error.message || 'Eroare la ștergere.'))
   })
   detailCloseBtn.addEventListener('click', () => {
     detailOpen = false
     renderAll()
   })
 
-  detailPanel.querySelectorAll('[data-open-node-code]').forEach(button => {
+  detailPanel.querySelectorAll('[data-open-node-code]').forEach((button) => {
     button.addEventListener('click', () => openCodeManager(node.id))
   })
 
-  detailPanel.querySelectorAll('[data-copy-code-id]').forEach(button => {
+  detailPanel.querySelectorAll('[data-copy-code-id]').forEach((button) => {
     button.addEventListener('click', async () => {
-      const snippet = (node.codeSnippets || []).find(item =>
-        Number(item.id) === Number(button.dataset.copyCodeId)
+      const snippet = (node.codeSnippets || []).find(
+        (item) => Number(item.id) === Number(button.dataset.copyCodeId)
       )
 
       if (!snippet) return
@@ -5503,11 +5030,11 @@ function renderDetailPanel() {
     })
   })
 
-  detailPanel.querySelectorAll('[data-open-node-media]').forEach(button => {
+  detailPanel.querySelectorAll('[data-open-node-media]').forEach((button) => {
     button.addEventListener('click', () => openMediaManager(node.id))
   })
 
-  detailPanel.querySelectorAll('[data-rel-edit]').forEach(button => {
+  detailPanel.querySelectorAll('[data-rel-edit]').forEach((button) => {
     button.disabled = hideEditorActions
     button.hidden = hideEditorActions
     button.addEventListener('click', () => {
@@ -5515,12 +5042,13 @@ function renderDetailPanel() {
     })
   })
 
-  detailPanel.querySelectorAll('[data-rel-remove]').forEach(button => {
+  detailPanel.querySelectorAll('[data-rel-remove]').forEach((button) => {
     button.disabled = hideEditorActions
     button.hidden = hideEditorActions
     button.addEventListener('click', () => {
-      removeRelation(node.id, Number(button.dataset.relRemove))
-        .catch(error => alert(error.message || 'Eroare la ștergerea relației.'))
+      removeRelation(node.id, Number(button.dataset.relRemove)).catch((error) =>
+        alert(error.message || 'Eroare la ștergerea relației.')
+      )
     })
   })
 }
@@ -5566,26 +5094,18 @@ function applyTutorialPermissions() {
   const editable = canEditTutorial()
 
   contentInput.readOnly = !editable
-  contentInput.setAttribute(
-    'aria-readonly',
-    editable ? 'false' : 'true'
-  )
+  contentInput.setAttribute('aria-readonly', editable ? 'false' : 'true')
 
-  contentInputLabel.textContent = editable
-    ? 'Conținut tutorial'
-    : 'Tutorial — doar citire'
+  contentInputLabel.textContent = editable ? 'Conținut tutorial' : 'Tutorial — doar citire'
 
   setModalModeUi('tutorial')
 }
 
 async function updateTutorialRemote(content) {
-  const { data, error } = await supabase.rpc(
-    'atlas_update_tutorial',
-    {
-      p_project_id: PROJECT_ID,
-      p_content: content
-    }
-  )
+  const { data, error } = await supabase.rpc('atlas_update_tutorial', {
+    p_project_id: PROJECT_ID,
+    p_content: content
+  })
 
   if (error) throw error
 
@@ -5661,11 +5181,12 @@ function openCreate() {
 
   editingId = null
   modalTitle.textContent = 'Creează nod'
-  modalSubtitle.textContent = 'Alegi separat categoria, dificultatea și etichetele. Nodul este poziționat automat într-un loc liber.'
+  modalSubtitle.textContent =
+    'Alegi separat categoria, dificultatea și etichetele. Nodul este poziționat automat într-un loc liber.'
   titleInput.value = 'New FTC Topic'
 
-  const defaultCategoryId = categories.find(item => item.is_active !== false)?.id || null
-  const defaultDifficultyId = difficulties.find(item => item.is_active !== false)?.id || null
+  const defaultCategoryId = categories.find((item) => item.is_active !== false)?.id || null
+  const defaultDifficultyId = difficulties.find((item) => item.is_active !== false)?.id || null
 
   populateNodeTaxonomyFields(defaultCategoryId, defaultDifficultyId)
   nodeTagDraft = new Set()
@@ -5687,7 +5208,8 @@ function openEdit(id) {
 
   editingId = id
   modalTitle.textContent = 'Editează nod'
-  modalSubtitle.textContent = 'Modifici categoria, dificultatea, etichetele și documentația într-un singur loc.'
+  modalSubtitle.textContent =
+    'Modifici categoria, dificultatea, etichetele și documentația într-un singur loc.'
   titleInput.value = node.title
 
   populateNodeTaxonomyFields(node.categoryId, node.difficultyId)
@@ -5708,7 +5230,8 @@ function openRelationCreate(sourceId, targetId) {
   editingId = null
   relationDraft = { sourceId, targetId, label: '' }
   modalTitle.textContent = 'Creează relație'
-  modalSubtitle.textContent = 'Conexiunea este reală și editabilă. Poți să-i dai o etichetă clară, ca să aibă sens vizual și logic.'
+  modalSubtitle.textContent =
+    'Conexiunea este reală și editabilă. Poți să-i dai o etichetă clară, ca să aibă sens vizual și logic.'
   relationSummary.innerHTML = `<strong>${escapeHtml(source.title)}</strong> → <strong>${escapeHtml(target.title)}</strong>`
   relationLabelInput.value = ''
   openModal('relation')
@@ -5765,11 +5288,7 @@ async function saveTutorial() {
     closeModal()
   } catch (error) {
     console.error('Save tutorial failed:', error)
-    alert(
-      `Eroare la salvarea tutorialului: ${
-        error?.message || 'necunoscută'
-      }`
-    )
+    alert(`Eroare la salvarea tutorialului: ${error?.message || 'necunoscută'}`)
   } finally {
     saveBtn.disabled = false
 
@@ -5779,6 +5298,7 @@ async function saveTutorial() {
   }
 }
 
+// Node and relationship mutations
 async function saveNode() {
   if (!requireAuth()) return
 
@@ -5824,7 +5344,8 @@ async function saveNode() {
         title: inserted.title,
         legacyTag: inserted.tag,
         categoryId: inserted.category_id == null ? categoryId : Number(inserted.category_id),
-        difficultyId: inserted.difficulty_id == null ? difficultyId : Number(inserted.difficulty_id),
+        difficultyId:
+          inserted.difficulty_id == null ? difficultyId : Number(inserted.difficulty_id),
         tagIds,
         content: inserted.content,
         x: Number(inserted.x),
@@ -5854,7 +5375,8 @@ async function saveNode() {
       node.title = updated.title
       node.legacyTag = updated.tag
       node.categoryId = updated.category_id == null ? categoryId : Number(updated.category_id)
-      node.difficultyId = updated.difficulty_id == null ? difficultyId : Number(updated.difficulty_id)
+      node.difficultyId =
+        updated.difficulty_id == null ? difficultyId : Number(updated.difficulty_id)
       node.tagIds = tagIds
       node.content = updated.content
       node.x = Number(updated.x)
@@ -5891,25 +5413,15 @@ async function saveRelation() {
   }
 
   try {
-    const existingIndex = source.links.findIndex(
-      link => Number(link.targetId) === targetId
-    )
+    const existingIndex = source.links.findIndex((link) => Number(link.targetId) === targetId)
 
     if (editingId == null) {
       if (existingIndex >= 0) {
-        const updated = await updateEdgeRemote(
-          sourceId,
-          targetId,
-          label
-        )
+        const updated = await updateEdgeRemote(sourceId, targetId, label)
 
         source.links[existingIndex].label = updated.label || label
       } else {
-        const inserted = await insertEdgeRemote(
-          sourceId,
-          targetId,
-          label
-        )
+        const inserted = await insertEdgeRemote(sourceId, targetId, label)
 
         source.links.push({
           targetId: Number(inserted.target_id),
@@ -5921,11 +5433,7 @@ async function saveRelation() {
         throw new Error('Muchia pe care încerci să o editezi nu mai există.')
       }
 
-      const updated = await updateEdgeRemote(
-        sourceId,
-        targetId,
-        label
-      )
+      const updated = await updateEdgeRemote(sourceId, targetId, label)
 
       source.links[existingIndex].label = updated.label || label
     }
@@ -5947,11 +5455,7 @@ async function saveRelation() {
   } catch (error) {
     console.error('Save relation failed:', error)
 
-    alert(
-      `Eroare la salvarea relației: ${
-        error?.message || 'necunoscută'
-      }`
-    )
+    alert(`Eroare la salvarea relației: ${error?.message || 'necunoscută'}`)
 
     await fetchAllData()
   }
@@ -5974,18 +5478,14 @@ async function deleteSelected() {
     return
   }
 
-  const ok = confirm(
-    `Sigur vrei să ștergi nodul "${node.title}"?`
-  )
+  const ok = confirm(`Sigur vrei să ștergi nodul "${node.title}"?`)
 
   if (!ok) return
 
   try {
     await deleteNodeRemote(node.id)
 
-    const storedPaths = (node.media || [])
-      .map(media => media.storagePath)
-      .filter(Boolean)
+    const storedPaths = (node.media || []).map((media) => media.storagePath).filter(Boolean)
 
     if (storedPaths.length > 0) {
       const { error: storageCleanupError } = await supabase.storage
@@ -5998,23 +5498,16 @@ async function deleteSelected() {
     }
 
     nodes = nodes
-      .filter(currentNode =>
-        Number(currentNode.id) !== Number(node.id)
-      )
-      .map(currentNode => ({
+      .filter((currentNode) => Number(currentNode.id) !== Number(node.id))
+      .map((currentNode) => ({
         ...currentNode,
-        links: (currentNode.links || []).filter(
-          link =>
-            Number(link.targetId) !== Number(node.id)
-        )
+        links: (currentNode.links || []).filter((link) => Number(link.targetId) !== Number(node.id))
       }))
 
     if (
       selectedEdge &&
-      (
-        Number(selectedEdge.sourceId) === Number(node.id) ||
-        Number(selectedEdge.targetId) === Number(node.id)
-      )
+      (Number(selectedEdge.sourceId) === Number(node.id) ||
+        Number(selectedEdge.targetId) === Number(node.id))
     ) {
       selectedEdge = null
       selectedEdgePointIndex = null
@@ -6035,11 +5528,7 @@ async function deleteSelected() {
   } catch (error) {
     console.error('Delete node failed FULL:', error)
 
-    alert(
-      `Eroare la ștergere: ${
-        error?.message || 'necunoscută'
-      }`
-    )
+    alert(`Eroare la ștergere: ${error?.message || 'necunoscută'}`)
 
     await fetchAllData()
   }
@@ -6058,10 +5547,7 @@ async function removeRelation(sourceId, relationIndex) {
   const targetId = Number(source.links[relationIndex].targetId)
 
   try {
-    await deleteEdgeRemote(
-      Number(sourceId),
-      targetId
-    )
+    await deleteEdgeRemote(Number(sourceId), targetId)
 
     source.links.splice(relationIndex, 1)
 
@@ -6081,11 +5567,7 @@ async function removeRelation(sourceId, relationIndex) {
   } catch (error) {
     console.error('Remove relation failed:', error)
 
-    alert(
-      `Eroare la ștergerea relației: ${
-        error?.message || 'necunoscută'
-      }`
-    )
+    alert(`Eroare la ștergerea relației: ${error?.message || 'necunoscută'}`)
 
     await fetchAllData()
   }
@@ -6129,7 +5611,7 @@ function handleRelationNodeClick(targetId) {
     return
   }
 
-  const relationIndex = source.links.findIndex(link => Number(link.targetId) === Number(targetId))
+  const relationIndex = source.links.findIndex((link) => Number(link.targetId) === Number(targetId))
   selectedId = sourceId
   clearEdgeSelection()
   deactivateRelationMode(false)
@@ -6146,6 +5628,7 @@ function handleRelationNodeClick(targetId) {
   openRelationEdit(sourceId, relationIndex)
 }
 
+// Mouse, touch, pan and pinch navigation
 function shouldIgnoreSurfaceGesture(event) {
   return !!(
     event.target.closest('.node') ||
@@ -6168,20 +5651,20 @@ function beginPinchGesture() {
     startDistance: distance,
     startScale: view.scale,
     worldX: (center.x - view.x) / view.scale,
-    worldY: (center.y - view.y) / view.scale,
+    worldY: (center.y - view.y) / view.scale
   }
 
   panState = null
   mapSurface.classList.add('panning')
 }
 
-mapSurface.addEventListener('pointerdown', event => {
+mapSurface.addEventListener('pointerdown', (event) => {
   if (shouldIgnoreSurfaceGesture(event)) return
 
   if (event.pointerType === 'touch') {
     activeTouchPoints.set(event.pointerId, {
       x: event.clientX,
-      y: event.clientY,
+      y: event.clientY
     })
 
     try {
@@ -6194,7 +5677,7 @@ mapSurface.addEventListener('pointerdown', event => {
         startX: event.clientX,
         startY: event.clientY,
         x: view.x,
-        y: view.y,
+        y: view.y
       }
       mapSurface.classList.add('panning')
     } else if (activeTouchPoints.size === 2) {
@@ -6209,17 +5692,17 @@ mapSurface.addEventListener('pointerdown', event => {
     startX: event.clientX,
     startY: event.clientY,
     x: view.x,
-    y: view.y,
+    y: view.y
   }
 
   mapSurface.classList.add('panning')
 })
 
-window.addEventListener('pointermove', event => {
+window.addEventListener('pointermove', (event) => {
   if (event.pointerType === 'touch' && activeTouchPoints.has(event.pointerId)) {
     activeTouchPoints.set(event.pointerId, {
       x: event.clientX,
-      y: event.clientY,
+      y: event.clientY
     })
 
     const points = Array.from(activeTouchPoints.values())
@@ -6279,7 +5762,7 @@ function finishSurfacePointer(event) {
         startX: point.x,
         startY: point.y,
         x: view.x,
-        y: view.y,
+        y: view.y
       }
     }
 
@@ -6298,19 +5781,24 @@ function finishSurfacePointer(event) {
 window.addEventListener('pointerup', finishSurfacePointer)
 window.addEventListener('pointercancel', finishSurfacePointer)
 
-mapSurface.addEventListener('wheel', event => {
-  event.preventDefault()
-  const delta = event.deltaY > 0 ? 0.92 : 1.08
-  setScale(view.scale * delta, event.clientX, event.clientY)
-}, { passive: false })
+mapSurface.addEventListener(
+  'wheel',
+  (event) => {
+    event.preventDefault()
+    const delta = event.deltaY > 0 ? 0.92 : 1.08
+    setScale(view.scale * delta, event.clientX, event.clientY)
+  },
+  { passive: false }
+)
 
+// Interface event bindings
 createBtn.addEventListener('click', openCreate)
 editBtn.addEventListener('click', () => {
   const node = selectedNode()
   if (node) openEdit(node.id)
 })
 deleteBtn.addEventListener('click', () => {
-  deleteSelected().catch(error => alert(error.message || 'Eroare la ștergere.'))
+  deleteSelected().catch((error) => alert(error.message || 'Eroare la ștergere.'))
 })
 relationBtn.addEventListener('click', () => {
   if (relationMode.active) deactivateRelationMode()
@@ -6320,35 +5808,32 @@ editEdgeBtn.addEventListener('click', () => {
   openSelectedEdgeEdit()
 })
 deleteEdgeBtn.addEventListener('click', () => {
-  deleteSelectedEdge().catch(error => alert(error.message || 'Eroare la ștergerea muchiei.'))
+  deleteSelectedEdge().catch((error) => alert(error.message || 'Eroare la ștergerea muchiei.'))
 })
 undoBtn.addEventListener('click', () => {
-  undo().catch(error => alert(error.message || 'Eroare la undo.'))
+  undo().catch((error) => alert(error.message || 'Eroare la undo.'))
 })
 redoBtn.addEventListener('click', () => {
-  redo().catch(error => alert(error.message || 'Eroare la redo.'))
+  redo().catch((error) => alert(error.message || 'Eroare la redo.'))
 })
 
 zoomInBtn.addEventListener('click', () => setScale(view.scale * 1.12))
 zoomOutBtn.addEventListener('click', () => setScale(view.scale * 0.88))
 fitBtn.addEventListener('click', fitView)
 addEdgePointBtn.addEventListener('click', () => {
-  addEdgeControlPoint().catch(error => {
+  addEdgeControlPoint().catch((error) => {
     alert(error.message || 'Punctul nu a putut fi adăugat.')
   })
 })
 removeEdgePointBtn.addEventListener('click', () => {
-  removeSelectedEdgeControlPoint().catch(error => {
+  removeSelectedEdgeControlPoint().catch((error) => {
     alert(error.message || 'Punctul nu a putut fi șters.')
   })
 })
 resetEdgePathBtn.addEventListener('click', () => {
   if (!selectedEdge) return
 
-  resetEdgeControl(
-    selectedEdge.sourceId,
-    selectedEdge.targetId
-  ).catch(error => {
+  resetEdgeControl(selectedEdge.sourceId, selectedEdge.targetId).catch((error) => {
     alert(error.message || 'Traseul automat nu a putut fi restaurat.')
   })
 })
@@ -6358,12 +5843,9 @@ resetViewBtn.addEventListener('click', () => {
   fitView()
 })
 tutorialBtn.addEventListener('click', openTutorial)
-editorModeBtn.addEventListener(
-  'click',
-  () => {
-    setEditorMode(!editorMode)
-  }
-)
+editorModeBtn.addEventListener('click', () => {
+  setEditorMode(!editorMode)
+})
 
 taxonomyManagerBtn.addEventListener('click', () => {
   openTaxonomyManager()
@@ -6373,7 +5855,6 @@ mediaManagerBtn.addEventListener('click', () => {
   openMediaManager()
 })
 
-
 codeManagerBtn.addEventListener('click', () => {
   openCodeManager()
 })
@@ -6382,7 +5863,7 @@ closeCodeManagerBtn.addEventListener('click', closeCodeManager)
 closeCodeManagerFooterBtn.addEventListener('click', closeCodeManager)
 
 addCodeSnippetBtn.addEventListener('click', () => {
-  createCodeSnippetFromForm().catch(error => {
+  createCodeSnippetFromForm().catch((error) => {
     console.error('Code snippet create failed:', error)
     codeManagerStatus.textContent = error.message || 'Eroare la adăugarea codului.'
     alert(error.message || 'Eroare la adăugarea codului.')
@@ -6394,12 +5875,12 @@ addCodeSnippetBtn.addEventListener('click', () => {
   codeCreateLanguageInput,
   codeCreateDescriptionInput,
   codeCreateCodeInput
-].forEach(element => {
+].forEach((element) => {
   element.addEventListener('input', scheduleCodeDraftSave)
   element.addEventListener('change', scheduleCodeDraftSave)
 })
 
-codeManagerBackdrop.addEventListener('click', event => {
+codeManagerBackdrop.addEventListener('click', (event) => {
   if (event.target !== codeManagerBackdrop) return
   saveAllCodeDrafts({ showStatus: true })
 })
@@ -6418,7 +5899,7 @@ closeMediaManagerBtn.addEventListener('click', closeMediaManager)
 closeMediaManagerFooterBtn.addEventListener('click', closeMediaManager)
 
 uploadMediaBtn.addEventListener('click', () => {
-  uploadSelectedMedia().catch(error => {
+  uploadSelectedMedia().catch((error) => {
     console.error('Media upload failed:', error)
     mediaUploadStatus.textContent = error.message || 'Eroare la upload.'
     alert(error.message || 'Eroare la upload.')
@@ -6426,89 +5907,72 @@ uploadMediaBtn.addEventListener('click', () => {
 })
 
 addExternalMediaBtn.addEventListener('click', () => {
-  addExternalMedia().catch(error => {
+  addExternalMedia().catch((error) => {
     console.error('External media add failed:', error)
     mediaUploadStatus.textContent = error.message || 'Eroare la adăugarea linkului.'
     alert(error.message || 'Eroare la adăugarea linkului.')
   })
 })
 
-mediaManagerBackdrop.addEventListener('click', event => {
+mediaManagerBackdrop.addEventListener('click', (event) => {
   if (event.target === mediaManagerBackdrop) closeMediaManager()
 })
 
-document
-  .querySelectorAll('[data-taxonomy-kind]')
-  .forEach(button => {
-    button.addEventListener('click', () => {
-      taxonomyManagerKind = button.dataset.taxonomyKind
-      renderTaxonomyManager()
-    })
+document.querySelectorAll('[data-taxonomy-kind]').forEach((button) => {
+  button.addEventListener('click', () => {
+    taxonomyManagerKind = button.dataset.taxonomyKind
+    renderTaxonomyManager()
   })
+})
 
 taxonomyAddBtn.addEventListener('click', () => {
   openTaxonomyItemEditor()
 })
 
-closeTaxonomyManagerBtn.addEventListener(
-  'click',
-  closeTaxonomyManager
-)
+closeTaxonomyManagerBtn.addEventListener('click', closeTaxonomyManager)
 
-closeTaxonomyItemBtn.addEventListener(
-  'click',
-  closeTaxonomyItemEditor
-)
+closeTaxonomyItemBtn.addEventListener('click', closeTaxonomyItemEditor)
 
-cancelTaxonomyItemBtn.addEventListener(
-  'click',
-  closeTaxonomyItemEditor
-)
+cancelTaxonomyItemBtn.addEventListener('click', closeTaxonomyItemEditor)
 
 saveTaxonomyItemBtn.addEventListener('click', () => {
-  saveTaxonomyItem().catch(error => {
+  saveTaxonomyItem().catch((error) => {
     console.error('Save taxonomy item failed:', error)
     alert(error.message || 'Eroare la salvarea elementului.')
   })
 })
 
 taxonomyDeleteBtn.addEventListener('click', () => {
-  requestTaxonomyDelete().catch(error => {
+  requestTaxonomyDelete().catch((error) => {
     console.error('Delete taxonomy item failed:', error)
     alert(error.message || 'Eroare la ștergerea elementului.')
   })
 })
 
-closeTaxonomyReplaceBtn.addEventListener(
-  'click',
-  closeTaxonomyReplaceDialog
-)
+closeTaxonomyReplaceBtn.addEventListener('click', closeTaxonomyReplaceDialog)
 
-cancelTaxonomyReplaceBtn.addEventListener(
-  'click',
-  closeTaxonomyReplaceDialog
-)
+cancelTaxonomyReplaceBtn.addEventListener('click', closeTaxonomyReplaceDialog)
 
 confirmTaxonomyReplaceBtn.addEventListener('click', () => {
-  confirmTaxonomyReplacementDelete().catch(error => {
+  confirmTaxonomyReplacementDelete().catch((error) => {
     console.error('Replace taxonomy item failed:', error)
     alert(error.message || 'Eroare la mutarea nodurilor.')
   })
 })
 
-taxonomyManagerBackdrop.addEventListener('click', event => {
+taxonomyManagerBackdrop.addEventListener('click', (event) => {
   if (event.target === taxonomyManagerBackdrop) {
     closeTaxonomyManager()
   }
 })
 
-taxonomyItemBackdrop.addEventListener('click', event => {
+taxonomyItemBackdrop.addEventListener('click', (event) => {
   if (event.target === taxonomyItemBackdrop) {
     closeTaxonomyItemEditor()
   }
 })
 
-taxonomyReplaceBackdrop.addEventListener('click', event => {
+taxonomyReplaceBackdrop.addEventListener('click', (event) => {
   if (event.target === taxonomyReplaceBackdrop) {
     closeTaxonomyReplaceDialog()
   }
@@ -6517,27 +5981,27 @@ taxonomyReplaceBackdrop.addEventListener('click', event => {
 fitSelectionBtn.addEventListener('click', fitCurrentSelection)
 
 loginBtn.addEventListener('click', () => {
-  sendMagicLink().catch(error => alert(error.message || 'Eroare la login.'))
+  sendMagicLink().catch((error) => alert(error.message || 'Eroare la login.'))
 })
 
 logoutBtn.addEventListener('click', () => {
-  signOutUser().catch(error => alert(error.message || 'Eroare la logout.'))
+  signOutUser().catch((error) => alert(error.message || 'Eroare la logout.'))
 })
 
-searchInput.addEventListener('input', event => {
+searchInput.addEventListener('input', (event) => {
   searchQuery = event.target.value
   normalizeSelectionAfterFilters()
   renderAll()
 })
 
-categoryFilter.addEventListener('change', event => {
+categoryFilter.addEventListener('change', (event) => {
   categoryFilterId = event.target.value ? Number(event.target.value) : null
   normalizeSelectionAfterFilters()
   renderAll()
   requestAnimationFrame(fitView)
 })
 
-difficultyFilter.addEventListener('change', event => {
+difficultyFilter.addEventListener('change', (event) => {
   difficultyFilterId = event.target.value ? Number(event.target.value) : null
   normalizeSelectionAfterFilters()
   renderAll()
@@ -6555,20 +6019,18 @@ clearFiltersBtn.addEventListener('click', () => {
   requestAnimationFrame(fitView)
 })
 
-toolsHeader.addEventListener('click', event => {
+toolsHeader.addEventListener('click', (event) => {
   if (event.target === collapseBtn) return
   togglePanel()
 })
 
-collapseBtn.addEventListener('click', event => {
+collapseBtn.addEventListener('click', (event) => {
   event.stopPropagation()
   togglePanel()
 })
 
 function togglePanel(force) {
-  const collapsed = typeof force === 'boolean'
-    ? force
-    : !toolPanel.classList.contains('collapsed')
+  const collapsed = typeof force === 'boolean' ? force : !toolPanel.classList.contains('collapsed')
 
   toolPanel.classList.toggle('collapsed', collapsed)
   collapseBtn.textContent = collapsed ? '+' : '–'
@@ -6578,9 +6040,9 @@ function togglePanel(force) {
 closeModalBtn.addEventListener('click', closeModal)
 cancelBtn.addEventListener('click', closeModal)
 saveBtn.addEventListener('click', () => {
-  saveModal().catch(error => alert(error.message || 'Eroare la salvare.'))
+  saveModal().catch((error) => alert(error.message || 'Eroare la salvare.'))
 })
-modalBackdrop.addEventListener('click', event => {
+modalBackdrop.addEventListener('click', (event) => {
   if (event.target === modalBackdrop) closeModal()
 })
 
@@ -6591,16 +6053,17 @@ function dismissIntro() {
 }
 
 introScreen.addEventListener('click', dismissIntro)
-enterBtn.addEventListener('click', event => {
+enterBtn.addEventListener('click', (event) => {
   event.stopPropagation()
   dismissIntro()
 })
 retryLoadBtn.addEventListener('click', () => {
-  loadAtlasWithUi().catch(error => {
+  loadAtlasWithUi().catch((error) => {
     console.error('Retry load failed:', error)
   })
 })
 
+// Keyboard shortcuts and global lifecycle events
 async function refreshHistoryButtons() {
   if (!canEdit || !editorMode) {
     undoBtn.disabled = true
@@ -6623,44 +6086,43 @@ async function refreshHistoryButtons() {
   redoBtn.disabled = !canEdit || Number(data?.redo_count || 0) === 0
 }
 
-window.addEventListener('keydown', event => {
+window.addEventListener('keydown', (event) => {
   const tag = document.activeElement?.tagName
-  const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable
+  const isTyping =
+    tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable
 
-  if (!isTyping && !isAnyModalOpen() && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !event.shiftKey) {
+  if (
+    !isTyping &&
+    !isAnyModalOpen() &&
+    (event.ctrlKey || event.metaKey) &&
+    event.key.toLowerCase() === 'z' &&
+    !event.shiftKey
+  ) {
     event.preventDefault()
-    undo().catch(error => alert(error.message || 'Eroare la undo.'))
+    undo().catch((error) => alert(error.message || 'Eroare la undo.'))
     return
   }
 
   if (
     !isTyping &&
     !isAnyModalOpen() &&
-    (
-      ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') ||
-      ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'z')
-    )
+    (((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') ||
+      ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'z'))
   ) {
     event.preventDefault()
-    redo().catch(error => alert(error.message || 'Eroare la redo.'))
+    redo().catch((error) => alert(error.message || 'Eroare la redo.'))
     return
   }
 
-  if (
-    !isTyping &&
-    canEdit &&
-    editorMode &&
-    !isAnyModalOpen() &&
-    event.key === 'Delete'
-  ) {
+  if (!isTyping && canEdit && editorMode && !isAnyModalOpen() && event.key === 'Delete') {
     event.preventDefault()
     if (selectedEdge) {
-      deleteSelectedEdge().catch(error => {
+      deleteSelectedEdge().catch((error) => {
         console.error(error)
         alert(error.message || 'Eroare la ștergerea muchiei.')
       })
     } else {
-      deleteSelected().catch(error => {
+      deleteSelected().catch((error) => {
         console.error(error)
         alert(error.message || 'Eroare la ștergere.')
       })
@@ -6677,18 +6139,13 @@ window.addEventListener('keydown', event => {
     event.key === '0'
   ) {
     event.preventDefault()
-    resetSelectedNodeSize().catch(error => {
+    resetSelectedNodeSize().catch((error) => {
       alert(error.message || 'Eroare la resetarea dimensiunii.')
     })
     return
   }
 
-  if (
-    !isTyping &&
-    canEdit &&
-    editorMode &&
-    !isAnyModalOpen()
-  ) {
+  if (!isTyping && canEdit && editorMode && !isAnyModalOpen()) {
     const step = event.shiftKey ? 36 : 12
     let dx = 0
     let dy = 0
@@ -6702,11 +6159,11 @@ window.addEventListener('keydown', event => {
       event.preventDefault()
 
       if (event.altKey) {
-        resizeSelectedNode(dx, dy).catch(error => {
+        resizeSelectedNode(dx, dy).catch((error) => {
           alert(error.message || 'Eroare la redimensionare.')
         })
       } else {
-        nudgeSelectedNode(dx, dy).catch(error => {
+        nudgeSelectedNode(dx, dy).catch((error) => {
           alert(error.message || 'Eroare la mutare.')
         })
       }
@@ -6749,7 +6206,7 @@ if (introDismissed) introScreen.classList.add('hidden')
 
 updateAtlasViewportHeight()
 
-document.addEventListener('focusin', event => {
+document.addEventListener('focusin', (event) => {
   keepFocusedEditorFieldVisible(event.target)
 })
 
@@ -6760,88 +6217,68 @@ window.addEventListener('resize', () => {
 })
 
 if (window.visualViewport) {
-  window.visualViewport.addEventListener(
-    'resize',
-    () => {
-      updateAtlasViewportHeight()
+  window.visualViewport.addEventListener('resize', () => {
+    updateAtlasViewportHeight()
 
-      const activeElement = document.activeElement
-      if (activeElement instanceof HTMLElement) {
-        keepFocusedEditorFieldVisible(activeElement)
-      }
+    const activeElement = document.activeElement
+    if (activeElement instanceof HTMLElement) {
+      keepFocusedEditorFieldVisible(activeElement)
     }
-  )
+  })
 
-  window.visualViewport.addEventListener(
-    'scroll',
-    updateAtlasViewportHeight
-  )
+  window.visualViewport.addEventListener('scroll', updateAtlasViewportHeight)
 }
 
-supabase.auth.onAuthStateChange(
-  (event, session) => {
-    const previousUserId =
-      currentUser?.id || null
+// Session synchronization
+supabase.auth.onAuthStateChange((event, session) => {
+  const previousUserId = currentUser?.id || null
 
-    const nextUser =
-      session?.user || null
+  const nextUser = session?.user || null
 
-    const sameUser = Boolean(
-      previousUserId &&
-      nextUser?.id === previousUserId
-    )
+  const sameUser = Boolean(previousUserId && nextUser?.id === previousUserId)
 
-    currentUser = nextUser
+  currentUser = nextUser
 
-    if (sameUser) {
-      updateAuthUI()
-      return
-    }
-
-    if (!currentUser) {
-      canEdit = false
-
-      if (editorMode) {
-        editorMode = false
-        localStorage.setItem(
-          CACHE_KEYS.editorMode,
-          '0'
-        )
-      }
-
-      updateAuthUI()
-      return
-    }
-
-    canEdit = false
+  if (sameUser) {
     updateAuthUI()
-
-    setTimeout(async () => {
-      try {
-        await refreshEditorAccess()
-
-        updateAuthUI()
-        await refreshHistoryButtons()
-
-        if (
-          nodes.length === 0 &&
-          !isAtlasLoading
-        ) {
-          showEmptyAtlasState()
-        }
-      } catch (error) {
-        console.error(
-          `Supabase auth refresh failed (${event}):`,
-          error
-        )
-
-        canEdit = false
-        updateAuthUI()
-      }
-    }, 0)
+    return
   }
-)
 
+  if (!currentUser) {
+    canEdit = false
+
+    if (editorMode) {
+      editorMode = false
+      localStorage.setItem(CACHE_KEYS.editorMode, '0')
+    }
+
+    updateAuthUI()
+    return
+  }
+
+  canEdit = false
+  updateAuthUI()
+
+  setTimeout(async () => {
+    try {
+      await refreshEditorAccess()
+
+      updateAuthUI()
+      await refreshHistoryButtons()
+
+      if (nodes.length === 0 && !isAtlasLoading) {
+        showEmptyAtlasState()
+      }
+    } catch (error) {
+      console.error(`Supabase auth refresh failed (${event}):`, error)
+
+      canEdit = false
+      updateAuthUI()
+    }
+  }, 0)
+})
+
+// Development diagnostics exposed in the browser console
 window.atlasDebug = {
   getState: () => ({
     canEdit,
@@ -6861,9 +6298,10 @@ window.atlasDebug = {
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,
-  updateEdgeRemote,
+  updateEdgeRemote
 }
 
+// Application bootstrap
 ensureNodePositions()
 applyView()
 renderAll()
