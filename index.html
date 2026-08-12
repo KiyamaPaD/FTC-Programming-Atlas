@@ -464,10 +464,155 @@
     }
 
     .doc-text {
-      white-space: pre-wrap;
       color: #ebebef;
       line-height: 1.82;
       font-size: 0.96rem;
+      overflow-wrap: anywhere;
+    }
+
+    .doc-text.plain {
+      white-space: pre-wrap;
+    }
+
+    .doc-text.rich p,
+    .doc-text.rich ul,
+    .doc-text.rich ol,
+    .doc-text.rich blockquote,
+    .doc-text.rich h2,
+    .doc-text.rich h3,
+    .doc-text.rich h4 {
+      margin-top: 0;
+    }
+
+    .doc-text.rich p { margin-bottom: 0.95em; }
+    .doc-text.rich h2 { margin-bottom: 0.6em; font-size: 1.55rem; line-height: 1.28; }
+    .doc-text.rich h3 { margin-bottom: 0.6em; font-size: 1.28rem; line-height: 1.32; }
+    .doc-text.rich h4 { margin-bottom: 0.55em; font-size: 1.08rem; line-height: 1.36; }
+    .doc-text.rich ul,
+    .doc-text.rich ol { margin-bottom: 1em; padding-left: 1.7em; }
+    .doc-text.rich li { margin: 0.28em 0; }
+    .doc-text.rich blockquote {
+      margin-left: 0;
+      margin-right: 0;
+      margin-bottom: 1em;
+      padding: 10px 14px;
+      border-left: 3px solid rgba(177, 76, 255, 0.55);
+      background: rgba(177, 76, 255, 0.055);
+      color: #d8d1de;
+    }
+    .doc-text.rich a { color: #d9b8ff; text-underline-offset: 3px; }
+    .doc-text.rich font[size="1"] { font-size: 0.76em; }
+    .doc-text.rich font[size="2"] { font-size: 0.88em; }
+    .doc-text.rich font[size="3"] { font-size: 1em; }
+    .doc-text.rich font[size="4"] { font-size: 1.16em; }
+    .doc-text.rich font[size="5"] { font-size: 1.34em; }
+
+    .rich-editor-shell {
+      overflow: hidden;
+      border: 1px solid rgba(177, 76, 255, 0.16);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.018);
+    }
+
+    .rich-editor-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      padding: 9px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(8, 8, 11, 0.96);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .rich-editor-toolbar button,
+    .rich-editor-toolbar select {
+      min-height: 36px;
+      border: 1px solid rgba(177, 76, 255, 0.15);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.035);
+      color: #eeeeF3;
+    }
+
+    .rich-editor-toolbar button {
+      min-width: 36px;
+      padding: 6px 9px;
+      cursor: pointer;
+      font-weight: 750;
+    }
+
+    .rich-editor-toolbar button:hover,
+    .rich-editor-toolbar button.active {
+      border-color: rgba(205, 112, 255, 0.42);
+      background: rgba(177, 76, 255, 0.12);
+    }
+
+    .rich-editor-toolbar select {
+      padding: 6px 9px;
+      cursor: pointer;
+    }
+
+    .rich-editor-divider {
+      width: 1px;
+      align-self: stretch;
+      min-height: 30px;
+      background: rgba(255, 255, 255, 0.07);
+      margin: 0 2px;
+    }
+
+    .rich-editor {
+      min-height: 300px;
+      max-height: 58vh;
+      overflow: auto;
+      padding: 14px 15px;
+      color: #ebebef;
+      line-height: 1.8;
+      outline: none;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .rich-editor:empty::before {
+      content: attr(data-placeholder);
+      color: #73737f;
+      pointer-events: none;
+    }
+
+    .rich-editor p,
+    .rich-editor ul,
+    .rich-editor ol,
+    .rich-editor blockquote,
+    .rich-editor h2,
+    .rich-editor h3,
+    .rich-editor h4 { margin-top: 0; }
+    .rich-editor p { margin-bottom: 0.9em; }
+    .rich-editor h2 { font-size: 1.5rem; line-height: 1.3; }
+    .rich-editor h3 { font-size: 1.25rem; line-height: 1.34; }
+    .rich-editor h4 { font-size: 1.08rem; line-height: 1.38; }
+    .rich-editor ul,
+    .rich-editor ol { padding-left: 1.7em; }
+    .rich-editor blockquote {
+      margin-left: 0;
+      margin-right: 0;
+      padding: 9px 13px;
+      border-left: 3px solid rgba(177, 76, 255, 0.55);
+      background: rgba(177, 76, 255, 0.05);
+    }
+    .rich-editor a { color: #d9b8ff; }
+    .rich-editor font[size="1"] { font-size: 0.76em; }
+    .rich-editor font[size="2"] { font-size: 0.88em; }
+    .rich-editor font[size="3"] { font-size: 1em; }
+    .rich-editor font[size="4"] { font-size: 1.16em; }
+    .rich-editor font[size="5"] { font-size: 1.34em; }
+
+    .rich-editor-hint {
+      margin-top: 7px;
+      color: #848490;
+      font-size: 0.76rem;
+      line-height: 1.45;
     }
 
     .quick-facts {
@@ -2758,6 +2903,47 @@
 
         <div class="field" id="nodeContentField">
           <label for="contentInput" id="contentInputLabel">Documentație completă</label>
+
+          <div class="rich-editor-shell" id="richEditorShell">
+            <div class="rich-editor-toolbar" id="richEditorToolbar" role="toolbar" aria-label="Formatare documentație">
+              <select id="richBlockSelect" aria-label="Tip paragraf">
+                <option value="p">Normal</option>
+                <option value="h2">Titlu mare</option>
+                <option value="h3">Subtitlu</option>
+                <option value="h4">Titlu mic</option>
+                <option value="blockquote">Citat / notă</option>
+              </select>
+
+              <span class="rich-editor-divider" aria-hidden="true"></span>
+              <button type="button" data-rich-command="bold" aria-label="Bold"><strong>B</strong></button>
+              <button type="button" data-rich-command="italic" aria-label="Italic"><em>I</em></button>
+              <button type="button" data-rich-command="underline" aria-label="Underline"><u>U</u></button>
+
+              <select id="richFontSizeSelect" aria-label="Mărime text">
+                <option value="3">Mărime normală</option>
+                <option value="2">Mic</option>
+                <option value="4">Mare</option>
+                <option value="5">Foarte mare</option>
+              </select>
+
+              <span class="rich-editor-divider" aria-hidden="true"></span>
+              <button type="button" data-rich-command="insertUnorderedList" aria-label="Listă cu buline">• Listă</button>
+              <button type="button" data-rich-command="insertOrderedList" aria-label="Listă numerotată">1. Listă</button>
+              <button type="button" id="richLinkBtn" aria-label="Adaugă link">Link</button>
+              <button type="button" data-rich-command="removeFormat" aria-label="Șterge formatarea">Tx</button>
+            </div>
+
+            <div
+              class="rich-editor"
+              id="contentRichEditor"
+              contenteditable="true"
+              role="textbox"
+              aria-multiline="true"
+              data-placeholder="Scrie aici explicația completă..."
+            ></div>
+          </div>
+          <div class="rich-editor-hint" id="richEditorHint">Poți folosi Bold, Italic, Underline, titluri, dimensiuni de text, liste și linkuri. Paste-ul este sanitizat automat.</div>
+
           <textarea id="contentInput" placeholder="Scrie aici explicația completă..."></textarea>
         </div>
 
@@ -3084,6 +3270,6 @@
     </div>
   </div>
 
-  <script type="module" src="./js/atlas-script.js?v=30"></script>
+  <script type="module" src="./js/atlas-script.js?v=31"></script>
 </body>
 </html>

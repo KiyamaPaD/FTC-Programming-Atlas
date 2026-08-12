@@ -349,6 +349,13 @@ const nodeTagPicker = document.getElementById('nodeTagPicker')
 const nodeTagsField = document.getElementById('nodeTagsField')
 const contentInput = document.getElementById('contentInput')
 const contentInputLabel = document.getElementById('contentInputLabel')
+const richEditorShell = document.getElementById('richEditorShell')
+const richEditorToolbar = document.getElementById('richEditorToolbar')
+const richBlockSelect = document.getElementById('richBlockSelect')
+const richFontSizeSelect = document.getElementById('richFontSizeSelect')
+const richLinkBtn = document.getElementById('richLinkBtn')
+const contentRichEditor = document.getElementById('contentRichEditor')
+const richEditorHint = document.getElementById('richEditorHint')
 const relationSummary = document.getElementById('relationSummary')
 const relationLabelInput = document.getElementById('relationLabelInput')
 const nodeFields = document.getElementById('nodeFields')
@@ -696,7 +703,7 @@ function matchesSearch(node) {
   const q = searchQuery.trim().toLowerCase()
   const haystack = [
     node.title,
-    node.content,
+    nodeContentPlainText(node),
     nodeCategoryName(node),
     nodeDifficultyName(node),
     ...nodeTagNames(node),
@@ -791,6 +798,300 @@ function escapeHtmlText(str) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;')
+}
+
+
+const RICH_TEXT_ALLOWED_TAGS = new Set([
+  'P',
+  'DIV',
+  'BR',
+  'STRONG',
+  'B',
+  'EM',
+  'I',
+  'U',
+  'H2',
+  'H3',
+  'H4',
+  'UL',
+  'OL',
+  'LI',
+  'BLOCKQUOTE',
+  'A',
+  'FONT'
+])
+
+const RICH_TEXT_REMOVE_WITH_CONTENT = new Set([
+  'SCRIPT',
+  'STYLE',
+  'IFRAME',
+  'OBJECT',
+  'EMBED',
+  'SVG',
+  'MATH',
+  'FORM',
+  'INPUT',
+  'BUTTON',
+  'TEXTAREA',
+  'SELECT',
+  'OPTION'
+])
+
+function sanitizeRichHtml(rawHtml) {
+  const template = document.createElement('template')
+  template.innerHTML = String(rawHtml || '')
+
+  const cleanNode = (node) => {
+    if (node.nodeType === Node.TEXT_NODE) return
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      node.remove()
+      return
+    }
+
+    const tag = node.tagName
+
+    if (RICH_TEXT_REMOVE_WITH_CONTENT.has(tag)) {
+      node.remove()
+      return
+    }
+
+    if (!RICH_TEXT_ALLOWED_TAGS.has(tag)) {
+      for (const child of [...node.childNodes]) {
+        cleanNode(child)
+      }
+
+      const parent = node.parentNode
+      if (!parent) return
+
+      while (node.firstChild) {
+        parent.insertBefore(node.firstChild, node)
+      }
+
+      node.remove()
+      return
+    }
+
+    for (const attribute of [...node.attributes]) {
+      const name = attribute.name.toLowerCase()
+
+      if (tag === 'A' && name === 'href') continue
+      if (tag === 'A' && (name === 'target' || name === 'rel')) continue
+      if (tag === 'FONT' && name === 'size') continue
+
+      node.removeAttribute(attribute.name)
+    }
+
+    if (tag === 'A') {
+      const href = normalizeHttpUrl(node.getAttribute('href'))
+
+      if (!href) {
+        node.removeAttribute('href')
+        node.removeAttribute('target')
+        node.removeAttribute('rel')
+      } else {
+        node.setAttribute('href', href)
+        node.setAttribute('target', '_blank')
+        node.setAttribute('rel', 'noopener noreferrer')
+      }
+    }
+
+    if (tag === 'FONT') {
+      const size = Number(node.getAttribute('size'))
+      const safeSize = Number.isFinite(size) ? Math.max(1, Math.min(5, Math.round(size))) : 3
+      node.setAttribute('size', String(safeSize))
+    }
+
+    for (const child of [...node.childNodes]) {
+      cleanNode(child)
+    }
+  }
+
+  for (const child of [...template.content.childNodes]) {
+    cleanNode(child)
+  }
+
+  return template.innerHTML.trim()
+}
+
+function plainTextToRichHtml(value) {
+  const text = String(value || '').replace(/\r\n?/g, '\n').trim()
+  if (!text) return ''
+
+  return `<p>${escapeHtmlText(text).replaceAll('\n', '<br>')}</p>`
+}
+
+function richHtmlToPlainText(value) {
+  const holder = document.createElement('div')
+  holder.innerHTML = sanitizeRichHtml(value)
+
+  const text = holder.innerText || holder.textContent || ''
+  return text.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').trim()
+}
+
+function nodeContentPlainText(node) {
+  if (!node) return ''
+
+  return node.contentFormat === 'html'
+    ? richHtmlToPlainText(node.content)
+    : String(node.content || '')
+}
+
+function renderNodeDocumentation(node) {
+  if (!node) return '<div class="doc-text plain"></div>'
+
+  if (node.contentFormat === 'html') {
+    const safeHtml = sanitizeRichHtml(node.content)
+    return `<div class="doc-text rich">${safeHtml || '<p>Fără documentație încă.</p>'}</div>`
+  }
+
+  return `<div class="doc-text plain">${escapeHtml(node.content || 'Fără documentație încă.')}</div>`
+}
+
+function setRichEditorHtml(value) {
+  contentRichEditor.innerHTML = sanitizeRichHtml(value)
+}
+
+function getRichEditorHtml() {
+  const safeHtml = sanitizeRichHtml(contentRichEditor.innerHTML)
+  const plainText = richHtmlToPlainText(safeHtml)
+
+  return plainText ? safeHtml : ''
+}
+
+let richSelectionRange = null
+
+function rememberRichSelection() {
+  const selection = window.getSelection()
+  if (!selection || selection.rangeCount === 0) return
+
+  const range = selection.getRangeAt(0)
+  const common = range.commonAncestorContainer
+  const element = common.nodeType === Node.ELEMENT_NODE ? common : common.parentElement
+
+  if (element && contentRichEditor.contains(element)) {
+    richSelectionRange = range.cloneRange()
+  }
+}
+
+function restoreRichSelection() {
+  if (!richSelectionRange) return false
+
+  const selection = window.getSelection()
+  if (!selection) return false
+
+  selection.removeAllRanges()
+  selection.addRange(richSelectionRange)
+  return true
+}
+
+function updateRichToolbarState() {
+  if (document.activeElement !== contentRichEditor && !contentRichEditor.contains(document.activeElement)) {
+    return
+  }
+
+  richEditorToolbar.querySelectorAll('[data-rich-command]').forEach((button) => {
+    const command = button.dataset.richCommand
+    const stateful = ['bold', 'italic', 'underline', 'insertUnorderedList', 'insertOrderedList']
+    button.classList.toggle('active', stateful.includes(command) && document.queryCommandState(command))
+  })
+}
+
+function runRichCommand(command, value = null) {
+  contentRichEditor.focus({ preventScroll: true })
+  restoreRichSelection()
+  document.execCommand(command, false, value)
+  rememberRichSelection()
+  updateRichToolbarState()
+}
+
+function setNodeContentEditorVisible(isNodeMode) {
+  richEditorShell.style.display = isNodeMode ? 'block' : 'none'
+  richEditorHint.style.display = isNodeMode ? 'block' : 'none'
+  contentInput.style.display = isNodeMode ? 'none' : 'block'
+  contentInputLabel.htmlFor = isNodeMode ? 'contentRichEditor' : 'contentInput'
+}
+
+function initRichTextEditor() {
+  try {
+    document.execCommand('defaultParagraphSeparator', false, 'p')
+  } catch {}
+
+  richEditorToolbar.querySelectorAll('button').forEach((button) => {
+    button.addEventListener('mousedown', (event) => event.preventDefault())
+  })
+
+  richEditorToolbar.querySelectorAll('[data-rich-command]').forEach((button) => {
+    button.addEventListener('click', () => {
+      runRichCommand(button.dataset.richCommand)
+    })
+  })
+
+  richBlockSelect.addEventListener('change', () => {
+    runRichCommand('formatBlock', richBlockSelect.value)
+    richBlockSelect.value = 'p'
+  })
+
+  richFontSizeSelect.addEventListener('change', () => {
+    runRichCommand('fontSize', richFontSizeSelect.value)
+    richFontSizeSelect.value = '3'
+  })
+
+  richLinkBtn.addEventListener('mousedown', (event) => event.preventDefault())
+  richLinkBtn.addEventListener('click', () => {
+    contentRichEditor.focus({ preventScroll: true })
+    restoreRichSelection()
+
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      alert('Selectează mai întâi textul pe care vrei să pui link-ul.')
+      return
+    }
+
+    const input = window.prompt('Link HTTPS:')
+    if (input == null) return
+
+    const url = normalizeHttpUrl(input)
+    if (!url) {
+      alert('Link invalid. Folosește o adresă http:// sau https://.')
+      return
+    }
+
+    runRichCommand('createLink', url)
+
+    contentRichEditor.querySelectorAll('a[href]').forEach((anchor) => {
+      anchor.target = '_blank'
+      anchor.rel = 'noopener noreferrer'
+    })
+  })
+
+  contentRichEditor.addEventListener('paste', (event) => {
+    event.preventDefault()
+
+    const html = event.clipboardData?.getData('text/html') || ''
+    const text = event.clipboardData?.getData('text/plain') || ''
+
+    if (html) {
+      document.execCommand('insertHTML', false, sanitizeRichHtml(html))
+    } else {
+      document.execCommand('insertText', false, text)
+    }
+
+    rememberRichSelection()
+  })
+
+  contentRichEditor.addEventListener('input', () => {
+    rememberRichSelection()
+    updateRichToolbarState()
+  })
+
+  contentRichEditor.addEventListener('keyup', rememberRichSelection)
+  contentRichEditor.addEventListener('mouseup', rememberRichSelection)
+
+  document.addEventListener('selectionchange', () => {
+    rememberRichSelection()
+    updateRichToolbarState()
+  })
 }
 
 function normalizeHttpUrl(value) {
@@ -2305,6 +2606,7 @@ async function fetchAllData() {
     width: node.width == null ? null : Number(node.width),
     height: node.height == null ? null : Number(node.height),
     content: node.content,
+    contentFormat: node.content_format || 'plain',
     links: edgesBySource.get(Number(node.id)) || [],
     media: mediaByNode.get(Number(node.id)) || [],
     codeSnippets: codeByNode.get(Number(node.id)) || []
@@ -2362,7 +2664,7 @@ function normalizeRpcRow(data, entityName) {
 }
 
 async function createNodeRemote(node) {
-  const { data, error } = await supabase.rpc('atlas_create_node_v2', {
+  const { data, error } = await supabase.rpc('atlas_create_node_v3', {
     p_project_id: PROJECT_ID,
     p_title: node.title,
     p_category_id: node.categoryId,
@@ -2370,7 +2672,8 @@ async function createNodeRemote(node) {
     p_tag_ids: node.tagIds || [],
     p_x: Number(node.x),
     p_y: Number(node.y),
-    p_content: node.content
+    p_content: node.content,
+    p_content_format: node.contentFormat || 'html'
   })
 
   if (error) throw error
@@ -2378,7 +2681,7 @@ async function createNodeRemote(node) {
 }
 
 async function updateNodeRemote(node) {
-  const { data, error } = await supabase.rpc('atlas_update_node_v2', {
+  const { data, error } = await supabase.rpc('atlas_update_node_v3', {
     p_project_id: PROJECT_ID,
     p_node_id: Number(node.id),
     p_title: node.title,
@@ -2387,7 +2690,8 @@ async function updateNodeRemote(node) {
     p_tag_ids: node.tagIds || [],
     p_x: Number(node.x),
     p_y: Number(node.y),
-    p_content: node.content
+    p_content: node.content,
+    p_content_format: node.contentFormat || 'html'
   })
 
   if (error) throw error
@@ -3646,7 +3950,7 @@ function renderNodes() {
         ${node.id === selectedId ? '<span class="open-mark">open</span>' : ''}
       </div>
       <h3 class="node-title">${escapeHtml(node.title)}</h3>
-      <p class="node-preview">${escapeHtml(node.content)}</p>
+      <p class="node-preview">${escapeHtml(nodeContentPlainText(node))}</p>
       ${
         tagNames.length
           ? `
@@ -4954,7 +5258,7 @@ function renderDetailPanel() {
       <div class="detail-main-column">
         <div class="info-card">
           <div class="info-card-label">documentație</div>
-          <div class="doc-text">${escapeHtml(node.content)}</div>
+          ${renderNodeDocumentation(node)}
         </div>
 
         ${renderNodeCodeSnippets(node)}
@@ -5097,6 +5401,7 @@ function applyTutorialPermissions() {
   contentInput.setAttribute('aria-readonly', editable ? 'false' : 'true')
 
   contentInputLabel.textContent = editable ? 'Conținut tutorial' : 'Tutorial — doar citire'
+  setNodeContentEditorVisible(false)
 
   setModalModeUi('tutorial')
 }
@@ -5149,6 +5454,7 @@ function openModal(mode) {
     contentInputLabel.textContent = 'Documentație completă'
   }
 
+  setNodeContentEditorVisible(mode === 'node')
   setModalModeUi(mode)
   modalBackdrop.classList.add('open')
 
@@ -5173,6 +5479,7 @@ function closeModal() {
   contentInput.readOnly = false
   contentInput.setAttribute('aria-readonly', 'false')
   contentInputLabel.textContent = 'Documentație completă'
+  setNodeContentEditorVisible(true)
   setModalModeUi('node')
 }
 
@@ -5192,9 +5499,11 @@ function openCreate() {
   nodeTagDraft = new Set()
   renderNodeTagPicker()
 
-  contentInput.value = `Scrie aici documentația completă.
+  setRichEditorHtml(
+    plainTextToRichHtml(`Scrie aici documentația completă.
 
-Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot și ce greșeli apar cel mai des.`
+Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot și ce greșeli apar cel mai des.`)
+  )
 
   openModal('node')
   titleInput.focus()
@@ -5216,7 +5525,11 @@ function openEdit(id) {
   nodeTagDraft = new Set((node.tagIds || []).map(Number))
   renderNodeTagPicker()
 
-  contentInput.value = node.content
+  setRichEditorHtml(
+    node.contentFormat === 'html'
+      ? node.content
+      : plainTextToRichHtml(node.content)
+  )
   openModal('node')
   titleInput.focus()
 }
@@ -5306,7 +5619,13 @@ async function saveNode() {
   const categoryId = categoryInput.value ? Number(categoryInput.value) : null
   const difficultyId = difficultyInput.value ? Number(difficultyInput.value) : null
   const tagIds = Array.from(nodeTagDraft).map(Number)
-  const content = contentInput.value.trim() || 'Fără documentație încă.'
+  const content = getRichEditorHtml() || '<p>Fără documentație încă.</p>'
+  const contentFormat = 'html'
+
+  if (content.length > 150000) {
+    alert('Documentația este prea mare. Limita este 150.000 de caractere HTML.')
+    return
+  }
 
   if (!categoryId) {
     alert('Alege o categorie pentru nod.')
@@ -5335,6 +5654,7 @@ async function saveNode() {
         difficultyId,
         tagIds,
         content,
+        contentFormat,
         x: startPos.x,
         y: startPos.y
       })
@@ -5348,6 +5668,7 @@ async function saveNode() {
           inserted.difficulty_id == null ? difficultyId : Number(inserted.difficulty_id),
         tagIds,
         content: inserted.content,
+        contentFormat: inserted.content_format || contentFormat,
         x: Number(inserted.x),
         y: Number(inserted.y),
         links: []
@@ -5369,7 +5690,8 @@ async function saveNode() {
         categoryId,
         difficultyId,
         tagIds,
-        content
+        content,
+        contentFormat
       })
 
       node.title = updated.title
@@ -5379,6 +5701,7 @@ async function saveNode() {
         updated.difficulty_id == null ? difficultyId : Number(updated.difficulty_id)
       node.tagIds = tagIds
       node.content = updated.content
+      node.contentFormat = updated.content_format || contentFormat
       node.x = Number(updated.x)
       node.y = Number(updated.y)
 
@@ -6302,6 +6625,8 @@ window.atlasDebug = {
 }
 
 // Application bootstrap
+initRichTextEditor()
+setNodeContentEditorVisible(true)
 ensureNodePositions()
 applyView()
 renderAll()
