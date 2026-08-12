@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>FTC Programming Atlas</title>
+  <link rel="icon" type="image/png" href="./img/FTCProgrammingAtlasLogo.png" />
+  <link rel="shortcut icon" href="./img/FTCProgrammingAtlasLogo.png" />
+  <link rel="apple-touch-icon" href="./img/FTCProgrammingAtlasLogo.png" />
   <style>
     :root {
       --bg: #000000;
@@ -253,6 +256,28 @@
     .tools-header-left { display: flex; flex-direction: column; gap: 2px; }
     .tools-header-left strong { font-size: 0.95rem; }
     .tools-header-left span { color: var(--muted); font-size: 0.8rem; }
+
+    .tools-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .site-corner-logo {
+      width: 46px;
+      height: 46px;
+      display: block;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 1px solid rgba(177, 76, 255, 0.26);
+      background: rgba(255, 255, 255, 0.035);
+      box-shadow:
+        0 8px 22px rgba(0, 0, 0, 0.34),
+        0 0 18px rgba(177, 76, 255, 0.10);
+      user-select: none;
+      pointer-events: none;
+    }
 
     .toggle-btn {
       width: 32px;
@@ -3130,7 +3155,14 @@
             <strong>Quick controls</strong>
             <span>navigare, editare și relații</span>
           </div>
-          <button class="toggle-btn" id="collapseBtn" aria-label="Toggle controls">–</button>
+          <div class="tools-header-right">
+            <img
+              class="site-corner-logo"
+              src="./img/FTCProgrammingAtlasLogo.png"
+              alt="FTC Programming Atlas logo"
+            />
+            <button class="toggle-btn" id="collapseBtn" aria-label="Toggle controls">–</button>
+          </div>
         </div>
 
         <div class="tools-body">
