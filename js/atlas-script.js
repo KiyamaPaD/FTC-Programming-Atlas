@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log('ATLAS SCRIPT LOADED v37 · ACCELERATED WASD NODE MOVEMENT')
+console.log('ATLAS SCRIPT LOADED v38 · MANUAL WASD POSITION SAVE')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -315,7 +315,10 @@ const keyboardMoveState = {
   startY: 0
 }
 
-let keyboardMoveSaveChain = Promise.resolve()
+// WASD movement is intentionally local-only. One dirty node is kept at a time
+// and is persisted only with the Save position button or the F shortcut.
+let unsavedNodePosition = null
+let positionSaveBusy = false
 
 // Frequently used DOM references
 const mapSurface = document.getElementById('mapSurface')
@@ -345,6 +348,7 @@ const removeEdgePointBtn = document.getElementById('removeEdgePointBtn')
 const resetEdgePathBtn = document.getElementById('resetEdgePathBtn')
 const tutorialBtn = document.getElementById('tutorialBtn')
 const editorModeBtn = document.getElementById('editorModeBtn')
+const savePositionBtn = document.getElementById('savePositionBtn')
 
 const editorToolsSection = document.getElementById('editorToolsSection')
 
@@ -611,25 +615,39 @@ function clearEdgeSelection() {
 }
 
 function handleNodeTap(nodeId) {
-  selectedId = Number(nodeId)
-  clearEdgeSelection()
+  ;(async () => {
+    if (!(await confirmUnsavedPositionBeforeLeaving(nodeId))) return
 
-  if (relationMode.active) {
-    handleRelationNodeClick(Number(nodeId))
-    return
-  }
+    selectedId = Number(nodeId)
+    clearEdgeSelection()
 
-  detailOpen = true
-  renderAll()
+    if (relationMode.active) {
+      handleRelationNodeClick(Number(nodeId))
+      return
+    }
+
+    detailOpen = true
+    renderAll()
+  })().catch((error) => {
+    console.error('Node selection failed:', error)
+    alert(error.message || 'Nodul nu a putut fi selectat.')
+  })
 }
 
 function selectEdge(sourceId, targetId) {
-  console.log('selectEdge', { sourceId, targetId })
-  selectedEdge = { sourceId: Number(sourceId), targetId: Number(targetId) }
-  selectedEdgePointIndex = null
-  selectedId = Number(sourceId)
-  detailOpen = false
-  renderAll()
+  ;(async () => {
+    if (!(await confirmUnsavedPositionBeforeLeaving(sourceId))) return
+
+    console.log('selectEdge', { sourceId, targetId })
+    selectedEdge = { sourceId: Number(sourceId), targetId: Number(targetId) }
+    selectedEdgePointIndex = null
+    selectedId = Number(sourceId)
+    detailOpen = false
+    renderAll()
+  })().catch((error) => {
+    console.error('Edge selection failed:', error)
+    alert(error.message || 'Muchia nu a putut fi selectată.')
+  })
 }
 
 function openSelectedEdgeEdit() {
@@ -3296,51 +3314,104 @@ function applyKeyboardNodeDelta(node, dx, dy) {
   return true
 }
 
-function queueKeyboardNodeSave(snapshot, fallback) {
-  keyboardMoveSaveChain = keyboardMoveSaveChain
-    .catch(() => {})
-    .then(async () => {
-      try {
-        const updated = await updateNodeGeometryRemote(snapshot)
-        const liveNode = nodes.find((item) => Number(item.id) === Number(snapshot.id))
-
-        const sameNodeIsMoving =
-          Number(keyboardMoveState.nodeId) === Number(snapshot.id) &&
-          keyboardMoveState.keys.size > 0
-
-        if (liveNode && !sameNodeIsMoving) {
-          liveNode.x = Number(updated.x)
-          liveNode.y = Number(updated.y)
-        }
-
-        saveCachedNodes()
-        await refreshHistoryButtons()
-
-        if (!sameNodeIsMoving) renderAll()
-      } catch (error) {
-        console.error('Accelerated keyboard move failed:', error)
-
-        const liveNode = nodes.find((item) => Number(item.id) === Number(snapshot.id))
-        const sameNodeIsMoving =
-          Number(keyboardMoveState.nodeId) === Number(snapshot.id) &&
-          keyboardMoveState.keys.size > 0
-
-        if (liveNode && !sameNodeIsMoving) {
-          liveNode.x = fallback.x
-          liveNode.y = fallback.y
-          renderAll()
-        }
-
-        alert(`Eroare la salvarea poziției nodului: ${error?.message || 'necunoscută'}`)
-
-        if (!sameNodeIsMoving) {
-          await fetchAllData()
-        }
-      }
-    })
+function hasUnsavedNodePosition(nodeId = null) {
+  if (!unsavedNodePosition) return false
+  if (nodeId == null) return true
+  return Number(unsavedNodePosition.nodeId) === Number(nodeId)
 }
 
-function finishKeyboardNodeMovement({ persist = true } = {}) {
+function markNodePositionUnsaved(node, originalX, originalY) {
+  if (!node) return
+
+  if (!unsavedNodePosition) {
+    unsavedNodePosition = {
+      nodeId: Number(node.id),
+      originalX: Number(originalX),
+      originalY: Number(originalY)
+    }
+  }
+
+  if (Number(unsavedNodePosition.nodeId) !== Number(node.id)) return
+
+  updateAuthUI()
+  renderSelectedStrip()
+}
+
+function clearUnsavedNodePosition() {
+  unsavedNodePosition = null
+  positionSaveBusy = false
+  updateAuthUI()
+  renderSelectedStrip()
+}
+
+async function saveUnsavedNodePosition({ quiet = false } = {}) {
+  if (!unsavedNodePosition || positionSaveBusy) return true
+
+  const node = nodes.find(
+    (item) => Number(item.id) === Number(unsavedNodePosition.nodeId)
+  )
+
+  if (!node) {
+    clearUnsavedNodePosition()
+    return true
+  }
+
+  positionSaveBusy = true
+  updateAuthUI()
+
+  try {
+    const updated = await updateNodeGeometryRemote(node)
+
+    node.x = Number(updated.x)
+    node.y = Number(updated.y)
+    node.width = updated.width == null ? node.width : Number(updated.width)
+    node.height = updated.height == null ? node.height : Number(updated.height)
+
+    clearUnsavedNodePosition()
+    saveCachedNodes()
+    renderAll()
+    await refreshHistoryButtons()
+    return true
+  } catch (error) {
+    positionSaveBusy = false
+    updateAuthUI()
+    console.error('Manual position save failed:', error)
+
+    if (!quiet) {
+      alert(`Eroare la salvarea poziției nodului: ${error?.message || 'necunoscută'}`)
+    }
+
+    return false
+  }
+}
+
+async function confirmUnsavedPositionBeforeLeaving(nextNodeId = null) {
+  if (!unsavedNodePosition) return true
+
+  if (
+    nextNodeId != null &&
+    Number(nextNodeId) === Number(unsavedNodePosition.nodeId)
+  ) {
+    return true
+  }
+
+  const node = nodes.find(
+    (item) => Number(item.id) === Number(unsavedNodePosition.nodeId)
+  )
+  const nodeName = node?.title || `#${unsavedNodePosition.nodeId}`
+
+  const shouldSave = window.confirm(
+    `Ai modificat poziția nodului „${nodeName}”, dar nu ai salvat-o.\n\n` +
+    'OK = salvează poziția în Supabase și continuă.\n' +
+    'Cancel = rămâi aici fără să pierzi modificarea.'
+  )
+
+  if (!shouldSave) return false
+
+  return saveUnsavedNodePosition()
+}
+
+function finishKeyboardNodeMovement() {
   if (keyboardMoveState.frameId != null) {
     cancelAnimationFrame(keyboardMoveState.frameId)
   }
@@ -3350,10 +3421,8 @@ function finishKeyboardNodeMovement({ persist = true } = {}) {
 
   const nodeId = keyboardMoveState.nodeId
   const dirty = keyboardMoveState.dirty
-  const fallback = {
-    x: keyboardMoveState.startX,
-    y: keyboardMoveState.startY
-  }
+  const originalX = keyboardMoveState.startX
+  const originalY = keyboardMoveState.startY
 
   keyboardMoveState.nodeId = null
   keyboardMoveState.startedAt = 0
@@ -3363,7 +3432,6 @@ function finishKeyboardNodeMovement({ persist = true } = {}) {
   if (!dirty || nodeId == null) return
 
   const node = nodes.find((item) => Number(item.id) === Number(nodeId))
-
   if (!node) return
 
   const { width, height } = nodeSize(node)
@@ -3375,20 +3443,8 @@ function finishKeyboardNodeMovement({ persist = true } = {}) {
     node.y = roundedY
   }
 
+  markNodePositionUnsaved(node, originalX, originalY)
   renderAll()
-
-  if (!persist) return
-
-  queueKeyboardNodeSave(
-    {
-      id: node.id,
-      x: Number(node.x),
-      y: Number(node.y),
-      width: node.width,
-      height: node.height
-    },
-    fallback
-  )
 }
 
 function runKeyboardNodeMovementFrame(now) {
@@ -3412,7 +3468,7 @@ function runKeyboardNodeMovementFrame(now) {
   )
 
   if (!node) {
-    finishKeyboardNodeMovement({ persist: false })
+    finishKeyboardNodeMovement()
     return
   }
 
@@ -3523,6 +3579,10 @@ async function nudgeSelectedNode(dx, dy) {
     node.x = Number(updated.x)
     node.y = Number(updated.y)
 
+    if (hasUnsavedNodePosition(node.id)) {
+      clearUnsavedNodePosition()
+    }
+
     saveCachedNodes()
     renderAll()
 
@@ -3608,6 +3668,9 @@ async function resetSelectedNodeSize() {
 
   try {
     await updateNodeGeometryRemote(node)
+    if (hasUnsavedNodePosition(node.id)) {
+      clearUnsavedNodePosition()
+    }
     await refreshHistoryButtons()
   } catch (error) {
     node.width = originalWidth
@@ -3654,6 +3717,17 @@ function updateAuthUI() {
   mediaManagerBtn.disabled = editorBlocked || !hasSelectedNode
   fileManagerBtn.disabled = editorBlocked || !hasSelectedNode
   codeManagerBtn.disabled = editorBlocked || !hasSelectedNode
+
+  const selectedHasUnsavedPosition =
+    editorActive &&
+    hasSelectedNode &&
+    hasUnsavedNodePosition(selectedNode()?.id)
+
+  savePositionBtn.hidden = !selectedHasUnsavedPosition
+  savePositionBtn.disabled = !selectedHasUnsavedPosition || positionSaveBusy
+  savePositionBtn.textContent = positionSaveBusy
+    ? 'Se salvează poziția...'
+    : 'Salvează poziția · F'
 
   if (!editorActive && isTaxonomyManagerOpen()) {
     closeTaxonomyManager()
@@ -4625,6 +4699,9 @@ function renderNodes() {
 
           node.x = Number(updated.x)
           node.y = Number(updated.y)
+          if (hasUnsavedNodePosition(node.id)) {
+            clearUnsavedNodePosition()
+          }
           selectedId = node.id
           clearEdgeSelection()
           saveCachedNodes()
@@ -4809,12 +4886,17 @@ function renderSelectedStrip() {
 
   const { width, height } = nodeSize(node)
 
+  const unsavedPositionText = hasUnsavedNodePosition(node.id)
+    ? '<br><strong>Poziție nesalvată</strong> · apasă F sau „Salvează poziția”.'
+    : ''
+
   selectedStrip.innerHTML = `
     <strong>${escapeHtml(node.title)}</strong><br>
     ${escapeHtml(nodeCategoryName(node))} ·
     ${escapeHtml(nodeDifficultyName(node))} ·
     ${node.links.length} relații ·
     ${Math.round(width)} × ${Math.round(height)} px
+    ${unsavedPositionText}
   `
 }
 
@@ -6594,6 +6676,10 @@ async function saveNode() {
       node.x = Number(updated.x)
       node.y = Number(updated.y)
 
+      if (hasUnsavedNodePosition(node.id)) {
+        clearUnsavedNodePosition()
+      }
+
       selectedId = node.id
       clearEdgeSelection()
     }
@@ -6606,7 +6692,11 @@ async function saveNode() {
   } catch (error) {
     console.error('Save node failed FULL:', error)
     alert(`Eroare la salvare nod: ${error?.message || 'necunoscută'}`)
-    await fetchAllData()
+
+    // Do not overwrite a local WASD position that the editor has not saved yet.
+    if (!hasUnsavedNodePosition()) {
+      await fetchAllData()
+    }
   }
 }
 
@@ -7015,7 +7105,12 @@ mapSurface.addEventListener(
 )
 
 // Interface event bindings
-createBtn.addEventListener('click', openCreate)
+createBtn.addEventListener('click', () => {
+  ;(async () => {
+    if (!(await confirmUnsavedPositionBeforeLeaving())) return
+    openCreate()
+  })().catch((error) => alert(error.message || 'Nodul nou nu a putut fi deschis.'))
+})
 editBtn.addEventListener('click', () => {
   const node = selectedNode()
   if (node) openEdit(node.id)
@@ -7024,8 +7119,11 @@ deleteBtn.addEventListener('click', () => {
   deleteSelected().catch((error) => alert(error.message || 'Eroare la ștergere.'))
 })
 relationBtn.addEventListener('click', () => {
-  if (relationMode.active) deactivateRelationMode()
-  else activateRelationMode()
+  ;(async () => {
+    if (!relationMode.active && !(await confirmUnsavedPositionBeforeLeaving())) return
+    if (relationMode.active) deactivateRelationMode()
+    else activateRelationMode()
+  })().catch((error) => alert(error.message || 'Modul relație nu a putut fi schimbat.'))
 })
 editEdgeBtn.addEventListener('click', () => {
   openSelectedEdgeEdit()
@@ -7034,10 +7132,16 @@ deleteEdgeBtn.addEventListener('click', () => {
   deleteSelectedEdge().catch((error) => alert(error.message || 'Eroare la ștergerea muchiei.'))
 })
 undoBtn.addEventListener('click', () => {
-  undo().catch((error) => alert(error.message || 'Eroare la undo.'))
+  ;(async () => {
+    if (!(await confirmUnsavedPositionBeforeLeaving())) return
+    await undo()
+  })().catch((error) => alert(error.message || 'Eroare la undo.'))
 })
 redoBtn.addEventListener('click', () => {
-  redo().catch((error) => alert(error.message || 'Eroare la redo.'))
+  ;(async () => {
+    if (!(await confirmUnsavedPositionBeforeLeaving())) return
+    await redo()
+  })().catch((error) => alert(error.message || 'Eroare la redo.'))
 })
 
 zoomInBtn.addEventListener('click', () => setScale(view.scale * 1.12))
@@ -7067,7 +7171,19 @@ resetViewBtn.addEventListener('click', () => {
 })
 tutorialBtn.addEventListener('click', openTutorial)
 editorModeBtn.addEventListener('click', () => {
-  setEditorMode(!editorMode)
+  ;(async () => {
+    if (editorMode && !(await confirmUnsavedPositionBeforeLeaving())) return
+    setEditorMode(!editorMode)
+  })().catch((error) => {
+    console.error('Editor mode toggle failed:', error)
+    alert(error.message || 'Editor Mode nu a putut fi schimbat.')
+  })
+})
+
+savePositionBtn.addEventListener('click', () => {
+  saveUnsavedNodePosition().catch((error) => {
+    console.error('Position save button failed:', error)
+  })
 })
 
 taxonomyManagerBtn.addEventListener('click', () => {
@@ -7314,6 +7430,11 @@ retryLoadBtn.addEventListener('click', () => {
 })
 
 // Keyboard shortcuts and global lifecycle events
+async function runHistoryActionWithUnsavedGuard(action) {
+  if (!(await confirmUnsavedPositionBeforeLeaving())) return
+  await action()
+}
+
 async function refreshHistoryButtons() {
   if (!canEdit || !editorMode) {
     undoBtn.disabled = true
@@ -7375,7 +7496,7 @@ window.addEventListener('keydown', (event) => {
     !event.shiftKey
   ) {
     event.preventDefault()
-    undo().catch((error) => alert(error.message || 'Eroare la undo.'))
+    runHistoryActionWithUnsavedGuard(undo).catch((error) => alert(error.message || 'Eroare la undo.'))
     return
   }
 
@@ -7386,7 +7507,7 @@ window.addEventListener('keydown', (event) => {
       ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'z'))
   ) {
     event.preventDefault()
-    redo().catch((error) => alert(error.message || 'Eroare la redo.'))
+    runHistoryActionWithUnsavedGuard(redo).catch((error) => alert(error.message || 'Eroare la redo.'))
     return
   }
 
@@ -7417,6 +7538,24 @@ window.addEventListener('keydown', (event) => {
     event.preventDefault()
     resetSelectedNodeSize().catch((error) => {
       alert(error.message || 'Eroare la resetarea dimensiunii.')
+    })
+    return
+  }
+
+  if (
+    !isTyping &&
+    canEdit &&
+    editorMode &&
+    !isAnyModalOpen() &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey &&
+    event.key.toLowerCase() === 'f' &&
+    hasUnsavedNodePosition(selectedId)
+  ) {
+    event.preventDefault()
+    saveUnsavedNodePosition().catch((error) => {
+      console.error('F position save failed:', error)
     })
     return
   }
@@ -7488,6 +7627,12 @@ window.addEventListener('keydown', (event) => {
   }
 
   if (!introDismissed) dismissIntro()
+})
+
+window.addEventListener('beforeunload', (event) => {
+  if (!hasUnsavedNodePosition()) return
+  event.preventDefault()
+  event.returnValue = ''
 })
 
 const savedPanelState = localStorage.getItem(CACHE_KEYS.panel)

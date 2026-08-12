@@ -3201,7 +3201,7 @@
             <div class="editor-tools-heading">
               <div>
                 <strong>Editor tools</strong>
-                <span>modificări salvate în Supabase</span>
+                <span>WASD mută local · F salvează poziția</span>
               </div>
             </div>
 
@@ -3225,6 +3225,15 @@
                 <button class="btn" id="undoBtn">Undo</button>
                 <button class="btn" id="redoBtn">Redo</button>
               </div>
+
+              <button
+                class="btn primary"
+                id="savePositionBtn"
+                type="button"
+                hidden
+              >
+                Salvează poziția · F
+              </button>
 
               <div class="btn-row">
                 <button class="btn" id="addEdgePointBtn" type="button">+ Punct muchie</button>
@@ -3253,6 +3262,7 @@
           <div class="tools-note">
             Click sau tap pe un nod pentru documentație. Zoom cu scroll și pan cu drag pe fundal.
             În Editor Mode poți redimensiona nodurile, selecta o muchie, adăuga mai multe puncte și trage fiecare punct numerotat.
+            WASD mută rapid nodul selectat doar local; apasă F sau „Salvează poziția” ca să trimiți o singură actualizare în Supabase. Săgețile păstrează mutarea fină cu salvare directă.
           </div>
         </div>
       </div>
@@ -3719,6 +3729,6 @@
     </div>
   </div>
 
-  <script type="module" src="./js/atlas-script.js?v=37"></script>
+  <script type="module" src="./js/atlas-script.js?v=38"></script>
 </body>
 </html>
