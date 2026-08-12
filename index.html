@@ -439,38 +439,13 @@
     .icon-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,77,109,0.2); }
 
     .detail-content {
-      flex: 1 1 auto;
-      min-height: 0;
-      height: auto;
       padding: 24px 34px 34px;
-      overflow-y: auto;
-      overflow-x: hidden;
+      overflow: auto;
       display: grid;
       grid-template-columns: minmax(260px, 340px) 1fr;
       gap: 18px;
       align-items: start;
-      scrollbar-gutter: stable;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(177, 76, 255, 0.72) rgba(255, 255, 255, 0.05);
-    }
-
-    .detail-content::-webkit-scrollbar {
-      width: 11px;
-    }
-
-    .detail-content::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.04);
-      border-left: 1px solid rgba(255, 255, 255, 0.035);
-    }
-
-    .detail-content::-webkit-scrollbar-thumb {
-      background: linear-gradient(180deg, rgba(177, 76, 255, 0.82), rgba(255, 77, 109, 0.72));
-      border: 2px solid rgba(6, 6, 8, 0.96);
-      border-radius: 999px;
-    }
-
-    .detail-content::-webkit-scrollbar-thumb:hover {
-      background: linear-gradient(180deg, rgba(205, 112, 255, 0.95), rgba(255, 105, 132, 0.9));
+      height: 100%;
     }
 
     .info-card,
@@ -588,16 +563,41 @@
     }
 
     .rich-editor {
-      min-height: 300px;
-      max-height: 58vh;
-      overflow: auto;
+      height: clamp(280px, 42vh, 440px);
+      min-height: 0;
+      max-height: none;
+      overflow-y: scroll;
+      overflow-x: hidden;
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(177, 76, 255, 0.78) rgba(255, 255, 255, 0.035);
       padding: 14px 15px;
       color: #ebebef;
       line-height: 1.8;
       outline: none;
       white-space: normal;
       overflow-wrap: anywhere;
+      overscroll-behavior: contain;
       -webkit-overflow-scrolling: touch;
+    }
+
+    .rich-editor::-webkit-scrollbar {
+      width: 11px;
+    }
+
+    .rich-editor::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.025);
+      border-left: 1px solid rgba(255, 255, 255, 0.035);
+    }
+
+    .rich-editor::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(205, 112, 255, 0.9), rgba(177, 76, 255, 0.62));
+      border: 2px solid rgba(8, 8, 11, 0.96);
+      border-radius: 999px;
+    }
+
+    .rich-editor::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, rgba(218, 139, 255, 0.98), rgba(194, 96, 255, 0.8));
     }
 
     .rich-editor:empty::before {
@@ -638,6 +638,12 @@
       color: #848490;
       font-size: 0.76rem;
       line-height: 1.45;
+    }
+
+    @media (max-width: 700px) {
+      .rich-editor {
+        height: clamp(240px, 38dvh, 360px);
+      }
     }
 
     .quick-facts {
@@ -3295,6 +3301,6 @@
     </div>
   </div>
 
-  <script type="module" src="./js/atlas-script.js?v=32"></script>
+  <script type="module" src="./js/atlas-script.js?v=33"></script>
 </body>
 </html>
