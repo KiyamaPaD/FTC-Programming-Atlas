@@ -439,13 +439,38 @@
     .icon-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,77,109,0.2); }
 
     .detail-content {
+      flex: 1 1 auto;
+      min-height: 0;
+      height: auto;
       padding: 24px 34px 34px;
-      overflow: auto;
+      overflow-y: auto;
+      overflow-x: hidden;
       display: grid;
       grid-template-columns: minmax(260px, 340px) 1fr;
       gap: 18px;
       align-items: start;
-      height: 100%;
+      scrollbar-gutter: stable;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(177, 76, 255, 0.72) rgba(255, 255, 255, 0.05);
+    }
+
+    .detail-content::-webkit-scrollbar {
+      width: 11px;
+    }
+
+    .detail-content::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.04);
+      border-left: 1px solid rgba(255, 255, 255, 0.035);
+    }
+
+    .detail-content::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(177, 76, 255, 0.82), rgba(255, 77, 109, 0.72));
+      border: 2px solid rgba(6, 6, 8, 0.96);
+      border-radius: 999px;
+    }
+
+    .detail-content::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(180deg, rgba(205, 112, 255, 0.95), rgba(255, 105, 132, 0.9));
     }
 
     .info-card,
@@ -3270,6 +3295,6 @@
     </div>
   </div>
 
-  <script type="module" src="./js/atlas-script.js?v=31"></script>
+  <script type="module" src="./js/atlas-script.js?v=32"></script>
 </body>
 </html>
