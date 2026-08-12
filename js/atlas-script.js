@@ -1,13 +1,17 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log('ATLAS SCRIPT LOADED v30 · MULTI-POINT EDGES')
+console.log('ATLAS SCRIPT LOADED v36 · NODE FILES + FOLDER UPLOADS')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
 const PROJECT_ID = 'ftc-main'
 const MEDIA_BUCKET = 'atlas-media'
+const FILE_BUCKET = 'atlas-files'
 const MAX_MEDIA_FILE_SIZE = 50 * 1024 * 1024
+const MAX_NODE_FILE_SIZE = 100 * 1024 * 1024
+const MAX_NODE_FILE_BATCH_COUNT = 250
+const MAX_NODE_FILE_BATCH_SIZE = 500 * 1024 * 1024
 const ALLOWED_MEDIA_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -210,7 +214,7 @@ Introduci email-ul și apeși pe Trimite magic link. După ce deschizi link-ul d
 
 11. Ce este salvat online
 
-Nodurile, relațiile, categoriile, dificultățile, etichetele, media, snippet-urile de cod și tutorialul sunt în Supabase.`
+Nodurile, relațiile, categoriile, dificultățile, etichetele, media, fișierele și folderele, snippet-urile de cod și tutorialul sunt în Supabase.`
 
 // Compatibility hook retained for earlier local-cache versions
 function saveCachedNodes() {}
@@ -282,6 +286,9 @@ let taxonomyMutationBusy = false
 let mediaManagerNodeId = null
 let mediaMutationBusy = false
 
+let fileManagerNodeId = null
+let fileMutationBusy = false
+
 let codeManagerNodeId = null
 let codeMutationBusy = false
 let codeDraftSaveTimer = null
@@ -323,6 +330,8 @@ const editorToolsSection = document.getElementById('editorToolsSection')
 const taxonomyManagerBtn = document.getElementById('taxonomyManagerBtn')
 
 const mediaManagerBtn = document.getElementById('mediaManagerBtn')
+
+const fileManagerBtn = document.getElementById('fileManagerBtn')
 
 const codeManagerBtn = document.getElementById('codeManagerBtn')
 
@@ -410,6 +419,18 @@ const addExternalMediaBtn = document.getElementById('addExternalMediaBtn')
 const mediaManagerList = document.getElementById('mediaManagerList')
 
 const closeMediaManagerFooterBtn = document.getElementById('closeMediaManagerFooterBtn')
+
+const fileManagerBackdrop = document.getElementById('fileManagerBackdrop')
+const closeFileManagerBtn = document.getElementById('closeFileManagerBtn')
+const closeFileManagerFooterBtn = document.getElementById('closeFileManagerFooterBtn')
+const fileManagerTitle = document.getElementById('fileManagerTitle')
+const fileManagerSummary = document.getElementById('fileManagerSummary')
+const nodeFilesInput = document.getElementById('nodeFilesInput')
+const nodeFolderInput = document.getElementById('nodeFolderInput')
+const uploadNodeFilesBtn = document.getElementById('uploadNodeFilesBtn')
+const uploadNodeFolderBtn = document.getElementById('uploadNodeFolderBtn')
+const fileManagerStatus = document.getElementById('fileManagerStatus')
+const fileManagerList = document.getElementById('fileManagerList')
 
 const codeManagerBackdrop = document.getElementById('codeManagerBackdrop')
 
@@ -708,6 +729,13 @@ function matchesSearch(node) {
     nodeDifficultyName(node),
     ...nodeTagNames(node),
     ...(node.media || []).flatMap((media) => [media.title || '', media.caption || '']),
+    ...(node.files || []).flatMap((file) => [
+      file.title || '',
+      file.description || '',
+      file.originalName || '',
+      file.relativePath || '',
+      file.mimeType || ''
+    ]),
     ...(node.codeSnippets || []).flatMap((snippet) => [
       snippet.title || '',
       snippet.description || '',
@@ -1294,6 +1322,130 @@ function renderNodeMediaGallery(node) {
   `
 }
 
+// General file presentation helpers
+function filePublicUrl(file) {
+  if (!file?.storagePath) return null
+  const { data } = supabase.storage.from(FILE_BUCKET).getPublicUrl(file.storagePath)
+  return data?.publicUrl || null
+}
+
+function fileDisplayPath(file) {
+  const folder = String(file?.relativePath || '').replace(/^\/+|\/+$/g, '')
+  return folder ? `${folder}/${file.originalName || 'fișier'}` : file.originalName || 'fișier'
+}
+
+function fileExtensionLabel(filename) {
+  const name = String(filename || '')
+  const dot = name.lastIndexOf('.')
+  if (dot <= 0 || dot === name.length - 1) return 'FILE'
+  return name.slice(dot + 1).toUpperCase().slice(0, 6)
+}
+
+function sanitizeStoragePathSegment(segment, fallback = 'folder') {
+  return (
+    String(segment || '')
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 70) || fallback
+  )
+}
+
+function folderPathFromBrowserFile(file) {
+  const rawPath = String(file?.webkitRelativePath || '').replace(/\\/g, '/')
+  const parts = rawPath.split('/').filter(Boolean)
+  if (parts.length <= 1) return ''
+  return parts.slice(0, -1).join('/')
+}
+
+function storagePathForNodeFile(nodeId, file, relativePath, batchId) {
+  const safeFolder = String(relativePath || '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .map((part) => sanitizeStoragePathSegment(part))
+    .join('/')
+  const safeName = sanitizeStorageFilename(file?.name || 'file')
+  return [PROJECT_ID, Number(nodeId), batchId, safeFolder, safeName].filter(Boolean).join('/')
+}
+
+function groupNodeFilesByFolder(files) {
+  const groups = new Map()
+  for (const file of files || []) {
+    const folder = String(file.relativePath || '').replace(/^\/+|\/+$/g, '')
+    if (!groups.has(folder)) groups.set(folder, [])
+    groups.get(folder).push(file)
+  }
+  return groups
+}
+
+function renderNodeFiles(node) {
+  const files = Array.isArray(node.files) ? node.files : []
+
+  if (files.length === 0) {
+    if (!canEdit || !editorMode) return ''
+
+    return `
+      <section class="node-files-section empty">
+        <div class="node-files-heading">
+          <div>
+            <span>fișiere</span>
+            <h3>Fișiere și foldere</h3>
+          </div>
+          <button class="btn" type="button" data-open-node-files>Adaugă fișiere</button>
+        </div>
+        <p>Poți atașa arhive, PDF-uri, proiecte, configurații, surse și foldere întregi.</p>
+      </section>
+    `
+  }
+
+  const groups = groupNodeFilesByFolder(files)
+  const groupsHtml = [...groups.entries()]
+    .map(([folder, items]) => `
+      <div class="file-folder-group">
+        <div class="file-folder-label">📁 <code>${escapeHtml(folder || 'Rădăcina nodului')}</code></div>
+        <div class="node-file-list">
+          ${items
+            .map((file) => {
+              const url = filePublicUrl(file)
+              return `
+                <article class="node-file-row">
+                  <div class="node-file-icon">${escapeHtml(fileExtensionLabel(file.originalName))}</div>
+                  <div class="node-file-copy">
+                    <strong>${escapeHtml(file.title || file.originalName)}</strong>
+                    <span>${escapeHtml(file.originalName)} · ${escapeHtml(humanFileSize(file.fileSize))}</span>
+                    ${file.description ? `<p>${escapeHtml(file.description)}</p>` : ''}
+                  </div>
+                  ${
+                    url
+                      ? `<a class="btn file-download-btn" href="${escapeHtml(url)}" download="${escapeHtml(file.originalName)}" target="_blank" rel="noopener noreferrer">Descarcă</a>`
+                      : '<span class="file-download-btn">Indisponibil</span>'
+                  }
+                </article>
+              `
+            })
+            .join('')}
+        </div>
+      </div>
+    `)
+    .join('')
+
+  return `
+    <section class="node-files-section">
+      <div class="node-files-heading">
+        <div>
+          <span>fișiere</span>
+          <h3>Fișiere și foldere · ${files.length}</h3>
+        </div>
+        ${canEdit && editorMode ? '<button class="btn" type="button" data-open-node-files>Administrează</button>' : ''}
+      </div>
+      ${groupsHtml}
+    </section>
+  `
+}
+
 // Code snippet presentation helpers
 const CODE_LANGUAGES = [
   ['java', 'Java'],
@@ -1588,6 +1740,7 @@ function isAnyModalOpen() {
   return Boolean(
     modalBackdrop.classList.contains('open') ||
     mediaManagerBackdrop.classList.contains('open') ||
+    fileManagerBackdrop.classList.contains('open') ||
     codeManagerBackdrop.classList.contains('open') ||
     taxonomyManagerBackdrop.classList.contains('open') ||
     taxonomyItemBackdrop.classList.contains('open') ||
@@ -2436,6 +2589,7 @@ async function fetchAllData() {
     tagsResult,
     nodeTagsResult,
     mediaResult,
+    filesResult,
     codeResult,
     tutorialResult
   ] = await Promise.all([
@@ -2484,6 +2638,14 @@ async function fetchAllData() {
       .order('id', { ascending: true }),
 
     supabase
+      .from('atlas_node_files')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .order('node_id', { ascending: true })
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true }),
+
+    supabase
       .from('atlas_node_code_snippets')
       .select('*')
       .eq('project_id', PROJECT_ID)
@@ -2506,6 +2668,7 @@ async function fetchAllData() {
     tagsResult,
     nodeTagsResult,
     mediaResult,
+    filesResult,
     codeResult,
     tutorialResult
   ]) {
@@ -2523,6 +2686,7 @@ async function fetchAllData() {
   const edgesData = edgesResult.data || []
   const nodeTagsData = nodeTagsResult.data || []
   const mediaData = mediaResult.data || []
+  const filesData = filesResult.data || []
   const codeData = codeResult.data || []
 
   if (nodesData.length === 0) {
@@ -2576,6 +2740,27 @@ async function fetchAllData() {
     })
   }
 
+  const filesByNode = new Map()
+  for (const row of filesData) {
+    const nodeId = Number(row.node_id)
+    if (!filesByNode.has(nodeId)) filesByNode.set(nodeId, [])
+
+    filesByNode.get(nodeId).push({
+      id: Number(row.id),
+      nodeId,
+      storagePath: row.storage_path,
+      originalName: row.original_name || 'fișier',
+      relativePath: row.relative_path || '',
+      mimeType: row.mime_type || '',
+      fileSize: Number(row.file_size || 0),
+      title: row.title || '',
+      description: row.description || '',
+      sortOrder: Number(row.sort_order || 0),
+      createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null
+    })
+  }
+
   const codeByNode = new Map()
   for (const row of codeData) {
     const nodeId = Number(row.node_id)
@@ -2609,6 +2794,7 @@ async function fetchAllData() {
     contentFormat: node.content_format || 'plain',
     links: edgesBySource.get(Number(node.id)) || [],
     media: mediaByNode.get(Number(node.id)) || [],
+    files: filesByNode.get(Number(node.id)) || [],
     codeSnippets: codeByNode.get(Number(node.id)) || []
   }))
 
@@ -2648,6 +2834,7 @@ async function fetchAllData() {
     difficultiesCount: difficulties.length,
     tagsCount: taxonomyTags.length,
     mediaCount: mediaData.length,
+    fileCount: filesData.length,
     codeSnippetCount: codeData.length
   })
 }
@@ -2764,6 +2951,60 @@ async function reorderMediaRemote(nodeId, items) {
 
   if (error) throw error
   if (!data?.ok) throw new Error('Ordinea media nu a fost salvată.')
+  return data
+}
+
+async function createFileRemote(item) {
+  const { data, error } = await supabase.rpc('atlas_file_create', {
+    p_project_id: PROJECT_ID,
+    p_node_id: Number(item.nodeId),
+    p_storage_path: item.storagePath,
+    p_original_name: item.originalName,
+    p_relative_path: item.relativePath || '',
+    p_mime_type: item.mimeType || '',
+    p_file_size: Number(item.fileSize || 0),
+    p_title: item.title || '',
+    p_description: item.description || '',
+    p_sort_order: Number(item.sortOrder || 0)
+  })
+
+  if (error) throw error
+  return normalizeRpcRow(data, 'Fișierul')
+}
+
+async function updateFileRemote(item) {
+  const { data, error } = await supabase.rpc('atlas_file_update', {
+    p_project_id: PROJECT_ID,
+    p_file_id: Number(item.id),
+    p_title: item.title || '',
+    p_description: item.description || '',
+    p_sort_order: Number(item.sortOrder || 0)
+  })
+
+  if (error) throw error
+  return normalizeRpcRow(data, 'Fișierul')
+}
+
+async function deleteFileRemote(fileId) {
+  const { data, error } = await supabase.rpc('atlas_file_delete', {
+    p_project_id: PROJECT_ID,
+    p_file_id: Number(fileId)
+  })
+
+  if (error) throw error
+  if (!data?.ok) throw new Error('Fișierul nu a fost șters.')
+  return data
+}
+
+async function reorderFilesRemote(nodeId, items) {
+  const { data, error } = await supabase.rpc('atlas_file_reorder', {
+    p_project_id: PROJECT_ID,
+    p_node_id: Number(nodeId),
+    p_items: items
+  })
+
+  if (error) throw error
+  if (!data?.ok) throw new Error('Ordinea fișierelor nu a fost salvată.')
   return data
 }
 
@@ -3124,6 +3365,7 @@ function updateAuthUI() {
   editorToolsSection.hidden = !editorActive
   taxonomyManagerBtn.disabled = editorBlocked
   mediaManagerBtn.disabled = editorBlocked || !hasSelectedNode
+  fileManagerBtn.disabled = editorBlocked || !hasSelectedNode
   codeManagerBtn.disabled = editorBlocked || !hasSelectedNode
 
   if (!editorActive && isTaxonomyManagerOpen()) {
@@ -3132,6 +3374,10 @@ function updateAuthUI() {
 
   if (!editorActive && isMediaManagerOpen()) {
     closeMediaManager()
+  }
+
+  if (!editorActive && isFileManagerOpen()) {
+    closeFileManager()
   }
 
   if (!editorActive && isCodeManagerOpen()) {
@@ -3213,6 +3459,7 @@ function setEditorMode(nextValue) {
 
     closeTaxonomyManager()
     closeMediaManager()
+    closeFileManager()
     closeCodeManager()
   }
 
@@ -4681,6 +4928,345 @@ async function moveMediaItem(mediaId, direction) {
   }
 }
 
+// General File Manager
+function currentFileNode() {
+  return findNode(fileManagerNodeId)
+}
+
+function isFileManagerOpen() {
+  return fileManagerBackdrop.classList.contains('open')
+}
+
+function setFileMutationBusy(nextValue, status = '') {
+  fileMutationBusy = Boolean(nextValue)
+
+  uploadNodeFilesBtn.disabled = fileMutationBusy
+  uploadNodeFolderBtn.disabled = fileMutationBusy
+  closeFileManagerBtn.disabled = fileMutationBusy
+  closeFileManagerFooterBtn.disabled = fileMutationBusy
+  nodeFilesInput.disabled = fileMutationBusy
+  nodeFolderInput.disabled = fileMutationBusy
+
+  fileManagerList.querySelectorAll('button, input, textarea, a').forEach((element) => {
+    if ('disabled' in element) {
+      element.disabled = fileMutationBusy || element.dataset.baseDisabled === 'true'
+    }
+    element.style.pointerEvents = fileMutationBusy ? 'none' : ''
+  })
+
+  if (status) fileManagerStatus.textContent = status
+}
+
+function resetFileUploadInputs() {
+  nodeFilesInput.value = ''
+  nodeFolderInput.value = ''
+  fileManagerStatus.textContent = ''
+}
+
+function openFileManager(nodeId = selectedId) {
+  if (!requireAuth()) return
+
+  const node = findNode(nodeId)
+  if (!node) {
+    alert('Selectează mai întâi un nod.')
+    return
+  }
+
+  fileManagerNodeId = Number(node.id)
+  resetFileUploadInputs()
+  fileManagerBackdrop.classList.add('open')
+  renderFileManager()
+}
+
+function closeFileManager() {
+  if (fileMutationBusy) return
+  fileManagerBackdrop.classList.remove('open')
+  fileManagerNodeId = null
+  resetFileUploadInputs()
+}
+
+function renderFileManager() {
+  const node = currentFileNode()
+
+  if (!node) {
+    fileManagerTitle.textContent = 'Fișiere nod'
+    fileManagerSummary.textContent = 'Nodul nu mai există.'
+    fileManagerList.innerHTML = ''
+    return
+  }
+
+  const items = Array.isArray(node.files) ? node.files : []
+  const folderCount = new Set(items.map((item) => item.relativePath || '').filter(Boolean)).size
+  const totalSize = items.reduce((sum, item) => sum + Number(item.fileSize || 0), 0)
+
+  fileManagerTitle.textContent = `Fișiere · ${node.title}`
+  fileManagerSummary.innerHTML = `
+    <strong>${items.length}</strong> ${items.length === 1 ? 'fișier' : 'fișiere'} ·
+    <strong>${folderCount}</strong> ${folderCount === 1 ? 'cale de folder' : 'căi de folder'} ·
+    ${escapeHtml(humanFileSize(totalSize))} total.
+  `
+
+  if (items.length === 0) {
+    fileManagerList.innerHTML = `
+      <div class="file-manager-empty">
+        <strong>Niciun fișier atașat</strong>
+        <span>Poți încărca fișiere individuale sau un folder întreg.</span>
+      </div>
+    `
+    return
+  }
+
+  fileManagerList.innerHTML = items
+    .map((file, index) => {
+      const url = filePublicUrl(file)
+      return `
+        <article class="file-manager-item" data-file-id="${file.id}">
+          <div class="file-manager-icon">${escapeHtml(fileExtensionLabel(file.originalName))}</div>
+          <div class="file-manager-item-body">
+            <div class="file-manager-item-head">
+              <div class="file-manager-name">
+                <strong>${escapeHtml(file.originalName)}</strong>
+                <span>${escapeHtml(fileDisplayPath(file))}</span>
+              </div>
+              ${url ? `<a class="btn" href="${escapeHtml(url)}" download="${escapeHtml(file.originalName)}" target="_blank" rel="noopener noreferrer">Descarcă</a>` : ''}
+            </div>
+
+            <div class="file-manager-meta">
+              <span>${escapeHtml(humanFileSize(file.fileSize))}</span>
+              <span>${escapeHtml(file.mimeType || 'application/octet-stream')}</span>
+            </div>
+
+            <div class="field">
+              <label>Titlu afișat</label>
+              <input data-file-title maxlength="160" value="${escapeHtmlText(file.title)}" placeholder="Implicit: numele fișierului">
+            </div>
+
+            <div class="field">
+              <label>Descriere</label>
+              <textarea data-file-description rows="2" maxlength="1200" placeholder="Ce conține fișierul?">${escapeHtmlText(file.description)}</textarea>
+            </div>
+
+            <div class="file-manager-actions">
+              <button class="btn" type="button" data-file-move="-1" data-base-disabled="${index === 0 ? 'true' : 'false'}" ${index === 0 ? 'disabled' : ''}>↑</button>
+              <button class="btn" type="button" data-file-move="1" data-base-disabled="${index === items.length - 1 ? 'true' : 'false'}" ${index === items.length - 1 ? 'disabled' : ''}>↓</button>
+              <button class="btn primary" type="button" data-file-save>Salvează textul</button>
+              <button class="btn danger" type="button" data-file-delete>Șterge</button>
+            </div>
+          </div>
+        </article>
+      `
+    })
+    .join('')
+
+  fileManagerList.querySelectorAll('[data-file-save]').forEach((button) => {
+    button.addEventListener('click', () => {
+      saveFileCard(button.closest('[data-file-id]')).catch((error) => {
+        console.error('File metadata update failed:', error)
+        alert(error.message || 'Eroare la salvarea fișierului.')
+      })
+    })
+  })
+
+  fileManagerList.querySelectorAll('[data-file-delete]').forEach((button) => {
+    button.addEventListener('click', () => {
+      deleteNodeFile(Number(button.closest('[data-file-id]').dataset.fileId)).catch((error) => {
+        console.error('File delete failed:', error)
+        alert(error.message || 'Eroare la ștergerea fișierului.')
+      })
+    })
+  })
+
+  fileManagerList.querySelectorAll('[data-file-move]').forEach((button) => {
+    button.addEventListener('click', () => {
+      moveNodeFile(
+        Number(button.closest('[data-file-id]').dataset.fileId),
+        Number(button.dataset.fileMove)
+      ).catch((error) => {
+        console.error('File reorder failed:', error)
+        alert(error.message || 'Eroare la reordonarea fișierelor.')
+      })
+    })
+  })
+
+  setFileMutationBusy(fileMutationBusy)
+}
+
+async function refreshAfterFileMutation() {
+  const nodeId = fileManagerNodeId
+  const body = fileManagerBackdrop.querySelector('.file-manager-body')
+  const previousScrollTop = body?.scrollTop || 0
+
+  await fetchAllData()
+  fileManagerNodeId = nodeId
+
+  if (isFileManagerOpen()) {
+    renderFileManager()
+    restoreModalScrollPosition(fileManagerBackdrop.querySelector('.file-manager-body'), previousScrollTop)
+  }
+}
+
+function validateNodeFileBatch(files) {
+  const batch = [...(files || [])]
+  if (batch.length === 0) throw new Error('Alege cel puțin un fișier.')
+  if (batch.length > MAX_NODE_FILE_BATCH_COUNT) {
+    throw new Error(`Poți încărca maximum ${MAX_NODE_FILE_BATCH_COUNT} de fișiere într-un singur batch.`)
+  }
+
+  let totalSize = 0
+  for (const file of batch) {
+    if (file.size > MAX_NODE_FILE_SIZE) {
+      throw new Error(`„${file.name}” depășește limita de 100 MB.`)
+    }
+    totalSize += Number(file.size || 0)
+  }
+
+  if (totalSize > MAX_NODE_FILE_BATCH_SIZE) {
+    throw new Error('Batch-ul depășește limita totală de 500 MB.')
+  }
+
+  return batch
+}
+
+async function uploadNodeFileBatch(fileList, preserveFolders) {
+  if (!requireAuth() || fileMutationBusy) return
+
+  const node = currentFileNode()
+  if (!node) throw new Error('Nodul nu mai există.')
+
+  const batch = validateNodeFileBatch(fileList)
+  const batchId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  let nextOrder =
+    (node.files || []).reduce((max, item) => Math.max(max, Number(item.sortOrder || 0)), 0) + 10
+  const uploadedPaths = []
+  const createdRows = []
+
+  setFileMutationBusy(true, `Pregătim ${batch.length} ${batch.length === 1 ? 'fișier' : 'fișiere'}...`)
+
+  try {
+    for (let index = 0; index < batch.length; index += 1) {
+      const file = batch[index]
+      const relativePath = preserveFolders ? folderPathFromBrowserFile(file) : ''
+      const storagePath = storagePathForNodeFile(node.id, file, relativePath, batchId)
+      const contentType = file.type || 'application/octet-stream'
+
+      fileManagerStatus.textContent = `Se încarcă ${index + 1}/${batch.length}: ${file.name}`
+
+      const { error: uploadError } = await supabase.storage.from(FILE_BUCKET).upload(storagePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType
+      })
+
+      if (uploadError) throw uploadError
+      uploadedPaths.push(storagePath)
+
+      const created = await createFileRemote({
+        nodeId: node.id,
+        storagePath,
+        originalName: file.name,
+        relativePath,
+        mimeType: contentType,
+        fileSize: file.size,
+        title: file.name,
+        description: '',
+        sortOrder: nextOrder
+      })
+
+      createdRows.push(created)
+      nextOrder += 10
+    }
+
+    resetFileUploadInputs()
+    fileManagerStatus.textContent = `${batch.length} ${batch.length === 1 ? 'fișier încărcat' : 'fișiere încărcate'} cu succes.`
+    await refreshAfterFileMutation()
+  } catch (error) {
+    for (const row of createdRows.reverse()) {
+      await deleteFileRemote(row.id).catch(() => {})
+    }
+
+    if (uploadedPaths.length > 0) {
+      await supabase.storage.from(FILE_BUCKET).remove(uploadedPaths).catch(() => {})
+    }
+    throw error
+  } finally {
+    setFileMutationBusy(false)
+  }
+}
+
+async function saveFileCard(card) {
+  if (!requireAuth() || fileMutationBusy || !card) return
+
+  const node = currentFileNode()
+  const file = node?.files?.find((item) => Number(item.id) === Number(card.dataset.fileId))
+  if (!file) throw new Error('Fișierul nu mai există.')
+
+  setFileMutationBusy(true, 'Se salvează textul...')
+  try {
+    await updateFileRemote({
+      ...file,
+      title: card.querySelector('[data-file-title]').value.trim(),
+      description: card.querySelector('[data-file-description]').value.trim()
+    })
+    fileManagerStatus.textContent = 'Titlul și descrierea au fost salvate.'
+    await refreshAfterFileMutation()
+  } finally {
+    setFileMutationBusy(false)
+  }
+}
+
+async function deleteNodeFile(fileId) {
+  if (!requireAuth() || fileMutationBusy) return
+
+  const node = currentFileNode()
+  const file = node?.files?.find((item) => Number(item.id) === Number(fileId))
+  if (!file) throw new Error('Fișierul nu mai există.')
+
+  const confirmed = confirm(`Sigur vrei să ștergi „${file.originalName}”?`)
+  if (!confirmed) return
+
+  setFileMutationBusy(true, 'Se șterge fișierul...')
+  try {
+    await deleteFileRemote(file.id)
+
+    if (file.storagePath) {
+      const { error: storageError } = await supabase.storage.from(FILE_BUCKET).remove([file.storagePath])
+      if (storageError) console.warn('File storage cleanup failed:', storageError)
+    }
+
+    fileManagerStatus.textContent = 'Fișier șters.'
+    await refreshAfterFileMutation()
+  } finally {
+    setFileMutationBusy(false)
+  }
+}
+
+async function moveNodeFile(fileId, direction) {
+  if (!requireAuth() || fileMutationBusy) return
+
+  const node = currentFileNode()
+  if (!node) throw new Error('Nodul nu mai există.')
+
+  const ordered = [...(node.files || [])]
+  const index = ordered.findIndex((item) => Number(item.id) === Number(fileId))
+  const targetIndex = index + Number(direction)
+  if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) return
+
+  ;[ordered[index], ordered[targetIndex]] = [ordered[targetIndex], ordered[index]]
+  const payload = ordered.map((item, orderIndex) => ({
+    id: Number(item.id),
+    order: (orderIndex + 1) * 10
+  }))
+
+  setFileMutationBusy(true, 'Se salvează ordinea...')
+  try {
+    await reorderFilesRemote(node.id, payload)
+    fileManagerStatus.textContent = 'Ordinea a fost salvată.'
+    await refreshAfterFileMutation()
+  } finally {
+    setFileMutationBusy(false)
+  }
+}
+
 // Code Manager and local draft persistence
 function currentCodeNode() {
   return findNode(codeManagerNodeId)
@@ -5226,6 +5812,7 @@ function renderDetailPanel() {
         <div class="icon-actions">
           <button class="icon-btn" id="detailCodeBtn" aria-label="Nod cod">&lt;/&gt;</button>
           <button class="icon-btn" id="detailMediaBtn" aria-label="Media">▣</button>
+          <button class="icon-btn" id="detailFilesBtn" aria-label="Fișiere">📎</button>
           <button class="icon-btn" id="detailAddRelationBtn" aria-label="Add relation">＋</button>
           <button class="icon-btn" id="detailEditBtn" aria-label="Edit">✎</button>
           <button class="icon-btn" id="detailDeleteBtn" aria-label="Delete">🗑</button>
@@ -5264,6 +5851,8 @@ function renderDetailPanel() {
         ${renderNodeCodeSnippets(node)}
 
         ${renderNodeMediaGallery(node)}
+
+        ${renderNodeFiles(node)}
       </div>
     </div>
   `
@@ -5275,6 +5864,7 @@ function renderDetailPanel() {
 
   const detailCodeBtn = document.getElementById('detailCodeBtn')
   const detailMediaBtn = document.getElementById('detailMediaBtn')
+  const detailFilesBtn = document.getElementById('detailFilesBtn')
   const detailAddRelationBtn = document.getElementById('detailAddRelationBtn')
   const detailEditBtn = document.getElementById('detailEditBtn')
   const detailDeleteBtn = document.getElementById('detailDeleteBtn')
@@ -5284,18 +5874,21 @@ function renderDetailPanel() {
 
   detailCodeBtn.hidden = hideEditorActions
   detailMediaBtn.hidden = hideEditorActions
+  detailFilesBtn.hidden = hideEditorActions
   detailAddRelationBtn.hidden = hideEditorActions
   detailEditBtn.hidden = hideEditorActions
   detailDeleteBtn.hidden = hideEditorActions
 
   detailCodeBtn.disabled = hideEditorActions
   detailMediaBtn.disabled = hideEditorActions
+  detailFilesBtn.disabled = hideEditorActions
   detailAddRelationBtn.disabled = hideEditorActions
   detailEditBtn.disabled = hideEditorActions
   detailDeleteBtn.disabled = hideEditorActions
 
   detailCodeBtn.addEventListener('click', () => openCodeManager(node.id))
   detailMediaBtn.addEventListener('click', () => openMediaManager(node.id))
+  detailFilesBtn.addEventListener('click', () => openFileManager(node.id))
   detailAddRelationBtn.addEventListener('click', () => activateRelationMode(node.id))
   detailEditBtn.addEventListener('click', () => openEdit(node.id))
   detailDeleteBtn.addEventListener('click', () => {
@@ -5338,6 +5931,10 @@ function renderDetailPanel() {
     button.addEventListener('click', () => openMediaManager(node.id))
   })
 
+  detailPanel.querySelectorAll('[data-open-node-files]').forEach((button) => {
+    button.addEventListener('click', () => openFileManager(node.id))
+  })
+
   detailPanel.querySelectorAll('[data-rel-edit]').forEach((button) => {
     button.disabled = hideEditorActions
     button.hidden = hideEditorActions
@@ -5375,6 +5972,10 @@ function renderAll() {
 
   if (isTaxonomyManagerOpen()) {
     renderTaxonomyManager()
+  }
+
+  if (isFileManagerOpen()) {
+    renderFileManager()
   }
 }
 
@@ -5809,6 +6410,7 @@ async function deleteSelected() {
     await deleteNodeRemote(node.id)
 
     const storedPaths = (node.media || []).map((media) => media.storagePath).filter(Boolean)
+    const storedFilePaths = (node.files || []).map((file) => file.storagePath).filter(Boolean)
 
     if (storedPaths.length > 0) {
       const { error: storageCleanupError } = await supabase.storage
@@ -5817,6 +6419,16 @@ async function deleteSelected() {
 
       if (storageCleanupError) {
         console.warn('Node media storage cleanup failed:', storageCleanupError)
+      }
+    }
+
+    if (storedFilePaths.length > 0) {
+      const { error: fileStorageCleanupError } = await supabase.storage
+        .from(FILE_BUCKET)
+        .remove(storedFilePaths)
+
+      if (fileStorageCleanupError) {
+        console.warn('Node file storage cleanup failed:', fileStorageCleanupError)
       }
     }
 
@@ -6178,6 +6790,10 @@ mediaManagerBtn.addEventListener('click', () => {
   openMediaManager()
 })
 
+fileManagerBtn.addEventListener('click', () => {
+  openFileManager()
+})
+
 codeManagerBtn.addEventListener('click', () => {
   openCodeManager()
 })
@@ -6216,6 +6832,29 @@ document.addEventListener('visibilitychange', () => {
 
 window.addEventListener('pagehide', () => {
   saveAllCodeDrafts()
+})
+
+closeFileManagerBtn.addEventListener('click', closeFileManager)
+closeFileManagerFooterBtn.addEventListener('click', closeFileManager)
+
+uploadNodeFilesBtn.addEventListener('click', () => {
+  uploadNodeFileBatch(nodeFilesInput.files, false).catch((error) => {
+    console.error('Node file upload failed:', error)
+    fileManagerStatus.textContent = error.message || 'Eroare la upload.'
+    alert(error.message || 'Eroare la upload.')
+  })
+})
+
+uploadNodeFolderBtn.addEventListener('click', () => {
+  uploadNodeFileBatch(nodeFolderInput.files, true).catch((error) => {
+    console.error('Node folder upload failed:', error)
+    fileManagerStatus.textContent = error.message || 'Eroare la upload-ul folderului.'
+    alert(error.message || 'Eroare la upload-ul folderului.')
+  })
+})
+
+fileManagerBackdrop.addEventListener('click', (event) => {
+  if (event.target === fileManagerBackdrop) closeFileManager()
 })
 
 closeMediaManagerBtn.addEventListener('click', closeMediaManager)
@@ -6499,6 +7138,8 @@ window.addEventListener('keydown', (event) => {
     if (!introDismissed) dismissIntro()
     else if (codeManagerBackdrop.classList.contains('open')) {
       closeCodeManager()
+    } else if (fileManagerBackdrop.classList.contains('open')) {
+      closeFileManager()
     } else if (mediaManagerBackdrop.classList.contains('open')) {
       closeMediaManager()
     } else if (taxonomyReplaceBackdrop.classList.contains('open')) {
