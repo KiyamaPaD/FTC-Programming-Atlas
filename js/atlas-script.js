@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log('ATLAS SCRIPT LOADED v38 · MANUAL WASD POSITION SAVE')
+console.log('ATLAS SCRIPT LOADED v39 · EDITOR DOUBLE CLICK OPEN')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -53,6 +53,7 @@ const WASD_INITIAL_SPEED = 160
 const WASD_ACCELERATION_DELAY_MS = 180
 const WASD_ACCELERATION = 500
 const WASD_MAX_SPEED = 720
+const EDITOR_NODE_DOUBLE_CLICK_MS = 420
 const activeTouchPoints = new Map()
 let pinchState = null
 let edgeControlDragState = null
@@ -183,7 +184,9 @@ Acest site este un atlas interactiv pentru documentația de programare FTC. Fiec
 
 3. Cum funcționează nodurile
 
-- un click sau tap = deschide documentația full-screen
+- în modul normal, un click sau tap = deschide documentația full-screen
+- în Editor Mode, un click = selectează nodul pentru mutare și relații
+- în Editor Mode, dublu click = deschide documentația nodului
 - în Editor Mode poți muta nodurile prin drag
 - roșu = selectat
 - mov = neselectat
@@ -302,6 +305,7 @@ let codeMutationBusy = false
 let codeDraftSaveTimer = null
 
 let edgeClickState = { key: null, time: 0 }
+let editorNodeClickState = { nodeId: null, time: 0 }
 let panState = null
 
 const keyboardMoveState = {
@@ -616,16 +620,43 @@ function clearEdgeSelection() {
 
 function handleNodeTap(nodeId) {
   ;(async () => {
-    if (!(await confirmUnsavedPositionBeforeLeaving(nodeId))) return
+    const numericNodeId = Number(nodeId)
 
-    selectedId = Number(nodeId)
+    if (!(await confirmUnsavedPositionBeforeLeaving(numericNodeId))) return
+
+    selectedId = numericNodeId
     clearEdgeSelection()
 
+    // Relation mode keeps single-click behavior: the click is an editor action,
+    // not an attempt to open the node documentation.
     if (relationMode.active) {
-      handleRelationNodeClick(Number(nodeId))
+      editorNodeClickState = { nodeId: null, time: 0 }
+      handleRelationNodeClick(numericNodeId)
       return
     }
 
+    // In Editor Mode a single click is reserved strictly for selection/movement.
+    // We detect the second click ourselves instead of relying on the native
+    // dblclick event because renderAll() rebuilds the node DOM after selection.
+    if (canEdit && editorMode) {
+      const now = performance.now()
+      const isDoubleClick =
+        Number(editorNodeClickState.nodeId) === numericNodeId &&
+        now - editorNodeClickState.time <= EDITOR_NODE_DOUBLE_CLICK_MS
+
+      if (isDoubleClick) {
+        editorNodeClickState = { nodeId: null, time: 0 }
+        detailOpen = true
+      } else {
+        editorNodeClickState = { nodeId: numericNodeId, time: now }
+        detailOpen = false
+      }
+
+      renderAll()
+      return
+    }
+
+    editorNodeClickState = { nodeId: null, time: 0 }
     detailOpen = true
     renderAll()
   })().catch((error) => {
@@ -4556,7 +4587,7 @@ function renderNodes() {
           <span class="pill category-pill">${escapeHtml(nodeCategoryName(node))}</span>
           <span class="pill difficulty-pill">${escapeHtml(nodeDifficultyName(node))}</span>
         </div>
-        ${node.id === selectedId ? '<span class="open-mark">open</span>' : ''}
+        ${node.id === selectedId ? `<span class="open-mark">${canEdit && editorMode ? '2× open' : 'open'}</span>` : ''}
       </div>
       <h3 class="node-title">${escapeHtml(node.title)}</h3>
       <p class="node-preview">${escapeHtml(nodeContentPlainText(node))}</p>
