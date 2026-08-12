@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-console.log('ATLAS SCRIPT LOADED v36 · NODE FILES + FOLDER UPLOADS')
+console.log('ATLAS SCRIPT LOADED v37 · ACCELERATED WASD NODE MOVEMENT')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -45,6 +45,14 @@ const NODE_MIN_HEIGHT = 104
 const NODE_MAX_WIDTH = 720
 const NODE_MAX_HEIGHT = 520
 const MAX_EDGE_CONTROL_POINTS = 12
+
+// Accelerated keyboard movement for the selected node.
+// Movement stays local while keys are held and is persisted once on release.
+const WASD_TAP_STEP = 12
+const WASD_INITIAL_SPEED = 160
+const WASD_ACCELERATION_DELAY_MS = 180
+const WASD_ACCELERATION = 500
+const WASD_MAX_SPEED = 720
 const activeTouchPoints = new Map()
 let pinchState = null
 let edgeControlDragState = null
@@ -295,6 +303,19 @@ let codeDraftSaveTimer = null
 
 let edgeClickState = { key: null, time: 0 }
 let panState = null
+
+const keyboardMoveState = {
+  keys: new Set(),
+  nodeId: null,
+  startedAt: 0,
+  lastFrameAt: 0,
+  frameId: null,
+  dirty: false,
+  startX: 0,
+  startY: 0
+}
+
+let keyboardMoveSaveChain = Promise.resolve()
 
 // Frequently used DOM references
 const mapSurface = document.getElementById('mapSurface')
@@ -3207,6 +3228,272 @@ async function updateNodeGeometryRemote(node) {
 }
 
 // Node movement and resizing
+function keyboardMoveVector(keys = keyboardMoveState.keys) {
+  let x = 0
+  let y = 0
+
+  if (keys.has('a')) x -= 1
+  if (keys.has('d')) x += 1
+  if (keys.has('w')) y -= 1
+  if (keys.has('s')) y += 1
+
+  const magnitude = Math.hypot(x, y)
+
+  if (!magnitude) return { x: 0, y: 0 }
+
+  return {
+    x: x / magnitude,
+    y: y / magnitude
+  }
+}
+
+function applyKeyboardNodeDelta(node, dx, dy) {
+  if (!node) return false
+
+  const { width, height } = nodeSize(node)
+  const currentX = Number(node.x)
+  const currentY = Number(node.y)
+  const nextX = clamp(currentX + dx, 20, WORLD_WIDTH - width - 20)
+  const nextY = clamp(currentY + dy, 20, WORLD_HEIGHT - height - 20)
+
+  let finalX = currentX
+  let finalY = currentY
+
+  if (!overlapsAny(node.id, nextX, nextY, width, height)) {
+    finalX = nextX
+    finalY = nextY
+  } else {
+    const canMoveX =
+      Math.abs(nextX - currentX) > 0.001 &&
+      !overlapsAny(node.id, nextX, currentY, width, height)
+
+    const canMoveY =
+      Math.abs(nextY - currentY) > 0.001 &&
+      !overlapsAny(node.id, currentX, nextY, width, height)
+
+    if (canMoveX) finalX = nextX
+    if (canMoveY) finalY = nextY
+  }
+
+  const changed =
+    Math.abs(finalX - currentX) > 0.001 ||
+    Math.abs(finalY - currentY) > 0.001
+
+  if (!changed) return false
+
+  node.x = finalX
+  node.y = finalY
+
+  const nodeElement = nodeLayer.querySelector(`[data-node-id="${node.id}"]`)
+
+  if (nodeElement) {
+    nodeElement.style.left = `${node.x}px`
+    nodeElement.style.top = `${node.y}px`
+  }
+
+  // Only links need to be redrawn every frame; rebuilding every node would be wasteful.
+  renderLinks()
+  return true
+}
+
+function queueKeyboardNodeSave(snapshot, fallback) {
+  keyboardMoveSaveChain = keyboardMoveSaveChain
+    .catch(() => {})
+    .then(async () => {
+      try {
+        const updated = await updateNodeGeometryRemote(snapshot)
+        const liveNode = nodes.find((item) => Number(item.id) === Number(snapshot.id))
+
+        const sameNodeIsMoving =
+          Number(keyboardMoveState.nodeId) === Number(snapshot.id) &&
+          keyboardMoveState.keys.size > 0
+
+        if (liveNode && !sameNodeIsMoving) {
+          liveNode.x = Number(updated.x)
+          liveNode.y = Number(updated.y)
+        }
+
+        saveCachedNodes()
+        await refreshHistoryButtons()
+
+        if (!sameNodeIsMoving) renderAll()
+      } catch (error) {
+        console.error('Accelerated keyboard move failed:', error)
+
+        const liveNode = nodes.find((item) => Number(item.id) === Number(snapshot.id))
+        const sameNodeIsMoving =
+          Number(keyboardMoveState.nodeId) === Number(snapshot.id) &&
+          keyboardMoveState.keys.size > 0
+
+        if (liveNode && !sameNodeIsMoving) {
+          liveNode.x = fallback.x
+          liveNode.y = fallback.y
+          renderAll()
+        }
+
+        alert(`Eroare la salvarea poziției nodului: ${error?.message || 'necunoscută'}`)
+
+        if (!sameNodeIsMoving) {
+          await fetchAllData()
+        }
+      }
+    })
+}
+
+function finishKeyboardNodeMovement({ persist = true } = {}) {
+  if (keyboardMoveState.frameId != null) {
+    cancelAnimationFrame(keyboardMoveState.frameId)
+  }
+
+  keyboardMoveState.frameId = null
+  keyboardMoveState.keys.clear()
+
+  const nodeId = keyboardMoveState.nodeId
+  const dirty = keyboardMoveState.dirty
+  const fallback = {
+    x: keyboardMoveState.startX,
+    y: keyboardMoveState.startY
+  }
+
+  keyboardMoveState.nodeId = null
+  keyboardMoveState.startedAt = 0
+  keyboardMoveState.lastFrameAt = 0
+  keyboardMoveState.dirty = false
+
+  if (!dirty || nodeId == null) return
+
+  const node = nodes.find((item) => Number(item.id) === Number(nodeId))
+
+  if (!node) return
+
+  const { width, height } = nodeSize(node)
+  const roundedX = clamp(Math.round(Number(node.x)), 20, WORLD_WIDTH - width - 20)
+  const roundedY = clamp(Math.round(Number(node.y)), 20, WORLD_HEIGHT - height - 20)
+
+  if (!overlapsAny(node.id, roundedX, roundedY, width, height)) {
+    node.x = roundedX
+    node.y = roundedY
+  }
+
+  renderAll()
+
+  if (!persist) return
+
+  queueKeyboardNodeSave(
+    {
+      id: node.id,
+      x: Number(node.x),
+      y: Number(node.y),
+      width: node.width,
+      height: node.height
+    },
+    fallback
+  )
+}
+
+function runKeyboardNodeMovementFrame(now) {
+  keyboardMoveState.frameId = null
+
+  if (!keyboardMoveState.keys.size || keyboardMoveState.nodeId == null) return
+
+  if (
+    !canEdit ||
+    !editorMode ||
+    isAnyModalOpen() ||
+    selectedEdge ||
+    Number(selectedId) !== Number(keyboardMoveState.nodeId)
+  ) {
+    finishKeyboardNodeMovement()
+    return
+  }
+
+  const node = nodes.find(
+    (item) => Number(item.id) === Number(keyboardMoveState.nodeId)
+  )
+
+  if (!node) {
+    finishKeyboardNodeMovement({ persist: false })
+    return
+  }
+
+  const dt = Math.min(
+    Math.max((now - keyboardMoveState.lastFrameAt) / 1000, 0),
+    0.05
+  )
+
+  keyboardMoveState.lastFrameAt = now
+
+  const acceleratingFor = Math.max(
+    0,
+    (now - keyboardMoveState.startedAt - WASD_ACCELERATION_DELAY_MS) / 1000
+  )
+
+  const speed = Math.min(
+    WASD_MAX_SPEED,
+    WASD_INITIAL_SPEED + WASD_ACCELERATION * acceleratingFor
+  )
+
+  const direction = keyboardMoveVector()
+
+  if (direction.x || direction.y) {
+    const moved = applyKeyboardNodeDelta(
+      node,
+      direction.x * speed * dt,
+      direction.y * speed * dt
+    )
+
+    keyboardMoveState.dirty = keyboardMoveState.dirty || moved
+  }
+
+  keyboardMoveState.frameId = requestAnimationFrame(runKeyboardNodeMovementFrame)
+}
+
+function startKeyboardNodeMovement(key) {
+  if (!canEdit || !editorMode || isAnyModalOpen() || selectedEdge) return false
+
+  const node = selectedNode()
+
+  if (!node) return false
+
+  const normalizedKey = String(key || '').toLowerCase()
+
+  if (!['w', 'a', 's', 'd'].includes(normalizedKey)) return false
+
+  const now = performance.now()
+
+  if (keyboardMoveState.nodeId == null) {
+    keyboardMoveState.nodeId = node.id
+    keyboardMoveState.startedAt = now
+    keyboardMoveState.lastFrameAt = now
+    keyboardMoveState.dirty = false
+    keyboardMoveState.startX = Number(node.x)
+    keyboardMoveState.startY = Number(node.y)
+  } else if (Number(keyboardMoveState.nodeId) !== Number(node.id)) {
+    finishKeyboardNodeMovement()
+    return startKeyboardNodeMovement(normalizedKey)
+  }
+
+  if (!keyboardMoveState.keys.has(normalizedKey)) {
+    keyboardMoveState.keys.add(normalizedKey)
+
+    // A quick tap should still feel like the old 12 px keyboard nudge.
+    const direction = keyboardMoveVector(new Set([normalizedKey]))
+    const moved = applyKeyboardNodeDelta(
+      node,
+      direction.x * WASD_TAP_STEP,
+      direction.y * WASD_TAP_STEP
+    )
+
+    keyboardMoveState.dirty = keyboardMoveState.dirty || moved
+  }
+
+  if (keyboardMoveState.frameId == null) {
+    keyboardMoveState.frameId = requestAnimationFrame(runKeyboardNodeMovementFrame)
+  }
+
+  return true
+}
+
 async function nudgeSelectedNode(dx, dy) {
   if (!canEdit || !editorMode) return
 
@@ -4171,6 +4458,7 @@ function renderNodes() {
     const { width: nodeWidthValue, height: nodeHeightValue } = nodeSize(node)
     const el = document.createElement('button')
     el.type = 'button'
+    el.dataset.nodeId = String(node.id)
     el.className = `node ${node.id === selectedId ? 'active' : ''}`
     el.style.left = `${node.x}px`
     el.style.top = `${node.y}px`
@@ -7048,6 +7336,32 @@ async function refreshHistoryButtons() {
   redoBtn.disabled = !canEdit || Number(data?.redo_count || 0) === 0
 }
 
+window.addEventListener('keyup', (event) => {
+  const key = event.key.toLowerCase()
+
+  if (!['w', 'a', 's', 'd'].includes(key)) return
+  if (!keyboardMoveState.keys.has(key)) return
+
+  event.preventDefault()
+  keyboardMoveState.keys.delete(key)
+
+  if (!keyboardMoveState.keys.size) {
+    finishKeyboardNodeMovement()
+  }
+})
+
+window.addEventListener('blur', () => {
+  if (keyboardMoveState.nodeId != null) {
+    finishKeyboardNodeMovement()
+  }
+})
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && keyboardMoveState.nodeId != null) {
+    finishKeyboardNodeMovement()
+  }
+})
+
 window.addEventListener('keydown', (event) => {
   const tag = document.activeElement?.tagName
   const isTyping =
@@ -7104,6 +7418,22 @@ window.addEventListener('keydown', (event) => {
     resetSelectedNodeSize().catch((error) => {
       alert(error.message || 'Eroare la resetarea dimensiunii.')
     })
+    return
+  }
+
+  if (
+    !isTyping &&
+    canEdit &&
+    editorMode &&
+    !isAnyModalOpen() &&
+    !selectedEdge &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey &&
+    ['w', 'a', 's', 'd'].includes(event.key.toLowerCase())
+  ) {
+    event.preventDefault()
+    startKeyboardNodeMovement(event.key)
     return
   }
 
