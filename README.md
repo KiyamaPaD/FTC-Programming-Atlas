@@ -1,269 +1,653 @@
+<div align="center">
+
+<img src="./img/FTCProgrammingAtlasLogo.png" alt="FTC Programming Atlas logo" width="150" />
+
 # FTC Programming Atlas
 
-> An interactive, node-based documentation platform for FTC programming, built to preserve team knowledge and make technical concepts easier to explore, understand, and teach.
+**An interactive, node-based documentation platform for FTC programming and long-term team knowledge.**
 
-## Live Demo
+[Live Website](https://ftcprogrammingatlas.com) · [InfotronX #19119](https://itx.infoel.ro)
 
-[Open FTC Programming Atlas](https://ftcprogrammingatlas.com)
+</div>
+
+---
 
 ## Overview
 
-FTC Programming Atlas turns robotics documentation into an interactive visual map.
+FTC Programming Atlas is a full-stack documentation platform designed to turn FTC programming knowledge into an interactive concept map.
 
-Instead of keeping knowledge in scattered files, chat messages, or long static documents, the platform organizes FTC programming concepts as connected nodes. Each node represents a topic such as TeleOp, Autonomous, PID control, Localization, Pedro Pathing, Road Runner, FTCLib, MeepMeep, Vision, FTC SDK, or Troubleshooting.
+Instead of storing technical knowledge across scattered documents, chat messages, old code, and isolated notes, the Atlas organizes information as connected nodes. Each node can represent a framework, subsystem, programming concept, debugging topic, workflow, or team-specific practice.
 
-The goal is to create a long-term learning and documentation system that helps future team generations understand not only individual concepts, but also how those concepts connect.
+Typical topics include:
+
+- FTC SDK
+- Pedro Pathing
+- Road Runner
+- FTCLib
+- MeepMeep
+- PID / PIDF control
+- Localization and odometry
+- Vision and OpenCV
+- Autonomous architecture
+- TeleOp
+- Control Hub / Expansion Hub troubleshooting
+
+The goal is not only to document *what* something is, but also to show **how concepts relate to each other**.
+
+---
 
 ## Why I Built It
 
-In robotics teams, valuable technical knowledge is often lost between seasons. Important decisions, debugging experience, setup steps, and programming patterns may remain spread across old files, private messages, or unfinished notes.
+FTC teams accumulate a large amount of technical knowledge over multiple seasons.
 
-I wanted to build a platform that:
+The problem is that this knowledge is often fragmented:
 
-- preserves programming knowledge between seasons
-- makes onboarding easier for new programmers
-- connects related concepts visually
-- supports both learning and internal documentation
-- can grow together with the team
-- feels more intuitive than a traditional static wiki
+- setup instructions remain in old messages
+- debugging solutions are remembered by only one programmer
+- useful code examples disappear inside old repositories
+- new members do not know what to learn first
+- framework-specific knowledge becomes difficult to maintain
+- important decisions are lost when team members graduate
 
-FTC Programming Atlas is both a practical tool for robotics education and a portfolio project focused on product thinking, UI design, architecture, security, and maintainability.
+FTC Programming Atlas was built to solve that problem with a documentation system that is visual, searchable, editable, and designed to survive across team generations.
 
-## Main Features
+It is both:
 
-### Interactive Atlas
+1. a practical knowledge-management tool for **InfotronX #19119**
+2. a portfolio project focused on product design, front-end engineering, data architecture, security, UX, and maintainability
 
-- Node-based documentation map
-- Labeled relationships between concepts
-- Drag-and-drop node positioning
-- Automatic overlap prevention
-- Zoom, pan, fit view, reset view, and center selection
-- Search across titles, content, categories, difficulties, and tags
-- Strict filtering that hides unrelated nodes and edges
+---
 
-### Documentation Experience
+# Core Features
 
-- Full-screen topic viewer
-- Single-click node opening
-- Structured topic metadata
-- Dynamic categories
-- Dynamic difficulty levels
-- Multiple tags per node
-- Images, screenshots, uploaded videos, and external video links
-- Public media gallery inside each topic
-- Selectable and copyable code snippets
-- Java, Python, Kotlin, C++, JavaScript, JSON, XML, Bash, and plain text examples
+## Interactive Concept Atlas
 
-### Reader and Editor Modes
+- node-based visual documentation map
+- labeled relationships between technical concepts
+- drag-and-drop positioning
+- node resizing
+- overlap and collision handling
+- zoom, pan, reset view, fit view, and center selection
+- desktop and touch navigation
+- search across node content and metadata
+- filtering by category, difficulty, and tags
+- unrelated nodes and edges can be hidden while filtering
+- direct URLs for individual nodes
 
-- Clean Reader Mode for visitors
-- Separate Editor Mode for approved collaborators
-- Editor-only controls hidden from public users
-- Magic-link authentication through Supabase
-- Server-side editor verification
+Example deep link:
 
-### Content Management
+```text
+https://ftcprogrammingatlas.com/node/12/pedropathing
+```
 
-- Create, edit, and delete nodes
-- Create, edit, and delete relations
-- Manage categories, difficulties, and tags directly from the website
-- Reorder taxonomy items
-- Activate or deactivate taxonomy items
-- Safely replace categories or difficulties before deletion
-- View how many nodes use each taxonomy item
-- Upload, edit, reorder, and remove node media
-- Create, edit, reorder, copy, and delete node code snippets
+Node routes remain stable through the database ID while also keeping a human-readable slug.
 
-### Reliability and Security
+---
 
-- Supabase-backed cloud storage
-- Atomic CRUD operations through PostgreSQL RPC functions
-- Row Level Security and restricted write access
-- Undo and redo history
-- Loading, empty, error, and retry states
-- Responsive desktop and mobile interactions
-- Touch gestures for pan, pinch zoom, and long-press editing
+## Documentation System
 
-## Example Topics
+Each node can contain much more than plain text.
 
-- TeleOp Basics
+### Rich-text documentation
+
+The built-in editor supports:
+
+- bold
+- italic
+- underline
+- headings
+- blockquotes
+- ordered and unordered lists
+- links
+- multiple font sizes
+- formatting cleanup
+- sanitized rich HTML rendering
+
+The public viewer renders formatted documentation while protecting the page from unsafe embedded markup.
+
+### Code snippets
+
+Nodes can include multiple code examples with:
+
+- programming language
+- title
+- explanation
+- copy button
+- selectable source code
+- editor-controlled ordering
+
+Supported examples include:
+
+- Java
+- Kotlin
+- Python
+- C++
+- JavaScript
+- JSON
+- XML
+- Bash
+- plain text
+
+### Media
+
+Nodes can include:
+
+- screenshots
+- diagrams
+- JPG / PNG / WEBP / GIF images
+- MP4 / WebM / MOV videos
+- YouTube content
+- external media links
+- titles and descriptions
+- editor-controlled ordering
+
+### General files and folders
+
+Documentation can also contain downloadable project resources such as:
+
+- PDF
+- TXT
+- Markdown
+- Java / Python source files
+- JSON / XML
+- configuration files
+- ZIP / RAR / 7z archives
+- complete folder uploads
+
+Uploaded folder structure is preserved using virtual paths, making it possible to attach small example projects or configuration trees directly to a documentation node.
+
+---
+
+# Reader and Editor Modes
+
+The Atlas separates public reading from content administration.
+
+## Reader Mode
+
+Visitors can:
+
+- explore the map
+- search and filter documentation
+- open nodes
+- follow concept relationships
+- view rich-text documentation
+- inspect code examples
+- view media
+- download attached files
+- open direct node URLs
+
+No account is required for normal reading.
+
+## Editor Mode
+
+Approved collaborators can additionally:
+
+- create nodes
+- edit nodes
+- delete nodes
+- resize and reposition nodes
+- create and edit relationships
+- manage taxonomy
+- upload media
+- upload files and folders
+- manage code snippets
+- edit the project tutorial
+- use Undo / Redo
+
+Authentication uses **Supabase Auth magic links** and editor access is verified server-side against an allowlist.
+
+---
+
+# Editor Interaction Design
+
+The editor contains several interaction patterns designed specifically for working with a large visual map.
+
+### Mouse
+
+- drag a node to reposition it
+- resize handles for selected nodes
+- single click in Editor Mode selects a node
+- double click opens node documentation
+- normal Reader Mode keeps single-click opening
+
+### Keyboard movement
+
+Two movement styles are intentionally available:
+
+**Arrow keys**
+
+- slow, precise movement
+- useful when nodes are close together
+
+**W / A / S / D**
+
+- accelerated movement
+- designed for quickly moving a node across large map distances
+- movement stays local until explicitly saved
+- prevents excessive database writes
+
+Press:
+
+```text
+F
+```
+
+to save a pending WASD position.
+
+---
+
+# Dynamic Taxonomy
+
+The Atlas separates three independent classification systems.
+
+### Categories
+
+The main technical area.
+
+Examples:
+
 - FTC SDK
-- PID and PIDF Control
-- Autonomous Flow
 - Pedro Pathing
 - Road Runner
-- Localization and Odometry
 - FTCLib
-- MeepMeep
-- Vision and OpenCV
-- Debugging Control Hub and Expansion Hub Issues
+- Vision
+- Control Loops
 
-## Tech Stack
+### Difficulties
 
-### Front End
+Learning level or complexity.
 
-- HTML
+Examples:
+
+- Beginner
+- Intermediate
+- Advanced
+
+### Tags
+
+Reusable labels for more specific concepts.
+
+Examples:
+
+- PID
+- Encoder
+- IMU
+- Feedforward
+- Odometry
+- VisionProcessor
+
+All three systems can be managed from the **Taxonomy Manager** without modifying source code.
+
+Editors can:
+
+- add items
+- rename items
+- reorder items
+- activate or deactivate items
+- delete items
+- safely replace a category or difficulty before deletion
+- see how many nodes currently use an item
+
+---
+
+# Architecture
+
+```text
+                         ┌──────────────────────┐
+                         │      Browser         │
+                         │ HTML / CSS / JS UI   │
+                         └──────────┬───────────┘
+                                    │
+                                    ▼
+                         ┌──────────────────────┐
+                         │       Netlify        │
+                         │ Static hosting / CDN │
+                         │ Edge Functions / SEO │
+                         └──────────┬───────────┘
+                                    │
+                     ┌──────────────┴──────────────┐
+                     │                             │
+                     ▼                             ▼
+          ┌──────────────────────┐      ┌──────────────────────┐
+          │   Supabase Data API  │      │   Supabase Storage   │
+          │ PostgreSQL + RPC/RLS │      │ Media + node files   │
+          └──────────┬───────────┘      └──────────────────────┘
+                     │
+                     ▼
+          ┌──────────────────────┐
+          │    Supabase Auth     │
+          │ Magic-link editors   │
+          └──────────────────────┘
+```
+
+The browser is intentionally lightweight while most persistent application state is stored in Supabase.
+
+---
+
+# Data and Backend Design
+
+The project uses PostgreSQL-backed entities for:
+
+- nodes
+- edges
+- taxonomy categories
+- difficulty levels
+- tags
+- node ↔ tag relationships
+- node media
+- node files
+- code snippets
+- project tutorial
+- editor allowlist
+- Undo history
+- Redo history
+
+Mutating operations are protected through a combination of:
+
+- PostgreSQL RPC functions
+- Row Level Security
+- editor authentication
+- server-side permission checks
+
+Public visitors receive read access to documentation while write operations remain restricted.
+
+---
+
+# Security
+
+Security hardening is part of the project architecture rather than an afterthought.
+
+Implemented protections include:
+
+- HTTPS
+- HTTP Strict Transport Security
+- Content Security Policy
+- `X-Content-Type-Options: nosniff`
+- clickjacking protection
+- Referrer Policy
+- Permissions Policy
+- restricted external resource origins
+- pinned Supabase JavaScript dependency
+- Supabase Row Level Security
+- editor-only database mutations
+- server-side editor verification
+- sanitized rich-text content
+- restricted authentication workflow
+- separate public and editor permissions
+
+The project also includes a public:
+
+[Privacy Policy](https://ftcprogrammingatlas.com/privacy.html)
+
+The site does not intentionally use advertising or marketing tracking cookies.
+
+---
+
+# SEO and Discoverability
+
+FTC Programming Atlas includes a dedicated SEO layer so that the project is discoverable outside the application itself.
+
+Implemented features include:
+
+- descriptive page titles
+- meta descriptions
+- canonical URLs
+- Open Graph metadata
+- Twitter / social preview metadata
+- `robots.txt`
+- XML sitemap
+- direct crawlable node links
+- human-readable node slugs
+- deep-link support
+- dynamic node metadata
+- Netlify Edge Functions for server-side SEO responses
+- dynamic sitemap generation from public Atlas nodes
+- Google Search Console integration
+
+Individual documentation nodes can therefore be shared and discovered independently rather than only through the homepage.
+
+---
+
+# Reliability and UX
+
+The application includes handling for:
+
+- loading states
+- empty states
+- failed requests
+- retry flows
+- database mutation errors
+- unsaved node positions
+- browser navigation
+- responsive layouts
+- mobile viewport changes
+- touch gestures
+- pinch zoom
+- long-press editing
+- accidental editor actions
+
+Undo and Redo are synchronized through the backend rather than being limited to a temporary browser-only history.
+
+---
+
+# Tech Stack
+
+## Front End
+
+- HTML5
 - CSS
-- JavaScript
+- Vanilla JavaScript
+- ES Modules
 
-### Back End and Storage
+## Backend
 
 - Supabase
 - PostgreSQL
 - Supabase Auth
 - Supabase Storage
+- PostgREST
 - PostgreSQL RPC functions
 - Row Level Security
 
-### Deployment
+## Infrastructure
 
 - GitHub
 - Netlify
+- Netlify Edge Functions
+- Cloudflare DNS
+- Google Search Console
 
-## How It Works
+---
 
-Each documentation topic is represented as a node on the atlas.
-
-Users can:
-
-- explore the map
-- search and filter topics
-- open full documentation
-- follow relationships between concepts
-- view screenshots and videos
-- focus only on a selected category, difficulty, or tag
-
-Approved editors can additionally:
-
-- create and edit nodes
-- connect topics through labeled relations
-- reorganize the map
-- manage categories, difficulties, and tags
-- upload and manage media
-- use undo and redo
-- maintain the atlas without changing the source code for normal content updates
-
-The result is closer to an interactive concept graph than to a traditional documentation website.
-
-## Dynamic Taxonomy
-
-The platform separates three different concepts:
-
-- **Categories** — the main technical area, such as Pedro Pathing, FTC SDK, Road Runner, Control Loops, FTCLib, or Vision
-- **Difficulties** — the learning level, such as Beginner, Intermediate, or Advanced
-- **Tags** — reusable labels such as PID, Encoder, IMU, Feedforward, Odometry, or VisionProcessor
-
-All three systems are dynamic and can be managed directly from the Taxonomy Manager.
-
-## Media Support
-
-Each node can include media such as:
-
-- screenshots
-- diagrams
-- JPG, PNG, WEBP, and GIF images
-- MP4, WebM, and MOV videos
-- YouTube links
-- direct video links
-
-Editors can add titles and descriptions, reorder media, edit entries, and remove files directly from the website.
-
-## Code Snippets
-
-Each node can include one or more code examples with:
-
-- a programming language
-- a title
-- an explanation
-- selectable source code
-- a one-click copy button
-- editor-controlled ordering
-
-The current editor supports Java, Python, Kotlin, C++, JavaScript, JSON, XML, Bash, and plain text. Snippets are stored in PostgreSQL and are loaded together with the rest of the node documentation.
-
-## Project Structure
+# Project Structure
 
 ```text
 FTC-Programming-Atlas/
 ├── index.html
-├── atlas-script.js
+├── privacy.html
 ├── README.md
+├── _headers
+├── _redirects
+├── robots.txt
+├── sitemap.xml
+│
+├── img/
+│   ├── FTCProgrammingAtlasLogo.png
+│   └── FTCProgrammingAtlasFavicon.png
+│
+├── js/
+│   └── atlas-script.js
+│
+└── netlify/
+    └── edge-functions/
+        ├── node-seo.js
+        └── sitemap.js
 ```
 
-The application is intentionally lightweight on the front end while using Supabase for authentication, database operations, history, taxonomy, and media storage.
-
-## Current Status
-
-FTC Programming Atlas is a working full-stack documentation platform.
-
-The current version includes:
-
-- cloud-synced nodes and relations
-- secure authentication and editor permissions
-- Reader Mode and Editor Mode
-- dynamic categories, difficulties, and tags
-- public filtering
-- Taxonomy Manager
-- node media uploads and video links
-- undo and redo
-- loading and retry states
-- responsive desktop and mobile support
-- copyable code snippets
-
-The platform foundation is complete enough for real use. The main ongoing work is expanding and refining the FTC documentation content.
-
-## Planned Improvements
-
-Possible future additions include:
-
-- Markdown support
-- Java syntax highlighting
-- learning paths
-- prerequisites between topics
-- deep links for individual nodes
-- bookmarks and progress tracking
-- compatibility information for FTC SDK and framework versions
-- troubleshooting decision trees
-- PWA and offline support
-- multilingual documentation
-- contribution review workflows
-- analytics for searches with no results
-
-## What This Project Demonstrates
-
-This project highlights:
-
-- front-end UI and interaction design
-- JavaScript state management
-- graph-based content organization
-- Supabase authentication and storage
-- PostgreSQL RPC design
-- Row Level Security
-- dynamic content management
-- undo and redo systems
-- responsive and touch-friendly UX
-- product thinking for a real robotics team
-- educational platform design
-
-## Use Cases
-
-FTC Programming Atlas can be used for:
-
-- onboarding new FTC programmers
-- preserving technical knowledge between seasons
-- organizing framework-specific documentation
-- teaching programming concepts visually
-- documenting team-specific architecture and debugging experience
-- creating a reusable internal robotics knowledge base
-
-## Team
-
-Created for **InfotronX #19119** as a long-term programming documentation and education platform.
-
-## Author
-
-Built by **Cristi** as a practical FTC team tool and portfolio project.
+Database migrations and maintenance SQL are managed separately from the public deployment files.
 
 ---
 
+# Running Locally
+
+Clone the repository:
+
+```bash
+git clone https://github.com/KiyamaPaD/FTC-Programming-Atlas.git
+cd FTC-Programming-Atlas
+```
+
+Serve the project with any static HTTP server.
+
+For example:
+
+```bash
+python -m http.server 5500
+```
+
+Then open:
+
+```text
+http://localhost:5500
+```
+
+Because the application uses ES Modules, opening `index.html` directly through `file://` is not recommended.
+
+> Editor authentication may require the local URL to be added to the allowed redirect URLs in the Supabase Auth configuration.
+
+---
+
+# Development Principles
+
+Several design choices guide the project.
+
+### Content should not require code changes
+
+Normal documentation maintenance is performed from the application itself.
+
+### Public access should remain simple
+
+Readers should be able to explore documentation without creating an account.
+
+### Editor tools should remain powerful but isolated
+
+Administrative controls appear only when an approved editor is authenticated and Editor Mode is enabled.
+
+### Database writes should be deliberate
+
+For example, accelerated WASD movement is stored locally first and persisted only when the editor explicitly saves the final position.
+
+### The Atlas should survive team turnover
+
+The platform is designed as long-term infrastructure for preserving technical knowledge beyond a single FTC season.
+
+---
+
+# Current Status
+
+FTC Programming Atlas is a functional full-stack application deployed in production.
+
+The platform currently includes:
+
+- interactive node graph
+- cloud-synchronized documentation
+- dynamic taxonomy
+- rich-text editing
+- media management
+- file and folder attachments
+- code snippets
+- editor authentication
+- server-side permissions
+- Undo / Redo
+- direct node URLs
+- responsive desktop and mobile interactions
+- security hardening
+- Privacy Policy
+- SEO metadata
+- dynamic sitemap
+- Google indexing support
+
+The main ongoing work is now **content expansion**: documenting more FTC systems, frameworks, debugging knowledge, and team practices.
+
+---
+
+# Roadmap
+
+Potential future improvements include:
+
+- Java and multi-language syntax highlighting
+- structured learning paths
+- prerequisite relationships
+- FTC SDK / framework version compatibility data
+- troubleshooting decision trees
+- bookmarks
+- reader progress tracking
+- PWA / offline documentation
+- multilingual content
+- contribution review workflows
+- search analytics and no-result analytics
+- traffic analytics
+- richer node-level social previews
+- automated documentation quality checks
+
+---
+
+# What This Project Demonstrates
+
+FTC Programming Atlas combines multiple areas of software engineering:
+
+- front-end UI engineering
+- interaction design
+- graph-based information architecture
+- JavaScript state management
+- asynchronous API integration
+- PostgreSQL data modeling
+- authentication and authorization
+- Row Level Security
+- RPC-based mutations
+- file and media management
+- Undo / Redo architecture
+- responsive and touch-friendly UX
+- web security hardening
+- SEO architecture for a JavaScript application
+- server-side edge processing
+- product thinking for a real robotics team
+- long-term maintainability
+
+---
+
+# Use Cases
+
+The Atlas can be used for:
+
+- onboarding new FTC programmers
+- preserving knowledge between competition seasons
+- documenting framework-specific setup and tuning
+- teaching programming concepts visually
+- recording debugging solutions
+- documenting team architecture
+- sharing reusable code examples
+- storing small supporting project files
+- building a structured robotics knowledge base
+
+---
+
+# Team
+
+Created for **InfotronX #19119** as a long-term programming documentation and education platform.
+
+# Author
+
+Built by **Cristi** as both a practical FTC team tool and a software engineering portfolio project.
+
+---
+
+<div align="center">
+
+**FTC Programming Atlas**
+
+Preserving programming knowledge, one node at a time.
+
 FTC Programming Atlas is an independent educational project and is not an official product of FIRST®.
+
+</div>
