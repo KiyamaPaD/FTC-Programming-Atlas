@@ -2721,6 +2721,51 @@
       line-height: 1.12;
     }
   }
+
+
+  /* v35 — center the node create/edit modal and keep it inside the viewport. */
+  @media (min-width: 921px) and (pointer: fine) {
+    #modalBackdrop {
+      align-items: center;
+      justify-content: center;
+      padding: clamp(14px, 2.4vh, 24px);
+      overflow: hidden;
+    }
+
+    #modalBackdrop > .modal {
+      width: min(900px, calc(100vw - 36px));
+      max-height: calc(100dvh - 36px);
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #modalBackdrop > .modal > .modal-head,
+    #modalBackdrop > .modal > .modal-foot {
+      flex: 0 0 auto;
+    }
+
+    #modalBackdrop > .modal > .modal-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-gutter: stable;
+      overscroll-behavior: contain;
+    }
+
+    #modalBackdrop .rich-editor-shell {
+      min-height: 0;
+    }
+
+    #modalBackdrop .rich-editor {
+      height: clamp(220px, 31dvh, 350px);
+      max-height: 36dvh;
+      min-height: 220px;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -3301,6 +3346,6 @@
     </div>
   </div>
 
-  <script type="module" src="./js/atlas-script.js?v=33"></script>
+  <script type="module" src="./js/atlas-script.js?v=35"></script>
 </body>
 </html>
