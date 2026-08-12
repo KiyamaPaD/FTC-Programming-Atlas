@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Politica de confidențialitate · FTC Programming Atlas</title>
+  <link rel="icon" type="image/png" href="./img/FTCProgrammingAtlasFavicon.png?v=41" />
+  <style>
+    :root {
+      --bg: #000;
+      --panel: rgba(11, 10, 14, 0.96);
+      --line: rgba(177, 76, 255, 0.18);
+      --text: #f3f3f5;
+      --muted: #b2b2bc;
+      --accent: #d5a9ff;
+      --accent-2: #ff8ca3;
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(255,77,109,.08), transparent 28%),
+        radial-gradient(circle at 85% 75%, rgba(177,76,255,.09), transparent 30%),
+        var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .wrap { width: min(900px, calc(100% - 32px)); margin: 0 auto; padding: 34px 0 64px; }
+    .top { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 24px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 1px solid var(--line); }
+    .brand strong { display: block; font-size: .98rem; }
+    .brand span { display: block; margin-top: 2px; color: var(--muted); font-size: .78rem; }
+    .back { color: var(--accent); text-decoration: none; font-weight: 700; font-size: .86rem; }
+    .back:hover { text-decoration: underline; }
+    main { padding: clamp(22px, 4vw, 42px); border: 1px solid var(--line); border-radius: 24px; background: var(--panel); box-shadow: 0 22px 70px rgba(0,0,0,.42); }
+    h1 { margin: 0 0 8px; font-size: clamp(1.9rem, 5vw, 3rem); letter-spacing: -.04em; }
+    .updated { margin: 0 0 28px; color: var(--muted); font-size: .82rem; }
+    h2 { margin: 30px 0 10px; font-size: 1.12rem; color: #f7efff; }
+    p, li { color: #d0ced5; line-height: 1.7; font-size: .94rem; }
+    ul { padding-left: 20px; }
+    a { color: var(--accent); }
+    .notice { margin: 18px 0; padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(255,140,163,.22); background: rgba(255,77,109,.06); color: #eadde2; }
+    .meta { display: grid; gap: 10px; margin: 18px 0 0; }
+    .meta div { padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.05); }
+    .meta strong { color: #fff; }
+    footer { margin-top: 20px; color: var(--muted); font-size: .76rem; line-height: 1.55; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <img src="./img/FTCProgrammingAtlasLogo.png" alt="FTC Programming Atlas" />
+        <div><strong>FTC Programming Atlas</strong><span>Confidențialitate și date personale</span></div>
+      </div>
+      <a class="back" href="./">← Înapoi la Atlas</a>
+    </header>
+
+    <main>
+      <h1>Politica de confidențialitate</h1>
+      <p class="updated">Ultima actualizare: 12 august 2026</p>
+
+      <p>FTC Programming Atlas este un proiect educațional pentru documentație de programare FTC. Majoritatea conținutului poate fi consultat fără cont. Autentificarea este necesară numai pentru persoanele cărora li s-a acordat acces de editor.</p>
+
+      <div class="meta">
+        <div><strong>Operator / administrator al proiectului:</strong> FTC Programming Atlas, proiect creat de InfotronX #19119.</div>
+        <div><strong>Contact pentru solicitări privind datele:</strong> prin pagina publică a echipei <a href="https://itx.infoel.ro" target="_blank" rel="noopener noreferrer">InfotronX</a>.</div>
+      </div>
+
+      <h2>1. Ce date putem prelucra</h2>
+      <ul>
+        <li><strong>Adresa de email</strong> introdusă pentru autentificarea prin magic link și verificarea dreptului de editor.</li>
+        <li><strong>Date de autentificare și sesiune</strong> generate tehnic de Supabase Auth. Clientul Atlas păstrează sesiunea local în browser pentru a menține autentificarea.</li>
+        <li><strong>Date tehnice de acces</strong> care pot apărea în infrastructura de hosting sau backend, precum adresa IP, tipul browserului, momentul solicitării și informații necesare pentru securitate și funcționare.</li>
+        <li><strong>Conținut încărcat de editori</strong>, inclusiv documentație, fișiere și media. Editorii nu trebuie să încarce date personale sensibile care nu sunt necesare proiectului.</li>
+      </ul>
+
+      <h2>2. De ce folosim aceste date</h2>
+      <p>Datele sunt folosite pentru autentificare, controlul accesului de editor, securitatea aplicației, administrarea conținutului și funcționarea tehnică a Atlasului. Accesul public la documentație nu necesită furnizarea unei adrese de email.</p>
+
+      <h2>3. Temeiul prelucrării</h2>
+      <p>Pentru autentificarea și administrarea editorilor, prelucrarea se bazează în principal pe interesul legitim de a securiza și administra accesul la proiect. Datele tehnice necesare funcționării și securității sunt prelucrate în același scop. Furnizarea email-ului este opțională pentru vizitatori; fără acesta poți consulta Atlasul, dar nu te poți autentifica drept editor.</p>
+
+      <h2>4. Servicii terțe</h2>
+      <p>Atlasul folosește servicii externe necesare funcționării:</p>
+      <ul>
+        <li><strong>Supabase</strong> pentru baza de date, autentificare, storage și API-uri. Supabase descrie platforma ca incluzând Postgres, Auth, Storage și API-uri și publică informații despre controalele sale de securitate.</li>
+        <li><strong>Netlify</strong> pentru găzduirea și livrarea site-ului. Netlify poate procesa date tehnice necesare furnizării și securizării serviciului.</li>
+        <li><strong>esm.sh</strong> pentru distribuirea modulului JavaScript Supabase către browser.</li>
+        <li><strong>YouTube sau alte surse media externe</strong> numai atunci când documentația include conținut extern; încărcarea acestuia poate transmite furnizorului date tehnice obișnuite ale conexiunii.</li>
+      </ul>
+
+      <h2>5. Cookies și tracking</h2>
+      <p>FTC Programming Atlas nu implementează în mod intenționat publicitate comportamentală, analytics de marketing sau tracking cookies. Autentificarea poate folosi stocare locală în browser pentru menținerea sesiunii. Serviciile externe pot avea propriile practici atunci când resursele lor sunt accesate.</p>
+
+      <h2>6. Cât timp păstrăm datele</h2>
+      <p>Datele de autentificare sunt păstrate atât timp cât sunt necesare pentru administrarea accesului de editor și pentru securitatea proiectului, apoi pot fi șterse sau dezactivate. Conținutul publicat rămâne până când este modificat sau eliminat de editori. Datele tehnice și backup-urile pot fi păstrate conform perioadelor și politicilor furnizorilor de infrastructură.</p>
+
+      <h2>7. Transferuri internaționale</h2>
+      <p>Furnizorii tehnici pot utiliza infrastructură în mai multe jurisdicții. Atunci când este relevant, transferurile sunt guvernate de mecanismele și garanțiile descrise în termenii și acordurile de protecție a datelor ale furnizorilor. Netlify declară utilizarea unor mecanisme precum Clauzele Contractuale Standard și, pentru anumite transferuri, EU–U.S. Data Privacy Framework.</p>
+
+      <h2>8. Drepturile tale</h2>
+      <p>În condițiile GDPR, poți avea dreptul la acces, rectificare, ștergere, restricționarea prelucrării, opoziție și, unde este aplicabil, portabilitatea datelor. De asemenea, ai dreptul să depui o plângere la autoritatea de supraveghere competentă.</p>
+
+      <h2>9. Securitate</h2>
+      <p>Atlasul utilizează HTTPS, politici de securitate ale browserului, control de acces la nivel de bază de date și reguli separate pentru operațiunile editorilor. Nicio măsură tehnică nu poate garanta securitate absolută, dar proiectul este configurat pentru a limita accesul neautorizat și expunerea inutilă a datelor.</p>
+
+      <h2>10. Modificări ale politicii</h2>
+      <p>Politica poate fi actualizată atunci când se schimbă funcționalitățile Atlasului, furnizorii sau modul de prelucrare a datelor. Data ultimei actualizări este afișată în partea de sus a paginii.</p>
+
+      <div class="notice">Această pagină descrie funcționarea actuală a proiectului și nu trebuie interpretată ca substitut pentru consultanță juridică profesională.</div>
+    </main>
+
+    <footer>FTC Programming Atlas · proiect educațional creat de InfotronX #19119</footer>
+  </div>
+</body>
+</html>

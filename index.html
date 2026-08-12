@@ -326,6 +326,24 @@
       background: rgba(255,255,255,0.05);
     }
 
+    .privacy-login-note {
+      margin: 8px 2px 0;
+      color: var(--muted);
+      font-size: 0.72rem;
+      line-height: 1.45;
+    }
+
+    .privacy-login-note a {
+      color: #d5a9ff;
+      font-weight: 650;
+      text-decoration: none;
+    }
+
+    .privacy-login-note a:hover {
+      color: #f0dfff;
+      text-decoration: underline;
+    }
+
     .tools-grid { display: grid; gap: 10px; margin-top: 12px; }
     .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .btn-row.three { grid-template-columns: 1fr 1fr 1fr; }
@@ -3172,6 +3190,10 @@
             <button class="btn primary" id="loginBtn">Trimite magic link</button>
             <button class="btn" id="logoutBtn">Logout</button>
           </div>
+          <p class="privacy-login-note">
+            Adresa de email este folosită pentru autentificare și controlul accesului de editor.
+            <a href="./privacy.html">Politica de confidențialitate</a>
+          </p>
 
           <input id="searchInput" class="search-input" placeholder="Caută topic, categorie, dificultate, etichetă sau text..." />
 
