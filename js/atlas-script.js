@@ -6,6 +6,11 @@ console.log('ATLAS SCRIPT LOADED v46 · PINNED SUPABASE DEPENDENCY')
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
 const PROJECT_ID = 'ftc-main'
+const SITE_ORIGIN = 'https://ftcprogrammingatlas.com'
+const HOME_PATH = '/'
+const HOME_TITLE = 'FTC Programming Atlas | FTC Robotics Programming Guide'
+const HOME_DESCRIPTION =
+  'Atlas interactiv de programare FTC pentru FTC SDK, PedroPathing, Road Runner, FTCLib, control loops, vision, debugging și documentație de echipă.'
 const MEDIA_BUCKET = 'atlas-media'
 const FILE_BUCKET = 'atlas-files'
 const MAX_MEDIA_FILE_SIZE = 50 * 1024 * 1024
@@ -542,6 +547,165 @@ function findNode(id) {
   return nodes.find((node) => String(node.id) === String(id)) || null
 }
 
+// SEO-friendly node routes. The numeric id is the stable identifier; the slug
+// is human-readable and may change when a node is renamed without breaking old links.
+function slugifyNodeTitle(value) {
+  const slug = String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 90)
+
+  return slug || 'topic'
+}
+
+function nodeRoutePath(node) {
+  if (!node) return HOME_PATH
+  return `/node/${Number(node.id)}/${slugifyNodeTitle(node.title)}`
+}
+
+function nodeCanonicalUrl(node) {
+  return `${SITE_ORIGIN}${nodeRoutePath(node)}`
+}
+
+function routeNodeIdFromLocation() {
+  const match = window.location.pathname.match(/^\/node\/(\d+)(?:\/[^/?#]*)?\/?$/)
+  return match ? Number(match[1]) : null
+}
+
+function setHeadContent(selector, value) {
+  const element = document.querySelector(selector)
+  if (element) element.setAttribute('content', value)
+}
+
+function setCanonicalUrl(url) {
+  const canonical = document.querySelector('link[rel="canonical"]')
+  if (canonical) canonical.setAttribute('href', url)
+}
+
+function nodeSeoDescription(node) {
+  const plain = nodeContentPlainText(node).replace(/\s+/g, ' ').trim()
+  if (!plain) {
+    return `Documentație FTC despre ${node.title} în FTC Programming Atlas.`
+  }
+
+  const prefix = `${node.title} — `
+  const maxLength = 158
+  const available = Math.max(40, maxLength - prefix.length)
+  const excerpt = plain.length > available ? `${plain.slice(0, available - 1).trimEnd()}…` : plain
+  return `${prefix}${excerpt}`
+}
+
+function updateDocumentSeo(node = null) {
+  const isNode = Boolean(node)
+  const title = isNode ? `${node.title} | FTC Programming Atlas` : HOME_TITLE
+  const description = isNode ? nodeSeoDescription(node) : HOME_DESCRIPTION
+  const canonicalUrl = isNode ? nodeCanonicalUrl(node) : SITE_ORIGIN + HOME_PATH
+
+  document.title = title
+  setHeadContent('meta[name="description"]', description)
+  setCanonicalUrl(canonicalUrl)
+  setHeadContent('meta[property="og:type"]', isNode ? 'article' : 'website')
+  setHeadContent('meta[property="og:title"]', title)
+  setHeadContent('meta[property="og:description"]', description)
+  setHeadContent('meta[property="og:url"]', canonicalUrl)
+  setHeadContent('meta[name="twitter:title"]', title)
+  setHeadContent('meta[name="twitter:description"]', description)
+}
+
+function replaceRouteState(path, state) {
+  window.history.replaceState(state, '', path)
+}
+
+function pushRouteState(path, state) {
+  if (window.location.pathname === path) {
+    replaceRouteState(path, state)
+    return
+  }
+
+  window.history.pushState(state, '', path)
+}
+
+function setNodeRoute(node, { push = true } = {}) {
+  if (!node) return
+  const path = nodeRoutePath(node)
+  const state = { atlasRoute: 'node', nodeId: Number(node.id) }
+
+  if (push) pushRouteState(path, state)
+  else replaceRouteState(path, state)
+
+  updateDocumentSeo(node)
+}
+
+function setHomeRoute({ push = true } = {}) {
+  const state = { atlasRoute: 'home' }
+
+  if (push) pushRouteState(HOME_PATH, state)
+  else replaceRouteState(HOME_PATH, state)
+
+  updateDocumentSeo(null)
+}
+
+function clearFiltersForDeepLink() {
+  searchQuery = ''
+  categoryFilterId = null
+  difficultyFilterId = null
+  tagFilterIds = new Set()
+
+  if (searchInput) searchInput.value = ''
+}
+
+function applyRouteFromLocation({ canonicalize = true } = {}) {
+  const nodeId = routeNodeIdFromLocation()
+
+  if (nodeId == null) {
+    detailOpen = false
+    updateDocumentSeo(null)
+    return null
+  }
+
+  const node = findNode(nodeId)
+
+  if (!node) {
+    detailOpen = false
+    setHomeRoute({ push: false })
+    return null
+  }
+
+  clearFiltersForDeepLink()
+  selectedId = node.id
+  clearEdgeSelection()
+  detailOpen = true
+
+  if (canonicalize) {
+    setNodeRoute(node, { push: false })
+  } else {
+    updateDocumentSeo(node)
+  }
+
+  return node
+}
+
+function openNodeDetail(nodeId, { pushHistory = true } = {}) {
+  const node = findNode(nodeId)
+  if (!node) return false
+
+  selectedId = node.id
+  clearEdgeSelection()
+  detailOpen = true
+  setNodeRoute(node, { push: pushHistory })
+  renderAll()
+  return true
+}
+
+function closeNodeDetail({ pushHistory = true } = {}) {
+  detailOpen = false
+  setHomeRoute({ push: pushHistory })
+  renderAll()
+}
+
 function getEdgeInfo(sourceId, targetId) {
   const source = findNode(sourceId)
   if (!source) return null
@@ -646,19 +810,19 @@ function handleNodeTap(nodeId) {
 
       if (isDoubleClick) {
         editorNodeClickState = { nodeId: null, time: 0 }
-        detailOpen = true
-      } else {
-        editorNodeClickState = { nodeId: numericNodeId, time: now }
-        detailOpen = false
+        openNodeDetail(numericNodeId, { pushHistory: true })
+        return
       }
 
+      editorNodeClickState = { nodeId: numericNodeId, time: now }
+      detailOpen = false
+      updateDocumentSeo(null)
       renderAll()
       return
     }
 
     editorNodeClickState = { nodeId: null, time: 0 }
-    detailOpen = true
-    renderAll()
+    openNodeDetail(numericNodeId, { pushHistory: true })
   })().catch((error) => {
     console.error('Node selection failed:', error)
     alert(error.message || 'Nodul nu a putut fi selectat.')
@@ -2390,10 +2554,13 @@ async function loadAtlasWithUi() {
         return true
       }
 
+      const routedNode = applyRouteFromLocation({ canonicalize: true })
+      renderAll()
       hideAtlasStatus()
 
       requestAnimationFrame(() => {
-        fitView()
+        if (routedNode) centerOnNode(routedNode)
+        else fitView()
       })
 
       return true
@@ -4561,8 +4728,9 @@ function renderNodes() {
 
   orderedNodes.forEach((node) => {
     const { width: nodeWidthValue, height: nodeHeightValue } = nodeSize(node)
-    const el = document.createElement('button')
-    el.type = 'button'
+    const el = document.createElement('a')
+    el.href = nodeRoutePath(node)
+    el.setAttribute('aria-label', `Deschide documentația: ${node.title}`)
     el.dataset.nodeId = String(node.id)
     el.className = `node ${node.id === selectedId ? 'active' : ''}`
     el.style.left = `${node.x}px`
@@ -4746,8 +4914,25 @@ function renderNodes() {
       })()
     }
 
+    // Keep a real href for crawlers, new-tab actions and accessibility while
+    // preserving the Atlas pointer/drag interaction for an ordinary click.
+    el.addEventListener('click', (event) => {
+      const modified = event.ctrlKey || event.metaKey || event.shiftKey || event.altKey
+      if (modified) return
+
+      event.preventDefault()
+
+      if (event.detail === 0) {
+        handleNodeTap(node.id)
+      }
+    })
+
     el.addEventListener('pointerdown', (event) => {
       if (event.button !== 0 && event.pointerType !== 'touch') return
+
+      const modified = event.ctrlKey || event.metaKey || event.shiftKey || event.altKey
+      if (modified && event.pointerType !== 'touch') return
+
       event.stopPropagation()
 
       pointerId = event.pointerId
@@ -6296,8 +6481,7 @@ function renderDetailPanel() {
     deleteSelected().catch((error) => alert(error.message || 'Eroare la ștergere.'))
   })
   detailCloseBtn.addEventListener('click', () => {
-    detailOpen = false
-    renderAll()
+    closeNodeDetail({ pushHistory: true })
   })
 
   detailPanel.querySelectorAll('[data-open-node-code]').forEach((button) => {
@@ -6718,6 +6902,7 @@ async function saveNode() {
     detailOpen = true
     saveCachedNodes()
     closeModal()
+    setNodeRoute(selectedNode(), { push: false })
     renderAll()
     await refreshHistoryButtons()
   } catch (error) {
@@ -6782,6 +6967,7 @@ async function saveRelation() {
 
     saveCachedNodes()
     closeModal()
+    setNodeRoute(findNode(sourceId), { push: false })
     renderAll()
 
     await refreshHistoryButtons()
@@ -6859,6 +7045,7 @@ async function deleteSelected() {
 
     selectedId = nodes[0]?.id ?? null
     detailOpen = false
+    setHomeRoute({ push: false })
 
     relationMode = {
       active: false,
@@ -6968,6 +7155,7 @@ function handleRelationNodeClick(targetId) {
   }
 
   detailOpen = true
+  setNodeRoute(source, { push: false })
   renderAll()
   openRelationEdit(sourceId, relationIndex)
 }
@@ -7650,6 +7838,8 @@ window.addEventListener('keydown', (event) => {
       closeTaxonomyManager()
     } else if (modalBackdrop.classList.contains('open')) {
       closeModal()
+    } else if (detailOpen) {
+      closeNodeDetail({ pushHistory: true })
     } else if (relationMode.active) {
       deactivateRelationMode()
     }
@@ -7658,6 +7848,17 @@ window.addEventListener('keydown', (event) => {
   }
 
   if (!introDismissed) dismissIntro()
+})
+
+window.addEventListener('popstate', () => {
+  if (nodes.length === 0 || isAtlasLoading) return
+
+  const routedNode = applyRouteFromLocation({ canonicalize: true })
+  renderAll()
+
+  if (routedNode) {
+    requestAnimationFrame(() => centerOnNode(routedNode))
+  }
 })
 
 window.addEventListener('beforeunload', (event) => {
