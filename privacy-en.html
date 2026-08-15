@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy · FTC Programming Atlas</title>
+  <meta
+    name="description"
+    content="FTC Programming Atlas Privacy Policy: authentication, technical data, external services, and user rights."
+  />
+  <meta name="robots" content="noindex,follow" />
+  <meta name="theme-color" content="#000000" />
+  <link
+    rel="canonical"
+    href="https://ftcprogrammingatlas.com/privacy-en.html"
+  />
+  <link
+    rel="icon"
+    type="image/png"
+    href="./img/FTCProgrammingAtlasFavicon.png?v=41"
+  />
+  <style>
+    :root {
+      --bg: #000;
+      --panel: rgba(11, 10, 14, 0.96);
+      --line: rgba(177, 76, 255, 0.18);
+      --text: #f3f3f5;
+      --muted: #b2b2bc;
+      --accent: #d5a9ff;
+      --accent-2: #ff8ca3;
+    }
+
+    * { box-sizing: border-box; }
+    html { color-scheme: dark; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(255,77,109,.08), transparent 28%),
+        radial-gradient(circle at 85% 75%, rgba(177,76,255,.09), transparent 30%),
+        var(--bg);
+      color: var(--text);
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+
+    .wrap {
+      width: min(900px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 34px 0 64px;
+    }
+
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand img {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid var(--line);
+    }
+
+    .brand strong {
+      display: block;
+      font-size: .98rem;
+    }
+
+    .brand span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .back,
+    .language-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: .86rem;
+    }
+
+    .back:hover,
+    .language-link:hover {
+      text-decoration: underline;
+    }
+
+    .language-link {
+      padding: 7px 9px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      text-decoration: none;
+    }
+
+    main {
+      padding: clamp(22px, 4vw, 42px);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: var(--panel);
+      box-shadow: 0 22px 70px rgba(0,0,0,.42);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.9rem, 5vw, 3rem);
+      letter-spacing: -.04em;
+    }
+
+    .updated {
+      margin: 0 0 28px;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    h2 {
+      margin: 30px 0 10px;
+      font-size: 1.12rem;
+      color: #f7efff;
+    }
+
+    p,
+    li {
+      color: #d0ced5;
+      line-height: 1.7;
+      font-size: .94rem;
+    }
+
+    ul { padding-left: 20px; }
+    a { color: var(--accent); }
+
+    .notice {
+      margin: 18px 0;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,140,163,.22);
+      background: rgba(255,77,109,.06);
+      color: #eadde2;
+    }
+
+    .meta {
+      display: grid;
+      gap: 10px;
+      margin: 18px 0 0;
+    }
+
+    .meta div {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.025);
+      border: 1px solid rgba(255,255,255,.05);
+    }
+
+    .meta strong { color: #fff; }
+
+    footer {
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: .76rem;
+      line-height: 1.55;
+      text-align: center;
+    }
+
+    @media (max-width: 620px) {
+      .top {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .top-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <img
+          src="./img/FTCProgrammingAtlasLogo.png"
+          alt="FTC Programming Atlas"
+        />
+        <div>
+          <strong>FTC Programming Atlas</strong>
+          <span>Privacy and personal data</span>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <a class="language-link" href="/privacy.html">RO</a>
+        <a class="back" href="./">← Back to the Atlas</a>
+      </div>
+    </header>
+
+    <main>
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: August 12, 2026</p>
+
+      <p>
+        FTC Programming Atlas is an educational project for FTC programming
+        documentation. Most content can be viewed without an account.
+        Authentication is required only for people who have been granted
+        editor access.
+      </p>
+
+      <div class="meta">
+        <div>
+          <strong>Project operator / administrator:</strong>
+          FTC Programming Atlas, a project created by InfotronX #19119.
+        </div>
+
+        <div>
+          <strong>Contact for data-related requests:</strong>
+          <a href="mailto:suiramgabor@gmail.com">suiramgabor@gmail.com</a>.
+          For information about the team, you can also visit the public
+          <a
+            href="https://itx.infoel.ro"
+            target="_blank"
+            rel="noopener noreferrer"
+          >InfotronX</a>
+          page.
+        </div>
+      </div>
+
+      <h2>1. Data we may process</h2>
+      <ul>
+        <li>
+          <strong>Email address</strong> entered for magic-link
+          authentication and verification of editor access.
+        </li>
+        <li>
+          <strong>Authentication and session data</strong> generated
+          technically by Supabase Auth. The Atlas client stores the session
+          locally in the browser in order to keep the user authenticated.
+        </li>
+        <li>
+          <strong>Technical access data</strong> that may appear in the
+          hosting or backend infrastructure, such as IP address, browser
+          type, request time, and information necessary for security and
+          operation.
+        </li>
+        <li>
+          <strong>Content uploaded by editors</strong>, including
+          documentation, files, and media. Editors should not upload
+          sensitive personal data that is not necessary for the project.
+        </li>
+      </ul>
+
+      <h2>2. Why we use this data</h2>
+      <p>
+        Data is used for authentication, editor access control, application
+        security, content administration, and the technical operation of
+        the Atlas. Public access to documentation does not require providing
+        an email address.
+      </p>
+
+      <h2>3. Legal basis</h2>
+      <p>
+        For editor authentication and administration, processing is based
+        primarily on the legitimate interest of securing and administering
+        access to the project. Technical data required for operation and
+        security is processed for the same purpose. Providing an email
+        address is optional for visitors; without it, you can browse the
+        Atlas but cannot authenticate as an editor.
+      </p>
+
+      <h2>4. Third-party services</h2>
+      <p>
+        The Atlas uses external services that are necessary for its
+        operation:
+      </p>
+
+      <ul>
+        <li>
+          <strong>Supabase</strong> for the database, authentication,
+          storage, and APIs. Supabase describes its platform as including
+          Postgres, Auth, Storage, and APIs and publishes information about
+          its security controls.
+        </li>
+        <li>
+          <strong>Netlify</strong> for hosting and delivering the site.
+          Netlify may process technical data required to provide and secure
+          the service.
+        </li>
+        <li>
+          <strong>esm.sh</strong> for delivering the Supabase JavaScript
+          module to the browser.
+        </li>
+        <li>
+          <strong>YouTube or other external media sources</strong> only
+          when documentation includes external content; loading that content
+          may send the provider ordinary technical connection data.
+        </li>
+      </ul>
+
+      <h2>5. Cookies and tracking</h2>
+      <p>
+        FTC Programming Atlas does not intentionally implement behavioral
+        advertising, marketing analytics, or tracking cookies.
+        Authentication may use browser local storage to maintain the
+        session. External services may have their own practices when their
+        resources are accessed.
+      </p>
+
+      <h2>6. How long we keep data</h2>
+      <p>
+        Authentication data is kept for as long as it is needed to
+        administer editor access and project security, after which it may
+        be deleted or disabled. Published content remains until editors
+        modify or remove it. Technical data and backups may be retained
+        according to the retention periods and policies of infrastructure
+        providers.
+      </p>
+
+      <h2>7. International transfers</h2>
+      <p>
+        Technical providers may use infrastructure in multiple
+        jurisdictions. Where relevant, transfers are governed by the
+        mechanisms and safeguards described in the providers' terms and
+        data-protection agreements. Netlify states that it uses mechanisms
+        such as Standard Contractual Clauses and, for certain transfers,
+        the EU–U.S. Data Privacy Framework.
+      </p>
+
+      <h2>8. Your rights</h2>
+      <p>
+        Under the GDPR, you may have rights to access, rectification,
+        erasure, restriction of processing, objection, and, where
+        applicable, data portability. You also have the right to lodge a
+        complaint with the competent supervisory authority.
+      </p>
+
+      <h2>9. Security</h2>
+      <p>
+        The Atlas uses HTTPS, browser security policies, database-level
+        access control, and separate rules for editor operations. No
+        technical measure can guarantee absolute security, but the project
+        is configured to limit unauthorized access and unnecessary data
+        exposure.
+      </p>
+
+      <h2>10. Changes to this policy</h2>
+      <p>
+        This policy may be updated when Atlas functionality, providers, or
+        data-processing practices change. The date of the latest update is
+        shown at the top of this page.
+      </p>
+
+      <div class="notice">
+        This page describes the current operation of the project and should
+        not be interpreted as a substitute for professional legal advice.
+      </div>
+    </main>
+
+    <footer>
+      FTC Programming Atlas · educational project created by InfotronX #19119
+    </footer>
+  </div>
+</body>
+</html>
