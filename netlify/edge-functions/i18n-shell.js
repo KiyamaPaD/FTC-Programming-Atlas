@@ -1,5 +1,6 @@
 const I18N_SCRIPT = '/js/atlas-i18n.js?v=53'
-const MARKER = 'data-atlas-i18n="v53"'
+const I18N_COVERAGE_SCRIPT = '/js/atlas-i18n-v54.js?v=54'
+const MARKER = 'data-atlas-i18n="v54"'
 
 const HOME_TITLE =
   'FTC Programming Atlas | FTC Robotics Programming Guide'
@@ -109,16 +110,18 @@ export default async function handler(request, context) {
   }
 
   if (!html.includes(MARKER)) {
-    const scriptTag =
-      `<script type="module" src="${I18N_SCRIPT}" ${MARKER}></script>`
+    const scriptTags = [
+      `<script type="module" src="${I18N_SCRIPT}"></script>`,
+      `<script type="module" src="${I18N_COVERAGE_SCRIPT}" ${MARKER}></script>`
+    ].join('\n  ')
 
     if (/<\/body>/i.test(html)) {
       html = html.replace(
         /<\/body>/i,
-        `  ${scriptTag}\n</body>`
+        `  ${scriptTags}\n</body>`
       )
     } else {
-      html += `\n${scriptTag}\n`
+      html += `\n${scriptTags}\n`
     }
   }
 
@@ -131,7 +134,7 @@ export default async function handler(request, context) {
   )
   headers.set(
     'x-atlas-i18n',
-    'bilingual-v53-global-en'
+    'bilingual-v54-viewer-cleanup'
   )
 
   return new Response(html, {
