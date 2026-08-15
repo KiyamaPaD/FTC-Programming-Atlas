@@ -1,0 +1,28 @@
+{
+  "name": "FTC Programming Atlas",
+  "short_name": "FTC Atlas",
+  "description": "Interactive FTC programming guide for FTC SDK, PedroPathing, Road Runner, FTCLib, control loops, vision, debugging, and team documentation.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/favicon-48x48.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "/img/FTCProgrammingAtlasFavicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
