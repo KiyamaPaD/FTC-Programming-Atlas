@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v46 · PINNED SUPABASE DEPENDENCY')
+console.log('ATLAS SCRIPT LOADED v52 · GLOBAL ENGLISH SEO + BILINGUAL CONTENT')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -10,7 +10,7 @@ const SITE_ORIGIN = 'https://ftcprogrammingatlas.com'
 const HOME_PATH = '/'
 const HOME_TITLE = 'FTC Programming Atlas | FTC Robotics Programming Guide'
 const HOME_DESCRIPTION =
-  'Atlas interactiv de programare FTC pentru FTC SDK, PedroPathing, Road Runner, FTCLib, control loops, vision, debugging și documentație de echipă.'
+  'Interactive FTC programming guide for FTC SDK, Pedro Pathing, Road Runner, FTCLib, control loops, vision, autonomous programming, and debugging.'
 const MEDIA_BUCKET = 'atlas-media'
 const FILE_BUCKET = 'atlas-files'
 const MAX_MEDIA_FILE_SIZE = 50 * 1024 * 1024
@@ -4643,7 +4643,7 @@ function renderLinks() {
           : ''
 
       parts.push(`
-        <g class="edge-group ${edgeSelected ? 'selected' : ''}">
+        <g class="edge-group ${edgeSelected ? 'selected' : ''}" data-edge-source="${source.id}" data-edge-target="${target.id}">
           ${glowPath}
           <path class="edge-base" d="${geometry.pathD}" fill="none" stroke="${baseColor}" stroke-width="${baseWidth}" stroke-linecap="round" />
           <path
@@ -6369,7 +6369,7 @@ function renderDetailPanel() {
         if (!target) return ''
 
         return `
-      <div class="relation-item">
+      <div class="relation-item" data-relation-source="${node.id}" data-relation-target="${target.id}">
         <div>
           <strong>${escapeHtml(target.title)}</strong>
           <span>${escapeHtml(link.label || 'relație')}</span>

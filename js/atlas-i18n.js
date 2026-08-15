@@ -1,13 +1,13 @@
 // FTC Programming Atlas
-// v51 · Bilingual foundation
+// v52 · Global English + bilingual content
 //
 // Source language: Romanian
 // Secondary language: English
 //
 // This module is deliberately isolated from atlas-script.js:
 // - static interface text is translated client-side;
-// - English node title/documentation translations are stored in
-//   public.atlas_translations;
+// - English node title/documentation and relationship-label translations
+//   are stored in public.atlas_translations;
 // - missing translations fall back to Romanian;
 // - language preference is persisted in localStorage.
 
@@ -533,6 +533,238 @@ function getCurrentNodeId() {
   return Number.isSafeInteger(id) && id > 0 ? id : null
 }
 
+
+const EDGE_TRANSLATION_FACTOR = 1000000
+
+function edgeTranslationId(sourceId, targetId) {
+  const source = Number(sourceId)
+  const target = Number(targetId)
+
+  if (
+    !Number.isSafeInteger(source) ||
+    !Number.isSafeInteger(target) ||
+    source <= 0 ||
+    target <= 0
+  ) {
+    return null
+  }
+
+  // atlas_edges currently uses a composite source/target identity.
+  // Encode that pair into the bigint entity_id used by atlas_translations.
+  return source * EDGE_TRANSLATION_FACTOR + target
+}
+
+function getCurrentEdgeSelection() {
+  const selected =
+    document.querySelector(
+      '.edge-group.selected[data-edge-source][data-edge-target]'
+    ) ||
+    document.querySelector(
+      '.edge-group.selected .edge-label-hit[data-source][data-target]'
+    )
+
+  if (!selected) return null
+
+  const sourceId = Number(
+    selected.dataset.edgeSource ?? selected.dataset.source
+  )
+  const targetId = Number(
+    selected.dataset.edgeTarget ?? selected.dataset.target
+  )
+
+  if (
+    !Number.isSafeInteger(sourceId) ||
+    !Number.isSafeInteger(targetId) ||
+    sourceId <= 0 ||
+    targetId <= 0
+  ) {
+    return null
+  }
+
+  return { sourceId, targetId }
+}
+
+function applyEdgeTranslations() {
+  if (language !== 'en') return
+  if (!translationLoadFinished) return
+
+  document
+    .querySelectorAll(
+      '.edge-group[data-edge-source][data-edge-target]'
+    )
+    .forEach((group) => {
+      const sourceId = Number(group.dataset.edgeSource)
+      const targetId = Number(group.dataset.edgeTarget)
+      const entityId = edgeTranslationId(sourceId, targetId)
+
+      if (!entityId) return
+
+      const labelTranslation = getTranslation(
+        'edge',
+        entityId,
+        'label'
+      )
+
+      if (!labelTranslation?.value) return
+
+      const labelGroup = group.querySelector('.edge-label')
+      const label = labelGroup?.querySelector('text')
+
+      if (label && label.textContent !== labelTranslation.value) {
+        label.textContent = labelTranslation.value
+      }
+
+      // Relationship label geometry is initially sized from the Romanian
+      // source label. Re-size it after applying the English translation so
+      // longer English labels never overflow the badge.
+      const labelWidth = Math.max(
+        76,
+        String(labelTranslation.value).length * 6.6
+      )
+
+      const labelRect = labelGroup?.querySelector('rect')
+      const hitRect = group.querySelector(
+        '.edge-label-hit rect'
+      )
+
+      if (labelRect) {
+        labelRect.setAttribute('x', String(-labelWidth / 2))
+        labelRect.setAttribute('width', String(labelWidth))
+      }
+
+      if (hitRect) {
+        hitRect.setAttribute(
+          'x',
+          String(-labelWidth / 2 - 8)
+        )
+        hitRect.setAttribute(
+          'width',
+          String(labelWidth + 16)
+        )
+      }
+    })
+
+  document
+    .querySelectorAll(
+      '.relation-item[data-relation-source][data-relation-target]'
+    )
+    .forEach((item) => {
+      const sourceId = Number(item.dataset.relationSource)
+      const targetId = Number(item.dataset.relationTarget)
+      const entityId = edgeTranslationId(sourceId, targetId)
+
+      if (!entityId) return
+
+      const labelTranslation = getTranslation(
+        'edge',
+        entityId,
+        'label'
+      )
+
+      const targetTranslation = getTranslation(
+        'node',
+        targetId,
+        'title'
+      )
+
+      const title = item.querySelector('strong')
+      const label = item.querySelector('span')
+
+      if (
+        title &&
+        targetTranslation?.value &&
+        title.textContent !== targetTranslation.value
+      ) {
+        title.textContent = targetTranslation.value
+      }
+
+      if (
+        label &&
+        labelTranslation?.value &&
+        label.textContent !== labelTranslation.value
+      ) {
+        label.textContent = labelTranslation.value
+      }
+    })
+}
+
+function setMetaContent(selector, value) {
+  const element = document.querySelector(selector)
+  if (element) element.setAttribute('content', value)
+}
+
+function englishSeoDescription(title, content) {
+  const plain = plainTextFromHtml(content || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!plain) {
+    return `FTC programming documentation for ${title || 'this topic'} in FTC Programming Atlas.`
+  }
+
+  const prefix = `${title || 'FTC Programming'} — `
+  const maxLength = 158
+  const available = Math.max(40, maxLength - prefix.length)
+
+  const excerpt =
+    plain.length > available
+      ? `${plain.slice(0, available - 1).trimEnd()}…`
+      : plain
+
+  return `${prefix}${excerpt}`
+}
+
+function applyEnglishClientSeo() {
+  if (language !== 'en') return
+  if (!translationLoadFinished) return
+
+  const nodeId = getCurrentNodeId()
+
+  if (!nodeId) {
+    const title =
+      'FTC Programming Atlas | FTC Robotics Programming Guide'
+    const description =
+      'Interactive FTC programming guide for FTC SDK, Pedro Pathing, Road Runner, FTCLib, control loops, vision, autonomous programming, and debugging.'
+
+    document.title = title
+    setMetaContent('meta[name="description"]', description)
+    setMetaContent('meta[property="og:locale"]', 'en_US')
+    setMetaContent('meta[property="og:title"]', title)
+    setMetaContent('meta[property="og:description"]', description)
+    setMetaContent('meta[name="twitter:title"]', title)
+    setMetaContent('meta[name="twitter:description"]', description)
+    return
+  }
+
+  const titleTranslation = getTranslation(
+    'node',
+    nodeId,
+    'title'
+  )
+
+  const contentTranslation = getTranslation(
+    'node',
+    nodeId,
+    'content'
+  )
+
+  if (!titleTranslation?.value) return
+
+  const title = `${titleTranslation.value} | FTC Programming Atlas`
+  const description = englishSeoDescription(
+    titleTranslation.value,
+    contentTranslation?.value || ''
+  )
+
+  document.title = title
+  setMetaContent('meta[name="description"]', description)
+  setMetaContent('meta[property="og:locale"]', 'en_US')
+  setMetaContent('meta[property="og:title"]', title)
+  setMetaContent('meta[property="og:description"]', description)
+  setMetaContent('meta[name="twitter:title"]', title)
+  setMetaContent('meta[name="twitter:description"]', description)
+}
+
 function applyNodeTranslations() {
   if (language !== 'en') return
   if (!translationLoadFinished) return
@@ -659,6 +891,8 @@ function scheduleApply() {
       translateStaticTree(document.body)
       updateLanguageLinks()
       applyNodeTranslations()
+      applyEdgeTranslations()
+      applyEnglishClientSeo()
     }
 
     updateLanguageSwitcher()
@@ -1124,6 +1358,388 @@ async function removeNodeTranslation(nodeId) {
   )
 }
 
+
+async function fetchBaseEdge(sourceId, targetId) {
+  const url = new URL(`${SUPABASE_URL}/rest/v1/atlas_edges`)
+  url.searchParams.set(
+    'select',
+    'source_id,target_id,label'
+  )
+  url.searchParams.set(
+    'project_id',
+    `eq.${PROJECT_ID}`
+  )
+  url.searchParams.set('source_id', `eq.${Number(sourceId)}`)
+  url.searchParams.set('target_id', `eq.${Number(targetId)}`)
+  url.searchParams.set('limit', '1')
+
+  const response = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      accept: 'application/json'
+    }
+  })
+
+  if (!response.ok) {
+    throw new Error(
+      `Relation lookup failed with HTTP ${response.status}`
+    )
+  }
+
+  const rows = await response.json()
+  return Array.isArray(rows) ? rows[0] || null : null
+}
+
+async function saveEdgeTranslation(sourceId, targetId, labelValue) {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    throw new Error(
+      language === 'en'
+        ? 'Editor authentication is required.'
+        : 'Este necesară autentificarea de editor.'
+    )
+  }
+
+  const entityId = edgeTranslationId(sourceId, targetId)
+
+  if (!entityId) {
+    throw new Error(
+      language === 'en'
+        ? 'Invalid relation identity.'
+        : 'Identitatea relației nu este validă.'
+    )
+  }
+
+  const row = {
+    project_id: PROJECT_ID,
+    entity_type: 'edge',
+    entity_id: entityId,
+    field_name: 'label',
+    language: SECONDARY_LANGUAGE,
+    value: labelValue.trim(),
+    content_format: 'plain',
+    updated_at: new Date().toISOString()
+  }
+
+  const url = new URL(
+    `${SUPABASE_URL}/rest/v1/atlas_translations`
+  )
+
+  url.searchParams.set(
+    'on_conflict',
+    'project_id,entity_type,entity_id,field_name,language'
+  )
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+      prefer: 'resolution=merge-duplicates,return=representation'
+    },
+    body: JSON.stringify(row)
+  })
+
+  if (!response.ok) {
+    const body = await response.text()
+    throw new Error(
+      `Relation translation save failed with HTTP ${response.status}: ${body}`
+    )
+  }
+
+  const saved = await response.json()
+  const savedRow = Array.isArray(saved) ? saved[0] || row : row
+
+  translationMap.set(
+    translationKey('edge', entityId, 'label'),
+    savedRow
+  )
+}
+
+async function removeEdgeTranslation(sourceId, targetId) {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    throw new Error(
+      language === 'en'
+        ? 'Editor authentication is required.'
+        : 'Este necesară autentificarea de editor.'
+    )
+  }
+
+  const entityId = edgeTranslationId(sourceId, targetId)
+
+  if (!entityId) return
+
+  const url = new URL(
+    `${SUPABASE_URL}/rest/v1/atlas_translations`
+  )
+
+  url.searchParams.set('project_id', `eq.${PROJECT_ID}`)
+  url.searchParams.set('entity_type', 'eq.edge')
+  url.searchParams.set('entity_id', `eq.${entityId}`)
+  url.searchParams.set('language', `eq.${SECONDARY_LANGUAGE}`)
+  url.searchParams.set('field_name', 'eq.label')
+
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      apikey: SUPABASE_KEY,
+      authorization: `Bearer ${accessToken}`,
+      prefer: 'return=minimal'
+    }
+  })
+
+  if (!response.ok) {
+    const body = await response.text()
+    throw new Error(
+      `Relation translation delete failed with HTTP ${response.status}: ${body}`
+    )
+  }
+
+  translationMap.delete(
+    translationKey('edge', entityId, 'label')
+  )
+}
+
+async function openEdgeTranslationManager(selection) {
+  const { sourceId, targetId } = selection
+  const entityId = edgeTranslationId(sourceId, targetId)
+
+  closeTranslationManager()
+
+  let edge
+
+  try {
+    edge = await fetchBaseEdge(sourceId, targetId)
+  } catch (error) {
+    window.alert(error.message)
+    return
+  }
+
+  if (!edge) {
+    window.alert(
+      language === 'en'
+        ? 'The selected relation no longer exists.'
+        : 'Relația selectată nu mai există.'
+    )
+    return
+  }
+
+  const labelTranslation = getTranslation(
+    'edge',
+    entityId,
+    'label'
+  )
+
+  const backdrop = document.createElement('div')
+  backdrop.id = 'atlasI18nBackdrop'
+  backdrop.className =
+    'modal-backdrop atlas-i18n-backdrop open'
+
+  backdrop.innerHTML = `
+    <div
+      class="modal atlas-i18n-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="atlasI18nTitle"
+    >
+      <div class="modal-head">
+        <div>
+          <h3 id="atlasI18nTitle">${
+            language === 'en'
+              ? 'Relation translation · Romanian → English'
+              : 'Traducere relație · Română → Engleză'
+          }</h3>
+          <p>${
+            language === 'en'
+              ? 'Translate the relation label shown on the Atlas map and inside node documentation.'
+              : 'Tradu eticheta relației afișată pe hartă și în documentația nodurilor.'
+          }</p>
+        </div>
+
+        <button
+          class="icon-btn"
+          type="button"
+          data-atlas-i18n-close
+          aria-label="${language === 'en' ? 'Close' : 'Închide'}"
+        >✕</button>
+      </div>
+
+      <div class="atlas-i18n-body">
+        <section class="atlas-i18n-source">
+          <strong>RO · ${
+            escapeHtml(edge.label || 'relație')
+          }</strong>
+          <p>${
+            language === 'en'
+              ? 'Original relation label'
+              : 'Eticheta originală a relației'
+          }</p>
+        </section>
+
+        <div class="field">
+          <label for="atlasI18nEdgeLabelInput">EN · ${
+            language === 'en'
+              ? 'Relation label'
+              : 'Eticheta relației'
+          }</label>
+
+          <input
+            id="atlasI18nEdgeLabelInput"
+            maxlength="240"
+            value="${escapeHtmlAttribute(
+              labelTranslation?.value || ''
+            )}"
+            placeholder="${
+              language === 'en'
+                ? 'Example: depends on / uses / continues to'
+                : 'Ex: depends on / uses / continues to'
+            }"
+          />
+        </div>
+
+        <div
+          class="atlas-i18n-status"
+          id="atlasI18nStatus"
+          aria-live="polite"
+        ></div>
+      </div>
+
+      <div class="modal-foot">
+        <button
+          class="btn atlas-i18n-danger"
+          id="atlasI18nRemoveBtn"
+          type="button"
+        >${
+          language === 'en'
+            ? 'Remove English translation'
+            : 'Șterge traducerea EN'
+        }</button>
+
+        <button
+          class="btn"
+          type="button"
+          data-atlas-i18n-close
+        >${language === 'en' ? 'Cancel' : 'Renunță'}</button>
+
+        <button
+          class="btn primary"
+          id="atlasI18nSaveBtn"
+          type="button"
+        >${language === 'en' ? 'Save English' : 'Salvează EN'}</button>
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(backdrop)
+
+  backdrop
+    .querySelectorAll('[data-atlas-i18n-close]')
+    .forEach((button) => {
+      button.addEventListener(
+        'click',
+        closeTranslationManager
+      )
+    })
+
+  document
+    .getElementById('atlasI18nSaveBtn')
+    ?.addEventListener('click', async () => {
+      const status = document.getElementById(
+        'atlasI18nStatus'
+      )
+      const saveButton = document.getElementById(
+        'atlasI18nSaveBtn'
+      )
+      const labelValue =
+        document.getElementById(
+          'atlasI18nEdgeLabelInput'
+        )?.value || ''
+
+      if (!labelValue.trim()) {
+        status.textContent =
+          language === 'en'
+            ? 'Add the English relation label first.'
+            : 'Adaugă mai întâi eticheta relației în engleză.'
+        return
+      }
+
+      saveButton.disabled = true
+      status.textContent =
+        language === 'en'
+          ? 'Saving relation translation...'
+          : 'Se salvează traducerea relației...'
+
+      try {
+        await saveEdgeTranslation(
+          sourceId,
+          targetId,
+          labelValue
+        )
+
+        status.textContent =
+          language === 'en'
+            ? 'English relation translation saved.'
+            : 'Traducerea EN a relației a fost salvată.'
+
+        translationLoadFinished = true
+        applyEdgeTranslations()
+
+        window.setTimeout(
+          closeTranslationManager,
+          450
+        )
+      } catch (error) {
+        status.textContent = error.message
+      } finally {
+        saveButton.disabled = false
+      }
+    })
+
+  document
+    .getElementById('atlasI18nRemoveBtn')
+    ?.addEventListener('click', async () => {
+      const confirmed = window.confirm(
+        language === 'en'
+          ? 'Remove the English translation for this relation?'
+          : 'Ștergi traducerea EN pentru această relație?'
+      )
+
+      if (!confirmed) return
+
+      const status = document.getElementById(
+        'atlasI18nStatus'
+      )
+
+      try {
+        status.textContent =
+          language === 'en'
+            ? 'Removing relation translation...'
+            : 'Se șterge traducerea relației...'
+
+        await removeEdgeTranslation(
+          sourceId,
+          targetId
+        )
+
+        status.textContent =
+          language === 'en'
+            ? 'English relation translation removed.'
+            : 'Traducerea EN a relației a fost ștearsă.'
+
+        window.setTimeout(() => {
+          closeTranslationManager()
+          window.location.reload()
+        }, 450)
+      } catch (error) {
+        status.textContent = error.message
+      }
+    })
+}
+
 function injectTranslationManagerButton() {
   if (
     document.getElementById(
@@ -1195,13 +1811,20 @@ function execEditorCommand(command, value = null) {
 }
 
 async function openTranslationManager() {
+  const edgeSelection = getCurrentEdgeSelection()
+
+  if (edgeSelection) {
+    await openEdgeTranslationManager(edgeSelection)
+    return
+  }
+
   const nodeId = getCurrentNodeId()
 
   if (!nodeId) {
     window.alert(
       language === 'en'
-        ? 'Select a node first.'
-        : 'Selectează mai întâi un nod.'
+        ? 'Select a node or relation first.'
+        : 'Selectează mai întâi un nod sau o relație.'
     )
     return
   }
