@@ -1,12 +1,15 @@
 const I18N_SCRIPT = '/js/atlas-i18n.js?v=53'
-const I18N_COVERAGE_SCRIPT = '/js/atlas-i18n-v54.js?v=54'
-const MARKER = 'data-atlas-i18n="v54"'
+const I18N_COVERAGE_SCRIPT = '/js/atlas-i18n-v55.js?v=55'
+const MARKER = 'data-atlas-i18n="v55"'
 
 const HOME_TITLE =
   'FTC Programming Atlas | FTC Robotics Programming Guide'
 
 const HOME_DESCRIPTION =
-  'Interactive FTC programming guide for FTC SDK, Pedro Pathing, Road Runner, FTCLib, control loops, vision, autonomous programming, and debugging.'
+  'Interactive FTC programming guide for FTC SDK, PedroPathing, Road Runner, FTCLib, control loops, vision, debugging, and team documentation.'
+
+const LOGO_URL =
+  'https://ftcprogrammingatlas.com/img/FTCProgrammingAtlasLogo.png'
 
 function replaceMeta(html, matcher, replacement) {
   if (matcher.test(html)) {
@@ -17,6 +20,43 @@ function replaceMeta(html, matcher, replacement) {
     '</head>',
     `  ${replacement}\n</head>`
   )
+}
+
+function injectJsonLd(html) {
+  const payload = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        name: 'FTC Programming Atlas',
+        url: 'https://ftcprogrammingatlas.com/',
+        logo: LOGO_URL
+      },
+      {
+        '@type': 'WebSite',
+        name: 'FTC Programming Atlas',
+        url: 'https://ftcprogrammingatlas.com/',
+        inLanguage: 'en',
+        description: HOME_DESCRIPTION,
+        publisher: {
+          '@type': 'Organization',
+          name: 'FTC Programming Atlas',
+          logo: {
+            '@type': 'ImageObject',
+            url: LOGO_URL
+          }
+        }
+      }
+    ]
+  }
+
+  const script = `<script type="application/ld+json" data-atlas-schema="v55">${JSON.stringify(payload)}</script>`
+
+  if (/data-atlas-schema="v55"/i.test(html)) {
+    return html
+  }
+
+  return html.replace('</head>', `  ${script}\n</head>`)
 }
 
 function applyEnglishHomepageMetadata(html) {
@@ -42,15 +82,10 @@ function applyEnglishHomepageMetadata(html) {
     '<meta property="og:locale" content="en_US" />'
   )
 
-  if (
-    !/<meta\s+property=["']og:locale:alternate["'][^>]*>/i.test(
-      html
-    )
-  ) {
+  if (!/<meta\s+property=["']og:locale:alternate["'][^>]*>/i.test(html)) {
     html = html.replace(
       /<meta\s+property=["']og:locale["'][^>]*>/i,
-      (match) =>
-        `${match}\n  <meta property="og:locale:alternate" content="ro_RO" />`
+      (match) => `${match}\n  <meta property="og:locale:alternate" content="ro_RO" />`
     )
   }
 
@@ -68,6 +103,12 @@ function applyEnglishHomepageMetadata(html) {
 
   html = replaceMeta(
     html,
+    /<meta\s+property=["']og:image["'][^>]*>/i,
+    `<meta property="og:image" content="${LOGO_URL}" />`
+  )
+
+  html = replaceMeta(
+    html,
     /<meta\s+name=["']twitter:title["'][^>]*>/i,
     `<meta name="twitter:title" content="${HOME_TITLE}" />`
   )
@@ -78,7 +119,19 @@ function applyEnglishHomepageMetadata(html) {
     `<meta name="twitter:description" content="${HOME_DESCRIPTION}" />`
   )
 
-  return html
+  html = replaceMeta(
+    html,
+    /<meta\s+name=["']twitter:image["'][^>]*>/i,
+    `<meta name="twitter:image" content="${LOGO_URL}" />`
+  )
+
+  html = replaceMeta(
+    html,
+    /<link\s+rel=["']canonical["'][^>]*>/i,
+    '<link rel="canonical" href="https://ftcprogrammingatlas.com/" />'
+  )
+
+  return injectJsonLd(html)
 }
 
 export default async function handler(request, context) {
@@ -92,9 +145,7 @@ export default async function handler(request, context) {
     return response
   }
 
-  const contentType =
-    response.headers.get('content-type') || ''
-
+  const contentType = response.headers.get('content-type') || ''
   if (!contentType.includes('text/html')) {
     return response
   }
@@ -102,10 +153,7 @@ export default async function handler(request, context) {
   const url = new URL(request.url)
   let html = await response.text()
 
-  if (
-    url.pathname === '/' ||
-    url.pathname === '/index.html'
-  ) {
+  if (url.pathname === '/' || url.pathname === '/index.html') {
     html = applyEnglishHomepageMetadata(html)
   }
 
@@ -116,10 +164,7 @@ export default async function handler(request, context) {
     ].join('\n  ')
 
     if (/<\/body>/i.test(html)) {
-      html = html.replace(
-        /<\/body>/i,
-        `  ${scriptTags}\n</body>`
-      )
+      html = html.replace(/<\/body>/i, `  ${scriptTags}\n</body>`)
     } else {
       html += `\n${scriptTags}\n`
     }
@@ -128,14 +173,8 @@ export default async function handler(request, context) {
   const headers = new Headers(response.headers)
   headers.delete('content-length')
   headers.delete('content-encoding')
-  headers.set(
-    'content-type',
-    'text/html; charset=utf-8'
-  )
-  headers.set(
-    'x-atlas-i18n',
-    'bilingual-v54-viewer-cleanup'
-  )
+  headers.set('content-type', 'text/html; charset=utf-8')
+  headers.set('x-atlas-i18n', 'bilingual-v55-search-logo-snippet')
 
   return new Response(html, {
     status: response.status,
