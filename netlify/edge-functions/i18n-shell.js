@@ -1,5 +1,5 @@
-const I18N_SCRIPT = '/js/atlas-i18n.js?v=52'
-const MARKER = 'data-atlas-i18n="v52"'
+const I18N_SCRIPT = '/js/atlas-i18n.js?v=53'
+const MARKER = 'data-atlas-i18n="v53"'
 
 const HOME_TITLE =
   'FTC Programming Atlas | FTC Robotics Programming Guide'
@@ -131,7 +131,7 @@ export default async function handler(request, context) {
   )
   headers.set(
     'x-atlas-i18n',
-    'bilingual-v52-global-en'
+    'bilingual-v53-global-en'
   )
 
   return new Response(html, {

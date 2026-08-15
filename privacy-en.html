@@ -117,6 +117,33 @@
       text-decoration: none;
     }
 
+
+    .language-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255,255,255,.025);
+    }
+
+    .language-link {
+      min-width: 34px;
+      padding: 6px 8px;
+      border-radius: 7px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .72rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .language-link.active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(177,76,255,.25), rgba(255,77,109,.16));
+    }
+
     main {
       padding: clamp(22px, 4vw, 42px);
       border: 1px solid var(--line);
@@ -213,7 +240,10 @@
       </div>
 
       <div class="top-actions">
-        <a class="language-link" href="/privacy.html">RO</a>
+        <div class="language-switch" role="group" aria-label="Language">
+          <a class="language-link" data-privacy-language="ro" href="/privacy.html">RO</a>
+          <a class="language-link active" data-privacy-language="en" href="/privacy-en.html">EN</a>
+        </div>
         <a class="back" href="./">← Back to the Atlas</a>
       </div>
     </header>
@@ -382,5 +412,6 @@
       FTC Programming Atlas · educational project created by InfotronX #19119
     </footer>
   </div>
+  <script src="/js/privacy-language.js?v=53" defer></script>
 </body>
 </html>

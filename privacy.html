@@ -51,6 +51,35 @@
     .meta div { padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.05); }
     .meta strong { color: #fff; }
     footer { margin-top: 20px; color: var(--muted); font-size: .76rem; line-height: 1.55; text-align: center; }
+
+    .top-actions { display: flex; align-items: center; gap: 10px; }
+    .language-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 3px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255,255,255,.025);
+    }
+    .language-link {
+      min-width: 34px;
+      padding: 6px 8px;
+      border-radius: 7px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .72rem;
+      font-weight: 800;
+      text-align: center;
+    }
+    .language-link.active {
+      color: #fff;
+      background: linear-gradient(135deg, rgba(177,76,255,.25), rgba(255,77,109,.16));
+    }
+    @media (max-width: 620px) {
+      .top { align-items: flex-start; flex-direction: column; }
+      .top-actions { width: 100%; justify-content: space-between; }
+    }
   </style>
 </head>
 <body>
@@ -60,7 +89,13 @@
         <img src="./img/FTCProgrammingAtlasLogo.png" alt="FTC Programming Atlas" />
         <div><strong>FTC Programming Atlas</strong><span>Confidențialitate și date personale</span></div>
       </div>
-      <a class="back" href="./">← Înapoi la Atlas</a>
+      <div class="top-actions">
+        <div class="language-switch" role="group" aria-label="Limbă">
+          <a class="language-link active" data-privacy-language="ro" href="/privacy.html">RO</a>
+          <a class="language-link" data-privacy-language="en" href="/privacy-en.html">EN</a>
+        </div>
+        <a class="back" href="./">← Înapoi la Atlas</a>
+      </div>
     </header>
 
     <main>
@@ -120,5 +155,6 @@
 
     <footer>FTC Programming Atlas · proiect educațional creat de InfotronX #19119</footer>
   </div>
+  <script src="/js/privacy-language.js?v=53" defer></script>
 </body>
 </html>
