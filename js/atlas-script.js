@@ -379,8 +379,30 @@ const toolsHeader = document.getElementById('toolsHeader')
 const collapseBtn = document.getElementById('collapseBtn')
 const authStatusBox = document.getElementById('authStatusBox')
 const authEmailInput = document.getElementById('authEmailInput')
+const authOtpRow = document.getElementById('authOtpRow')
+const authOtpInput = document.getElementById('authOtpInput')
+const verifyOtpBtn = document.getElementById('verifyOtpBtn')
 const loginBtn = document.getElementById('loginBtn')
 const logoutBtn = document.getElementById('logoutBtn')
+
+function isNativeAtlasApp() {
+  try {
+    if (window.Capacitor?.isNativePlatform?.()) {
+      return true
+    }
+
+    const platform = window.Capacitor?.getPlatform?.()
+    return platform === 'android' || platform === 'ios'
+  } catch {
+    return false
+  }
+}
+
+const nativeAtlasApp = isNativeAtlasApp()
+
+if (authOtpRow) {
+  authOtpRow.hidden = !nativeAtlasApp
+}
 
 const modalBackdrop = document.getElementById('modalBackdrop')
 const modalTitle = document.getElementById('modalTitle')
@@ -4082,7 +4104,40 @@ async function sendMagicLink() {
   })
 
   if (error) throw error
+
+  if (nativeAtlasApp) {
+    alert('Email trimis. Introdu în aplicație codul de 6 cifre primit pe email.')
+    authOtpInput?.focus()
+    return
+  }
+
   alert('Magic link trimis.')
+}
+
+async function verifyEmailOtp() {
+  const email = authEmailInput.value.trim()
+  const token = authOtpInput?.value.trim() || ''
+
+  if (!email || !/^\d{6}$/.test(token)) {
+    alert('Introdu email-ul și codul de 6 cifre.')
+    return
+  }
+
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: 'email'
+  })
+
+  if (error) throw error
+
+  if (!data?.session) {
+    throw new Error('Supabase nu a returnat o sesiune validă.')
+  }
+
+  authOtpInput.value = ''
+  await refreshSession()
+  alert('Autentificare reușită.')
 }
 
 async function signOutUser() {
@@ -7567,6 +7622,20 @@ fitSelectionBtn.addEventListener('click', fitCurrentSelection)
 
 loginBtn.addEventListener('click', () => {
   sendMagicLink().catch((error) => alert(error.message || 'Eroare la login.'))
+})
+
+verifyOtpBtn?.addEventListener('click', () => {
+  verifyEmailOtp().catch((error) =>
+    alert(error.message || 'Eroare la verificarea codului.')
+  )
+})
+
+authOtpInput?.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter') return
+
+  verifyEmailOtp().catch((error) =>
+    alert(error.message || 'Eroare la verificarea codului.')
+  )
 })
 
 logoutBtn.addEventListener('click', () => {

@@ -1,2 +1,22 @@
 # Local Supabase / SQL files
 local-sql/
+
+# Node dependencies
+node_modules/
+
+# Generated Capacitor web bundle
+www/
+
+# Android local/build state
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+
+# iOS local/build state
+ios/App/DerivedData/
+ios/App/Pods/
+
+# OS / IDE noise
+.DS_Store
+Thumbs.db

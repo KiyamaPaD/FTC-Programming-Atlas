@@ -1,0 +1,16 @@
+{
+  "appId": "com.ftcprogrammingatlas.app",
+  "appName": "FTC Programming Atlas",
+  "webDir": "www",
+  "backgroundColor": "#000000",
+  "loggingBehavior": "debug",
+  "android": {
+    "backgroundColor": "#000000",
+    "zoomEnabled": false
+  },
+  "ios": {
+    "backgroundColor": "#000000",
+    "zoomEnabled": false,
+    "preferredContentMode": "mobile"
+  }
+}

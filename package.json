@@ -1,0 +1,33 @@
+{
+  "name": "ftc-programming-atlas",
+  "version": "1.3.0",
+  "private": true,
+  "description": "FTC Programming Atlas web and native mobile application",
+  "scripts": {
+    "mobile:build": "node scripts/build-mobile-web.mjs",
+    "mobile:doctor": "npx cap doctor",
+    "mobile:sync": "npm run mobile:build && npx cap sync",
+    "android:init": "npm run mobile:build && npx cap add android && npm run android:assets",
+    "android:add": "npm run mobile:build && npx cap add android",
+    "android:assets": "npx @capacitor/assets generate --android --iconBackgroundColor=\"#000000\" --iconBackgroundColorDark=\"#000000\" --splashBackgroundColor=\"#000000\" --splashBackgroundColorDark=\"#000000\"",
+    "android:open": "npm run mobile:sync && npx cap open android",
+    "android:run": "npm run mobile:sync && npx cap run android",
+    "android:apk": "npm run mobile:sync && cd android && gradlew.bat assembleDebug",
+    "ios:init": "npm run mobile:build && npx cap add ios && npm run ios:assets",
+    "ios:add": "npm run mobile:build && npx cap add ios",
+    "ios:assets": "npx @capacitor/assets generate --ios --iconBackgroundColor=\"#000000\" --iconBackgroundColorDark=\"#000000\" --splashBackgroundColor=\"#000000\" --splashBackgroundColorDark=\"#000000\"",
+    "ios:open": "npm run mobile:sync && npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/ios": "8.5.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "8.5.2"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

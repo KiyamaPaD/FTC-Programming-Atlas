@@ -68,6 +68,27 @@
 
     button, input, textarea, select { font: inherit; }
 
+    .auth-otp-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .auth-otp-row[hidden] {
+      display: none !important;
+    }
+
+    .auth-otp-row .search-input {
+      min-width: 0;
+    }
+
+    @media (max-width: 520px) {
+      .auth-otp-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
     body {
       background:
         radial-gradient(circle at 18% 16%, rgba(255, 77, 109, 0.08), transparent 24%),
@@ -3217,6 +3238,19 @@
           <div class="btn-row">
             <button class="btn primary" id="loginBtn">Trimite magic link</button>
             <button class="btn" id="logoutBtn">Logout</button>
+          </div>
+
+          <div class="auth-otp-row" id="authOtpRow" hidden>
+            <input
+              id="authOtpInput"
+              class="search-input"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              maxlength="6"
+              pattern="[0-9]{6}"
+              placeholder="Cod de 6 cifre..."
+            />
+            <button class="btn" id="verifyOtpBtn" type="button">Verifică codul</button>
           </div>
           <p class="privacy-login-note">
             Adresa de email este folosită pentru autentificare și controlul accesului de editor.
