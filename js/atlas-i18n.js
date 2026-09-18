@@ -469,15 +469,15 @@ for (const [source, target] of ATTRIBUTE_EN_V53) {
 
 ;[
   ['Verifică codul', 'Verify code'],
-  ['Email trimis. Introdu în aplicație codul de 6 cifre primit pe email.', 'Email sent. Enter the 6-digit code from the email in the app.'],
-  ['Introdu email-ul și codul de 6 cifre.', 'Enter your email and the 6-digit code.'],
+  ['Email trimis. Introdu în aplicație codul OTP primit pe email.', 'Email sent. Enter the OTP code from the email in the app.'],
+  ['Introdu email-ul și codul OTP primit pe email.', 'Enter your email and the OTP code from the email.'],
   ['Autentificare reușită.', 'Signed in successfully.'],
   ['Supabase nu a returnat o sesiune validă.', 'Supabase did not return a valid session.'],
   ['Eroare la verificarea codului.', 'Error verifying the code.']
 ].forEach(([source, target]) => UI_EN.set(source, target))
 
 ;[
-  ['Cod de 6 cifre...', '6-digit code...']
+  ['Cod OTP...', 'OTP code...']
 ].forEach(([source, target]) => ATTRIBUTE_EN.set(source, target))
 
 const TAXONOMY_WORDS_EN = {

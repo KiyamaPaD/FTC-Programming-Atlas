@@ -4106,7 +4106,7 @@ async function sendMagicLink() {
   if (error) throw error
 
   if (nativeAtlasApp) {
-    alert('Email trimis. Introdu în aplicație codul de 6 cifre primit pe email.')
+    alert('Email trimis. Introdu în aplicație codul OTP primit pe email.')
     authOtpInput?.focus()
     return
   }
@@ -4118,8 +4118,8 @@ async function verifyEmailOtp() {
   const email = authEmailInput.value.trim()
   const token = authOtpInput?.value.trim() || ''
 
-  if (!email || !/^\d{6}$/.test(token)) {
-    alert('Introdu email-ul și codul de 6 cifre.')
+  if (!email || !/^\d{6,10}$/.test(token)) {
+    alert('Introdu email-ul și codul OTP primit pe email.')
     return
   }
 
