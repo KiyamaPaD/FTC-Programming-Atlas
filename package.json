@@ -16,7 +16,10 @@
     "ios:init": "npm run mobile:build && npx cap add ios && npm run ios:assets",
     "ios:add": "npm run mobile:build && npx cap add ios",
     "ios:assets": "npx @capacitor/assets generate --ios --iconBackgroundColor=\"#000000\" --iconBackgroundColorDark=\"#000000\" --splashBackgroundColor=\"#000000\" --splashBackgroundColorDark=\"#000000\"",
-    "ios:open": "npm run mobile:sync && npx cap open ios"
+    "ios:sync": "npm run mobile:build && npx cap sync ios",
+    "ios:doctor": "node scripts/ios-preflight.mjs && npx cap doctor ios",
+    "ios:open": "npm run ios:sync && npx cap open ios",
+    "ios:run": "npm run ios:sync && npx cap run ios"
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",
