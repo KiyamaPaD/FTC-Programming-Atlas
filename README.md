@@ -6,7 +6,7 @@
 
 **An interactive, node-based documentation platform for FTC programming and long-term team knowledge.**
 
-[Live Website](https://ftcprogrammingatlas.com) · [Download Android APK v1.0](./downloads/FTC-Programming-Atlas-v1.0.apk?raw=1) · [InfotronX #19119](https://itx.infoel.ro)
+[Live Website](https://ftcprogrammingatlas.com) · [Download Android APK v1.0](./downloads/FTC-Programming-Atlas-v1.0.apk?raw=1) · [Download Windows v1.3.0](https://github.com/KiyamaPaD/FTC-Programming-Atlas/releases/download/v1.3.0/FTC-Programming-Atlas-1.3.0-x64.exe) · [InfotronX #19119](https://itx.infoel.ro)
 
 </div>
 
@@ -76,6 +76,33 @@ The web and mobile clients use the same editor allowlist and backend permissions
 ### iOS
 
 The project also contains the Capacitor iOS workflow and is **iOS-ready at source level**. A native iOS build still requires macOS and Xcode for signing, simulator/device testing, and distribution.
+
+---
+
+## Windows Desktop App
+
+FTC Programming Atlas is also available as a Windows desktop application built with **Electron**.
+
+The desktop app uses the same Supabase backend as the website and Android app, so Atlas content and editor changes stay synchronized across platforms.
+
+### Download
+
+**[Download FTC Programming Atlas v1.3.0 for Windows (x64)](https://github.com/KiyamaPaD/FTC-Programming-Atlas/releases/download/v1.3.0/FTC-Programming-Atlas-1.3.0-x64.exe)**
+
+The Windows build is distributed as an installer. It creates Start Menu and Desktop shortcuts and keeps the application installed like a normal Windows app.
+
+> The current installer is not code-signed with a commercial Windows certificate, so Microsoft Defender SmartScreen may show an **Unknown publisher** warning. Users can inspect the GitHub repository and release before choosing to install it.
+
+### Shared backend
+
+The web, Android, and Windows clients all use the same Supabase project for:
+
+- public Atlas content
+- taxonomy and relationships
+- files and code snippets
+- authentication
+- editor permissions
+- synchronized changes
 
 ---
 
@@ -500,6 +527,14 @@ Undo and Redo are synchronized through the backend rather than being limited to 
 - iOS workflow via Capacitor
 - Xcode required for native iOS builds
 
+## Desktop
+
+- Electron
+- electron-builder
+- Windows x64
+- NSIS installer
+- portable build support
+
 ## Infrastructure
 
 - GitHub
@@ -547,6 +582,13 @@ FTC-Programming-Atlas/
 │
 ├── android/
 │   └── Capacitor Android project
+│
+├── desktop/
+│   ├── main.cjs
+│   └── preload.cjs
+│
+├── build/
+│   └── icon.ico
 │
 └── netlify/
     └── edge-functions/
@@ -642,6 +684,9 @@ The platform currently includes:
 - persistent mobile authentication
 - in-app email OTP login for approved editors
 - Capacitor iOS workflow prepared for future native builds
+- installable Windows desktop application
+- shared web / Android / Windows Supabase backend
+- Windows NSIS installer and portable build workflow
 
 The main ongoing work is now **content expansion**: documenting more FTC systems, frameworks, debugging knowledge, and team practices.
 
