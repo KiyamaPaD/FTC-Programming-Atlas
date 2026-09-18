@@ -20,3 +20,6 @@ ios/App/Pods/
 # OS / IDE noise
 .DS_Store
 Thumbs.db
+
+# Electron desktop build output
+dist-desktop/

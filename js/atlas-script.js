@@ -387,6 +387,10 @@ const logoutBtn = document.getElementById('logoutBtn')
 
 function isNativeAtlasApp() {
   try {
+    if (window.atlasDesktop?.isDesktop === true) {
+      return true
+    }
+
     if (window.Capacitor?.isNativePlatform?.()) {
       return true
     }

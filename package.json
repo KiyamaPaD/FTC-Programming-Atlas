@@ -19,7 +19,11 @@
     "ios:sync": "npm run mobile:build && npx cap sync ios",
     "ios:doctor": "node scripts/ios-preflight.mjs && npx cap doctor ios",
     "ios:open": "npm run ios:sync && npx cap open ios",
-    "ios:run": "npm run ios:sync && npx cap run ios"
+    "ios:run": "npm run ios:sync && npx cap run ios",
+    "desktop:dev": "npm run mobile:build && electron .",
+    "desktop:pack": "npm run mobile:build && electron-builder --win dir",
+    "desktop:exe": "npm run mobile:build && electron-builder --win nsis",
+    "desktop:portable": "npm run mobile:build && electron-builder --win portable"
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",
@@ -28,9 +32,53 @@
   },
   "devDependencies": {
     "@capacitor/assets": "3.0.5",
-    "@capacitor/cli": "8.5.2"
+    "@capacitor/cli": "8.5.2",
+    "electron": "44.4.2",
+    "electron-builder": "26.15.3"
   },
   "engines": {
     "node": ">=22"
+  },
+  "main": "desktop/main.cjs",
+  "build": {
+    "appId": "com.ftcprogrammingatlas.desktop",
+    "productName": "FTC Programming Atlas",
+    "asar": true,
+    "directories": {
+      "output": "dist-desktop",
+      "buildResources": "build"
+    },
+    "files": [
+      "desktop/**/*",
+      "www/**/*",
+      "build/icon.ico",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "FTC-Programming-Atlas-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FTC Programming Atlas",
+      "deleteAppDataOnUninstall": false
+    }
   }
 }
