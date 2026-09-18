@@ -6,7 +6,7 @@
 
 **An interactive, node-based documentation platform for FTC programming and long-term team knowledge.**
 
-[Live Website](https://ftcprogrammingatlas.com) · [InfotronX #19119](https://itx.infoel.ro)
+[Live Website](https://ftcprogrammingatlas.com) · [Download Android APK v1.0](./downloads/FTC-Programming-Atlas-v1.0.apk?raw=1) · [InfotronX #19119](https://itx.infoel.ro)
 
 </div>
 
@@ -33,6 +33,49 @@ Typical topics include:
 - Control Hub / Expansion Hub troubleshooting
 
 The goal is not only to document *what* something is, but also to show **how concepts relate to each other**.
+
+---
+
+## Android App
+
+FTC Programming Atlas is also available as a native Android application built with **Capacitor**.
+
+The Android app uses the same Supabase backend as the public website, so documentation, taxonomy, relationships, files, code snippets, and editor changes remain synchronized between:
+
+- `ftcprogrammingatlas.com`
+- the Android app
+- future mobile clients using the same backend
+
+### Download
+
+**[Download FTC Programming Atlas v1.0 for Android](./downloads/FTC-Programming-Atlas-v1.0.apk?raw=1)**
+
+APK size: **12.0 MB**
+
+SHA-256:
+
+```text
+fb02c0f21eae0edf6275ddbac565f95c1fdbfafc7d58b041cc87c4e58ec91e36
+```
+
+Because the APK is distributed directly rather than through Google Play, Android may ask the user to allow installation from the browser, WhatsApp, or file manager used to open the APK.
+
+### Mobile authentication
+
+The mobile app supports email OTP authentication through Supabase Auth.
+
+Approved editors can:
+
+1. enter their email address
+2. request a login email
+3. enter the OTP received by email directly inside the app
+4. remain signed in through the persisted Supabase session
+
+The web and mobile clients use the same editor allowlist and backend permissions.
+
+### iOS
+
+The project also contains the Capacitor iOS workflow and is **iOS-ready at source level**. A native iOS build still requires macOS and Xcode for signing, simulator/device testing, and distribution.
 
 ---
 
@@ -194,7 +237,7 @@ Approved collaborators can additionally:
 - edit the project tutorial
 - use Undo / Redo
 
-Authentication uses **Supabase Auth magic links** and editor access is verified server-side against an allowlist.
+Authentication uses **Supabase Auth**: the web client supports the existing email flow, while the mobile app supports in-app email OTP verification. Editor access is verified server-side against an allowlist.
 
 ---
 
@@ -449,6 +492,14 @@ Undo and Redo are synchronized through the backend rather than being limited to 
 - PostgreSQL RPC functions
 - Row Level Security
 
+## Mobile
+
+- Capacitor
+- Android
+- Android Studio / Gradle
+- iOS workflow via Capacitor
+- Xcode required for native iOS builds
+
 ## Infrastructure
 
 - GitHub
@@ -465,23 +516,43 @@ Undo and Redo are synchronized through the backend rather than being limited to 
 FTC-Programming-Atlas/
 ├── index.html
 ├── privacy.html
+├── privacy-en.html
 ├── README.md
+├── package.json
+├── capacitor.config.json
 ├── _headers
 ├── _redirects
 ├── robots.txt
 ├── sitemap.xml
+│
+├── assets/
+│   ├── icon-foreground.png
+│   ├── icon-only.png
+│   ├── icon-background.png
+│   └── splash.png
+│
+├── downloads/
+│   └── FTC-Programming-Atlas-v1.0.apk
 │
 ├── img/
 │   ├── FTCProgrammingAtlasLogo.png
 │   └── FTCProgrammingAtlasFavicon.png
 │
 ├── js/
-│   └── atlas-script.js
+│   ├── atlas-script.js
+│   └── atlas-i18n.js
+│
+├── scripts/
+│   └── mobile build / platform helper scripts
+│
+├── android/
+│   └── Capacitor Android project
 │
 └── netlify/
     └── edge-functions/
         ├── node-seo.js
-        └── sitemap.js
+        ├── sitemap.js
+        └── i18n-shell.js
 ```
 
 Database migrations and maintenance SQL are managed separately from the public deployment files.
@@ -566,6 +637,11 @@ The platform currently includes:
 - SEO metadata
 - dynamic sitemap
 - Google indexing support
+- installable Android application
+- shared web / Android Supabase backend
+- persistent mobile authentication
+- in-app email OTP login for approved editors
+- Capacitor iOS workflow prepared for future native builds
 
 The main ongoing work is now **content expansion**: documenting more FTC systems, frameworks, debugging knowledge, and team practices.
 
@@ -582,7 +658,7 @@ Potential future improvements include:
 - troubleshooting decision trees
 - bookmarks
 - reader progress tracking
-- PWA / offline documentation
+- offline-first / cached mobile documentation
 - multilingual content
 - contribution review workflows
 - search analytics and no-result analytics
