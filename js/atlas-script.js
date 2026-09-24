@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v69 · PUBLIC SHELL')
+console.log('ATLAS SCRIPT LOADED v70 · PUBLIC CONTENT')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -280,6 +280,8 @@ let difficulties = []
 let taxonomyTags = []
 let departments = []
 let activeDepartmentId = null
+let announcements = []
+let resources = []
 
 const PUBLIC_SECTIONS = new Set([
   'explore',
@@ -295,6 +297,9 @@ let activePublicSection = PUBLIC_SECTIONS.has(
   : 'explore'
 
 let tutorialContent = DEFAULT_TUTORIAL_CONTENT
+let publicContentManagerKind = 'announcements'
+let publicContentEditingId = null
+let publicContentMutationBusy = false
 let categoryFilterId = null
 let difficultyFilterId = null
 let tagFilterIds = new Set()
@@ -388,6 +393,7 @@ const savePositionBtn = document.getElementById('savePositionBtn')
 const editorToolsSection = document.getElementById('editorToolsSection')
 
 const taxonomyManagerBtn = document.getElementById('taxonomyManagerBtn')
+const publicContentManagerBtn = document.getElementById('publicContentManagerBtn')
 
 const mediaManagerBtn = document.getElementById('mediaManagerBtn')
 
@@ -591,6 +597,43 @@ const closeTaxonomyReplaceBtn = document.getElementById('closeTaxonomyReplaceBtn
 const cancelTaxonomyReplaceBtn = document.getElementById('cancelTaxonomyReplaceBtn')
 
 const confirmTaxonomyReplaceBtn = document.getElementById('confirmTaxonomyReplaceBtn')
+
+const publicContentManagerBackdrop = document.getElementById('publicContentManagerBackdrop')
+const closePublicContentManagerBtn = document.getElementById('closePublicContentManagerBtn')
+const closePublicContentManagerFooterBtn = document.getElementById('closePublicContentManagerFooterBtn')
+const publicContentManagerSummary = document.getElementById('publicContentManagerSummary')
+const publicContentManagerList = document.getElementById('publicContentManagerList')
+const newPublicContentBtn = document.getElementById('newPublicContentBtn')
+const publicContentEditorTitle = document.getElementById('publicContentEditorTitle')
+const publicContentEditorHint = document.getElementById('publicContentEditorHint')
+const announcementEditorFields = document.getElementById('announcementEditorFields')
+const resourceEditorFields = document.getElementById('resourceEditorFields')
+const publicContentEditorStatus = document.getElementById('publicContentEditorStatus')
+const deletePublicContentBtn = document.getElementById('deletePublicContentBtn')
+const resetPublicContentEditorBtn = document.getElementById('resetPublicContentEditorBtn')
+const savePublicContentBtn = document.getElementById('savePublicContentBtn')
+
+const announcementTitleInput = document.getElementById('announcementTitleInput')
+const announcementCategoryInput = document.getElementById('announcementCategoryInput')
+const announcementSummaryInput = document.getElementById('announcementSummaryInput')
+const announcementContentInput = document.getElementById('announcementContentInput')
+const announcementSourceUrlInput = document.getElementById('announcementSourceUrlInput')
+const announcementRelatedNodeInput = document.getElementById('announcementRelatedNodeInput')
+const announcementPublishedAtInput = document.getElementById('announcementPublishedAtInput')
+const announcementPublishedInput = document.getElementById('announcementPublishedInput')
+const announcementPinnedInput = document.getElementById('announcementPinnedInput')
+const announcementImportantInput = document.getElementById('announcementImportantInput')
+
+const resourceTitleInput = document.getElementById('resourceTitleInput')
+const resourceTypeInput = document.getElementById('resourceTypeInput')
+const resourceSourceInput = document.getElementById('resourceSourceInput')
+const resourceUrlInput = document.getElementById('resourceUrlInput')
+const resourceDescriptionInput = document.getElementById('resourceDescriptionInput')
+const resourceRelatedNodeInput = document.getElementById('resourceRelatedNodeInput')
+const resourceSortOrderInput = document.getElementById('resourceSortOrderInput')
+const resourceDepartmentPicker = document.getElementById('resourceDepartmentPicker')
+const resourceActiveInput = document.getElementById('resourceActiveInput')
+const resourceFeaturedInput = document.getElementById('resourceFeaturedInput')
 
 // Node and relationship selection helpers
 function selectedNode() {
@@ -967,6 +1010,780 @@ function getTagById(id) {
 
 
 
+
+function announcementCategoryLabel(category) {
+  const labels = {
+    ftc: 'FTC',
+    'game-manual': 'Game Manual',
+    season: 'Season',
+    events: 'Events',
+    resources: 'Resources',
+    platform: 'Platform'
+  }
+
+  return labels[category] || 'FTC'
+}
+
+function formatPublicDate(value) {
+  if (!value) return ''
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const language = document.documentElement.lang === 'en' ? 'en-GB' : 'ro-RO'
+
+  return new Intl.DateTimeFormat(language, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(date)
+}
+
+function toDatetimeLocalValue(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 16)
+}
+
+function selectedResourceDepartmentIds() {
+  if (!resourceDepartmentPicker) return []
+
+  return [...resourceDepartmentPicker.querySelectorAll('input[type="checkbox"]:checked')]
+    .map((input) => Number(input.value))
+    .filter(Number.isFinite)
+}
+
+function resourceMatchesDepartment(resource, departmentId = activeDepartmentId) {
+  const ids = Array.isArray(resource?.departmentIds)
+    ? resource.departmentIds.map(Number)
+    : []
+
+  if (ids.length === 0) return true
+  if (departmentId == null) return true
+
+  return ids.includes(Number(departmentId))
+}
+
+function publishedAnnouncements() {
+  const now = Date.now()
+
+  return announcements
+    .filter((item) => {
+      if (item.isPublished === false) return false
+
+      const publishedAt = new Date(item.publishedAt || item.createdAt || 0).getTime()
+      return !Number.isFinite(publishedAt) || publishedAt <= now
+    })
+    .sort((a, b) => {
+      if (Boolean(a.isPinned) !== Boolean(b.isPinned)) return a.isPinned ? -1 : 1
+      if (Boolean(a.isImportant) !== Boolean(b.isImportant)) return a.isImportant ? -1 : 1
+
+      return (
+        new Date(b.publishedAt || b.createdAt || 0).getTime() -
+        new Date(a.publishedAt || a.createdAt || 0).getTime()
+      )
+    })
+}
+
+function visibleResources() {
+  return resources
+    .filter((item) => item.isActive !== false && resourceMatchesDepartment(item))
+    .sort((a, b) => {
+      if (Boolean(a.isFeatured) !== Boolean(b.isFeatured)) return a.isFeatured ? -1 : 1
+
+      const orderDifference = Number(a.sortOrder || 0) - Number(b.sortOrder || 0)
+      if (orderDifference !== 0) return orderDifference
+
+      return String(a.title || '').localeCompare(String(b.title || ''), 'ro', {
+        sensitivity: 'base'
+      })
+    })
+}
+
+function publicManagerButton(kind) {
+  if (!(canEdit && editorMode)) return ''
+
+  return `
+    <div class="public-hub-actions">
+      <button
+        class="public-hub-manage"
+        type="button"
+        data-open-public-content-manager="${escapeHtmlText(kind)}"
+      >
+        Manage ${kind === 'resources' ? 'resources' : 'announcements'}
+      </button>
+    </div>
+  `
+}
+
+function renderAnnouncementCards() {
+  const items = publishedAnnouncements()
+
+  if (items.length === 0) {
+    return `
+      <div class="public-content-list">
+        <article class="public-hub-card wide">
+          <span class="public-hub-card-label">Latest announcements</span>
+          <h3>Niciun anunț publicat momentan.</h3>
+          <p>
+            Anunțurile scrise de administratorii Atlasului vor apărea aici și vor rămâne disponibile pentru consultare.
+          </p>
+        </article>
+      </div>
+    `
+  }
+
+  return `
+    <div class="public-content-list">
+      ${items
+        .map((item) => {
+          const sourceUrl = normalizeHttpUrl(item.sourceUrl)
+          const relatedNode = item.relatedNodeId ? findNode(item.relatedNodeId) : null
+
+          return `
+            <article class="announcement-card ${item.isImportant ? 'important' : ''} ${item.isPinned ? 'pinned' : ''}">
+              <div class="public-content-card-top">
+                <div class="public-content-card-main">
+                  <div class="public-content-card-labels">
+                    <span class="public-content-badge accent">${escapeHtmlText(
+                      announcementCategoryLabel(item.category)
+                    )}</span>
+                    ${item.isPinned ? '<span class="public-content-badge">Pinned</span>' : ''}
+                    ${item.isImportant ? '<span class="public-content-badge important">Important</span>' : ''}
+                  </div>
+
+                  <h2 class="public-content-card-title">${escapeHtmlText(item.title)}</h2>
+                </div>
+
+                <time class="public-content-card-date">${escapeHtmlText(
+                  formatPublicDate(item.publishedAt || item.createdAt)
+                )}</time>
+              </div>
+
+              ${
+                item.summary
+                  ? `<p class="public-content-card-summary">${escapeHtml(item.summary)}</p>`
+                  : ''
+              }
+
+              ${
+                item.content
+                  ? `<p class="public-content-card-body">${escapeHtml(item.content)}</p>`
+                  : ''
+              }
+
+              ${
+                sourceUrl || relatedNode
+                  ? `
+                    <div class="public-content-card-footer">
+                      ${
+                        sourceUrl
+                          ? `<a class="public-content-link" href="${escapeHtmlText(
+                              sourceUrl
+                            )}" target="_blank" rel="noopener noreferrer">Deschide sursa</a>`
+                          : ''
+                      }
+
+                      ${
+                        relatedNode
+                          ? `
+                            <button
+                              class="public-content-node-link"
+                              type="button"
+                              data-public-node-id="${Number(relatedNode.id)}"
+                            >
+                              Deschide nodul: ${escapeHtmlText(relatedNode.title)}
+                            </button>
+                          `
+                          : ''
+                      }
+                    </div>
+                  `
+                  : ''
+              }
+            </article>
+          `
+        })
+        .join('')}
+    </div>
+  `
+}
+
+function renderResourceCards() {
+  const items = visibleResources()
+
+  if (items.length === 0) {
+    return `
+      <div class="resource-grid">
+        <article class="public-hub-card wide">
+          <span class="public-hub-card-label">Useful Resources</span>
+          <h3>Nicio resursă publicată momentan.</h3>
+          <p>Lista va fi organizată pe departamente și topicuri.</p>
+        </article>
+      </div>
+    `
+  }
+
+  return `
+    <div class="resource-grid">
+      ${items
+        .map((item) => {
+          const url = normalizeHttpUrl(item.url)
+          const relatedNode = item.relatedNodeId ? findNode(item.relatedNodeId) : null
+          const departmentNames = (item.departmentIds || [])
+            .map((id) => getDepartmentById(id)?.short_name || getDepartmentById(id)?.name)
+            .filter(Boolean)
+
+          return `
+            <article class="resource-card ${item.isFeatured ? 'featured' : ''}">
+              <div class="resource-card-top">
+                <div class="public-content-card-main">
+                  <div class="public-content-card-labels">
+                    ${
+                      item.resourceType
+                        ? `<span class="public-content-badge accent">${escapeHtmlText(
+                            item.resourceType
+                          )}</span>`
+                        : ''
+                    }
+                    ${
+                      item.isFeatured
+                        ? '<span class="public-content-badge">Featured</span>'
+                        : ''
+                    }
+                    <span class="public-content-badge">${
+                      departmentNames.length > 0
+                        ? escapeHtmlText(departmentNames.join(' · '))
+                        : 'Universal'
+                    }</span>
+                  </div>
+
+                  <h2 class="public-content-card-title">${escapeHtmlText(item.title)}</h2>
+                </div>
+              </div>
+
+              ${
+                item.sourceName
+                  ? `<p class="public-content-card-summary">${escapeHtmlText(
+                      item.sourceName
+                    )}</p>`
+                  : ''
+              }
+
+              ${
+                item.description
+                  ? `<p class="public-content-card-body">${escapeHtml(item.description)}</p>`
+                  : ''
+              }
+
+              <div class="public-content-card-footer">
+                ${
+                  url
+                    ? `<a class="public-content-link" href="${escapeHtmlText(
+                        url
+                      )}" target="_blank" rel="noopener noreferrer">Deschide resursa</a>`
+                    : ''
+                }
+
+                ${
+                  relatedNode
+                    ? `
+                      <button
+                        class="public-content-node-link"
+                        type="button"
+                        data-public-node-id="${Number(relatedNode.id)}"
+                      >
+                        Nod asociat: ${escapeHtmlText(relatedNode.title)}
+                      </button>
+                    `
+                    : ''
+                }
+              </div>
+            </article>
+          `
+        })
+        .join('')}
+    </div>
+  `
+}
+
+async function openNodeFromPublicContent(nodeId) {
+  const node = findNode(nodeId)
+  if (!node) return
+
+  if (!(await confirmUnsavedPositionBeforeLeaving(node.id))) return
+
+  activateDepartmentForNode(node, { persist: true })
+
+  activePublicSection = 'explore'
+  localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+
+  selectedId = node.id
+  clearEdgeSelection()
+  detailOpen = true
+
+  setNodeRoute(node, { push: true })
+  renderAll()
+
+  requestAnimationFrame(() => centerOnNode(node))
+}
+
+function isPublicContentManagerOpen() {
+  return Boolean(publicContentManagerBackdrop?.classList.contains('open'))
+}
+
+function populatePublicContentNodeSelects() {
+  const options = [
+    '<option value="">— Fără nod asociat —</option>',
+    ...[...nodes]
+      .sort((a, b) =>
+        String(a.title || '').localeCompare(String(b.title || ''), 'ro', {
+          sensitivity: 'base'
+        })
+      )
+      .map(
+        (node) =>
+          `<option value="${Number(node.id)}">${escapeHtmlText(node.title)}</option>`
+      )
+  ].join('')
+
+  if (announcementRelatedNodeInput) {
+    const value = announcementRelatedNodeInput.value
+    announcementRelatedNodeInput.innerHTML = options
+    announcementRelatedNodeInput.value = value
+  }
+
+  if (resourceRelatedNodeInput) {
+    const value = resourceRelatedNodeInput.value
+    resourceRelatedNodeInput.innerHTML = options
+    resourceRelatedNodeInput.value = value
+  }
+}
+
+function renderResourceDepartmentPicker(selectedIds = selectedResourceDepartmentIds()) {
+  if (!resourceDepartmentPicker) return
+
+  const selected = new Set((selectedIds || []).map(Number))
+
+  resourceDepartmentPicker.innerHTML = departments
+    .filter((item) => item.is_active !== false)
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+    .map(
+      (department) => `
+        <label>
+          <input
+            type="checkbox"
+            value="${Number(department.id)}"
+            ${selected.has(Number(department.id)) ? 'checked' : ''}
+          />
+          <span>${escapeHtmlText(department.short_name || department.name)}</span>
+        </label>
+      `
+    )
+    .join('')
+}
+
+function resetPublicContentEditor() {
+  publicContentEditingId = null
+
+  const isAnnouncements = publicContentManagerKind === 'announcements'
+
+  announcementEditorFields.hidden = !isAnnouncements
+  resourceEditorFields.hidden = isAnnouncements
+  deletePublicContentBtn.hidden = true
+
+  populatePublicContentNodeSelects()
+
+  if (isAnnouncements) {
+    publicContentEditorTitle.textContent = 'Announcement nou'
+    publicContentEditorHint.textContent =
+      'Completează datele și publică atunci când este gata.'
+
+    announcementTitleInput.value = ''
+    announcementCategoryInput.value = 'ftc'
+    announcementSummaryInput.value = ''
+    announcementContentInput.value = ''
+    announcementSourceUrlInput.value = ''
+    announcementRelatedNodeInput.value = ''
+    announcementPublishedAtInput.value = toDatetimeLocalValue(new Date())
+    announcementPublishedInput.checked = true
+    announcementPinnedInput.checked = false
+    announcementImportantInput.checked = false
+  } else {
+    publicContentEditorTitle.textContent = 'Resource nou'
+    publicContentEditorHint.textContent =
+      'Adaugă o resursă utilă și alege departamentele unde trebuie să apară.'
+
+    resourceTitleInput.value = ''
+    resourceTypeInput.value = ''
+    resourceSourceInput.value = ''
+    resourceUrlInput.value = ''
+    resourceDescriptionInput.value = ''
+    resourceRelatedNodeInput.value = ''
+    resourceSortOrderInput.value = '0'
+    resourceActiveInput.checked = true
+    resourceFeaturedInput.checked = false
+
+    const defaultDepartments =
+      activeDepartmentId == null ? [] : [Number(activeDepartmentId)]
+
+    renderResourceDepartmentPicker(defaultDepartments)
+  }
+
+  publicContentEditorStatus.textContent = 'Pregătit pentru editare.'
+}
+
+function editPublicContentItem(id) {
+  const numericId = Number(id)
+  publicContentEditingId = numericId
+
+  populatePublicContentNodeSelects()
+
+  if (publicContentManagerKind === 'announcements') {
+    const item = announcements.find((entry) => Number(entry.id) === numericId)
+    if (!item) return
+
+    announcementEditorFields.hidden = false
+    resourceEditorFields.hidden = true
+
+    publicContentEditorTitle.textContent = 'Editează announcement'
+    publicContentEditorHint.textContent =
+      'Modificările publicate devin vizibile imediat după salvare.'
+
+    announcementTitleInput.value = item.title || ''
+    announcementCategoryInput.value = item.category || 'ftc'
+    announcementSummaryInput.value = item.summary || ''
+    announcementContentInput.value = item.content || ''
+    announcementSourceUrlInput.value = item.sourceUrl || ''
+    announcementRelatedNodeInput.value = item.relatedNodeId ? String(item.relatedNodeId) : ''
+    announcementPublishedAtInput.value = toDatetimeLocalValue(
+      item.publishedAt || item.createdAt || new Date()
+    )
+    announcementPublishedInput.checked = item.isPublished !== false
+    announcementPinnedInput.checked = Boolean(item.isPinned)
+    announcementImportantInput.checked = Boolean(item.isImportant)
+  } else {
+    const item = resources.find((entry) => Number(entry.id) === numericId)
+    if (!item) return
+
+    announcementEditorFields.hidden = true
+    resourceEditorFields.hidden = false
+
+    publicContentEditorTitle.textContent = 'Editează resource'
+    publicContentEditorHint.textContent =
+      'Resursele inactive rămân salvate, dar nu apar public.'
+
+    resourceTitleInput.value = item.title || ''
+    resourceTypeInput.value = item.resourceType || ''
+    resourceSourceInput.value = item.sourceName || ''
+    resourceUrlInput.value = item.url || ''
+    resourceDescriptionInput.value = item.description || ''
+    resourceRelatedNodeInput.value = item.relatedNodeId ? String(item.relatedNodeId) : ''
+    resourceSortOrderInput.value = String(Number(item.sortOrder || 0))
+    resourceActiveInput.checked = item.isActive !== false
+    resourceFeaturedInput.checked = Boolean(item.isFeatured)
+    renderResourceDepartmentPicker(item.departmentIds || [])
+  }
+
+  deletePublicContentBtn.hidden = false
+  publicContentEditorStatus.textContent = 'Element încărcat pentru editare.'
+}
+
+function renderPublicContentManager() {
+  if (!isPublicContentManagerOpen()) return
+
+  document.querySelectorAll('[data-public-content-kind]').forEach((button) => {
+    button.classList.toggle(
+      'active',
+      button.dataset.publicContentKind === publicContentManagerKind
+    )
+  })
+
+  const items =
+    publicContentManagerKind === 'announcements'
+      ? [...announcements].sort(
+          (a, b) =>
+            new Date(b.publishedAt || b.createdAt || 0).getTime() -
+            new Date(a.publishedAt || a.createdAt || 0).getTime()
+        )
+      : [...resources].sort((a, b) => {
+          const orderDifference = Number(a.sortOrder || 0) - Number(b.sortOrder || 0)
+          if (orderDifference !== 0) return orderDifference
+          return String(a.title || '').localeCompare(String(b.title || ''), 'ro', {
+            sensitivity: 'base'
+          })
+        })
+
+  publicContentManagerSummary.innerHTML =
+    publicContentManagerKind === 'announcements'
+      ? `<strong>${items.length} announcements</strong> · ${
+          items.filter((item) => item.isPublished !== false).length
+        } publicate.`
+      : `<strong>${items.length} resources</strong> · ${
+          items.filter((item) => item.isActive !== false).length
+        } active.`
+
+  if (items.length === 0) {
+    publicContentManagerList.innerHTML = `
+      <div class="public-content-manager-empty">
+        Nu există încă ${publicContentManagerKind === 'announcements' ? 'announcements' : 'resources'}.
+      </div>
+    `
+  } else {
+    publicContentManagerList.innerHTML = items
+      .map((item) => {
+        const active =
+          publicContentManagerKind === 'announcements'
+            ? item.isPublished !== false
+            : item.isActive !== false
+
+        const meta =
+          publicContentManagerKind === 'announcements'
+            ? `${announcementCategoryLabel(item.category)} · ${
+                active ? 'Publicat' : 'Draft'
+              }`
+            : `${item.resourceType || 'Resource'} · ${active ? 'Activ' : 'Inactiv'}`
+
+        return `
+          <article class="public-content-manager-item ${active ? '' : 'inactive'}">
+            <div>
+              <strong>${escapeHtmlText(item.title || 'Fără titlu')}</strong>
+              <span>${escapeHtmlText(meta)}</span>
+            </div>
+
+            <button
+              class="taxonomy-mini-btn"
+              type="button"
+              data-edit-public-content="${Number(item.id)}"
+            >
+              Editează
+            </button>
+          </article>
+        `
+      })
+      .join('')
+  }
+
+  publicContentManagerList
+    .querySelectorAll('[data-edit-public-content]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        editPublicContentItem(Number(button.dataset.editPublicContent))
+      })
+    })
+
+  setPublicContentMutationBusy(publicContentMutationBusy)
+}
+
+function setPublicContentMutationBusy(nextValue) {
+  publicContentMutationBusy = Boolean(nextValue)
+
+  newPublicContentBtn.disabled = publicContentMutationBusy
+  savePublicContentBtn.disabled = publicContentMutationBusy
+  resetPublicContentEditorBtn.disabled = publicContentMutationBusy
+  deletePublicContentBtn.disabled = publicContentMutationBusy
+
+  document.querySelectorAll('[data-public-content-kind]').forEach((button) => {
+    button.disabled = publicContentMutationBusy
+  })
+
+  publicContentManagerList?.querySelectorAll('button').forEach((button) => {
+    button.disabled = publicContentMutationBusy
+  })
+}
+
+async function openPublicContentManager(kind = null) {
+  if (!requireAuth()) return
+
+  if (kind === 'resources' || kind === 'announcements') {
+    publicContentManagerKind = kind
+  } else if (activePublicSection === 'resources') {
+    publicContentManagerKind = 'resources'
+  } else {
+    publicContentManagerKind = 'announcements'
+  }
+
+  publicContentManagerBackdrop.classList.add('open')
+  publicContentManagerSummary.textContent = 'Se încarcă datele editorului...'
+  publicContentManagerList.innerHTML =
+    '<div class="public-content-manager-empty">Se încarcă...</div>'
+
+  try {
+    // Refresh here so an editor who just logged in via OTP also sees drafts
+    // and inactive resources without needing to reload the whole app.
+    await fetchAllData()
+    resetPublicContentEditor()
+    renderPublicContentManager()
+  } catch (error) {
+    console.error('Public content manager refresh failed:', error)
+    publicContentManagerSummary.textContent =
+      error?.message || 'Conținutul public nu a putut fi încărcat.'
+  }
+}
+
+function closePublicContentManager() {
+  publicContentManagerBackdrop.classList.remove('open')
+  publicContentEditingId = null
+  publicContentMutationBusy = false
+}
+
+async function savePublicContentItem() {
+  if (!requireAuth() || publicContentMutationBusy) return
+
+  setPublicContentMutationBusy(true)
+  publicContentEditorStatus.textContent = 'Se salvează...'
+
+  try {
+    if (publicContentManagerKind === 'announcements') {
+      const title = announcementTitleInput.value.trim()
+      const sourceUrlRaw = announcementSourceUrlInput.value.trim()
+      const sourceUrl = sourceUrlRaw ? normalizeHttpUrl(sourceUrlRaw) : null
+
+      if (title.length < 3) {
+        throw new Error('Titlul trebuie să aibă cel puțin 3 caractere.')
+      }
+
+      if (sourceUrlRaw && !sourceUrl) {
+        throw new Error('Link-ul sursă trebuie să fie un URL http:// sau https:// valid.')
+      }
+
+      const params = {
+        p_project_id: PROJECT_ID,
+        p_title: title,
+        p_summary: announcementSummaryInput.value.trim(),
+        p_content: announcementContentInput.value.trim(),
+        p_category: announcementCategoryInput.value,
+        p_source_url: sourceUrl,
+        p_is_pinned: announcementPinnedInput.checked,
+        p_is_important: announcementImportantInput.checked,
+        p_is_published: announcementPublishedInput.checked,
+        p_published_at: announcementPublishedAtInput.value
+          ? new Date(announcementPublishedAtInput.value).toISOString()
+          : new Date().toISOString(),
+        p_related_node_id: announcementRelatedNodeInput.value
+          ? Number(announcementRelatedNodeInput.value)
+          : null
+      }
+
+      const rpcName =
+        publicContentEditingId == null
+          ? 'atlas_announcement_create'
+          : 'atlas_announcement_update'
+
+      if (publicContentEditingId != null) {
+        params.p_announcement_id = Number(publicContentEditingId)
+      }
+
+      const { error } = await supabase.rpc(rpcName, params)
+      if (error) throw error
+    } else {
+      const title = resourceTitleInput.value.trim()
+      const urlRaw = resourceUrlInput.value.trim()
+      const url = normalizeHttpUrl(urlRaw)
+
+      if (title.length < 2) {
+        throw new Error('Titlul trebuie să aibă cel puțin 2 caractere.')
+      }
+
+      if (!url) {
+        throw new Error('Resource URL trebuie să fie un URL http:// sau https:// valid.')
+      }
+
+      const params = {
+        p_project_id: PROJECT_ID,
+        p_title: title,
+        p_description: resourceDescriptionInput.value.trim(),
+        p_url: url,
+        p_source_name: resourceSourceInput.value.trim(),
+        p_resource_type: resourceTypeInput.value.trim(),
+        p_is_featured: resourceFeaturedInput.checked,
+        p_is_active: resourceActiveInput.checked,
+        p_sort_order: Number(resourceSortOrderInput.value || 0),
+        p_related_node_id: resourceRelatedNodeInput.value
+          ? Number(resourceRelatedNodeInput.value)
+          : null,
+        p_department_ids: selectedResourceDepartmentIds()
+      }
+
+      const rpcName =
+        publicContentEditingId == null
+          ? 'atlas_resource_create'
+          : 'atlas_resource_update'
+
+      if (publicContentEditingId != null) {
+        params.p_resource_id = Number(publicContentEditingId)
+      }
+
+      const { error } = await supabase.rpc(rpcName, params)
+      if (error) throw error
+    }
+
+    await fetchAllData()
+    resetPublicContentEditor()
+    renderPublicContentManager()
+
+    publicContentEditorStatus.textContent = 'Salvat.'
+  } catch (error) {
+    console.error('Public content save failed:', error)
+    publicContentEditorStatus.textContent = error?.message || 'Eroare la salvare.'
+    alert(error?.message || 'Eroare la salvarea conținutului public.')
+  } finally {
+    setPublicContentMutationBusy(false)
+  }
+}
+
+async function deletePublicContentItem() {
+  if (!requireAuth() || publicContentMutationBusy || publicContentEditingId == null) return
+
+  const item =
+    publicContentManagerKind === 'announcements'
+      ? announcements.find((entry) => Number(entry.id) === Number(publicContentEditingId))
+      : resources.find((entry) => Number(entry.id) === Number(publicContentEditingId))
+
+  if (!item) return
+
+  const ok = confirm(`Sigur vrei să ștergi „${item.title}”?`)
+  if (!ok) return
+
+  setPublicContentMutationBusy(true)
+  publicContentEditorStatus.textContent = 'Se șterge...'
+
+  try {
+    const rpcName =
+      publicContentManagerKind === 'announcements'
+        ? 'atlas_announcement_delete'
+        : 'atlas_resource_delete'
+
+    const params =
+      publicContentManagerKind === 'announcements'
+        ? {
+            p_project_id: PROJECT_ID,
+            p_announcement_id: Number(publicContentEditingId)
+          }
+        : {
+            p_project_id: PROJECT_ID,
+            p_resource_id: Number(publicContentEditingId)
+          }
+
+    const { error } = await supabase.rpc(rpcName, params)
+    if (error) throw error
+
+    await fetchAllData()
+    resetPublicContentEditor()
+    renderPublicContentManager()
+
+    publicContentEditorStatus.textContent = 'Șters.'
+  } catch (error) {
+    console.error('Public content delete failed:', error)
+    publicContentEditorStatus.textContent = error?.message || 'Eroare la ștergere.'
+    alert(error?.message || 'Eroare la ștergerea conținutului public.')
+  } finally {
+    setPublicContentMutationBusy(false)
+  }
+}
+
 function publicSectionLabel(section) {
   const labels = {
     explore: 'Explore',
@@ -1070,28 +1887,18 @@ function renderPublicShell() {
         <p class="public-hub-kicker">Resources · ${escapeHtml(departmentName)}</p>
         <h1 class="public-hub-title">Documentație și resurse care merită păstrate aproape.</h1>
         <p class="public-hub-description">
-          Aici vor fi grupate resurse relevante pentru departamentul selectat:
+          Aici sunt grupate resurse relevante pentru departamentul selectat:
           documentație oficială, ghiduri și materiale de referință.
         </p>
 
         <div class="public-hub-meta">
           <span class="public-hub-chip">${escapeHtml(departmentName)}</span>
           <span class="public-hub-chip">Surse externe + resurse Atlas</span>
+          <span class="public-hub-chip">${visibleResources().length} resources</span>
         </div>
 
-        <div class="public-hub-grid">
-          <article class="public-hub-card">
-            <span class="public-hub-card-label">Useful Resources</span>
-            <h3>Nicio resursă publicată momentan.</h3>
-            <p>Lista va fi organizată pe departamente și topicuri.</p>
-          </article>
-
-          <article class="public-hub-card">
-            <span class="public-hub-card-label">Surse</span>
-            <h3>Linkuri clare către materialele originale.</h3>
-            <p>Resursele vor putea indica sursa și nodurile relevante din Atlas.</p>
-          </article>
-        </div>
+        ${publicManagerButton('resources')}
+        ${renderResourceCards()}
       </div>
     `
     return
@@ -1109,17 +1916,11 @@ function renderPublicShell() {
       <div class="public-hub-meta">
         <span class="public-hub-chip">Universal</span>
         <span class="public-hub-chip">Public</span>
+        <span class="public-hub-chip">${publishedAnnouncements().length} announcements</span>
       </div>
 
-      <div class="public-hub-grid">
-        <article class="public-hub-card wide">
-          <span class="public-hub-card-label">Latest announcements</span>
-          <h3>Niciun anunț publicat momentan.</h3>
-          <p>
-            Anunțurile scrise de administratorii Atlasului vor apărea aici și vor rămâne disponibile pentru consultare.
-          </p>
-        </article>
-      </div>
+      ${publicManagerButton('announcements')}
+      ${renderAnnouncementCards()}
     </div>
   `
 }
@@ -2367,7 +3168,8 @@ function isAnyModalOpen() {
     codeManagerBackdrop.classList.contains('open') ||
     taxonomyManagerBackdrop.classList.contains('open') ||
     taxonomyItemBackdrop.classList.contains('open') ||
-    taxonomyReplaceBackdrop.classList.contains('open')
+    taxonomyReplaceBackdrop.classList.contains('open') ||
+    publicContentManagerBackdrop?.classList.contains('open')
   )
 }
 
@@ -3214,6 +4016,9 @@ async function fetchAllData() {
     difficultiesResult,
     tagsResult,
     departmentsResult,
+    announcementsResult,
+    resourcesResult,
+    resourceDepartmentsResult,
     nodeDepartmentsResult,
     nodeTagsResult,
     mediaResult,
@@ -3263,6 +4068,26 @@ async function fetchAllData() {
       .order('name', { ascending: true }),
 
     supabase
+      .from('atlas_announcements')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .order('is_pinned', { ascending: false })
+      .order('published_at', { ascending: false }),
+
+    supabase
+      .from('atlas_resources')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .order('is_featured', { ascending: false })
+      .order('sort_order', { ascending: true })
+      .order('title', { ascending: true }),
+
+    supabase
+      .from('atlas_resource_departments')
+      .select('resource_id, department_id')
+      .eq('project_id', PROJECT_ID),
+
+    supabase
       .from('atlas_node_departments')
       .select('node_id, department_id')
       .eq('project_id', PROJECT_ID),
@@ -3307,6 +4132,9 @@ async function fetchAllData() {
     difficultiesResult,
     tagsResult,
     departmentsResult,
+    announcementsResult,
+    resourcesResult,
+    resourceDepartmentsResult,
     nodeDepartmentsResult,
     nodeTagsResult,
     mediaResult,
@@ -3322,6 +4150,48 @@ async function fetchAllData() {
   taxonomyTags = tagsResult.data || []
   departments = departmentsResult.data || []
   tutorialContent = tutorialResult.data?.content || DEFAULT_TUTORIAL_CONTENT
+
+  const resourceDepartmentsByResource = new Map()
+  for (const row of resourceDepartmentsResult.data || []) {
+    const resourceId = Number(row.resource_id)
+    if (!resourceDepartmentsByResource.has(resourceId)) {
+      resourceDepartmentsByResource.set(resourceId, [])
+    }
+
+    resourceDepartmentsByResource.get(resourceId).push(Number(row.department_id))
+  }
+
+  announcements = (announcementsResult.data || []).map((row) => ({
+    id: Number(row.id),
+    title: row.title || '',
+    summary: row.summary || '',
+    content: row.content || '',
+    category: row.category || 'ftc',
+    sourceUrl: row.source_url || null,
+    isPinned: row.is_pinned === true,
+    isImportant: row.is_important === true,
+    isPublished: row.is_published !== false,
+    publishedAt: row.published_at || null,
+    relatedNodeId: row.related_node_id == null ? null : Number(row.related_node_id),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null
+  }))
+
+  resources = (resourcesResult.data || []).map((row) => ({
+    id: Number(row.id),
+    title: row.title || '',
+    description: row.description || '',
+    url: row.url || '',
+    sourceName: row.source_name || '',
+    resourceType: row.resource_type || '',
+    isFeatured: row.is_featured === true,
+    isActive: row.is_active !== false,
+    sortOrder: Number(row.sort_order || 0),
+    relatedNodeId: row.related_node_id == null ? null : Number(row.related_node_id),
+    departmentIds: resourceDepartmentsByResource.get(Number(row.id)) || [],
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null
+  }))
 
   normalizeTaxonomyState()
   normalizeDepartmentState()
@@ -4333,6 +5203,7 @@ function updateAuthUI() {
 
   editorToolsSection.hidden = !editorActive
   taxonomyManagerBtn.disabled = editorBlocked
+  publicContentManagerBtn.disabled = editorBlocked
   mediaManagerBtn.disabled = editorBlocked || !hasSelectedNode
   fileManagerBtn.disabled = editorBlocked || !hasSelectedNode
   codeManagerBtn.disabled = editorBlocked || !hasSelectedNode
@@ -4362,6 +5233,10 @@ function updateAuthUI() {
 
   if (!editorActive && isCodeManagerOpen()) {
     closeCodeManager()
+  }
+
+  if (!editorActive && isPublicContentManagerOpen()) {
+    closePublicContentManager()
   }
 
   createBtn.disabled = editorBlocked
@@ -8023,6 +8898,65 @@ taxonomyReplaceBackdrop.addEventListener('click', (event) => {
 
 fitSelectionBtn.addEventListener('click', fitCurrentSelection)
 
+publicContentManagerBtn?.addEventListener('click', () => {
+  openPublicContentManager().catch((error) => {
+    console.error('Open public content manager failed:', error)
+  })
+})
+
+closePublicContentManagerBtn?.addEventListener('click', closePublicContentManager)
+closePublicContentManagerFooterBtn?.addEventListener('click', closePublicContentManager)
+
+publicContentManagerBackdrop?.addEventListener('click', (event) => {
+  if (event.target === publicContentManagerBackdrop) {
+    closePublicContentManager()
+  }
+})
+
+document.querySelectorAll('[data-public-content-kind]').forEach((button) => {
+  button.addEventListener('click', () => {
+    if (publicContentMutationBusy) return
+
+    publicContentManagerKind = button.dataset.publicContentKind
+    resetPublicContentEditor()
+    renderPublicContentManager()
+  })
+})
+
+newPublicContentBtn?.addEventListener('click', () => {
+  if (publicContentMutationBusy) return
+  resetPublicContentEditor()
+  renderPublicContentManager()
+})
+
+resetPublicContentEditorBtn?.addEventListener('click', () => {
+  if (publicContentMutationBusy) return
+  resetPublicContentEditor()
+})
+
+savePublicContentBtn?.addEventListener('click', () => {
+  savePublicContentItem()
+})
+
+deletePublicContentBtn?.addEventListener('click', () => {
+  deletePublicContentItem()
+})
+
+publicHubPanel?.addEventListener('click', (event) => {
+  const managerButton = event.target.closest?.('[data-open-public-content-manager]')
+  if (managerButton) {
+    openPublicContentManager(managerButton.dataset.openPublicContentManager).catch((error) => {
+      console.error('Open public content manager failed:', error)
+    })
+    return
+  }
+
+  const nodeButton = event.target.closest?.('[data-public-node-id]')
+  if (nodeButton) {
+    openNodeFromPublicContent(Number(nodeButton.dataset.publicNodeId))
+  }
+})
+
 publicSectionTabs?.querySelectorAll('[data-public-section]').forEach((button) => {
   button.addEventListener('click', () => {
     selectPublicSection(button.dataset.publicSection)
@@ -8325,7 +9259,9 @@ window.addEventListener('keydown', (event) => {
 
   if (event.key === 'Escape') {
     if (!introDismissed) dismissIntro()
-    else if (codeManagerBackdrop.classList.contains('open')) {
+    else if (publicContentManagerBackdrop?.classList.contains('open')) {
+      closePublicContentManager()
+    } else if (codeManagerBackdrop.classList.contains('open')) {
       closeCodeManager()
     } else if (fileManagerBackdrop.classList.contains('open')) {
       closeFileManager()
@@ -8467,6 +9403,7 @@ window.atlasDebug = {
   openSelectedEdgeEdit,
   openMediaManager,
   openCodeManager,
+  openPublicContentManager,
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,

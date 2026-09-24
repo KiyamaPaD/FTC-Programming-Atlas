@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v69 · Full English UI + public shell
+// v70 · Full English UI + public content
 //
 // Source language: Romanian
 // Secondary language: English
@@ -97,6 +97,80 @@ const UI_EN = new Map(Object.entries({
     'No announcement has been published yet.',
   'Anunțurile scrise de administratorii Atlasului vor apărea aici și vor rămâne disponibile pentru consultare.':
     'Announcements written by Atlas administrators will appear here and remain available for reference.',
+  'Aici sunt grupate resurse relevante pentru departamentul selectat: documentație oficială, ghiduri și materiale de referință.':
+    'Relevant resources for the selected department are grouped here: official documentation, guides and reference material.',
+  'Deschide sursa':
+    'Open source',
+  'Deschide resursa':
+    'Open resource',
+  'Pinned':
+    'Pinned',
+  'Important':
+    'Important',
+  'Featured':
+    'Featured',
+  'Universal':
+    'Universal',
+  'Public Content':
+    'Public Content',
+  'Administrează Announcements și Useful Resources. Acest panou este disponibil doar editorilor autorizați.':
+    'Manage Announcements and Useful Resources. This panel is available only to authorized editors.',
+  '+ Nou':
+    '+ New',
+  'Announcement nou':
+    'New announcement',
+  'Resource nou':
+    'New resource',
+  'Completează datele și publică atunci când este gata.':
+    'Complete the details and publish when it is ready.',
+  'Rezumat':
+    'Summary',
+  'Conținut':
+    'Content',
+  'Link sursă (opțional)':
+    'Source link (optional)',
+  'Nod asociat (opțional)':
+    'Related node (optional)',
+  'Data publicării':
+    'Publication date',
+  'Publicat':
+    'Published',
+  'Tip':
+    'Type',
+  'Sursă':
+    'Source',
+  'Descriere':
+    'Description',
+  'Ordine':
+    'Order',
+  'Departamente':
+    'Departments',
+  'Fără selecție = resursa este universală și apare în toate departamentele.':
+    'No selection = the resource is universal and appears in every department.',
+  'Activ':
+    'Active',
+  'Pregătit pentru editare.':
+    'Ready to edit.',
+  'Curăță':
+    'Clear',
+  'Se salvează...':
+    'Saving...',
+  'Salvat.':
+    'Saved.',
+  'Se șterge...':
+    'Deleting...',
+  'Șters.':
+    'Deleted.',
+  'Editează announcement':
+    'Edit announcement',
+  'Editează resource':
+    'Edit resource',
+  'Modificările publicate devin vizibile imediat după salvare.':
+    'Published changes become visible immediately after saving.',
+  'Resursele inactive rămân salvate, dar nu apar public.':
+    'Inactive resources remain saved but are not shown publicly.',
+  'Adaugă o resursă utilă și alege departamentele unde trebuie să apară.':
+    'Add a useful resource and choose the departments where it should appear.',
   'Creat de':
     'Created by',
   'navigare, editare și relații':

@@ -2871,6 +2871,414 @@
   }
 
 
+  /* -----------------------------------------------------------------------
+     Public content · Announcements + Resources
+     ----------------------------------------------------------------------- */
+
+  .public-hub-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  .public-hub-manage {
+    border: 1px solid rgba(177, 76, 255, 0.28);
+    border-radius: 10px;
+    padding: 8px 11px;
+    background: rgba(177, 76, 255, 0.075);
+    color: #eadcf2;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .public-hub-manage:hover {
+    border-color: rgba(255, 77, 109, 0.42);
+    background: rgba(255, 77, 109, 0.08);
+    color: #fff;
+  }
+
+  .public-content-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 28px;
+  }
+
+  .announcement-card,
+  .resource-card {
+    position: relative;
+    padding: 18px 19px;
+    border: 1px solid rgba(255, 255, 255, 0.065);
+    border-radius: 18px;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.012));
+  }
+
+  .announcement-card.important {
+    border-color: rgba(255, 77, 109, 0.3);
+    box-shadow: inset 3px 0 0 rgba(255, 77, 109, 0.58);
+  }
+
+  .announcement-card.pinned {
+    background:
+      radial-gradient(circle at 0% 0%, rgba(177, 76, 255, 0.1), transparent 34%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.012));
+  }
+
+  .public-content-card-top,
+  .resource-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
+  .public-content-card-main {
+    min-width: 0;
+  }
+
+  .public-content-card-labels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  .public-content-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 4px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.025);
+    color: #aaa5b0;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.025em;
+  }
+
+  .public-content-badge.accent {
+    border-color: rgba(177, 76, 255, 0.24);
+    color: #d9b9eb;
+    background: rgba(177, 76, 255, 0.06);
+  }
+
+  .public-content-badge.important {
+    border-color: rgba(255, 77, 109, 0.28);
+    color: #ffc3cf;
+    background: rgba(255, 77, 109, 0.065);
+  }
+
+  .public-content-card-title {
+    margin: 0;
+    color: #f6f3f8;
+    font-size: 1.05rem;
+    line-height: 1.3;
+  }
+
+  .public-content-card-date {
+    flex: 0 0 auto;
+    color: #817c86;
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+
+  .public-content-card-summary,
+  .public-content-card-body {
+    margin: 9px 0 0;
+    color: #aaa5b0;
+    font-size: 0.84rem;
+    line-height: 1.65;
+  }
+
+  .public-content-card-summary {
+    color: #cbc6cf;
+  }
+
+  .public-content-card-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.045);
+  }
+
+  .public-content-link,
+  .public-content-node-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 7px 10px;
+    border: 1px solid rgba(177, 76, 255, 0.18);
+    border-radius: 10px;
+    background: rgba(177, 76, 255, 0.045);
+    color: #ddc7e9;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 760;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .public-content-link:hover,
+  .public-content-node-link:hover {
+    color: #fff;
+    border-color: rgba(255, 77, 109, 0.34);
+    background: rgba(255, 77, 109, 0.06);
+  }
+
+  .resource-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 28px;
+  }
+
+  .resource-card.featured {
+    border-color: rgba(177, 76, 255, 0.25);
+    background:
+      radial-gradient(circle at 12% 0%, rgba(177, 76, 255, 0.08), transparent 36%),
+      rgba(255, 255, 255, 0.018);
+  }
+
+  .resource-card .public-content-card-footer {
+    margin-top: 12px;
+  }
+
+  .public-content-modal {
+    width: min(1120px, 100%);
+    max-height: min(860px, calc(100vh - 44px));
+    display: flex;
+    flex-direction: column;
+  }
+
+  .public-content-manager-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 16px 18px 18px;
+  }
+
+  .public-content-manager-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .public-content-kind-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .public-content-kind-tab {
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.022);
+    color: #aaa5b0;
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .public-content-kind-tab.active {
+    color: #fff;
+    border-color: rgba(177, 76, 255, 0.34);
+    background: rgba(177, 76, 255, 0.08);
+  }
+
+  .public-content-manager-layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.8fr) minmax(420px, 1.2fr);
+    gap: 14px;
+    align-items: start;
+  }
+
+  .public-content-manager-list,
+  .public-content-editor {
+    min-width: 0;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.014);
+  }
+
+  .public-content-manager-list {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .public-content-manager-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.018);
+  }
+
+  .public-content-manager-item.inactive {
+    opacity: 0.62;
+  }
+
+  .public-content-manager-item strong {
+    display: block;
+    overflow: hidden;
+    color: #ece8ef;
+    font-size: 0.8rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .public-content-manager-item span {
+    display: block;
+    margin-top: 4px;
+    color: #817c86;
+    font-size: 0.68rem;
+  }
+
+  .public-content-editor {
+    padding: 14px;
+  }
+
+  .public-content-editor-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .public-content-editor-head strong {
+    display: block;
+    color: #f2eef4;
+    font-size: 0.9rem;
+  }
+
+  .public-content-editor-head span {
+    display: block;
+    margin-top: 4px;
+    color: #817c86;
+    font-size: 0.7rem;
+  }
+
+  .public-content-fields {
+    display: grid;
+    gap: 12px;
+  }
+
+  .public-content-fields[hidden] {
+    display: none !important;
+  }
+
+  .public-content-fields .field textarea.compact-textarea {
+    min-height: 94px;
+  }
+
+  .public-content-fields .field textarea.content-textarea {
+    min-height: 150px;
+  }
+
+  .public-content-toggle-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 14px;
+    padding: 2px 0;
+  }
+
+  .public-content-toggle-grid label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    color: #bbb6c0;
+    font-size: 0.76rem;
+    cursor: pointer;
+  }
+
+  .public-content-toggle-grid input {
+    width: auto;
+  }
+
+  .public-content-departments {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .public-content-departments label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.016);
+    color: #aaa5b0;
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+
+  .public-content-departments input {
+    width: auto;
+  }
+
+  .public-content-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.055);
+  }
+
+  .public-content-manager-empty {
+    padding: 18px 12px;
+    color: #817c86;
+    font-size: 0.76rem;
+    text-align: center;
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .resource-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .public-content-manager-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .public-content-modal {
+      max-height: none;
+    }
+
+    .public-content-manager-toolbar {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .public-content-departments {
+      grid-template-columns: 1fr;
+    }
+
+    .public-content-card-top,
+    .resource-card-top {
+      flex-direction: column;
+      gap: 7px;
+    }
+  }
+
+
   .topbar-brand,
   .topbar-team {
     display: flex;
@@ -3904,6 +4312,10 @@
               <button class="btn primary" id="taxonomyManagerBtn" type="button">
                 Taxonomy Manager
               </button>
+
+              <button class="btn" id="publicContentManagerBtn" type="button">
+                Public Content
+              </button>
             </div>
 
             <div class="editor-tools-note">
@@ -4323,6 +4735,184 @@
     </div>
   </div>
 
+
+  <div class="modal-backdrop public-content-manager-backdrop" id="publicContentManagerBackdrop">
+    <div class="modal public-content-modal">
+      <div class="modal-head">
+        <div>
+          <h3>Public Content</h3>
+          <p>Administrează Announcements și Useful Resources. Acest panou este disponibil doar editorilor autorizați.</p>
+        </div>
+        <button class="icon-btn" id="closePublicContentManagerBtn" aria-label="Close">✕</button>
+      </div>
+
+      <div class="public-content-manager-body">
+        <div class="public-content-manager-toolbar">
+          <div class="public-content-kind-tabs">
+            <button class="public-content-kind-tab active" type="button" data-public-content-kind="announcements">
+              Announcements
+            </button>
+            <button class="public-content-kind-tab" type="button" data-public-content-kind="resources">
+              Resources
+            </button>
+          </div>
+
+          <button class="btn primary" id="newPublicContentBtn" type="button">+ Nou</button>
+        </div>
+
+        <div class="count-strip" id="publicContentManagerSummary"></div>
+
+        <div class="public-content-manager-layout">
+          <div class="public-content-manager-list" id="publicContentManagerList"></div>
+
+          <div class="public-content-editor">
+            <div class="public-content-editor-head">
+              <div>
+                <strong id="publicContentEditorTitle">Announcement nou</strong>
+                <span id="publicContentEditorHint">Completează datele și publică atunci când este gata.</span>
+              </div>
+            </div>
+
+            <div class="public-content-fields" id="announcementEditorFields">
+              <div class="field-grid">
+                <div class="field">
+                  <label for="announcementTitleInput">Titlu</label>
+                  <input id="announcementTitleInput" maxlength="180" placeholder="Ex: Game Manual v1.3" />
+                </div>
+
+                <div class="field">
+                  <label for="announcementCategoryInput">Categorie</label>
+                  <select id="announcementCategoryInput">
+                    <option value="ftc">FTC</option>
+                    <option value="game-manual">Game Manual</option>
+                    <option value="season">Season</option>
+                    <option value="events">Events</option>
+                    <option value="resources">Resources</option>
+                    <option value="platform">Platform</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="announcementSummaryInput">Rezumat</label>
+                <textarea
+                  id="announcementSummaryInput"
+                  class="compact-textarea"
+                  maxlength="500"
+                  placeholder="Pe scurt, ce s-a schimbat?"
+                ></textarea>
+              </div>
+
+              <div class="field">
+                <label for="announcementContentInput">Conținut</label>
+                <textarea
+                  id="announcementContentInput"
+                  class="content-textarea"
+                  maxlength="12000"
+                  placeholder="Detaliile anunțului..."
+                ></textarea>
+              </div>
+
+              <div class="field-grid">
+                <div class="field">
+                  <label for="announcementSourceUrlInput">Link sursă (opțional)</label>
+                  <input id="announcementSourceUrlInput" placeholder="https://..." />
+                </div>
+
+                <div class="field">
+                  <label for="announcementRelatedNodeInput">Nod asociat (opțional)</label>
+                  <select id="announcementRelatedNodeInput"></select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="announcementPublishedAtInput">Data publicării</label>
+                <input id="announcementPublishedAtInput" type="datetime-local" />
+              </div>
+
+              <div class="public-content-toggle-grid">
+                <label><input id="announcementPublishedInput" type="checkbox" checked /> Publicat</label>
+                <label><input id="announcementPinnedInput" type="checkbox" /> Pinned</label>
+                <label><input id="announcementImportantInput" type="checkbox" /> Important</label>
+              </div>
+            </div>
+
+            <div class="public-content-fields" id="resourceEditorFields" hidden>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="resourceTitleInput">Titlu</label>
+                  <input id="resourceTitleInput" maxlength="180" placeholder="Ex: Game Manual 0" />
+                </div>
+
+                <div class="field">
+                  <label for="resourceTypeInput">Tip</label>
+                  <input id="resourceTypeInput" maxlength="60" placeholder="Ex: Guide / Official Docs" />
+                </div>
+              </div>
+
+              <div class="field-grid">
+                <div class="field">
+                  <label for="resourceSourceInput">Sursă</label>
+                  <input id="resourceSourceInput" maxlength="120" placeholder="Ex: Game Manual 0" />
+                </div>
+
+                <div class="field">
+                  <label for="resourceUrlInput">URL</label>
+                  <input id="resourceUrlInput" placeholder="https://..." />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="resourceDescriptionInput">Descriere</label>
+                <textarea
+                  id="resourceDescriptionInput"
+                  class="content-textarea"
+                  maxlength="3000"
+                  placeholder="De ce este utilă resursa?"
+                ></textarea>
+              </div>
+
+              <div class="field-grid">
+                <div class="field">
+                  <label for="resourceRelatedNodeInput">Nod asociat (opțional)</label>
+                  <select id="resourceRelatedNodeInput"></select>
+                </div>
+
+                <div class="field">
+                  <label for="resourceSortOrderInput">Ordine</label>
+                  <input id="resourceSortOrderInput" type="number" step="1" value="0" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Departamente</label>
+                <div class="public-content-departments" id="resourceDepartmentPicker"></div>
+                <div class="editor-tools-note">Fără selecție = resursa este universală și apare în toate departamentele.</div>
+              </div>
+
+              <div class="public-content-toggle-grid">
+                <label><input id="resourceActiveInput" type="checkbox" checked /> Activ</label>
+                <label><input id="resourceFeaturedInput" type="checkbox" /> Featured</label>
+              </div>
+            </div>
+
+            <div class="count-strip" id="publicContentEditorStatus">Pregătit pentru editare.</div>
+
+            <div class="public-content-editor-actions">
+              <button class="btn danger" id="deletePublicContentBtn" type="button" hidden>Șterge</button>
+              <button class="btn" id="resetPublicContentEditorBtn" type="button">Curăță</button>
+              <button class="btn primary" id="savePublicContentBtn" type="button">Salvează</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" id="closePublicContentManagerFooterBtn" type="button">Închide</button>
+      </div>
+    </div>
+  </div>
+
   <div class="intro-screen" id="introScreen">
     <div class="intro-box">
       <div class="intro-line one"></div>
@@ -4382,6 +4972,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=52"></script>
+  <script type="module" src="/js/atlas-script.js?v=70"></script>
 </body>
 </html>
