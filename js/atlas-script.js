@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v76 · TEAM ATLAS DOCUMENTATION')
+console.log('ATLAS SCRIPT LOADED v77 · TEAM ATLAS CODE PARITY')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -1033,7 +1033,9 @@ function handleNodeTap(nodeId) {
     // In Editor Mode a single click is reserved strictly for selection/movement.
     // We detect the second click ourselves instead of relying on the native
     // dblclick event because renderAll() rebuilds the node DOM after selection.
-    if (canEdit && editorMode) {
+    const tappedNode = findNode(numericNodeId)
+
+    if (canEditNode(tappedNode) && editorMode) {
       const now = performance.now()
       const isDoubleClick =
         Number(editorNodeClickState.nodeId) === numericNodeId &&
@@ -2667,6 +2669,28 @@ function canEditCurrentAtlas() {
   return isTeamAtlasMode() ? canEditTeamAtlas() : canEdit
 }
 
+function canEditNode(node) {
+  if (!node) return false
+
+  if (!node.isTeamNode) {
+    return canEdit
+  }
+
+  return canEditTeamDepartment(node.departmentId)
+}
+
+function canEditEdge(sourceId, targetId) {
+  const source = findNode(sourceId)
+  const target = findNode(targetId)
+
+  return Boolean(
+    source &&
+    target &&
+    canEditNode(source) &&
+    canEditNode(target)
+  )
+}
+
 function syncActiveNodeCollection({ forceReset = false } = {}) {
   const nextScope = isTeamAtlasMode() ? 'team' : 'public'
   const scopeChanged = nextScope !== activeNodeScope
@@ -2764,7 +2788,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     return
   }
 
-  const [nodesResult, edgesResult] = await Promise.all([
+  const [nodesResult, edgesResult, codeResult] = await Promise.all([
     supabase
       .from('atlas_team_nodes')
       .select('*')
@@ -2778,11 +2802,20 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
       .order('source_id', { ascending: true })
-      .order('target_id', { ascending: true })
+      .order('target_id', { ascending: true }),
+
+    supabase
+      .from('atlas_team_node_code_snippets')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', Number(activeTeamId))
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true })
   ])
 
   if (nodesResult.error) throw nodesResult.error
   if (edgesResult.error) throw edgesResult.error
+  if (codeResult.error) throw codeResult.error
 
   const edgesBySource = new Map()
 
@@ -2801,6 +2834,30 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
         edge.control_x,
         edge.control_y
       )
+    })
+  }
+
+  const codeByNode = new Map()
+
+  for (const row of codeResult.data || []) {
+    const nodeId = Number(row.node_id)
+
+    if (!codeByNode.has(nodeId)) {
+      codeByNode.set(nodeId, [])
+    }
+
+    codeByNode.get(nodeId).push({
+      id: Number(row.id),
+      nodeId,
+      teamId: Number(row.team_id),
+      isTeamCode: true,
+      language: row.language || 'text',
+      title: row.title || '',
+      description: row.description || '',
+      code: row.code || '',
+      sortOrder: Number(row.sort_order || 0),
+      createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null
     })
   }
 
@@ -2827,7 +2884,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     links: edgesBySource.get(Number(row.id)) || [],
     media: [],
     files: [],
-    codeSnippets: [],
+    codeSnippets: codeByNode.get(Number(row.id)) || [],
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null
   }))
@@ -3599,19 +3656,19 @@ function teamOnboardingProfile(role) {
     team_leader: {
       title: 'Team Leader',
       intro:
-        'Tu configurezi structura Team Space și stabilești cine are acces la ce departamente.',
+        'Tu configurezi accesul la Team Atlas și stabilești cine poate documenta fiecare departament.',
       steps: [
         [
           'Configurează echipa',
-          'Verifică numele, FTC Team Number și departamentele active din Team Setup.'
+          'Verifică numele, FTC Team Number și departamentele folosite în documentația echipei.'
         ],
         [
           'Invită membrii',
-          'Creează invitații pe email și distribuie linkurile persoanelor potrivite.'
+          'Invită persoanele care trebuie să citească sau să contribuie la documentația echipei.'
         ],
         [
           'Atribuie rolurile',
-          'Poți promova membri la Coordinator, Mentor sau Team Leader și poți actualiza departamentele.'
+          'Atribuie Coordinator, Mentor sau Team Leader în funcție de cine poate întreține documentația.'
         ],
         [
           'Folosește Atlasul public separat',
@@ -3622,57 +3679,57 @@ function teamOnboardingProfile(role) {
     department_coordinator: {
       title: 'Department Coordinator',
       intro:
-        'Coordonezi unul sau mai multe departamente din Team Space fără să blochezi accesul la Atlasul public.',
+        'Întreții documentația pentru unul sau mai multe departamente din Team Atlas.',
       steps: [
         [
           'Verifică departamentele tale',
-          'Team Space îți arată departamentele la care ești asignat.'
+          'Team Atlas îți arată departamentele în care ai drept de editare.'
         ],
         [
-          'Folosește roadmaps ca recomandări',
-          'Roadmap-urile sunt trasee orientative; orice nod public rămâne accesibil.'
+          'Documentează departamentul tău',
+          'Poți crea noduri, edita documentația, adăuga relații și snippet-uri de cod în departamentele tale.'
         ],
         [
-          'Pregătește coordonarea internă',
-          'Fazele următoare vor adăuga resurse private, announcements și task-uri pe departamente.'
+          'Folosește Atlasul public ca referință',
+          'Atlasul public rămâne baza comună, iar Team Atlas păstrează particularitățile și cunoștințele echipei.'
         ]
       ]
     },
     mentor: {
       title: 'Mentor',
       intro:
-        'Ai vizibilitate în Team Space pentru ghidaj, context și resurse, fără să fii obligat să administrezi echipa.',
+        'Poți ghida și contribui direct la documentația Team Atlas din toate departamentele echipei.',
       steps: [
         [
           'Urmărește structura',
-          'Poți vedea membrii, rolurile și departamentele active ale echipei.'
+          'Poți vedea structura documentației și toate departamentele active ale echipei.'
         ],
         [
-          'Folosește resursele și Atlasul',
-          'Public Atlas rămâne sursa comună de documentație și roadmaps.'
+          'Contribuie la documentație',
+          'Poți edita nodurile Team Atlas, relațiile și exemplele de cod acolo unde este nevoie.'
         ],
         [
-          'Contribuie prin ghidaj',
-          'Spațiul privat va putea găzdui ulterior note și resurse interne pentru echipă.'
+          'Păstrează legătura cu Atlasul public',
+          'Team Atlas păstrează informația specifică echipei, iar Public Atlas rămâne documentația comună.'
         ]
       ]
     },
     team_member: {
       title: 'Team Member',
       intro:
-        'Team Space îți oferă contextul echipei, departamentele tale și accesul la viitoarele resurse private.',
+        'Team Atlas îți oferă documentația internă a echipei și departamentele relevante pentru tine.',
       steps: [
         [
           'Vezi departamentul tău',
-          'Rolul și departamentele asignate apar direct în Team Space.'
+          'Rolul și departamentele asignate controlează ce documentație poți consulta sau edita.'
         ],
         [
           'Explorează Atlasul public',
           'Poți deschide orice nod și urma roadmaps fără sistem de unlock.'
         ],
         [
-          'Salvează progresul',
-          'Roadmap progress este personal și sincronizat cu contul tău.'
+          'Folosește documentația echipei',
+          'Poți consulta nodurile Team Atlas și exemplele păstrate de coordonatori, lideri și mentori.'
         ]
       ]
     }
@@ -4341,10 +4398,10 @@ function resetTeamSetupForm({ createMode = false } = {}) {
       (currentUser?.email ? currentUser.email.split('@')[0] : '')
 
     renderTeamSetupDepartmentPicker(currentTeamDepartmentIds())
-    teamSetupStatus.textContent = 'Editezi Team Space-ul selectat.'
+    teamSetupStatus.textContent = 'Editezi configurația Team Atlas pentru echipa selectată.'
   } else {
     teamSetupCurrent.textContent =
-      'Creezi un Team Space nou. Vei deveni Team Leader pentru această echipă.'
+      'Creezi o echipă nouă în Team Atlas. Vei deveni Team Leader pentru această echipă.'
 
     teamNameInput.value = ''
     teamNumberInput.value = ''
@@ -4423,7 +4480,7 @@ async function saveTeamSetup() {
   }
 
   if (displayName.length < 2) {
-    alert('Scrie un nume de afișat în Team Space.')
+    alert('Scrie un nume de afișat în Team Atlas.')
     return
   }
 
@@ -4515,6 +4572,10 @@ function selectPublicSection(section) {
   if (section === 'team' && !currentTeamRecord()) {
     setAccountPanel(true)
     return
+  }
+
+  if (isCodeManagerOpen()) {
+    closeCodeManager()
   }
 
   activePublicSection = section
@@ -5646,7 +5707,7 @@ function renderNodeCodeSnippets(node) {
   const snippets = Array.isArray(node.codeSnippets) ? node.codeSnippets : []
 
   if (snippets.length === 0) {
-    if (!canEdit || !editorMode || isTeamAtlasMode()) return ''
+    if (!canEditNode(node) || !editorMode) return ''
 
     return `
       <section class="node-code-section empty">
@@ -5670,7 +5731,7 @@ function renderNodeCodeSnippets(node) {
           <h3>Snippet-uri de cod</h3>
         </div>
         ${
-          canEdit && editorMode && !isTeamAtlasMode()
+          canEditNode(node) && editorMode
             ? '<button class="btn" type="button" data-open-node-code>Administrează</button>'
             : ''
         }
@@ -7364,6 +7425,24 @@ async function reorderFilesRemote(nodeId, items) {
 }
 
 async function createCodeRemote(item) {
+  const node = findNode(item.nodeId)
+
+  if (node?.isTeamNode) {
+    const { data, error } = await supabase.rpc('atlas_team_code_create', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_node_id: Number(item.nodeId),
+      p_language: item.language || 'text',
+      p_title: item.title || '',
+      p_description: item.description || '',
+      p_code: item.code || '',
+      p_sort_order: Number(item.sortOrder || 0)
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Snippet-ul de cod al echipei')
+  }
+
   const { data, error } = await supabase.rpc('atlas_code_create', {
     p_project_id: PROJECT_ID,
     p_node_id: Number(item.nodeId),
@@ -7379,6 +7458,24 @@ async function createCodeRemote(item) {
 }
 
 async function updateCodeRemote(item) {
+  const node = findNode(item.nodeId) || currentCodeNode()
+
+  if (node?.isTeamNode) {
+    const { data, error } = await supabase.rpc('atlas_team_code_update', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_code_id: Number(item.id),
+      p_language: item.language || 'text',
+      p_title: item.title || '',
+      p_description: item.description || '',
+      p_code: item.code || '',
+      p_sort_order: Number(item.sortOrder || 0)
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Snippet-ul de cod al echipei')
+  }
+
   const { data, error } = await supabase.rpc('atlas_code_update', {
     p_project_id: PROJECT_ID,
     p_code_id: Number(item.id),
@@ -7394,6 +7491,23 @@ async function updateCodeRemote(item) {
 }
 
 async function deleteCodeRemote(codeId) {
+  const node = currentCodeNode()
+
+  if (node?.isTeamNode) {
+    const { data, error } = await supabase.rpc('atlas_team_code_delete', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_code_id: Number(codeId)
+    })
+
+    if (error) throw error
+    if (!data?.ok) {
+      throw new Error('Snippet-ul de cod al echipei nu a fost șters.')
+    }
+
+    return data
+  }
+
   const { data, error } = await supabase.rpc('atlas_code_delete', {
     p_project_id: PROJECT_ID,
     p_code_id: Number(codeId)
@@ -7405,6 +7519,24 @@ async function deleteCodeRemote(codeId) {
 }
 
 async function reorderCodeRemote(nodeId, items) {
+  const node = findNode(nodeId) || currentCodeNode()
+
+  if (node?.isTeamNode) {
+    const { data, error } = await supabase.rpc('atlas_team_code_reorder', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_node_id: Number(nodeId),
+      p_items: items
+    })
+
+    if (error) throw error
+    if (!data?.ok) {
+      throw new Error('Ordinea snippet-urilor echipei nu a fost salvată.')
+    }
+
+    return data
+  }
+
   const { data, error } = await supabase.rpc('atlas_code_reorder', {
     p_project_id: PROJECT_ID,
     p_node_id: Number(nodeId),
@@ -8110,7 +8242,9 @@ function updateAuthUI() {
   }
 
   const editorBlocked = isAtlasLoading || !editorActive
-  const hasSelectedNode = Boolean(selectedNode())
+  const selected = selectedNode()
+  const hasSelectedNode = Boolean(selected)
+  const selectedNodeEditable = Boolean(selected && canEditNode(selected))
   const hasNodes = nodes.length > 0
 
   editorModeBtn.hidden = !currentAtlasEditable
@@ -8130,12 +8264,12 @@ function updateAuthUI() {
   fileManagerBtn.disabled =
     editorBlocked || !hasSelectedNode || isTeamAtlasMode()
   codeManagerBtn.disabled =
-    editorBlocked || !hasSelectedNode || isTeamAtlasMode()
+    editorBlocked || !hasSelectedNode || !selectedNodeEditable
 
   const selectedHasUnsavedPosition =
     editorActive &&
-    hasSelectedNode &&
-    hasUnsavedNodePosition(selectedNode()?.id)
+    selectedNodeEditable &&
+    hasUnsavedNodePosition(selected?.id)
 
   savePositionBtn.hidden = !selectedHasUnsavedPosition
   savePositionBtn.disabled = !selectedHasUnsavedPosition || positionSaveBusy
@@ -8155,8 +8289,12 @@ function updateAuthUI() {
     closeFileManager()
   }
 
-  if ((!publicAdminEditorActive || isTeamAtlasMode()) && isCodeManagerOpen()) {
-    closeCodeManager()
+  if (isCodeManagerOpen()) {
+    const codeNode = currentCodeNode()
+
+    if (!editorMode || !codeNode || !canEditNode(codeNode)) {
+      closeCodeManager()
+    }
   }
 
   if (!publicAdminEditorActive && isPublicContentManagerOpen()) {
@@ -8176,8 +8314,8 @@ function updateAuthUI() {
   }
 
   createBtn.disabled = editorBlocked
-  editBtn.disabled = editorBlocked || !hasSelectedNode
-  deleteBtn.disabled = editorBlocked || !hasSelectedNode
+  editBtn.disabled = editorBlocked || !selectedNodeEditable
+  deleteBtn.disabled = editorBlocked || !selectedNodeEditable
   relationBtn.disabled = editorBlocked || !hasNodes
 
   const edgeInfo = selectedEdgeInfo()
@@ -9016,7 +9154,7 @@ function renderNodes() {
 
     const tagNames = nodeTagNames(node)
     const resizeHandles =
-      canEditCurrentAtlas() && editorMode && node.id === selectedId
+      canEditNode(node) && editorMode && node.id === selectedId
         ? `
         <span class="node-resize-handle east" data-node-resize="e" aria-hidden="true"></span>
         <span class="node-resize-handle south" data-node-resize="s" aria-hidden="true"></span>
@@ -9030,7 +9168,7 @@ function renderNodes() {
           <span class="pill category-pill">${escapeHtml(nodeCategoryName(node))}</span>
           <span class="pill difficulty-pill">${escapeHtml(nodeDifficultyName(node))}</span>
         </div>
-        ${node.id === selectedId ? `<span class="open-mark">${canEditCurrentAtlas() && editorMode ? '2× open' : 'open'}</span>` : ''}
+        ${node.id === selectedId ? `<span class="open-mark">${canEditNode(node) && editorMode ? '2× open' : 'open'}</span>` : ''}
       </div>
       <h3 class="node-title">${escapeHtml(node.title)}</h3>
       <p class="node-preview">${escapeHtml(nodeContentPlainText(node))}</p>
@@ -9101,7 +9239,7 @@ function renderNodes() {
 
         if (interactionMode !== 'drag') return
       } else {
-        if (!canEditCurrentAtlas() || !editorMode) return
+        if (!canEditNode(node) || !editorMode) return
         if (!moved && distance < DRAG_THRESHOLD) return
         interactionMode = 'drag'
       }
@@ -9141,7 +9279,7 @@ function renderNodes() {
         return
       }
 
-      if (!canEditCurrentAtlas() || !editorMode || interactionMode !== 'drag') {
+      if (!canEditNode(node) || !editorMode || interactionMode !== 'drag') {
         renderAll()
         return
       }
@@ -9220,7 +9358,7 @@ function renderNodes() {
       moved = false
       interactionMode = event.pointerType === 'touch' ? 'pending' : 'idle'
 
-      if (event.pointerType === 'touch' && canEditCurrentAtlas() && editorMode) {
+      if (event.pointerType === 'touch' && canEditNode(node) && editorMode) {
         touchLongPressTimer = window.setTimeout(() => {
           interactionMode = 'drag'
         }, MOBILE_LONG_PRESS_MS)
@@ -9237,7 +9375,7 @@ function renderNodes() {
 
     el.querySelectorAll('[data-node-resize]').forEach((handle) => {
       handle.addEventListener('pointerdown', (event) => {
-        if (!canEditCurrentAtlas() || !editorMode) return
+        if (!canEditNode(node) || !editorMode) return
         if (event.button !== 0 && event.pointerType !== 'touch') return
 
         event.preventDefault()
@@ -10334,8 +10472,9 @@ function scheduleCodeDraftSave() {
 
 function restoreCodeManagerWindow() {
   const savedNodeId = Number(localStorage.getItem(CACHE_KEYS.codeManagerOpen))
+  const node = findNode(savedNodeId)
 
-  if (!savedNodeId || !canEdit || !editorMode || !findNode(savedNodeId)) {
+  if (!savedNodeId || !node || !editorMode || !canEditNode(node)) {
     return
   }
 
@@ -10348,6 +10487,11 @@ function openCodeManager(nodeId = selectedId) {
   const node = findNode(nodeId)
   if (!node) {
     alert('Selectează mai întâi un nod.')
+    return
+  }
+
+  if (!canEditNode(node)) {
+    alert('Rolul tău nu permite editarea codului din acest nod.')
     return
   }
 
@@ -10498,10 +10642,16 @@ function renderCodeManager() {
 
 async function refreshAfterCodeMutation() {
   const nodeId = codeManagerNodeId
+  const nodeWasTeamNode = Boolean(currentCodeNode()?.isTeamNode)
   const body = codeManagerBackdrop.querySelector('.code-manager-body')
   const previousScrollTop = body?.scrollTop || 0
 
-  await fetchAllData()
+  if (nodeWasTeamNode) {
+    await loadActiveTeamAtlasNodes()
+  } else {
+    await fetchAllData()
+  }
+
   codeManagerNodeId = nodeId
 
   if (isCodeManagerOpen()) {
@@ -10647,8 +10797,8 @@ function renderDetailPanel() {
   if (!node || !detailOpen || !matchesTaxonomyFilters(node) || !matchesSearch(node)) {
     detailPanel.classList.remove('open')
     emptyPanel.style.display = 'none'
-    editBtn.disabled = !node || !canEdit || !editorMode
-    deleteBtn.disabled = !node || !canEdit || !editorMode
+    editBtn.disabled = !node || !canEditNode(node) || !editorMode
+    deleteBtn.disabled = !node || !canEditNode(node) || !editorMode
     return
   }
 
@@ -10739,8 +10889,12 @@ function renderDetailPanel() {
 
   detailPanel.classList.add('open')
   emptyPanel.style.display = 'none'
-  editBtn.disabled = !canEdit || !editorMode
-  deleteBtn.disabled = !canEdit || !editorMode
+  const nodeEditorActions = canEditNode(node) && editorMode
+  const publicAttachmentActions =
+    canEdit && editorMode && !node.isTeamNode
+
+  editBtn.disabled = !nodeEditorActions
+  deleteBtn.disabled = !nodeEditorActions
 
   const detailCodeBtn = document.getElementById('detailCodeBtn')
   const detailMediaBtn = document.getElementById('detailMediaBtn')
@@ -10750,21 +10904,19 @@ function renderDetailPanel() {
   const detailDeleteBtn = document.getElementById('detailDeleteBtn')
   const detailCloseBtn = document.getElementById('detailCloseBtn')
 
-  const hideEditorActions = !canEdit || !editorMode
+  detailCodeBtn.hidden = !nodeEditorActions
+  detailMediaBtn.hidden = !publicAttachmentActions
+  detailFilesBtn.hidden = !publicAttachmentActions
+  detailAddRelationBtn.hidden = !nodeEditorActions
+  detailEditBtn.hidden = !nodeEditorActions
+  detailDeleteBtn.hidden = !nodeEditorActions
 
-  detailCodeBtn.hidden = hideEditorActions
-  detailMediaBtn.hidden = hideEditorActions
-  detailFilesBtn.hidden = hideEditorActions
-  detailAddRelationBtn.hidden = hideEditorActions
-  detailEditBtn.hidden = hideEditorActions
-  detailDeleteBtn.hidden = hideEditorActions
-
-  detailCodeBtn.disabled = hideEditorActions
-  detailMediaBtn.disabled = hideEditorActions
-  detailFilesBtn.disabled = hideEditorActions
-  detailAddRelationBtn.disabled = hideEditorActions
-  detailEditBtn.disabled = hideEditorActions
-  detailDeleteBtn.disabled = hideEditorActions
+  detailCodeBtn.disabled = !nodeEditorActions
+  detailMediaBtn.disabled = !publicAttachmentActions
+  detailFilesBtn.disabled = !publicAttachmentActions
+  detailAddRelationBtn.disabled = !nodeEditorActions
+  detailEditBtn.disabled = !nodeEditorActions
+  detailDeleteBtn.disabled = !nodeEditorActions
 
   detailCodeBtn.addEventListener('click', () => openCodeManager(node.id))
   detailMediaBtn.addEventListener('click', () => openMediaManager(node.id))
@@ -11009,6 +11161,11 @@ function openEdit(id) {
   const node = findNode(id)
   if (!node) return
 
+  if (!canEditNode(node)) {
+    alert('Rolul tău nu permite editarea acestui nod.')
+    return
+  }
+
   editingId = id
   modalTitle.textContent = 'Editează nod'
   modalSubtitle.textContent =
@@ -11039,6 +11196,11 @@ function openRelationCreate(sourceId, targetId) {
   const target = findNode(targetId)
   if (!source || !target) return
 
+  if (!canEditEdge(sourceId, targetId)) {
+    alert('Nu ai permisiunea de a conecta aceste două noduri.')
+    return
+  }
+
   editingId = null
   relationDraft = { sourceId, targetId, label: '' }
   modalTitle.textContent = 'Creează relație'
@@ -11057,6 +11219,11 @@ function openRelationEdit(sourceId, relationIndex) {
   const relation = source?.links?.[relationIndex]
   const target = relation ? findNode(relation.targetId) : null
   if (!source || !relation || !target) return
+
+  if (!canEditEdge(sourceId, relation.targetId)) {
+    alert('Nu ai permisiunea de a edita această relație.')
+    return
+  }
 
   editingId = relationIndex
   relationDraft = { sourceId, targetId: relation.targetId, label: relation.label || '' }
@@ -11349,6 +11516,11 @@ async function deleteSelected() {
 
   if (!node) {
     alert('Nu este selectat niciun nod.')
+    return
+  }
+
+  if (!canEditNode(node)) {
+    alert('Rolul tău nu permite ștergerea acestui nod.')
     return
   }
 

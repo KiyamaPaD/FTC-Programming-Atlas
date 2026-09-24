@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v76 · Full English UI + Team Atlas documentation
+// v77 · Full English UI + Team Atlas code parity
 //
 // Source language: Romanian
 // Secondary language: English
@@ -251,20 +251,20 @@ const UI_EN = new Map(Object.entries({
     'Team name',
   'Descriere':
     'Description',
-  'Numele tău în Team Space':
-    'Your name in Team Space',
+  'Numele tău în Team Atlas':
+    'Your name in Team Atlas',
   'Departamente active':
     'Active departments',
   'Creează prima echipă sau editează echipa curentă.':
     'Create the first team or edit the current team.',
   'Echipă nouă':
     'New team',
-  'Creezi un Team Space nou. Vei deveni Team Leader pentru această echipă.':
-    'You are creating a new Team Space. You will become Team Leader for this team.',
+  'Creezi o echipă nouă în Team Atlas. Vei deveni Team Leader pentru această echipă.':
+    'You are creating a new team in Team Atlas. You will become Team Leader for this team.',
   'Completează datele noii echipe.':
     'Complete the new team details.',
-  'Editezi Team Space-ul selectat.':
-    'You are editing the selected Team Space.',
+  'Editezi configurația Team Atlas pentru echipa selectată.':
+    'You are editing the Team Atlas configuration for the selected team.',
   'Se salvează...':
     'Saving...',
   'Salvat.':
@@ -287,8 +287,8 @@ const UI_EN = new Map(Object.entries({
     'Invite members, assign roles and configure departments. An invitation can only be accepted by the account using the invited email.',
   'Membri':
     'Members',
-  'Roluri active în Team Space':
-    'Active Team Space roles',
+  'Roluri active în Team Atlas':
+    'Active Team Atlas roles',
   'Invitații pending':
     'Pending invitations',
   'Linkurile expiră automat':
@@ -313,8 +313,8 @@ const UI_EN = new Map(Object.entries({
     'Create invitation',
   'Team onboarding':
     'Team onboarding',
-  'Un rezumat scurt al rolului tău în Team Space.':
-    'A short overview of your role in Team Space.',
+  'Un rezumat scurt al rolului tău în documentația Team Atlas.':
+    'A short overview of your role in Team Atlas documentation.',
   'Parcurge pașii de mai jos.':
     'Review the steps below.',
   'Mai târziu':
@@ -367,6 +367,16 @@ const UI_EN = new Map(Object.entries({
     'Only approved editors can edit the public Atlas.',
   'Alege un departament pe care ai voie să îl editezi.':
     'Choose a department you are allowed to edit.',
+  'Rolul tău nu permite editarea codului din acest nod.':
+    'Your role does not allow editing code in this node.',
+  'Rolul tău nu permite editarea acestui nod.':
+    'Your role does not allow editing this node.',
+  'Rolul tău nu permite ștergerea acestui nod.':
+    'Your role does not allow deleting this node.',
+  'Nu ai permisiunea de a conecta aceste două noduri.':
+    'You do not have permission to connect these two nodes.',
+  'Nu ai permisiunea de a edita această relație.':
+    'You do not have permission to edit this relationship.',
   'Creat de':
     'Created by',
   'navigare, editare și relații':
