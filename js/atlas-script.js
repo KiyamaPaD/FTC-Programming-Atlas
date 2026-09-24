@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v72 · TEAM SPACE FOUNDATION')
+console.log('ATLAS SCRIPT LOADED v73 · TEAM MEMBERS + INVITES + ONBOARDING')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -36,7 +36,13 @@ const CACHE_KEYS = {
   codeManagerOpen: 'ftc_atlas_code_manager_open_v1',
   department: 'ftc_atlas_department_v1',
   publicSection: 'ftc_atlas_public_section_v1',
-  activeTeam: 'ftc_atlas_active_team_v1'
+  activeTeam: 'ftc_atlas_active_team_v1',
+  pendingTeamInvite: 'ftc_atlas_pending_team_invite_v1'
+}
+
+const initialTeamInviteToken = new URLSearchParams(window.location.search).get('teamInvite')
+if (initialTeamInviteToken) {
+  localStorage.setItem(CACHE_KEYS.pendingTeamInvite, initialTeamInviteToken)
 }
 
 const DEFAULT_VIEW = { x: -120, y: -80, scale: 1 }
@@ -291,6 +297,8 @@ let teamRecords = []
 let teamMembers = []
 let teamMemberDepartments = []
 let teamEnabledDepartments = []
+let teamInvites = []
+let teamManagerInvites = []
 let activeTeamId = null
 
 const PUBLIC_SECTIONS = new Set([
@@ -317,6 +325,9 @@ let roadmapManagerMutationBusy = false
 let roadmapProgressMutationKeys = new Set()
 let teamSetupMutationBusy = false
 let teamSetupCreateMode = false
+let teamMembersMutationBusy = false
+let teamMemberEditingId = null
+let teamOnboardingMutationBusy = false
 let categoryFilterId = null
 let difficultyFilterId = null
 let tagFilterIds = new Set()
@@ -433,6 +444,9 @@ const toolsHeader = document.getElementById('toolsHeader')
 const collapseBtn = document.getElementById('collapseBtn')
 const accountBtn = document.getElementById('accountBtn')
 const accountPanel = document.getElementById('accountPanel')
+const teamInvitesPanel = document.getElementById('teamInvitesPanel')
+const teamInvitesCount = document.getElementById('teamInvitesCount')
+const teamInvitesList = document.getElementById('teamInvitesList')
 const authStatusBox = document.getElementById('authStatusBox')
 const authEmailInput = document.getElementById('authEmailInput')
 const authOtpRow = document.getElementById('authOtpRow')
@@ -692,6 +706,35 @@ const teamSetupDepartmentPicker = document.getElementById('teamSetupDepartmentPi
 const teamSetupStatus = document.getElementById('teamSetupStatus')
 const newTeamSetupBtn = document.getElementById('newTeamSetupBtn')
 const saveTeamSetupBtn = document.getElementById('saveTeamSetupBtn')
+
+const teamMembersBackdrop = document.getElementById('teamMembersBackdrop')
+const closeTeamMembersBtn = document.getElementById('closeTeamMembersBtn')
+const closeTeamMembersFooterBtn = document.getElementById('closeTeamMembersFooterBtn')
+const teamMembersSummary = document.getElementById('teamMembersSummary')
+const teamMembersManagerList = document.getElementById('teamMembersManagerList')
+const teamPendingInvitesList = document.getElementById('teamPendingInvitesList')
+const teamInviteEditorFields = document.getElementById('teamInviteEditorFields')
+const teamMemberEditorFields = document.getElementById('teamMemberEditorFields')
+const teamMemberEditorTitle = document.getElementById('teamMemberEditorTitle')
+const teamMemberEditorHint = document.getElementById('teamMemberEditorHint')
+const teamInviteEmailInput = document.getElementById('teamInviteEmailInput')
+const teamInviteDisplayNameInput = document.getElementById('teamInviteDisplayNameInput')
+const teamInviteRoleInput = document.getElementById('teamInviteRoleInput')
+const teamInviteDepartmentPicker = document.getElementById('teamInviteDepartmentPicker')
+const teamMemberEditorCurrent = document.getElementById('teamMemberEditorCurrent')
+const teamMemberRoleInput = document.getElementById('teamMemberRoleInput')
+const teamMemberDepartmentPicker = document.getElementById('teamMemberDepartmentPicker')
+const teamMemberActiveInput = document.getElementById('teamMemberActiveInput')
+const teamMembersManagerStatus = document.getElementById('teamMembersManagerStatus')
+const resetTeamMemberEditorBtn = document.getElementById('resetTeamMemberEditorBtn')
+const saveTeamMemberBtn = document.getElementById('saveTeamMemberBtn')
+
+const teamOnboardingBackdrop = document.getElementById('teamOnboardingBackdrop')
+const closeTeamOnboardingBtn = document.getElementById('closeTeamOnboardingBtn')
+const closeTeamOnboardingFooterBtn = document.getElementById('closeTeamOnboardingFooterBtn')
+const teamOnboardingContent = document.getElementById('teamOnboardingContent')
+const teamOnboardingStatus = document.getElementById('teamOnboardingStatus')
+const completeTeamOnboardingBtn = document.getElementById('completeTeamOnboardingBtn')
 
 // Node and relationship selection helpers
 function selectedNode() {
@@ -2653,6 +2696,10 @@ function selectActiveTeam(teamId) {
   activeTeamId = Number(teamId)
   localStorage.setItem(CACHE_KEYS.activeTeam, String(activeTeamId))
 
+  if (isTeamMembersManagerOpen()) {
+    closeTeamMembersManager()
+  }
+
   renderAll()
 }
 
@@ -2662,6 +2709,7 @@ async function loadTeamContext({ rerender = false } = {}) {
   teamMembers = []
   teamMemberDepartments = []
   teamEnabledDepartments = []
+  teamInvites = []
 
   if (!currentUser) {
     activeTeamId = null
@@ -2670,62 +2718,90 @@ async function loadTeamContext({ rerender = false } = {}) {
     return
   }
 
-  const { data: ownRows, error: ownError } = await supabase
-    .from('atlas_team_memberships')
-    .select('*')
-    .eq('project_id', PROJECT_ID)
-    .eq('user_id', currentUser.id)
-    .eq('status', 'active')
+  const normalizedEmail = String(currentUser.email || '').trim().toLowerCase()
 
-  if (ownError) {
-    console.error('Team membership load failed:', ownError)
-    normalizeActiveTeam()
-
-    if (rerender) renderAll()
-    return
-  }
-
-  const teamIds = [...new Set((ownRows || []).map((row) => Number(row.team_id)))]
-
-  if (teamIds.length === 0) {
-    normalizeActiveTeam()
-
-    if (rerender) renderAll()
-    return
-  }
-
-  const [
-    teamsResult,
-    membershipsResult,
-    memberDepartmentsResult,
-    enabledDepartmentsResult
-  ] = await Promise.all([
-    supabase
-      .from('atlas_teams')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .in('id', teamIds)
-      .eq('is_active', true),
-
+  const [ownMembershipResult, ownInvitesResult] = await Promise.all([
     supabase
       .from('atlas_team_memberships')
       .select('*')
       .eq('project_id', PROJECT_ID)
-      .in('team_id', teamIds)
+      .eq('user_id', currentUser.id)
       .eq('status', 'active'),
 
-    supabase
-      .from('atlas_team_member_departments')
-      .select('membership_id, department_id, team_id')
-      .eq('project_id', PROJECT_ID)
-      .in('team_id', teamIds),
-
-    supabase
-      .from('atlas_team_departments')
-      .select('team_id, department_id')
-      .eq('project_id', PROJECT_ID)
-      .in('team_id', teamIds)
+    normalizedEmail
+      ? supabase
+          .from('atlas_team_invites')
+          .select('*')
+          .eq('project_id', PROJECT_ID)
+          .eq('email', normalizedEmail)
+          .eq('status', 'pending')
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+      : Promise.resolve({ data: [], error: null })
   ])
+
+  if (ownMembershipResult.error) {
+    console.error('Team membership load failed:', ownMembershipResult.error)
+  }
+
+  if (ownInvitesResult.error) {
+    console.error('Team invites load failed:', ownInvitesResult.error)
+  }
+
+  const ownRows = ownMembershipResult.data || []
+  const inviteRows = ownInvitesResult.data || []
+
+  const membershipTeamIds = ownRows.map((row) => Number(row.team_id))
+  const inviteTeamIds = inviteRows.map((row) => Number(row.team_id))
+
+  const teamIds = [
+    ...new Set([...membershipTeamIds, ...inviteTeamIds])
+  ].filter(Number.isFinite)
+
+  if (teamIds.length === 0) {
+    normalizeActiveTeam()
+    renderTeamInvites()
+    maybeOpenPendingTeamInvite()
+
+    if (rerender) renderAll()
+    return
+  }
+
+  const membershipTeamIdsUnique = [...new Set(membershipTeamIds)].filter(Number.isFinite)
+
+  const [teamsResult, membershipsResult, memberDepartmentsResult, enabledDepartmentsResult] =
+    await Promise.all([
+      supabase
+        .from('atlas_teams')
+        .select('*')
+        .eq('project_id', PROJECT_ID)
+        .in('id', teamIds)
+        .eq('is_active', true),
+
+      membershipTeamIdsUnique.length > 0
+        ? supabase
+            .from('atlas_team_memberships')
+            .select('*')
+            .eq('project_id', PROJECT_ID)
+            .in('team_id', membershipTeamIdsUnique)
+        : Promise.resolve({ data: [], error: null }),
+
+      membershipTeamIdsUnique.length > 0
+        ? supabase
+            .from('atlas_team_member_departments')
+            .select('membership_id, department_id, team_id')
+            .eq('project_id', PROJECT_ID)
+            .in('team_id', membershipTeamIdsUnique)
+        : Promise.resolve({ data: [], error: null }),
+
+      membershipTeamIdsUnique.length > 0
+        ? supabase
+            .from('atlas_team_departments')
+            .select('team_id, department_id')
+            .eq('project_id', PROJECT_ID)
+            .in('team_id', membershipTeamIdsUnique)
+        : Promise.resolve({ data: [], error: null })
+    ])
 
   const firstError = [
     teamsResult.error,
@@ -2736,9 +2812,6 @@ async function loadTeamContext({ rerender = false } = {}) {
 
   if (firstError) {
     console.error('Team context load failed:', firstError)
-
-    if (rerender) renderAll()
-    return
   }
 
   teamRecords = (teamsResult.data || []).map((row) => ({
@@ -2759,6 +2832,7 @@ async function loadTeamContext({ rerender = false } = {}) {
     displayName: row.display_name || '',
     role: row.role || 'team_member',
     status: row.status || 'active',
+    onboardingCompletedAt: row.onboarding_completed_at || null,
     joinedAt: row.joined_at || null,
     createdAt: row.created_at || null
   }))
@@ -2776,11 +2850,27 @@ async function loadTeamContext({ rerender = false } = {}) {
     departmentId: Number(row.department_id)
   }))
 
+  teamInvites = inviteRows.map((row) => ({
+    id: Number(row.id),
+    teamId: Number(row.team_id),
+    email: row.email || '',
+    displayName: row.display_name || '',
+    role: row.role || 'team_member',
+    departmentIds: Array.isArray(row.department_ids)
+      ? row.department_ids.map(Number)
+      : [],
+    token: row.token || '',
+    status: row.status || 'pending',
+    expiresAt: row.expires_at || null,
+    createdAt: row.created_at || null
+  }))
+
   normalizeActiveTeam()
+  renderTeamInvites()
+  maybeOpenPendingTeamInvite()
 
   if (rerender) renderAll()
 }
-
 function renderTeamNavigation() {
   if (!teamSpaceEntry) return
 
@@ -2887,9 +2977,18 @@ function renderTeamSpace() {
         <span class="public-hub-chip">${enabledDepartments.length} departments</span>
       </div>
 
-      ${teamSetupManagerButton()}
+      <div class="public-hub-actions">
+        ${teamSetupManagerButton()}
+        ${teamMembersManagerButton()}
+        ${
+          membership.onboardingCompletedAt
+            ? `<button class="public-hub-manage" type="button" data-team-onboarding>View onboarding</button>`
+            : ''
+        }
+      </div>
 
       <div class="team-space-grid">
+        ${renderTeamOnboardingCard(membership)}
         <article class="team-space-card">
           <span class="team-space-card-label">Rolul tău</span>
           <h3>${escapeHtmlText(teamRoleLabel(membership.role))}</h3>
@@ -3000,6 +3099,831 @@ function renderTeamSpace() {
   `
 }
 
+
+function pendingInviteToken() {
+  return localStorage.getItem(CACHE_KEYS.pendingTeamInvite) || ''
+}
+
+function clearPendingInviteToken(token = null) {
+  const current = pendingInviteToken()
+  if (token && current && token !== current) return
+
+  localStorage.removeItem(CACHE_KEYS.pendingTeamInvite)
+
+  const url = new URL(window.location.href)
+  if (url.searchParams.has('teamInvite')) {
+    url.searchParams.delete('teamInvite')
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+  }
+}
+
+function teamNameById(teamId) {
+  const team = teamRecords.find((item) => Number(item.id) === Number(teamId))
+  if (!team) return 'FTC Team'
+
+  return team.teamNumber
+    ? `${team.name} #${team.teamNumber}`
+    : team.name
+}
+
+function formatInviteExpiry(value) {
+  if (!value) return ''
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const language = document.documentElement.lang === 'en' ? 'en-GB' : 'ro-RO'
+
+  return new Intl.DateTimeFormat(language, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(date)
+}
+
+function renderTeamInvites() {
+  if (!teamInvitesPanel || !teamInvitesList || !teamInvitesCount) return
+
+  const items = [...teamInvites]
+    .filter((invite) => invite.status === 'pending')
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+
+  teamInvitesPanel.hidden = !currentUser || items.length === 0
+  teamInvitesCount.textContent = String(items.length)
+
+  if (items.length === 0) {
+    teamInvitesList.innerHTML = ''
+    return
+  }
+
+  const highlightedToken = pendingInviteToken()
+
+  teamInvitesList.innerHTML = items
+    .map((invite) => {
+      const departmentNames = (invite.departmentIds || [])
+        .map((id) => getDepartmentById(id)?.short_name || getDepartmentById(id)?.name)
+        .filter(Boolean)
+
+      return `
+        <article class="team-invite-card ${
+          highlightedToken && invite.token === highlightedToken ? 'highlight' : ''
+        }">
+          <div>
+            <strong>${escapeHtmlText(teamNameById(invite.teamId))}</strong>
+            <span>
+              ${escapeHtmlText(teamRoleLabel(invite.role))}
+              ${
+                departmentNames.length > 0
+                  ? ` · ${escapeHtmlText(departmentNames.join(' · '))}`
+                  : ''
+              }
+              ${
+                invite.expiresAt
+                  ? ` · expiră ${escapeHtmlText(formatInviteExpiry(invite.expiresAt))}`
+                  : ''
+              }
+            </span>
+          </div>
+
+          <div class="team-invite-actions">
+            <button
+              class="btn primary"
+              type="button"
+              data-accept-team-invite="${escapeHtmlText(invite.token)}"
+            >
+              Acceptă
+            </button>
+
+            <button
+              class="btn"
+              type="button"
+              data-decline-team-invite="${escapeHtmlText(invite.token)}"
+            >
+              Refuză
+            </button>
+          </div>
+        </article>
+      `
+    })
+    .join('')
+}
+
+async function respondToTeamInvite(token, action) {
+  if (!currentUser || !token) {
+    setAccountPanel(true)
+    return
+  }
+
+  const rpcName =
+    action === 'accept'
+      ? 'atlas_team_invite_accept'
+      : 'atlas_team_invite_decline'
+
+  const { data, error } = await supabase.rpc(rpcName, {
+    p_project_id: PROJECT_ID,
+    p_token: token
+  })
+
+  if (error) {
+    console.error('Team invite response failed:', error)
+    alert(error.message || 'Invitația nu a putut fi procesată.')
+    return
+  }
+
+  clearPendingInviteToken(token)
+  await loadTeamContext()
+
+  if (action === 'accept') {
+    const teamId = Number(data?.team_id || 0)
+
+    if (teamId) {
+      activeTeamId = teamId
+      localStorage.setItem(CACHE_KEYS.activeTeam, String(teamId))
+    }
+
+    activePublicSection = 'team'
+    localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+  }
+
+  updateAuthUI()
+  renderAll()
+}
+
+function canManageTeamMembers() {
+  const membership = currentTeamMembership()
+
+  return Boolean(
+    canEdit ||
+    (membership && membership.role === 'team_leader')
+  )
+}
+
+function teamMembersManagerButton() {
+  if (!canManageTeamMembers()) return ''
+
+  return `
+    <button class="public-hub-manage" type="button" data-open-team-members>
+      Members & invites
+    </button>
+  `
+}
+
+function teamOnboardingProfile(role) {
+  const profiles = {
+    team_leader: {
+      title: 'Team Leader',
+      intro:
+        'Tu configurezi structura Team Space și stabilești cine are acces la ce departamente.',
+      steps: [
+        [
+          'Configurează echipa',
+          'Verifică numele, FTC Team Number și departamentele active din Team Setup.'
+        ],
+        [
+          'Invită membrii',
+          'Creează invitații pe email și distribuie linkurile persoanelor potrivite.'
+        ],
+        [
+          'Atribuie rolurile',
+          'Poți promova membri la Coordinator, Mentor sau Team Leader și poți actualiza departamentele.'
+        ],
+        [
+          'Folosește Atlasul public separat',
+          'Rolul de Team Leader nu oferă automat drepturi de editor asupra documentației publice.'
+        ]
+      ]
+    },
+    department_coordinator: {
+      title: 'Department Coordinator',
+      intro:
+        'Coordonezi unul sau mai multe departamente din Team Space fără să blochezi accesul la Atlasul public.',
+      steps: [
+        [
+          'Verifică departamentele tale',
+          'Team Space îți arată departamentele la care ești asignat.'
+        ],
+        [
+          'Folosește roadmaps ca recomandări',
+          'Roadmap-urile sunt trasee orientative; orice nod public rămâne accesibil.'
+        ],
+        [
+          'Pregătește coordonarea internă',
+          'Fazele următoare vor adăuga resurse private, announcements și task-uri pe departamente.'
+        ]
+      ]
+    },
+    mentor: {
+      title: 'Mentor',
+      intro:
+        'Ai vizibilitate în Team Space pentru ghidaj, context și resurse, fără să fii obligat să administrezi echipa.',
+      steps: [
+        [
+          'Urmărește structura',
+          'Poți vedea membrii, rolurile și departamentele active ale echipei.'
+        ],
+        [
+          'Folosește resursele și Atlasul',
+          'Public Atlas rămâne sursa comună de documentație și roadmaps.'
+        ],
+        [
+          'Contribuie prin ghidaj',
+          'Spațiul privat va putea găzdui ulterior note și resurse interne pentru echipă.'
+        ]
+      ]
+    },
+    team_member: {
+      title: 'Team Member',
+      intro:
+        'Team Space îți oferă contextul echipei, departamentele tale și accesul la viitoarele resurse private.',
+      steps: [
+        [
+          'Vezi departamentul tău',
+          'Rolul și departamentele asignate apar direct în Team Space.'
+        ],
+        [
+          'Explorează Atlasul public',
+          'Poți deschide orice nod și urma roadmaps fără sistem de unlock.'
+        ],
+        [
+          'Salvează progresul',
+          'Roadmap progress este personal și sincronizat cu contul tău.'
+        ]
+      ]
+    }
+  }
+
+  return profiles[role] || profiles.team_member
+}
+
+function renderTeamOnboardingCard(membership) {
+  if (!membership || membership.onboardingCompletedAt) return ''
+
+  const profile = teamOnboardingProfile(membership.role)
+
+  return `
+    <article class="team-space-card wide team-onboarding-card">
+      <span class="team-space-card-label">Getting started</span>
+      <h3>${escapeHtmlText(profile.title)} onboarding</h3>
+      <p>${escapeHtml(profile.intro)}</p>
+
+      <div class="public-hub-actions">
+        <button class="public-hub-manage" type="button" data-team-onboarding>
+          Start onboarding
+        </button>
+      </div>
+    </article>
+  `
+}
+
+function openTeamOnboarding() {
+  const membership = currentTeamMembership()
+  const team = currentTeamRecord()
+
+  if (!membership || !team) return
+
+  const profile = teamOnboardingProfile(membership.role)
+
+  teamOnboardingContent.innerHTML = `
+    <div class="team-onboarding-hero">
+      <span>${escapeHtmlText(teamNameById(team.id))}</span>
+      <h3>${escapeHtmlText(profile.title)}</h3>
+      <p>${escapeHtml(profile.intro)}</p>
+    </div>
+
+    <div class="team-onboarding-steps">
+      ${profile.steps
+        .map(
+          ([title, body], index) => `
+            <article class="team-onboarding-step">
+              <span class="team-onboarding-step-index">${index + 1}</span>
+              <div>
+                <strong>${escapeHtmlText(title)}</strong>
+                <p>${escapeHtml(body)}</p>
+              </div>
+            </article>
+          `
+        )
+        .join('')}
+    </div>
+  `
+
+  teamOnboardingStatus.textContent = membership.onboardingCompletedAt
+    ? 'Onboarding deja finalizat. Îl poți reciti oricând.'
+    : 'Parcurge pașii și finalizează când e clar.'
+
+  completeTeamOnboardingBtn.hidden = Boolean(membership.onboardingCompletedAt)
+  teamOnboardingBackdrop.classList.add('open')
+}
+
+function closeTeamOnboarding() {
+  teamOnboardingBackdrop.classList.remove('open')
+  teamOnboardingMutationBusy = false
+}
+
+async function completeTeamOnboarding() {
+  const membership = currentTeamMembership()
+  if (!currentUser || !membership || teamOnboardingMutationBusy) return
+
+  teamOnboardingMutationBusy = true
+  completeTeamOnboardingBtn.disabled = true
+  teamOnboardingStatus.textContent = 'Se salvează...'
+
+  try {
+    const { error } = await supabase.rpc('atlas_team_onboarding_complete', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(membership.teamId)
+    })
+
+    if (error) throw error
+
+    await loadTeamContext()
+    renderAll()
+
+    teamOnboardingStatus.textContent = 'Onboarding finalizat.'
+    completeTeamOnboardingBtn.hidden = true
+  } catch (error) {
+    console.error('Complete team onboarding failed:', error)
+    teamOnboardingStatus.textContent =
+      error?.message || 'Onboarding-ul nu a putut fi salvat.'
+  } finally {
+    teamOnboardingMutationBusy = false
+    completeTeamOnboardingBtn.disabled = false
+  }
+}
+
+function isTeamMembersManagerOpen() {
+  return Boolean(teamMembersBackdrop?.classList.contains('open'))
+}
+
+function currentTeamManagerMembers() {
+  return teamMembers
+    .filter((member) => Number(member.teamId) === Number(activeTeamId))
+    .sort((a, b) => {
+      if (a.status !== b.status) return a.status === 'active' ? -1 : 1
+      return String(a.displayName || '').localeCompare(
+        String(b.displayName || ''),
+        'ro',
+        { sensitivity: 'base' }
+      )
+    })
+}
+
+function enabledTeamDepartments() {
+  return currentTeamDepartmentIds()
+    .map((id) => getDepartmentById(id))
+    .filter(Boolean)
+}
+
+function renderTeamManagerDepartmentPicker(container, selectedIds = []) {
+  if (!container) return
+
+  const selected = new Set((selectedIds || []).map(Number))
+
+  container.innerHTML = enabledTeamDepartments()
+    .map(
+      (department) => `
+        <label>
+          <input
+            type="checkbox"
+            value="${Number(department.id)}"
+            ${selected.has(Number(department.id)) ? 'checked' : ''}
+          />
+          <span>${escapeHtmlText(department.short_name || department.name)}</span>
+        </label>
+      `
+    )
+    .join('')
+
+  if (!container.innerHTML.trim()) {
+    container.innerHTML =
+      '<div class="public-content-manager-empty">Niciun departament activ.</div>'
+  }
+}
+
+function checkedDepartmentIds(container) {
+  if (!container) return []
+
+  return [...container.querySelectorAll('input[type="checkbox"]:checked')]
+    .map((input) => Number(input.value))
+    .filter(Number.isFinite)
+}
+
+function setTeamMembersBusy(nextValue) {
+  teamMembersMutationBusy = Boolean(nextValue)
+
+  resetTeamMemberEditorBtn.disabled = teamMembersMutationBusy
+  saveTeamMemberBtn.disabled = teamMembersMutationBusy
+
+  teamMembersManagerList?.querySelectorAll('button').forEach((button) => {
+    button.disabled = teamMembersMutationBusy
+  })
+
+  teamPendingInvitesList?.querySelectorAll('button').forEach((button) => {
+    button.disabled = teamMembersMutationBusy
+  })
+}
+
+function resetTeamMemberEditor() {
+  teamMemberEditingId = null
+
+  teamInviteEditorFields.hidden = false
+  teamMemberEditorFields.hidden = true
+
+  teamMemberEditorTitle.textContent = 'Invită un membru'
+  teamMemberEditorHint.textContent =
+    'Creează invitația și distribuie link-ul persoanei potrivite.'
+
+  teamInviteEmailInput.value = ''
+  teamInviteDisplayNameInput.value = ''
+  teamInviteRoleInput.value = 'team_member'
+  renderTeamManagerDepartmentPicker(teamInviteDepartmentPicker, [])
+
+  saveTeamMemberBtn.textContent = 'Creează invitația'
+  teamMembersManagerStatus.textContent = 'Pregătit.'
+}
+
+function editTeamMember(membershipId) {
+  const member = currentTeamManagerMembers().find(
+    (item) => Number(item.id) === Number(membershipId)
+  )
+  if (!member) return
+
+  teamMemberEditingId = Number(member.id)
+
+  teamInviteEditorFields.hidden = true
+  teamMemberEditorFields.hidden = false
+
+  teamMemberEditorTitle.textContent = 'Editează membrul'
+  teamMemberEditorHint.textContent =
+    'Actualizează rolul, departamentele sau accesul în Team Space.'
+
+  teamMemberEditorCurrent.innerHTML = `
+    <strong>${escapeHtmlText(
+      member.displayName ||
+        (member.userId === currentUser?.id ? currentUser.email : 'Team member')
+    )}</strong><br>
+    ${escapeHtmlText(teamRoleLabel(member.role))}
+  `
+
+  teamMemberRoleInput.value = member.role || 'team_member'
+  teamMemberActiveInput.checked = member.status === 'active'
+
+  renderTeamManagerDepartmentPicker(
+    teamMemberDepartmentPicker,
+    membershipDepartmentIds(member.id)
+  )
+
+  saveTeamMemberBtn.textContent = 'Salvează membrul'
+  teamMembersManagerStatus.textContent = 'Membru încărcat pentru editare.'
+}
+
+function inviteLink(token) {
+  const url = new URL(SITE_ORIGIN)
+  url.searchParams.set('teamInvite', token)
+  return url.toString()
+}
+
+async function copyInviteLink(token) {
+  const link = inviteLink(token)
+
+  try {
+    await navigator.clipboard.writeText(link)
+    teamMembersManagerStatus.textContent = 'Link copiat.'
+  } catch {
+    window.prompt('Copiază link-ul invitației:', link)
+  }
+}
+
+function renderTeamMembersManager() {
+  if (!isTeamMembersManagerOpen()) return
+
+  const members = currentTeamManagerMembers()
+  const now = Date.now()
+  const pendingInvites = [...teamManagerInvites]
+    .filter((invite) => {
+      if (invite.status !== 'pending') return false
+      if (!invite.expiresAt) return true
+
+      const expiry = new Date(invite.expiresAt).getTime()
+      return !Number.isFinite(expiry) || expiry > now
+    })
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+
+  teamMembersSummary.innerHTML = `
+    <strong>${members.filter((member) => member.status === 'active').length} active members</strong>
+    · ${pendingInvites.length} pending invites
+  `
+
+  teamMembersManagerList.innerHTML =
+    members.length === 0
+      ? '<div class="public-content-manager-empty">Nu există membri.</div>'
+      : members
+          .map((member) => {
+            const departments = membershipDepartmentIds(member.id)
+              .map(
+                (id) =>
+                  getDepartmentById(id)?.short_name ||
+                  getDepartmentById(id)?.name
+              )
+              .filter(Boolean)
+
+            const name =
+              member.displayName ||
+              (member.userId === currentUser?.id
+                ? currentUser.email
+                : 'Team member')
+
+            return `
+              <article class="team-member-manage-row ${
+                member.status === 'active' ? '' : 'disabled'
+              }">
+                <div>
+                  <strong>${escapeHtmlText(name)}</strong>
+                  <span>
+                    ${escapeHtmlText(teamRoleLabel(member.role))}
+                    ${
+                      departments.length > 0
+                        ? ` · ${escapeHtmlText(departments.join(' · '))}`
+                        : ''
+                    }
+                    ${member.status !== 'active' ? ' · disabled' : ''}
+                  </span>
+                </div>
+
+                <button
+                  class="taxonomy-mini-btn"
+                  type="button"
+                  data-manage-team-member="${Number(member.id)}"
+                >
+                  Manage
+                </button>
+              </article>
+            `
+          })
+          .join('')
+
+  teamPendingInvitesList.innerHTML =
+    pendingInvites.length === 0
+      ? '<div class="public-content-manager-empty">Nu există invitații pending.</div>'
+      : pendingInvites
+          .map((invite) => {
+            const departments = (invite.departmentIds || [])
+              .map(
+                (id) =>
+                  getDepartmentById(id)?.short_name ||
+                  getDepartmentById(id)?.name
+              )
+              .filter(Boolean)
+
+            return `
+              <article class="team-pending-invite-row">
+                <div>
+                  <strong>${escapeHtmlText(invite.email)}</strong>
+                  <span>
+                    ${escapeHtmlText(teamRoleLabel(invite.role))}
+                    ${
+                      departments.length > 0
+                        ? ` · ${escapeHtmlText(departments.join(' · '))}`
+                        : ''
+                    }
+                    ${
+                      invite.expiresAt
+                        ? ` · expiră ${escapeHtmlText(
+                            formatInviteExpiry(invite.expiresAt)
+                          )}`
+                        : ''
+                    }
+                  </span>
+                </div>
+
+                <div class="team-invite-actions">
+                  <button
+                    class="taxonomy-mini-btn"
+                    type="button"
+                    data-copy-team-invite="${escapeHtmlText(invite.token)}"
+                  >
+                    Copy
+                  </button>
+
+                  <button
+                    class="taxonomy-mini-btn danger"
+                    type="button"
+                    data-revoke-team-invite="${Number(invite.id)}"
+                  >
+                    Revoke
+                  </button>
+                </div>
+              </article>
+            `
+          })
+          .join('')
+
+  teamMembersManagerList
+    .querySelectorAll('[data-manage-team-member]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        editTeamMember(Number(button.dataset.manageTeamMember))
+      })
+    })
+
+  teamPendingInvitesList
+    .querySelectorAll('[data-copy-team-invite]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        copyInviteLink(button.dataset.copyTeamInvite)
+      })
+    })
+
+  teamPendingInvitesList
+    .querySelectorAll('[data-revoke-team-invite]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        revokeTeamInvite(Number(button.dataset.revokeTeamInvite))
+      })
+    })
+
+  setTeamMembersBusy(teamMembersMutationBusy)
+}
+
+async function loadTeamManagerInvites() {
+  teamManagerInvites = []
+
+  if (!activeTeamId || !canManageTeamMembers()) return
+
+  const { data, error } = await supabase
+    .from('atlas_team_invites')
+    .select('*')
+    .eq('project_id', PROJECT_ID)
+    .eq('team_id', Number(activeTeamId))
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+
+  teamManagerInvites = (data || []).map((row) => ({
+    id: Number(row.id),
+    teamId: Number(row.team_id),
+    email: row.email || '',
+    displayName: row.display_name || '',
+    role: row.role || 'team_member',
+    departmentIds: Array.isArray(row.department_ids)
+      ? row.department_ids.map(Number)
+      : [],
+    token: row.token || '',
+    status: row.status || 'pending',
+    expiresAt: row.expires_at || null,
+    createdAt: row.created_at || null
+  }))
+}
+
+async function openTeamMembersManager() {
+  if (!currentUser || !canManageTeamMembers()) return
+
+  teamMembersBackdrop.classList.add('open')
+  teamMembersSummary.textContent = 'Se încarcă...'
+
+  try {
+    await loadTeamContext()
+    await loadTeamManagerInvites()
+    resetTeamMemberEditor()
+    renderTeamMembersManager()
+  } catch (error) {
+    console.error('Team members manager load failed:', error)
+    teamMembersManagerStatus.textContent =
+      error?.message || 'Members & Invites nu a putut fi încărcat.'
+  }
+}
+
+function closeTeamMembersManager() {
+  teamMembersBackdrop.classList.remove('open')
+  teamMemberEditingId = null
+  teamManagerInvites = []
+  teamMembersMutationBusy = false
+}
+
+async function saveTeamMemberOrInvite() {
+  if (!currentUser || !canManageTeamMembers() || teamMembersMutationBusy) return
+
+  setTeamMembersBusy(true)
+  teamMembersManagerStatus.textContent = 'Se salvează...'
+
+  try {
+    if (teamMemberEditingId == null) {
+      const email = teamInviteEmailInput.value.trim().toLowerCase()
+      const displayName = teamInviteDisplayNameInput.value.trim()
+      const role = teamInviteRoleInput.value
+      const departmentIds = checkedDepartmentIds(teamInviteDepartmentPicker)
+
+      if (!email.includes('@')) {
+        throw new Error('Scrie un email valid.')
+      }
+
+      if (role === 'department_coordinator' && departmentIds.length === 0) {
+        throw new Error('Un Department Coordinator trebuie să aibă cel puțin un departament.')
+      }
+
+      const { data, error } = await supabase.rpc('atlas_team_invite_create', {
+        p_project_id: PROJECT_ID,
+        p_team_id: Number(activeTeamId),
+        p_email: email,
+        p_display_name: displayName,
+        p_role: role,
+        p_department_ids: departmentIds
+      })
+
+      if (error) throw error
+
+      await loadTeamManagerInvites()
+      renderTeamMembersManager()
+
+      const token = data?.token || ''
+      resetTeamMemberEditor()
+
+      if (token) {
+        await copyInviteLink(token)
+      }
+
+      teamMembersManagerStatus.textContent =
+        'Invitație creată. Link-ul a fost copiat.'
+    } else {
+      const role = teamMemberRoleInput.value
+      const status = teamMemberActiveInput.checked ? 'active' : 'disabled'
+      const departmentIds = checkedDepartmentIds(teamMemberDepartmentPicker)
+
+      if (role === 'department_coordinator' && departmentIds.length === 0) {
+        throw new Error('Un Department Coordinator trebuie să aibă cel puțin un departament.')
+      }
+
+      const { error } = await supabase.rpc('atlas_team_member_update', {
+        p_project_id: PROJECT_ID,
+        p_team_id: Number(activeTeamId),
+        p_membership_id: Number(teamMemberEditingId),
+        p_role: role,
+        p_status: status,
+        p_department_ids: departmentIds
+      })
+
+      if (error) throw error
+
+      await loadTeamContext()
+
+      if (!canManageTeamMembers()) {
+        closeTeamMembersManager()
+        renderAll()
+        return
+      }
+
+      await loadTeamManagerInvites()
+
+      resetTeamMemberEditor()
+      renderTeamMembersManager()
+      renderAll()
+
+      teamMembersManagerStatus.textContent = 'Membru actualizat.'
+    }
+  } catch (error) {
+    console.error('Team member/invite save failed:', error)
+    teamMembersManagerStatus.textContent =
+      error?.message || 'Operația nu a putut fi salvată.'
+    alert(error?.message || 'Operația nu a putut fi salvată.')
+  } finally {
+    setTeamMembersBusy(false)
+  }
+}
+
+async function revokeTeamInvite(inviteId) {
+  if (!currentUser || !canManageTeamMembers() || teamMembersMutationBusy) return
+
+  const invite = teamManagerInvites.find(
+    (item) => Number(item.id) === Number(inviteId)
+  )
+  if (!invite) return
+
+  if (!confirm(`Revoci invitația pentru ${invite.email}?`)) return
+
+  setTeamMembersBusy(true)
+
+  try {
+    const { error } = await supabase.rpc('atlas_team_invite_revoke', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(activeTeamId),
+      p_invite_id: Number(inviteId)
+    })
+
+    if (error) throw error
+
+    await loadTeamManagerInvites()
+    renderTeamMembersManager()
+
+    teamMembersManagerStatus.textContent = 'Invitație revocată.'
+  } catch (error) {
+    console.error('Revoke invite failed:', error)
+    teamMembersManagerStatus.textContent =
+      error?.message || 'Invitația nu a putut fi revocată.'
+  } finally {
+    setTeamMembersBusy(false)
+  }
+}
+
 function canManageCurrentTeam() {
   const membership = currentTeamMembership()
 
@@ -3013,11 +3937,9 @@ function teamSetupManagerButton() {
   if (!canManageCurrentTeam()) return ''
 
   return `
-    <div class="public-hub-actions">
-      <button class="public-hub-manage" type="button" data-open-team-setup>
-        Manage team
-      </button>
-    </div>
+    <button class="public-hub-manage" type="button" data-open-team-setup>
+      Manage team
+    </button>
   `
 }
 
@@ -3373,6 +4295,22 @@ function renderPublicShell() {
       ${renderAnnouncementCards()}
     </div>
   `
+}
+
+
+function maybeOpenPendingTeamInvite() {
+  const token = pendingInviteToken()
+  if (!token) return
+
+  if (!currentUser) {
+    setAccountPanel(true)
+    return
+  }
+
+  const matchingInvite = teamInvites.some((invite) => invite.token === token)
+  if (matchingInvite) {
+    setAccountPanel(true)
+  }
 }
 
 function setAccountPanel(open) {
@@ -4621,7 +5559,9 @@ function isAnyModalOpen() {
     taxonomyReplaceBackdrop.classList.contains('open') ||
     publicContentManagerBackdrop?.classList.contains('open') ||
     roadmapManagerBackdrop?.classList.contains('open') ||
-    teamSetupBackdrop?.classList.contains('open')
+    teamSetupBackdrop?.classList.contains('open') ||
+    teamMembersBackdrop?.classList.contains('open') ||
+    teamOnboardingBackdrop?.classList.contains('open')
   )
 }
 
@@ -6666,6 +7606,8 @@ async function resetSelectedNodeSize() {
 
 // Authentication, permissions and Editor Mode
 function updateAuthUI() {
+  renderTeamInvites()
+
   if (accountBtn) {
     accountBtn.textContent = currentUser ? 'Profil' : 'Cont'
     accountBtn.title = currentUser?.email || 'Login'
@@ -6747,6 +7689,10 @@ function updateAuthUI() {
 
   if (isTeamSetupOpen() && !canManageCurrentTeam() && !editorActive) {
     closeTeamSetup()
+  }
+
+  if (isTeamMembersManagerOpen() && !canManageTeamMembers()) {
+    closeTeamMembersManager()
   }
 
   createBtn.disabled = editorBlocked
@@ -6875,6 +7821,7 @@ async function refreshSession() {
   await loadTeamContext()
 
   updateAuthUI()
+  maybeOpenPendingTeamInvite()
   await refreshHistoryButtons()
 }
 
@@ -10422,6 +11369,50 @@ teamSpaceEntry?.addEventListener('click', () => {
   selectPublicSection('team')
 })
 
+teamInvitesList?.addEventListener('click', (event) => {
+  const acceptButton = event.target.closest?.('[data-accept-team-invite]')
+  if (acceptButton) {
+    respondToTeamInvite(acceptButton.dataset.acceptTeamInvite, 'accept')
+    return
+  }
+
+  const declineButton = event.target.closest?.('[data-decline-team-invite]')
+  if (declineButton) {
+    respondToTeamInvite(declineButton.dataset.declineTeamInvite, 'decline')
+  }
+})
+
+closeTeamMembersBtn?.addEventListener('click', closeTeamMembersManager)
+closeTeamMembersFooterBtn?.addEventListener('click', closeTeamMembersManager)
+
+teamMembersBackdrop?.addEventListener('click', (event) => {
+  if (event.target === teamMembersBackdrop) {
+    closeTeamMembersManager()
+  }
+})
+
+resetTeamMemberEditorBtn?.addEventListener('click', () => {
+  if (teamMembersMutationBusy) return
+  resetTeamMemberEditor()
+})
+
+saveTeamMemberBtn?.addEventListener('click', () => {
+  saveTeamMemberOrInvite()
+})
+
+closeTeamOnboardingBtn?.addEventListener('click', closeTeamOnboarding)
+closeTeamOnboardingFooterBtn?.addEventListener('click', closeTeamOnboarding)
+
+teamOnboardingBackdrop?.addEventListener('click', (event) => {
+  if (event.target === teamOnboardingBackdrop) {
+    closeTeamOnboarding()
+  }
+})
+
+completeTeamOnboardingBtn?.addEventListener('click', () => {
+  completeTeamOnboarding()
+})
+
 teamSetupBtn?.addEventListener('click', () => {
   openTeamSetup().catch((error) => {
     console.error('Open Team Setup failed:', error)
@@ -10530,6 +11521,20 @@ deletePublicContentBtn?.addEventListener('click', () => {
 })
 
 publicHubPanel?.addEventListener('click', (event) => {
+  const teamMembersTrigger = event.target.closest?.('[data-open-team-members]')
+  if (teamMembersTrigger) {
+    openTeamMembersManager().catch((error) => {
+      console.error('Open Members & Invites failed:', error)
+    })
+    return
+  }
+
+  const onboardingTrigger = event.target.closest?.('[data-team-onboarding]')
+  if (onboardingTrigger) {
+    openTeamOnboarding()
+    return
+  }
+
   const teamSetupTrigger = event.target.closest?.('[data-open-team-setup]')
   if (teamSetupTrigger) {
     openTeamSetup().catch((error) => {
@@ -10889,7 +11894,11 @@ window.addEventListener('keydown', (event) => {
 
   if (event.key === 'Escape') {
     if (!introDismissed) dismissIntro()
-    else if (teamSetupBackdrop?.classList.contains('open')) {
+    else if (teamOnboardingBackdrop?.classList.contains('open')) {
+      closeTeamOnboarding()
+    } else if (teamMembersBackdrop?.classList.contains('open')) {
+      closeTeamMembersManager()
+    } else if (teamSetupBackdrop?.classList.contains('open')) {
       closeTeamSetup()
     } else if (roadmapManagerBackdrop?.classList.contains('open')) {
       closeRoadmapManager()
@@ -11008,6 +12017,8 @@ supabase.auth.onAuthStateChange((event, session) => {
     teamMembers = []
     teamMemberDepartments = []
     teamEnabledDepartments = []
+    teamInvites = []
+    teamManagerInvites = []
     activeTeamId = null
 
     if (activePublicSection === 'team') {
@@ -11068,6 +12079,8 @@ window.atlasDebug = {
   openPublicContentManager,
   openRoadmapManager,
   openTeamSetup,
+  openTeamMembersManager,
+  openTeamOnboarding,
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,

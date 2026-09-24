@@ -3993,6 +3993,359 @@
   }
 
 
+  /* -----------------------------------------------------------------------
+     Team members, invitations and role onboarding
+     ----------------------------------------------------------------------- */
+
+  .team-invites-panel {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.055);
+  }
+
+  .team-invites-panel[hidden] {
+    display: none !important;
+  }
+
+  .team-invites-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .team-invites-title strong {
+    color: #e8e3eb;
+    font-size: 0.78rem;
+  }
+
+  .team-invites-count {
+    min-width: 22px;
+    padding: 2px 7px;
+    border: 1px solid rgba(177, 76, 255, 0.18);
+    border-radius: 999px;
+    color: #d4b9e2;
+    font-size: 0.62rem;
+    font-weight: 850;
+    text-align: center;
+  }
+
+  .team-invite-card {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid rgba(177, 76, 255, 0.13);
+    border-radius: 12px;
+    background: rgba(177, 76, 255, 0.025);
+  }
+
+  .team-invite-card.highlight {
+    border-color: rgba(255, 77, 109, 0.34);
+    background:
+      linear-gradient(135deg, rgba(177, 76, 255, 0.07), rgba(255, 77, 109, 0.05));
+  }
+
+  .team-invite-card strong {
+    color: #f0ebf2;
+    font-size: 0.76rem;
+  }
+
+  .team-invite-card span {
+    color: #8e8893;
+    font-size: 0.67rem;
+    line-height: 1.45;
+  }
+
+  .team-invite-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .team-invite-actions button {
+    min-height: 31px;
+    padding: 6px 9px;
+    font-size: 0.68rem;
+  }
+
+  .team-onboarding-card {
+    border-color: rgba(177, 76, 255, 0.2);
+    background:
+      radial-gradient(circle at 8% 0%, rgba(177, 76, 255, 0.1), transparent 40%),
+      rgba(255, 255, 255, 0.018);
+  }
+
+  .team-onboarding-card .public-hub-actions {
+    margin-top: 13px;
+  }
+
+  .team-members-modal {
+    width: min(1180px, 100%);
+    max-height: min(900px, calc(100vh - 44px));
+    display: flex;
+    flex-direction: column;
+  }
+
+  .team-members-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 16px 18px 18px;
+  }
+
+  .team-members-layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 0.85fr) minmax(460px, 1.15fr);
+    gap: 14px;
+    align-items: start;
+  }
+
+  .team-members-column,
+  .team-member-editor {
+    min-width: 0;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.014);
+  }
+
+  .team-members-column {
+    padding: 10px;
+  }
+
+  .team-members-section-title {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 3px 2px 10px;
+  }
+
+  .team-members-section-title strong {
+    color: #ebe6ee;
+    font-size: 0.82rem;
+  }
+
+  .team-members-section-title span {
+    display: block;
+    margin-top: 3px;
+    color: #817c86;
+    font-size: 0.66rem;
+  }
+
+  .team-members-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .team-member-manage-row,
+  .team-pending-invite-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.052);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.016);
+  }
+
+  .team-member-manage-row.disabled {
+    opacity: 0.58;
+  }
+
+  .team-member-manage-row strong,
+  .team-pending-invite-row strong {
+    display: block;
+    overflow: hidden;
+    color: #e2dde5;
+    font-size: 0.76rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .team-member-manage-row span,
+  .team-pending-invite-row span {
+    display: block;
+    margin-top: 3px;
+    color: #817c86;
+    font-size: 0.66rem;
+    line-height: 1.45;
+  }
+
+  .team-member-editor {
+    padding: 14px;
+  }
+
+  .team-member-editor-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .team-member-editor-head strong {
+    display: block;
+    color: #f2eef4;
+    font-size: 0.9rem;
+  }
+
+  .team-member-editor-head span {
+    display: block;
+    margin-top: 4px;
+    color: #817c86;
+    font-size: 0.68rem;
+  }
+
+  .team-manager-departments {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .team-manager-departments label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.016);
+    color: #aaa5b0;
+    font-size: 0.71rem;
+    cursor: pointer;
+  }
+
+  .team-manager-departments input {
+    width: auto;
+  }
+
+  .team-invite-form {
+    display: grid;
+    gap: 12px;
+  }
+
+  .team-invite-note {
+    padding: 9px 10px;
+    border: 1px dashed rgba(177, 76, 255, 0.17);
+    border-radius: 11px;
+    color: #8d8792;
+    font-size: 0.7rem;
+    line-height: 1.55;
+  }
+
+  .team-manager-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.055);
+  }
+
+  .team-onboarding-modal {
+    width: min(760px, 100%);
+    max-height: min(820px, calc(100vh - 44px));
+    display: flex;
+    flex-direction: column;
+  }
+
+  .team-onboarding-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 18px;
+  }
+
+  .team-onboarding-hero {
+    padding: 16px;
+    border: 1px solid rgba(177, 76, 255, 0.16);
+    border-radius: 16px;
+    background:
+      radial-gradient(circle at 8% 0%, rgba(177, 76, 255, 0.09), transparent 42%),
+      rgba(255, 255, 255, 0.014);
+  }
+
+  .team-onboarding-hero span {
+    display: block;
+    color: #c9add8;
+    font-size: 0.68rem;
+    font-weight: 850;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+  }
+
+  .team-onboarding-hero h3 {
+    margin: 6px 0 0;
+    color: #f5f1f7;
+    font-size: 1.18rem;
+  }
+
+  .team-onboarding-hero p {
+    margin: 8px 0 0;
+    color: #9994a0;
+    font-size: 0.8rem;
+    line-height: 1.6;
+  }
+
+  .team-onboarding-steps {
+    display: grid;
+    gap: 9px;
+    margin-top: 14px;
+  }
+
+  .team-onboarding-step {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    padding: 11px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.052);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.014);
+  }
+
+  .team-onboarding-step-index {
+    width: 27px;
+    height: 27px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(177, 76, 255, 0.18);
+    border-radius: 999px;
+    color: #d3b8e1;
+    font-size: 0.67rem;
+    font-weight: 900;
+  }
+
+  .team-onboarding-step strong {
+    display: block;
+    color: #ded9e2;
+    font-size: 0.78rem;
+  }
+
+  .team-onboarding-step p {
+    margin: 4px 0 0;
+    color: #85808a;
+    font-size: 0.7rem;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .team-members-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .team-members-modal,
+    .team-onboarding-modal {
+      max-height: none;
+    }
+
+    .team-manager-departments {
+      grid-template-columns: 1fr;
+    }
+  }
+
+
   .topbar-brand,
   .topbar-team {
     display: flex;
@@ -4920,6 +5273,14 @@
               Adresa de email este folosită pentru autentificare și controlul accesului.
               <a href="/privacy.html">Politica de confidențialitate</a>
             </p>
+
+            <div class="team-invites-panel" id="teamInvitesPanel" hidden>
+              <div class="team-invites-title">
+                <strong>Team invitations</strong>
+                <span class="team-invites-count" id="teamInvitesCount">0</span>
+              </div>
+              <div id="teamInvitesList"></div>
+            </div>
           </div>
 
           <input id="searchInput" class="search-input" placeholder="Caută topic, categorie, dificultate, etichetă sau text..." />
@@ -5468,6 +5829,143 @@
 
 
 
+
+  <div class="modal-backdrop team-members-backdrop" id="teamMembersBackdrop">
+    <div class="modal team-members-modal">
+      <div class="modal-head">
+        <div>
+          <h3>Members & Invites</h3>
+          <p>Invită membri, atribuie roluri și configurează departamentele. Invitația este acceptată doar de contul cu email-ul invitat.</p>
+        </div>
+        <button class="icon-btn" id="closeTeamMembersBtn" aria-label="Close">✕</button>
+      </div>
+
+      <div class="team-members-body">
+        <div class="count-strip" id="teamMembersSummary"></div>
+
+        <div class="team-members-layout">
+          <div class="team-members-column">
+            <div class="team-members-section-title">
+              <div>
+                <strong>Membri</strong>
+                <span>Roluri active în Team Space</span>
+              </div>
+            </div>
+
+            <div class="team-members-list" id="teamMembersManagerList"></div>
+
+            <div class="team-members-section-title" style="margin-top:14px;">
+              <div>
+                <strong>Invitații pending</strong>
+                <span>Linkurile expiră automat</span>
+              </div>
+            </div>
+
+            <div class="team-members-list" id="teamPendingInvitesList"></div>
+          </div>
+
+          <div class="team-member-editor">
+            <div class="team-member-editor-head">
+              <div>
+                <strong id="teamMemberEditorTitle">Invită un membru</strong>
+                <span id="teamMemberEditorHint">Creează invitația și distribuie link-ul persoanei potrivite.</span>
+              </div>
+            </div>
+
+            <div class="team-invite-form" id="teamInviteEditorFields">
+              <div class="field-grid">
+                <div class="field">
+                  <label for="teamInviteEmailInput">Email</label>
+                  <input id="teamInviteEmailInput" type="email" maxlength="254" placeholder="member@example.com" />
+                </div>
+
+                <div class="field">
+                  <label for="teamInviteDisplayNameInput">Nume afișat</label>
+                  <input id="teamInviteDisplayNameInput" maxlength="80" placeholder="Ex: Alex" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="teamInviteRoleInput">Rol</label>
+                <select id="teamInviteRoleInput">
+                  <option value="team_member">Team Member</option>
+                  <option value="department_coordinator">Department Coordinator</option>
+                  <option value="team_leader">Team Leader</option>
+                  <option value="mentor">Mentor</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label>Departamente</label>
+                <div class="team-manager-departments" id="teamInviteDepartmentPicker"></div>
+              </div>
+
+              <div class="team-invite-note">
+                Atlas nu trimite automat un email separat în această fază. După creare, copiezi link-ul invitației și îl trimiți persoanei. Ea trebuie să se logheze cu exact email-ul invitat.
+              </div>
+            </div>
+
+            <div id="teamMemberEditorFields" hidden>
+              <div class="team-setup-current" id="teamMemberEditorCurrent"></div>
+
+              <div class="field">
+                <label for="teamMemberRoleInput">Rol</label>
+                <select id="teamMemberRoleInput">
+                  <option value="team_member">Team Member</option>
+                  <option value="department_coordinator">Department Coordinator</option>
+                  <option value="team_leader">Team Leader</option>
+                  <option value="mentor">Mentor</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label>Departamente</label>
+                <div class="team-manager-departments" id="teamMemberDepartmentPicker"></div>
+              </div>
+
+              <div class="public-content-toggle-grid">
+                <label><input id="teamMemberActiveInput" type="checkbox" checked /> Membru activ</label>
+              </div>
+            </div>
+
+            <div class="count-strip" id="teamMembersManagerStatus">Pregătit.</div>
+
+            <div class="team-manager-actions">
+              <button class="btn" id="resetTeamMemberEditorBtn" type="button">Invitație nouă</button>
+              <button class="btn primary" id="saveTeamMemberBtn" type="button">Creează invitația</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" id="closeTeamMembersFooterBtn" type="button">Închide</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop team-onboarding-backdrop" id="teamOnboardingBackdrop">
+    <div class="modal team-onboarding-modal">
+      <div class="modal-head">
+        <div>
+          <h3>Team onboarding</h3>
+          <p>Un rezumat scurt al rolului tău în Team Space.</p>
+        </div>
+        <button class="icon-btn" id="closeTeamOnboardingBtn" aria-label="Close">✕</button>
+      </div>
+
+      <div class="team-onboarding-body">
+        <div id="teamOnboardingContent"></div>
+        <div class="count-strip" id="teamOnboardingStatus">Parcurge pașii de mai jos.</div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" id="closeTeamOnboardingFooterBtn" type="button">Mai târziu</button>
+        <button class="btn primary" id="completeTeamOnboardingBtn" type="button">Am înțeles · finalizează</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop team-setup-backdrop" id="teamSetupBackdrop">
     <div class="modal team-setup-modal">
       <div class="modal-head">
@@ -5880,6 +6378,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=72"></script>
+  <script type="module" src="/js/atlas-script.js?v=73"></script>
 </body>
 </html>

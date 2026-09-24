@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v72 · Full English UI + Team Space foundation
+// v73 · Full English UI + team members, invites and onboarding
 //
 // Source language: Romanian
 // Secondary language: English
@@ -275,6 +275,76 @@ const UI_EN = new Map(Object.entries({
     'No department configured',
   'Nu ai momentan un Team Space activ pe acest cont.':
     'You currently have no active Team Space on this account.',
+  'Team invitations':
+    'Team invitations',
+  'Acceptă':
+    'Accept',
+  'Refuză':
+    'Decline',
+  'Members & Invites':
+    'Members & Invites',
+  'Invită membri, atribuie roluri și configurează departamentele. Invitația este acceptată doar de contul cu email-ul invitat.':
+    'Invite members, assign roles and configure departments. An invitation can only be accepted by the account using the invited email.',
+  'Membri':
+    'Members',
+  'Roluri active în Team Space':
+    'Active Team Space roles',
+  'Invitații pending':
+    'Pending invitations',
+  'Linkurile expiră automat':
+    'Links expire automatically',
+  'Invită un membru':
+    'Invite a member',
+  'Creează invitația și distribuie link-ul persoanei potrivite.':
+    'Create the invitation and share the link with the right person.',
+  'Nume afișat':
+    'Display name',
+  'Departamente':
+    'Departments',
+  'Atlas nu trimite automat un email separat în această fază. După creare, copiezi link-ul invitației și îl trimiți persoanei. Ea trebuie să se logheze cu exact email-ul invitat.':
+    'Atlas does not send a separate invitation email in this phase. After creating the invitation, copy the link and send it to the person. They must log in using exactly the invited email.',
+  'Membru activ':
+    'Active member',
+  'Pregătit.':
+    'Ready.',
+  'Invitație nouă':
+    'New invitation',
+  'Creează invitația':
+    'Create invitation',
+  'Team onboarding':
+    'Team onboarding',
+  'Un rezumat scurt al rolului tău în Team Space.':
+    'A short overview of your role in Team Space.',
+  'Parcurge pașii de mai jos.':
+    'Review the steps below.',
+  'Mai târziu':
+    'Later',
+  'Am înțeles · finalizează':
+    'Got it · complete',
+  'Getting started':
+    'Getting started',
+  'Start onboarding':
+    'Start onboarding',
+  'View onboarding':
+    'View onboarding',
+  'Manage team':
+    'Manage team',
+  'Team Leader':
+    'Team Leader',
+  'Coordinator':
+    'Coordinator',
+  'Mentor':
+    'Mentor',
+  'Member':
+    'Member',
+  'Invitație creată. Link-ul a fost copiat.':
+    'Invitation created. The link was copied.',
+  'Membru actualizat.':
+    'Member updated.',
+  'Invitație revocată.':
+    'Invitation revoked.',
+  'Onboarding finalizat.':
+    'Onboarding completed.',
   'Creat de':
     'Created by',
   'navigare, editare și relații':
