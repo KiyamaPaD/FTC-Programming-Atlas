@@ -3706,6 +3706,293 @@
   }
 
 
+  /* -----------------------------------------------------------------------
+     Team Space · private team layer around the public Atlas
+     ----------------------------------------------------------------------- */
+
+  .team-space-entry {
+    width: 100%;
+    display: grid;
+    gap: 3px;
+    margin-top: 10px;
+    padding: 10px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.065);
+    border-radius: 13px;
+    background:
+      linear-gradient(135deg, rgba(177, 76, 255, 0.055), rgba(255, 77, 109, 0.025));
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .team-space-entry[hidden] {
+    display: none !important;
+  }
+
+  .team-space-entry:hover,
+  .team-space-entry.active {
+    border-color: rgba(177, 76, 255, 0.34);
+    background:
+      linear-gradient(135deg, rgba(177, 76, 255, 0.11), rgba(255, 77, 109, 0.055));
+  }
+
+  .team-space-entry-label {
+    color: #918b97;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+  }
+
+  .team-space-entry-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .team-space-entry-main strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #ece7f0;
+    font-size: 0.78rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .team-space-role {
+    flex: 0 0 auto;
+    padding: 3px 7px;
+    border: 1px solid rgba(177, 76, 255, 0.18);
+    border-radius: 999px;
+    color: #d7bee5;
+    font-size: 0.59rem;
+    font-weight: 800;
+  }
+
+  .team-space-switcher {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 18px;
+  }
+
+  .team-space-switch {
+    border: 1px solid rgba(255, 255, 255, 0.065);
+    border-radius: 10px;
+    padding: 7px 10px;
+    background: rgba(255, 255, 255, 0.018);
+    color: #aaa5b0;
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 780;
+    cursor: pointer;
+  }
+
+  .team-space-switch.active {
+    color: #fff;
+    border-color: rgba(177, 76, 255, 0.32);
+    background: rgba(177, 76, 255, 0.07);
+  }
+
+  .team-space-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 26px;
+  }
+
+  .team-space-card {
+    min-height: 150px;
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.016);
+  }
+
+  .team-space-card.wide {
+    grid-column: 1 / -1;
+  }
+
+  .team-space-card-label {
+    display: block;
+    margin-bottom: 8px;
+    color: #c8a9da;
+    font-size: 0.66rem;
+    font-weight: 820;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .team-space-card h3 {
+    margin: 0;
+    color: #f2eef4;
+    font-size: 0.98rem;
+  }
+
+  .team-space-card p {
+    margin: 8px 0 0;
+    color: #98939d;
+    font-size: 0.82rem;
+    line-height: 1.6;
+  }
+
+  .team-space-stat {
+    margin-top: 12px;
+    color: #f5f1f7;
+    font-size: 1.55rem;
+    font-weight: 850;
+    letter-spacing: -0.03em;
+  }
+
+  .team-space-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 12px;
+  }
+
+  .team-space-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 27px;
+    padding: 5px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.065);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.02);
+    color: #aaa5b0;
+    font-size: 0.66rem;
+    font-weight: 760;
+  }
+
+  .team-member-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .team-member-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 9px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.012);
+  }
+
+  .team-member-row strong {
+    display: block;
+    overflow: hidden;
+    color: #ddd8e1;
+    font-size: 0.76rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .team-member-row span {
+    display: block;
+    margin-top: 3px;
+    color: #817c86;
+    font-size: 0.66rem;
+  }
+
+  .team-member-role {
+    margin: 0 !important;
+    padding: 4px 7px;
+    border: 1px solid rgba(177, 76, 255, 0.16);
+    border-radius: 999px;
+    color: #cdb8d8 !important;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .team-privacy-note {
+    margin-top: 18px;
+    padding: 10px 12px;
+    border: 1px solid rgba(177, 76, 255, 0.12);
+    border-radius: 12px;
+    background: rgba(177, 76, 255, 0.025);
+    color: #8f8994;
+    font-size: 0.72rem;
+    line-height: 1.55;
+  }
+
+  .team-setup-modal {
+    width: min(820px, 100%);
+    max-height: min(820px, calc(100vh - 44px));
+    display: flex;
+    flex-direction: column;
+  }
+
+  .team-setup-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 16px 18px 18px;
+  }
+
+  .team-setup-departments {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-top: 7px;
+  }
+
+  .team-setup-departments label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.016);
+    color: #aaa5b0;
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+
+  .team-setup-departments input {
+    width: auto;
+  }
+
+  .team-setup-current {
+    margin-bottom: 14px;
+    padding: 11px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.014);
+    color: #9994a0;
+    font-size: 0.74rem;
+    line-height: 1.55;
+  }
+
+  .team-setup-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.055);
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .team-space-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .team-space-card.wide {
+      grid-column: auto;
+    }
+
+    .team-setup-departments {
+      grid-template-columns: 1fr;
+    }
+  }
+
+
   .topbar-brand,
   .topbar-team {
     display: flex;
@@ -4559,6 +4846,14 @@
       <div class="department-tabs" id="departmentTabs" role="tablist" aria-label="Departamente FTC">
         <span class="department-tabs-loading">Se încarcă departamentele...</span>
       </div>
+
+      <button class="team-space-entry" id="teamSpaceEntry" type="button" hidden>
+        <span class="team-space-entry-label">Your Team</span>
+        <span class="team-space-entry-main">
+          <strong id="teamSpaceEntryName">Team Space</strong>
+          <span class="team-space-role" id="teamSpaceEntryRole">Member</span>
+        </span>
+      </button>
     </nav>
 
     <main class="map-surface" id="mapSurface">
@@ -4746,6 +5041,10 @@
 
               <button class="btn" id="roadmapManagerBtn" type="button">
                 Roadmap Manager
+              </button>
+
+              <button class="btn" id="teamSetupBtn" type="button">
+                Team Setup
               </button>
             </div>
 
@@ -5168,6 +5467,70 @@
 
 
 
+
+  <div class="modal-backdrop team-setup-backdrop" id="teamSetupBackdrop">
+    <div class="modal team-setup-modal">
+      <div class="modal-head">
+        <div>
+          <h3>Team Setup</h3>
+          <p>Creează sau configurează spațiul privat al echipei. Acest control rămâne separat de interfața publică.</p>
+        </div>
+        <button class="icon-btn" id="closeTeamSetupBtn" aria-label="Close">✕</button>
+      </div>
+
+      <div class="team-setup-body">
+        <div class="team-setup-current" id="teamSetupCurrent">
+          Nicio echipă selectată.
+        </div>
+
+        <div class="field-grid">
+          <div class="field">
+            <label for="teamNameInput">Numele echipei</label>
+            <input id="teamNameInput" maxlength="120" placeholder="Ex: InfotronX" />
+          </div>
+
+          <div class="field">
+            <label for="teamNumberInput">FTC Team Number</label>
+            <input id="teamNumberInput" maxlength="20" placeholder="Ex: 19119" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="teamDescriptionInput">Descriere</label>
+          <textarea
+            id="teamDescriptionInput"
+            class="compact-textarea"
+            maxlength="1200"
+            placeholder="Scurtă descriere a echipei..."
+          ></textarea>
+        </div>
+
+        <div class="field">
+          <label for="teamDisplayNameInput">Numele tău în Team Space</label>
+          <input id="teamDisplayNameInput" maxlength="80" placeholder="Ex: Cristi" />
+        </div>
+
+        <div class="field">
+          <label>Departamente active</label>
+          <div class="team-setup-departments" id="teamSetupDepartmentPicker"></div>
+        </div>
+
+        <div class="count-strip" id="teamSetupStatus">
+          Creează prima echipă sau editează echipa curentă.
+        </div>
+
+        <div class="team-setup-actions">
+          <button class="btn" id="newTeamSetupBtn" type="button">Echipă nouă</button>
+          <button class="btn primary" id="saveTeamSetupBtn" type="button">Salvează</button>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" id="closeTeamSetupFooterBtn" type="button">Închide</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop roadmap-manager-backdrop" id="roadmapManagerBackdrop">
     <div class="modal roadmap-manager-modal">
       <div class="modal-head">
@@ -5517,6 +5880,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=71"></script>
+  <script type="module" src="/js/atlas-script.js?v=72"></script>
 </body>
 </html>

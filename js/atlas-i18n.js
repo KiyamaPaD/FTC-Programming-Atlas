@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v71 · Full English UI + roadmaps
+// v72 · Full English UI + Team Space foundation
 //
 // Source language: Romanian
 // Secondary language: English
@@ -213,6 +213,68 @@ const UI_EN = new Map(Object.entries({
     'Recommended',
   'Optional':
     'Optional',
+  'Your Team':
+    'Your Team',
+  'Team Space':
+    'Team Space',
+  'Spațiul echipei':
+    'Team space',
+  'Your Team · Private':
+    'Your Team · Private',
+  'Rolul tău':
+    'Your role',
+  'Departamente active':
+    'Active departments',
+  'Structura echipei':
+    'Team structure',
+  'Acestea sunt departamentele activate momentan pentru Team Space.':
+    'These are the departments currently enabled for Team Space.',
+  'Private workspace':
+    'Private workspace',
+  'Team-only content':
+    'Team-only content',
+  'Fundația este pregătită pentru note private, resurse interne și team roadmaps. Acestea vor fi adăugate în fazele următoare.':
+    'The foundation is ready for private notes, internal resources and team roadmaps. These will be added in the next phases.',
+  'Coordination':
+    'Coordination',
+  'Announcements & tasks':
+    'Announcements & tasks',
+  'Următoarea extensie poate adăuga anunțuri interne, notificări și coordonare pe departamente.':
+    'The next extension can add internal announcements, notifications and department coordination.',
+  'Team Space este privat. Datele de aici sunt citibile doar de membrii activi ai echipei și de editorii platformei autorizați.':
+    'Team Space is private. Data here can only be read by active team members and authorized platform editors.',
+  'Team Setup':
+    'Team Setup',
+  'Creează sau configurează spațiul privat al echipei. Acest control rămâne separat de interfața publică.':
+    'Create or configure the team private space. This control stays separate from the public interface.',
+  'Numele echipei':
+    'Team name',
+  'Descriere':
+    'Description',
+  'Numele tău în Team Space':
+    'Your name in Team Space',
+  'Departamente active':
+    'Active departments',
+  'Creează prima echipă sau editează echipa curentă.':
+    'Create the first team or edit the current team.',
+  'Echipă nouă':
+    'New team',
+  'Creezi un Team Space nou. Vei deveni Team Leader pentru această echipă.':
+    'You are creating a new Team Space. You will become Team Leader for this team.',
+  'Completează datele noii echipe.':
+    'Complete the new team details.',
+  'Editezi Team Space-ul selectat.':
+    'You are editing the selected Team Space.',
+  'Se salvează...':
+    'Saving...',
+  'Salvat.':
+    'Saved.',
+  'Permisiunile Team Space sunt separate de drepturile de editor ale Atlasului public.':
+    'Team Space permissions are separate from public Atlas editor rights.',
+  'Niciun departament configurat':
+    'No department configured',
+  'Nu ai momentan un Team Space activ pe acest cont.':
+    'You currently have no active Team Space on this account.',
   'Creat de':
     'Created by',
   'navigare, editare și relații':

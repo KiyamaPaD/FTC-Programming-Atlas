@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v71 · ROADMAPS')
+console.log('ATLAS SCRIPT LOADED v72 · TEAM SPACE FOUNDATION')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -35,7 +35,8 @@ const CACHE_KEYS = {
   codeDrafts: 'ftc_atlas_code_drafts_v1',
   codeManagerOpen: 'ftc_atlas_code_manager_open_v1',
   department: 'ftc_atlas_department_v1',
-  publicSection: 'ftc_atlas_public_section_v1'
+  publicSection: 'ftc_atlas_public_section_v1',
+  activeTeam: 'ftc_atlas_active_team_v1'
 }
 
 const DEFAULT_VIEW = { x: -120, y: -80, scale: 1 }
@@ -285,11 +286,19 @@ let resources = []
 let roadmaps = []
 let roadmapProgress = new Set()
 
+let teamMemberships = []
+let teamRecords = []
+let teamMembers = []
+let teamMemberDepartments = []
+let teamEnabledDepartments = []
+let activeTeamId = null
+
 const PUBLIC_SECTIONS = new Set([
   'explore',
   'roadmaps',
   'resources',
-  'announcements'
+  'announcements',
+  'team'
 ])
 
 let activePublicSection = PUBLIC_SECTIONS.has(
@@ -306,6 +315,8 @@ let roadmapManagerEditingId = null
 let roadmapManagerDraftSteps = []
 let roadmapManagerMutationBusy = false
 let roadmapProgressMutationKeys = new Set()
+let teamSetupMutationBusy = false
+let teamSetupCreateMode = false
 let categoryFilterId = null
 let difficultyFilterId = null
 let tagFilterIds = new Set()
@@ -364,6 +375,9 @@ const atlasNavigation = document.getElementById('atlasNavigation')
 const publicSectionTabs = document.getElementById('publicSectionTabs')
 const publicHubPanel = document.getElementById('publicHubPanel')
 const atlasNavigationEyebrow = document.getElementById('atlasNavigationEyebrow')
+const teamSpaceEntry = document.getElementById('teamSpaceEntry')
+const teamSpaceEntryName = document.getElementById('teamSpaceEntryName')
+const teamSpaceEntryRole = document.getElementById('teamSpaceEntryRole')
 const mapSurface = document.getElementById('mapSurface')
 const world = document.getElementById('world')
 const nodeLayer = document.getElementById('nodeLayer')
@@ -401,6 +415,7 @@ const editorToolsSection = document.getElementById('editorToolsSection')
 const taxonomyManagerBtn = document.getElementById('taxonomyManagerBtn')
 const publicContentManagerBtn = document.getElementById('publicContentManagerBtn')
 const roadmapManagerBtn = document.getElementById('roadmapManagerBtn')
+const teamSetupBtn = document.getElementById('teamSetupBtn')
 
 const mediaManagerBtn = document.getElementById('mediaManagerBtn')
 
@@ -664,6 +679,19 @@ const roadmapEditorStatus = document.getElementById('roadmapEditorStatus')
 const deleteRoadmapBtn = document.getElementById('deleteRoadmapBtn')
 const resetRoadmapEditorBtn = document.getElementById('resetRoadmapEditorBtn')
 const saveRoadmapBtn = document.getElementById('saveRoadmapBtn')
+
+const teamSetupBackdrop = document.getElementById('teamSetupBackdrop')
+const closeTeamSetupBtn = document.getElementById('closeTeamSetupBtn')
+const closeTeamSetupFooterBtn = document.getElementById('closeTeamSetupFooterBtn')
+const teamSetupCurrent = document.getElementById('teamSetupCurrent')
+const teamNameInput = document.getElementById('teamNameInput')
+const teamNumberInput = document.getElementById('teamNumberInput')
+const teamDescriptionInput = document.getElementById('teamDescriptionInput')
+const teamDisplayNameInput = document.getElementById('teamDisplayNameInput')
+const teamSetupDepartmentPicker = document.getElementById('teamSetupDepartmentPicker')
+const teamSetupStatus = document.getElementById('teamSetupStatus')
+const newTeamSetupBtn = document.getElementById('newTeamSetupBtn')
+const saveTeamSetupBtn = document.getElementById('saveTeamSetupBtn')
 
 // Node and relationship selection helpers
 function selectedNode() {
@@ -2531,12 +2559,687 @@ async function deleteRoadmap() {
   }
 }
 
+
+function teamRoleLabel(role) {
+  const labels = {
+    team_member: 'Member',
+    department_coordinator: 'Coordinator',
+    team_leader: 'Team Leader',
+    mentor: 'Mentor'
+  }
+
+  return labels[role] || 'Member'
+}
+
+function ownActiveTeamMemberships() {
+  if (!currentUser) return []
+
+  return teamMemberships.filter(
+    (membership) =>
+      membership.userId === currentUser.id &&
+      membership.status === 'active'
+  )
+}
+
+function currentTeamMembership() {
+  return (
+    ownActiveTeamMemberships().find(
+      (membership) => Number(membership.teamId) === Number(activeTeamId)
+    ) || null
+  )
+}
+
+function currentTeamRecord() {
+  return (
+    teamRecords.find((team) => Number(team.id) === Number(activeTeamId)) || null
+  )
+}
+
+function currentTeamMembers() {
+  return teamMembers.filter(
+    (membership) =>
+      Number(membership.teamId) === Number(activeTeamId) &&
+      membership.status === 'active'
+  )
+}
+
+function membershipDepartmentIds(membershipId) {
+  return teamMemberDepartments
+    .filter((row) => Number(row.membershipId) === Number(membershipId))
+    .map((row) => Number(row.departmentId))
+}
+
+function currentTeamDepartmentIds() {
+  return teamEnabledDepartments
+    .filter((row) => Number(row.teamId) === Number(activeTeamId))
+    .map((row) => Number(row.departmentId))
+}
+
+function normalizeActiveTeam() {
+  const ownMemberships = ownActiveTeamMemberships()
+
+  if (ownMemberships.length === 0) {
+    activeTeamId = null
+
+    if (activePublicSection === 'team') {
+      activePublicSection = 'explore'
+      localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+    }
+
+    return
+  }
+
+  const cachedTeamId = Number(localStorage.getItem(CACHE_KEYS.activeTeam))
+  const cachedIsAvailable = ownMemberships.some(
+    (membership) => Number(membership.teamId) === cachedTeamId
+  )
+
+  if (cachedIsAvailable) {
+    activeTeamId = cachedTeamId
+    return
+  }
+
+  activeTeamId = Number(ownMemberships[0].teamId)
+  localStorage.setItem(CACHE_KEYS.activeTeam, String(activeTeamId))
+}
+
+function selectActiveTeam(teamId) {
+  const membership = ownActiveTeamMemberships().find(
+    (item) => Number(item.teamId) === Number(teamId)
+  )
+
+  if (!membership) return
+
+  activeTeamId = Number(teamId)
+  localStorage.setItem(CACHE_KEYS.activeTeam, String(activeTeamId))
+
+  renderAll()
+}
+
+async function loadTeamContext({ rerender = false } = {}) {
+  teamMemberships = []
+  teamRecords = []
+  teamMembers = []
+  teamMemberDepartments = []
+  teamEnabledDepartments = []
+
+  if (!currentUser) {
+    activeTeamId = null
+
+    if (rerender) renderAll()
+    return
+  }
+
+  const { data: ownRows, error: ownError } = await supabase
+    .from('atlas_team_memberships')
+    .select('*')
+    .eq('project_id', PROJECT_ID)
+    .eq('user_id', currentUser.id)
+    .eq('status', 'active')
+
+  if (ownError) {
+    console.error('Team membership load failed:', ownError)
+    normalizeActiveTeam()
+
+    if (rerender) renderAll()
+    return
+  }
+
+  const teamIds = [...new Set((ownRows || []).map((row) => Number(row.team_id)))]
+
+  if (teamIds.length === 0) {
+    normalizeActiveTeam()
+
+    if (rerender) renderAll()
+    return
+  }
+
+  const [
+    teamsResult,
+    membershipsResult,
+    memberDepartmentsResult,
+    enabledDepartmentsResult
+  ] = await Promise.all([
+    supabase
+      .from('atlas_teams')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .in('id', teamIds)
+      .eq('is_active', true),
+
+    supabase
+      .from('atlas_team_memberships')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .in('team_id', teamIds)
+      .eq('status', 'active'),
+
+    supabase
+      .from('atlas_team_member_departments')
+      .select('membership_id, department_id, team_id')
+      .eq('project_id', PROJECT_ID)
+      .in('team_id', teamIds),
+
+    supabase
+      .from('atlas_team_departments')
+      .select('team_id, department_id')
+      .eq('project_id', PROJECT_ID)
+      .in('team_id', teamIds)
+  ])
+
+  const firstError = [
+    teamsResult.error,
+    membershipsResult.error,
+    memberDepartmentsResult.error,
+    enabledDepartmentsResult.error
+  ].find(Boolean)
+
+  if (firstError) {
+    console.error('Team context load failed:', firstError)
+
+    if (rerender) renderAll()
+    return
+  }
+
+  teamRecords = (teamsResult.data || []).map((row) => ({
+    id: Number(row.id),
+    name: row.name || '',
+    teamNumber: row.team_number || '',
+    slug: row.slug || '',
+    description: row.description || '',
+    isActive: row.is_active !== false,
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null
+  }))
+
+  teamMemberships = (membershipsResult.data || []).map((row) => ({
+    id: Number(row.id),
+    teamId: Number(row.team_id),
+    userId: row.user_id,
+    displayName: row.display_name || '',
+    role: row.role || 'team_member',
+    status: row.status || 'active',
+    joinedAt: row.joined_at || null,
+    createdAt: row.created_at || null
+  }))
+
+  teamMembers = [...teamMemberships]
+
+  teamMemberDepartments = (memberDepartmentsResult.data || []).map((row) => ({
+    membershipId: Number(row.membership_id),
+    teamId: Number(row.team_id),
+    departmentId: Number(row.department_id)
+  }))
+
+  teamEnabledDepartments = (enabledDepartmentsResult.data || []).map((row) => ({
+    teamId: Number(row.team_id),
+    departmentId: Number(row.department_id)
+  }))
+
+  normalizeActiveTeam()
+
+  if (rerender) renderAll()
+}
+
+function renderTeamNavigation() {
+  if (!teamSpaceEntry) return
+
+  const membership = currentTeamMembership()
+  const team = currentTeamRecord()
+
+  const visible = Boolean(currentUser && membership && team)
+
+  teamSpaceEntry.hidden = !visible
+  teamSpaceEntry.classList.toggle(
+    'active',
+    visible && activePublicSection === 'team'
+  )
+
+  if (!visible) return
+
+  teamSpaceEntryName.textContent = team.teamNumber
+    ? `${team.name} #${team.teamNumber}`
+    : team.name
+
+  teamSpaceEntryRole.textContent = teamRoleLabel(membership.role)
+}
+
+function renderTeamSpace() {
+  const membership = currentTeamMembership()
+  const team = currentTeamRecord()
+
+  if (!membership || !team) {
+    return `
+      <div class="public-hub-inner">
+        <p class="public-hub-kicker">Your Team</p>
+        <h1 class="public-hub-title">Team Space</h1>
+        <p class="public-hub-description">
+          Nu ai momentan un Team Space activ pe acest cont.
+        </p>
+      </div>
+    `
+  }
+
+  const ownDepartments = membershipDepartmentIds(membership.id)
+    .map((id) => getDepartmentById(id))
+    .filter(Boolean)
+
+  const enabledDepartments = currentTeamDepartmentIds()
+    .map((id) => getDepartmentById(id))
+    .filter(Boolean)
+
+  const members = currentTeamMembers()
+  const memberships = ownActiveTeamMemberships()
+
+  const teamTitle = team.teamNumber
+    ? `${team.name} #${team.teamNumber}`
+    : team.name
+
+  return `
+    <div class="public-hub-inner">
+      <p class="public-hub-kicker">Your Team · Private</p>
+      <h1 class="public-hub-title">${escapeHtmlText(teamTitle)}</h1>
+      <p class="public-hub-description">
+        ${escapeHtml(
+          team.description ||
+            'Spațiul privat al echipei pentru coordonare, resurse și progres intern.'
+        )}
+      </p>
+
+      ${
+        memberships.length > 1
+          ? `
+            <div class="team-space-switcher">
+              ${memberships
+                .map((item) => {
+                  const itemTeam = teamRecords.find(
+                    (record) => Number(record.id) === Number(item.teamId)
+                  )
+                  if (!itemTeam) return ''
+
+                  const label = itemTeam.teamNumber
+                    ? `${itemTeam.name} #${itemTeam.teamNumber}`
+                    : itemTeam.name
+
+                  return `
+                    <button
+                      class="team-space-switch ${
+                        Number(item.teamId) === Number(activeTeamId) ? 'active' : ''
+                      }"
+                      type="button"
+                      data-team-select="${Number(item.teamId)}"
+                    >
+                      ${escapeHtmlText(label)}
+                    </button>
+                  `
+                })
+                .join('')}
+            </div>
+          `
+          : ''
+      }
+
+      <div class="public-hub-meta">
+        <span class="public-hub-chip">${escapeHtmlText(
+          teamRoleLabel(membership.role)
+        )}</span>
+        <span class="public-hub-chip">${members.length} members</span>
+        <span class="public-hub-chip">${enabledDepartments.length} departments</span>
+      </div>
+
+      ${teamSetupManagerButton()}
+
+      <div class="team-space-grid">
+        <article class="team-space-card">
+          <span class="team-space-card-label">Rolul tău</span>
+          <h3>${escapeHtmlText(teamRoleLabel(membership.role))}</h3>
+          <p>
+            Permisiunile Team Space sunt separate de drepturile de editor ale Atlasului public.
+          </p>
+
+          <div class="team-space-chips">
+            ${
+              ownDepartments.length > 0
+                ? ownDepartments
+                    .map(
+                      (department) =>
+                        `<span class="team-space-chip">${escapeHtmlText(
+                          department.short_name || department.name
+                        )}</span>`
+                    )
+                    .join('')
+                : '<span class="team-space-chip">Universal / team-wide</span>'
+            }
+          </div>
+        </article>
+
+        <article class="team-space-card">
+          <span class="team-space-card-label">Departamente active</span>
+          <h3>Structura echipei</h3>
+          <p>
+            Acestea sunt departamentele activate momentan pentru Team Space.
+          </p>
+
+          <div class="team-space-chips">
+            ${
+              enabledDepartments.length > 0
+                ? enabledDepartments
+                    .map(
+                      (department) =>
+                        `<span class="team-space-chip">${escapeHtmlText(
+                          department.short_name || department.name
+                        )}</span>`
+                    )
+                    .join('')
+                : '<span class="team-space-chip">Niciun departament configurat</span>'
+            }
+          </div>
+        </article>
+
+        <article class="team-space-card wide">
+          <span class="team-space-card-label">Members</span>
+          <h3>${members.length} membri activi</h3>
+
+          <div class="team-member-list">
+            ${members
+              .map((member) => {
+                const departmentNames = membershipDepartmentIds(member.id)
+                  .map((id) => getDepartmentById(id)?.short_name || getDepartmentById(id)?.name)
+                  .filter(Boolean)
+
+                const fallbackName =
+                  member.userId === currentUser?.id
+                    ? currentUser?.email || 'You'
+                    : 'Team member'
+
+                return `
+                  <div class="team-member-row">
+                    <div>
+                      <strong>${escapeHtmlText(
+                        member.displayName || fallbackName
+                      )}</strong>
+                      <span>${
+                        departmentNames.length > 0
+                          ? escapeHtmlText(departmentNames.join(' · '))
+                          : 'Team-wide'
+                      }</span>
+                    </div>
+
+                    <span class="team-member-role">${escapeHtmlText(
+                      teamRoleLabel(member.role)
+                    )}</span>
+                  </div>
+                `
+              })
+              .join('')}
+          </div>
+        </article>
+
+        <article class="team-space-card">
+          <span class="team-space-card-label">Private workspace</span>
+          <h3>Team-only content</h3>
+          <p>
+            Fundația este pregătită pentru note private, resurse interne și team roadmaps.
+            Acestea vor fi adăugate în fazele următoare.
+          </p>
+        </article>
+
+        <article class="team-space-card">
+          <span class="team-space-card-label">Coordination</span>
+          <h3>Announcements & tasks</h3>
+          <p>
+            Următoarea extensie poate adăuga anunțuri interne, notificări și coordonare pe departamente.
+          </p>
+        </article>
+      </div>
+
+      <div class="team-privacy-note">
+        Team Space este privat. Datele de aici sunt citibile doar de membrii activi ai echipei și de editorii platformei autorizați.
+      </div>
+    </div>
+  `
+}
+
+function canManageCurrentTeam() {
+  const membership = currentTeamMembership()
+
+  return Boolean(
+    canEdit ||
+    (membership && membership.role === 'team_leader')
+  )
+}
+
+function teamSetupManagerButton() {
+  if (!canManageCurrentTeam()) return ''
+
+  return `
+    <div class="public-hub-actions">
+      <button class="public-hub-manage" type="button" data-open-team-setup>
+        Manage team
+      </button>
+    </div>
+  `
+}
+
+function isTeamSetupOpen() {
+  return Boolean(teamSetupBackdrop?.classList.contains('open'))
+}
+
+function setTeamSetupBusy(nextValue) {
+  teamSetupMutationBusy = Boolean(nextValue)
+
+  newTeamSetupBtn.disabled = teamSetupMutationBusy
+  saveTeamSetupBtn.disabled = teamSetupMutationBusy
+
+  teamSetupDepartmentPicker?.querySelectorAll('input').forEach((input) => {
+    input.disabled = teamSetupMutationBusy
+  })
+}
+
+function selectedTeamSetupDepartmentIds() {
+  if (!teamSetupDepartmentPicker) return []
+
+  return [...teamSetupDepartmentPicker.querySelectorAll('input:checked')]
+    .map((input) => Number(input.value))
+    .filter(Number.isFinite)
+}
+
+function renderTeamSetupDepartmentPicker(selectedIds = []) {
+  if (!teamSetupDepartmentPicker) return
+
+  const selected = new Set((selectedIds || []).map(Number))
+
+  teamSetupDepartmentPicker.innerHTML = departments
+    .filter((item) => item.is_active !== false)
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+    .map(
+      (department) => `
+        <label>
+          <input
+            type="checkbox"
+            value="${Number(department.id)}"
+            ${selected.has(Number(department.id)) ? 'checked' : ''}
+          />
+          <span>${escapeHtmlText(department.short_name || department.name)}</span>
+        </label>
+      `
+    )
+    .join('')
+}
+
+function resetTeamSetupForm({ createMode = false } = {}) {
+  teamSetupCreateMode = Boolean(createMode)
+
+  const team = currentTeamRecord()
+  const membership = currentTeamMembership()
+
+  if (!teamSetupCreateMode && team && membership) {
+    teamSetupCurrent.innerHTML = `
+      <strong>${escapeHtmlText(
+        team.teamNumber ? `${team.name} #${team.teamNumber}` : team.name
+      )}</strong><br>
+      ${escapeHtmlText(teamRoleLabel(membership.role))}
+    `
+
+    teamNameInput.value = team.name || ''
+    teamNumberInput.value = team.teamNumber || ''
+    teamDescriptionInput.value = team.description || ''
+    teamDisplayNameInput.value =
+      membership.displayName ||
+      (currentUser?.email ? currentUser.email.split('@')[0] : '')
+
+    renderTeamSetupDepartmentPicker(currentTeamDepartmentIds())
+    teamSetupStatus.textContent = 'Editezi Team Space-ul selectat.'
+  } else {
+    teamSetupCurrent.textContent =
+      'Creezi un Team Space nou. Vei deveni Team Leader pentru această echipă.'
+
+    teamNameInput.value = ''
+    teamNumberInput.value = ''
+    teamDescriptionInput.value = ''
+    teamDisplayNameInput.value =
+      currentUser?.email ? currentUser.email.split('@')[0] : ''
+
+    renderTeamSetupDepartmentPicker(
+      departments
+        .filter((item) => item.is_active !== false)
+        .map((item) => Number(item.id))
+    )
+
+    teamSetupStatus.textContent = 'Completează datele noii echipe.'
+  }
+
+  setTeamSetupBusy(false)
+}
+
+async function openTeamSetup({ createMode = false } = {}) {
+  if (!currentUser) {
+    setAccountPanel(true)
+    return
+  }
+
+  await loadTeamContext()
+
+  const wantsCreate = Boolean(createMode || !currentTeamRecord())
+
+  if (wantsCreate) {
+    if (!(canEdit && editorMode)) {
+      alert('Crearea unei echipe noi este disponibilă momentan doar editorilor Atlas în Editor Mode.')
+      return
+    }
+  } else if (!canManageCurrentTeam()) {
+    alert('Doar Team Leader-ul sau un editor Atlas poate configura această echipă.')
+    return
+  }
+
+  teamSetupBackdrop.classList.add('open')
+
+  resetTeamSetupForm({
+    createMode: wantsCreate
+  })
+}
+
+function closeTeamSetup() {
+  teamSetupBackdrop.classList.remove('open')
+  teamSetupMutationBusy = false
+}
+
+async function saveTeamSetup() {
+  if (!currentUser || teamSetupMutationBusy) return
+
+  const wantsCreate = Boolean(teamSetupCreateMode || !currentTeamRecord())
+
+  if (wantsCreate) {
+    if (!(canEdit && editorMode)) {
+      alert('Crearea unei echipe noi este disponibilă momentan doar editorilor Atlas în Editor Mode.')
+      return
+    }
+  } else if (!canManageCurrentTeam()) {
+    alert('Nu ai permisiunea de a configura această echipă.')
+    return
+  }
+
+  const name = teamNameInput.value.trim()
+  const teamNumber = teamNumberInput.value.trim()
+  const description = teamDescriptionInput.value.trim()
+  const displayName = teamDisplayNameInput.value.trim()
+  const departmentIds = selectedTeamSetupDepartmentIds()
+
+  if (name.length < 2) {
+    alert('Numele echipei trebuie să aibă cel puțin 2 caractere.')
+    return
+  }
+
+  if (displayName.length < 2) {
+    alert('Scrie un nume de afișat în Team Space.')
+    return
+  }
+
+  setTeamSetupBusy(true)
+  teamSetupStatus.textContent = 'Se salvează...'
+
+  try {
+    if (teamSetupCreateMode || !currentTeamRecord()) {
+      const { data, error } = await supabase.rpc('atlas_team_create', {
+        p_project_id: PROJECT_ID,
+        p_name: name,
+        p_team_number: teamNumber || null,
+        p_description: description,
+        p_display_name: displayName,
+        p_department_ids: departmentIds
+      })
+
+      if (error) throw error
+
+      const createdId = Number(data?.id || data?.team_id || 0)
+      if (createdId) {
+        activeTeamId = createdId
+        localStorage.setItem(CACHE_KEYS.activeTeam, String(createdId))
+      }
+    } else {
+      const team = currentTeamRecord()
+      const membership = currentTeamMembership()
+
+      if (!team || !membership) {
+        throw new Error('Nu există o echipă activă pentru editare.')
+      }
+
+      const { error } = await supabase.rpc('atlas_team_update', {
+        p_project_id: PROJECT_ID,
+        p_team_id: Number(team.id),
+        p_name: name,
+        p_team_number: teamNumber || null,
+        p_description: description,
+        p_display_name: displayName,
+        p_department_ids: departmentIds
+      })
+
+      if (error) throw error
+    }
+
+    await loadTeamContext()
+
+    teamSetupCreateMode = false
+    resetTeamSetupForm()
+    renderAll()
+
+    teamSetupStatus.textContent = 'Salvat.'
+  } catch (error) {
+    console.error('Team setup save failed:', error)
+    teamSetupStatus.textContent = error?.message || 'Eroare la salvare.'
+    alert(error?.message || 'Team Space nu a putut fi salvat.')
+  } finally {
+    setTeamSetupBusy(false)
+  }
+}
+
 function publicSectionLabel(section) {
   const labels = {
     explore: 'Explore',
     roadmaps: 'Roadmaps',
     resources: 'Resources',
-    announcements: 'Announcements'
+    announcements: 'Announcements',
+    team: 'Team Space'
   }
 
   return labels[section] || 'Explore'
@@ -2547,7 +3250,8 @@ function publicSectionEyebrow(section) {
     explore: 'Explorează Atlasul',
     roadmaps: 'Parcursuri recomandate',
     resources: 'Resurse utile',
-    announcements: 'Anunțuri universale'
+    announcements: 'Anunțuri universale',
+    team: 'Spațiul echipei'
   }
 
   return labels[section] || labels.explore
@@ -2570,7 +3274,8 @@ function renderPublicShell() {
   if (!appRoot || !publicSectionTabs || !publicHubPanel) return
 
   const isExplore = activePublicSection === 'explore'
-  const isGlobal = activePublicSection === 'announcements'
+  const isGlobal =
+    activePublicSection === 'announcements' || activePublicSection === 'team'
   const department = getDepartmentById(activeDepartmentId)
   const departmentName = department?.name || 'Atlas'
 
@@ -2597,6 +3302,11 @@ function renderPublicShell() {
   }
 
   publicHubPanel.classList.add('open')
+
+  if (activePublicSection === 'team') {
+    publicHubPanel.innerHTML = renderTeamSpace()
+    return
+  }
 
   if (activePublicSection === 'roadmaps') {
     publicHubPanel.innerHTML = `
@@ -3910,7 +4620,8 @@ function isAnyModalOpen() {
     taxonomyItemBackdrop.classList.contains('open') ||
     taxonomyReplaceBackdrop.classList.contains('open') ||
     publicContentManagerBackdrop?.classList.contains('open') ||
-    roadmapManagerBackdrop?.classList.contains('open')
+    roadmapManagerBackdrop?.classList.contains('open') ||
+    teamSetupBackdrop?.classList.contains('open')
   )
 }
 
@@ -5994,6 +6705,7 @@ function updateAuthUI() {
   taxonomyManagerBtn.disabled = editorBlocked
   publicContentManagerBtn.disabled = editorBlocked
   roadmapManagerBtn.disabled = editorBlocked
+  teamSetupBtn.disabled = editorBlocked
   mediaManagerBtn.disabled = editorBlocked || !hasSelectedNode
   fileManagerBtn.disabled = editorBlocked || !hasSelectedNode
   codeManagerBtn.disabled = editorBlocked || !hasSelectedNode
@@ -6031,6 +6743,10 @@ function updateAuthUI() {
 
   if (!editorActive && isRoadmapManagerOpen()) {
     closeRoadmapManager()
+  }
+
+  if (isTeamSetupOpen() && !canManageCurrentTeam() && !editorActive) {
+    closeTeamSetup()
   }
 
   createBtn.disabled = editorBlocked
@@ -6112,6 +6828,10 @@ function setEditorMode(nextValue) {
     closeCodeManager()
     closePublicContentManager()
     closeRoadmapManager()
+
+    if (isTeamSetupOpen() && !canManageCurrentTeam()) {
+      closeTeamSetup()
+    }
   }
 
   renderAll()
@@ -6152,6 +6872,7 @@ async function refreshSession() {
 
   await refreshEditorAccess()
   await loadRoadmapProgress()
+  await loadTeamContext()
 
   updateAuthUI()
   await refreshHistoryButtons()
@@ -8669,6 +9390,7 @@ function renderAll() {
   normalizeSelectionAfterFilters()
   renderTaxonomyControls()
   renderDepartmentNavigation()
+  renderTeamNavigation()
   renderPublicShell()
 
   const visibleCount = getVisibleNodes().length
@@ -9695,6 +10417,35 @@ taxonomyReplaceBackdrop.addEventListener('click', (event) => {
 
 fitSelectionBtn.addEventListener('click', fitCurrentSelection)
 
+teamSpaceEntry?.addEventListener('click', () => {
+  if (!currentTeamMembership()) return
+  selectPublicSection('team')
+})
+
+teamSetupBtn?.addEventListener('click', () => {
+  openTeamSetup().catch((error) => {
+    console.error('Open Team Setup failed:', error)
+  })
+})
+
+closeTeamSetupBtn?.addEventListener('click', closeTeamSetup)
+closeTeamSetupFooterBtn?.addEventListener('click', closeTeamSetup)
+
+teamSetupBackdrop?.addEventListener('click', (event) => {
+  if (event.target === teamSetupBackdrop) {
+    closeTeamSetup()
+  }
+})
+
+newTeamSetupBtn?.addEventListener('click', () => {
+  if (teamSetupMutationBusy) return
+  resetTeamSetupForm({ createMode: true })
+})
+
+saveTeamSetupBtn?.addEventListener('click', () => {
+  saveTeamSetup()
+})
+
 roadmapManagerBtn?.addEventListener('click', () => {
   openRoadmapManager().catch((error) => {
     console.error('Open roadmap manager failed:', error)
@@ -9779,6 +10530,20 @@ deletePublicContentBtn?.addEventListener('click', () => {
 })
 
 publicHubPanel?.addEventListener('click', (event) => {
+  const teamSetupTrigger = event.target.closest?.('[data-open-team-setup]')
+  if (teamSetupTrigger) {
+    openTeamSetup().catch((error) => {
+      console.error('Open Team Setup failed:', error)
+    })
+    return
+  }
+
+  const teamSwitch = event.target.closest?.('[data-team-select]')
+  if (teamSwitch) {
+    selectActiveTeam(Number(teamSwitch.dataset.teamSelect))
+    return
+  }
+
   const roadmapManagerTrigger = event.target.closest?.('[data-open-roadmap-manager]')
   if (roadmapManagerTrigger) {
     openRoadmapManager().catch((error) => {
@@ -10124,7 +10889,9 @@ window.addEventListener('keydown', (event) => {
 
   if (event.key === 'Escape') {
     if (!introDismissed) dismissIntro()
-    else if (roadmapManagerBackdrop?.classList.contains('open')) {
+    else if (teamSetupBackdrop?.classList.contains('open')) {
+      closeTeamSetup()
+    } else if (roadmapManagerBackdrop?.classList.contains('open')) {
       closeRoadmapManager()
     } else if (publicContentManagerBackdrop?.classList.contains('open')) {
       closePublicContentManager()
@@ -10216,9 +10983,14 @@ supabase.auth.onAuthStateChange((event, session) => {
 
   if (sameUser) {
     updateAuthUI()
-    loadRoadmapProgress({ rerender: true }).catch((error) => {
-      console.error('Roadmap progress refresh failed:', error)
-    })
+    Promise.all([
+      loadRoadmapProgress(),
+      loadTeamContext()
+    ])
+      .then(() => renderAll())
+      .catch((error) => {
+        console.error('Account context refresh failed:', error)
+      })
     return
   }
 
@@ -10231,6 +11003,18 @@ supabase.auth.onAuthStateChange((event, session) => {
     }
 
     roadmapProgress = new Set()
+    teamMemberships = []
+    teamRecords = []
+    teamMembers = []
+    teamMemberDepartments = []
+    teamEnabledDepartments = []
+    activeTeamId = null
+
+    if (activePublicSection === 'team') {
+      activePublicSection = 'explore'
+      localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+    }
+
     updateAuthUI()
     renderAll()
     return
@@ -10243,6 +11027,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     try {
       await refreshEditorAccess()
       await loadRoadmapProgress()
+      await loadTeamContext()
 
       updateAuthUI()
       renderAll()
@@ -10270,7 +11055,10 @@ window.atlasDebug = {
     selectedNode: selectedNode()?.title ?? null,
     detailOpen,
     editorMode,
-    relationMode
+    relationMode,
+    activeTeamId,
+    team: currentTeamRecord()?.name ?? null,
+    teamRole: currentTeamMembership()?.role ?? null
   }),
   deleteSelected,
   deleteSelectedEdge,
@@ -10279,6 +11067,7 @@ window.atlasDebug = {
   openCodeManager,
   openPublicContentManager,
   openRoadmapManager,
+  openTeamSetup,
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,

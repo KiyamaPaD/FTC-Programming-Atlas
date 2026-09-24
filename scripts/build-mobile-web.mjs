@@ -60,7 +60,7 @@ function injectMobileRuntime(html) {
 
   const mobileScripts = [
     atlasScript,
-    '<script type="module" src="/js/atlas-i18n.js?v=71"></script>',
+    '<script type="module" src="/js/atlas-i18n.js?v=72"></script>',
     `<script type="module" src="/js/atlas-i18n-v56.js?v=56" ${MOBILE_MARKER}></script>`
   ].join('\n  ')
 
@@ -115,7 +115,7 @@ async function buildMobileWeb() {
   )
 
   console.log('FTC Programming Atlas mobile web bundle ready: www/')
-  console.log('Included bilingual runtime: atlas-i18n v71 + v56')
+  console.log('Included bilingual runtime: atlas-i18n v72 + v56')
 }
 
 buildMobileWeb().catch((error) => {
