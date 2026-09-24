@@ -4346,542 +4346,78 @@
   }
 
 
+
   /* -----------------------------------------------------------------------
-     Private Team Workspace · announcements, resources and notes
+     Team Atlas · documentation-only team layer
      ----------------------------------------------------------------------- */
 
-  .team-workspace-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 7px;
-    margin-top: 18px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
-  }
-
-  .team-workspace-tab {
-    border: 1px solid rgba(255, 255, 255, 0.065);
-    border-radius: 10px;
-    padding: 8px 10px;
-    background: rgba(255, 255, 255, 0.018);
-    color: #9e99a4;
-    font: inherit;
-    font-size: 0.71rem;
-    font-weight: 800;
-    cursor: pointer;
-  }
-
-  .team-workspace-tab:hover,
-  .team-workspace-tab.active {
-    color: #fff;
-    border-color: rgba(177, 76, 255, 0.32);
-    background: rgba(177, 76, 255, 0.075);
-  }
-
-  .team-workspace-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-top: 17px;
-  }
-
-  .team-workspace-toolbar-copy {
-    color: #817c86;
-    font-size: 0.7rem;
-    line-height: 1.5;
-  }
-
-  .team-private-list {
+  .team-atlas-context {
     display: grid;
-    gap: 11px;
-    margin-top: 16px;
+    gap: 8px;
+    margin-top: 9px;
+    padding: 10px;
+    border: 1px solid rgba(177, 76, 255, 0.12);
+    border-radius: 13px;
+    background: rgba(177, 76, 255, 0.028);
   }
 
-  .team-private-card {
-    padding: 16px 17px;
-    border: 1px solid rgba(255, 255, 255, 0.058);
-    border-radius: 16px;
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.011));
+  .team-atlas-context[hidden] {
+    display: none !important;
   }
 
-  .team-private-card.pinned {
-    border-color: rgba(177, 76, 255, 0.22);
-    box-shadow: inset 3px 0 0 rgba(177, 76, 255, 0.5);
-  }
-
-  .team-private-card-top {
+  .team-atlas-context-row {
     display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-  }
-
-  .team-private-card-main {
-    min-width: 0;
-  }
-
-  .team-private-card-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-bottom: 7px;
-  }
-
-  .team-private-badge {
-    display: inline-flex;
     align-items: center;
-    min-height: 23px;
-    padding: 4px 8px;
+    gap: 7px;
+  }
+
+  .team-atlas-context-row select {
+    min-width: 0;
+    flex: 1;
+    height: 34px;
+    padding: 0 9px;
     border: 1px solid rgba(255, 255, 255, 0.065);
-    border-radius: 999px;
+    border-radius: 9px;
     background: rgba(255, 255, 255, 0.02);
-    color: #aaa5b0;
-    font-size: 0.61rem;
-    font-weight: 820;
-  }
-
-  .team-private-badge.accent {
-    border-color: rgba(177, 76, 255, 0.22);
-    color: #d5b9e3;
-    background: rgba(177, 76, 255, 0.055);
-  }
-
-  .team-private-card h3 {
-    margin: 0;
-    color: #f1edf3;
-    font-size: 0.94rem;
-    line-height: 1.35;
-  }
-
-  .team-private-card-date {
-    flex: 0 0 auto;
-    color: #77727c;
-    font-size: 0.66rem;
-    white-space: nowrap;
-  }
-
-  .team-private-summary {
-    margin: 8px 0 0;
-    color: #c4bfc8;
-    font-size: 0.78rem;
-    line-height: 1.58;
-  }
-
-  .team-private-body {
-    margin: 8px 0 0;
-    color: #97929c;
-    font-size: 0.76rem;
-    line-height: 1.62;
-    white-space: pre-wrap;
-  }
-
-  .team-private-card-foot {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    margin-top: 12px;
-    padding-top: 11px;
-    border-top: 1px solid rgba(255, 255, 255, 0.045);
-  }
-
-  .team-private-empty {
-    padding: 20px 14px;
-    border: 1px dashed rgba(177, 76, 255, 0.15);
-    border-radius: 14px;
-    color: #817c86;
-    font-size: 0.76rem;
-    line-height: 1.55;
-    text-align: center;
-  }
-
-  .team-content-manager-modal {
-    width: min(1120px, 100%);
-    max-height: min(900px, calc(100vh - 44px));
-    display: flex;
-    flex-direction: column;
-  }
-
-  .team-content-manager-body {
-    min-height: 0;
-    overflow: auto;
-    padding: 16px 18px 18px;
-  }
-
-  .team-content-manager-layout {
-    display: grid;
-    grid-template-columns: minmax(290px, 0.78fr) minmax(480px, 1.22fr);
-    gap: 14px;
-    align-items: start;
-  }
-
-  .team-content-manager-list,
-  .team-content-editor {
-    min-width: 0;
-    border: 1px solid rgba(255, 255, 255, 0.055);
-    border-radius: 16px;
-    background: rgba(255, 255, 255, 0.014);
-  }
-
-  .team-content-manager-list {
-    display: grid;
-    gap: 8px;
-    padding: 10px;
-  }
-
-  .team-content-manager-item {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: center;
-    padding: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.052);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.016);
-  }
-
-  .team-content-manager-item.inactive {
-    opacity: 0.6;
-  }
-
-  .team-content-manager-item strong {
-    display: block;
-    overflow: hidden;
-    color: #e5e0e8;
-    font-size: 0.76rem;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .team-content-manager-item span {
-    display: block;
-    margin-top: 3px;
-    color: #817c86;
-    font-size: 0.65rem;
-    line-height: 1.4;
-  }
-
-  .team-content-editor {
-    padding: 14px;
-  }
-
-  .team-content-editor-head {
-    margin-bottom: 14px;
-  }
-
-  .team-content-editor-head strong {
-    display: block;
-    color: #f0ecf2;
-    font-size: 0.9rem;
-  }
-
-  .team-content-editor-head span {
-    display: block;
-    margin-top: 4px;
-    color: #817c86;
-    font-size: 0.68rem;
-  }
-
-  .team-content-editor-fields {
-    display: grid;
-    gap: 12px;
-  }
-
-  .team-content-editor-fields textarea.team-content-summary {
-    min-height: 88px;
-  }
-
-  .team-content-editor-fields textarea.team-content-body {
-    min-height: 170px;
-  }
-
-  .team-content-manager-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 14px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.055);
-  }
-
-  @media (max-width: 920px), (pointer: coarse) {
-    .team-content-manager-layout {
-      grid-template-columns: 1fr;
-    }
-
-    .team-content-manager-modal {
-      max-height: none;
-    }
-
-    .team-private-card-top {
-      flex-direction: column;
-      gap: 7px;
-    }
-
-    .team-private-card-date {
-      white-space: normal;
-    }
-  }
-
-
-  /* -----------------------------------------------------------------------
-     Notification Center · in-app, per-user read/unread
-     ----------------------------------------------------------------------- */
-
-  .notification-trigger {
-    position: relative;
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 10px;
-    padding: 7px 9px;
-    background: rgba(255, 255, 255, 0.025);
-    color: #aaa5b0;
+    color: #ded9e2;
     font: inherit;
-    font-size: 0.72rem;
-    font-weight: 760;
-    cursor: pointer;
+    font-size: 0.7rem;
   }
 
-  .notification-trigger:hover,
-  .notification-trigger.active {
-    color: #fff;
-    border-color: rgba(177, 76, 255, 0.3);
-    background: rgba(177, 76, 255, 0.075);
-  }
-
-  .notification-trigger[hidden] {
-    display: none !important;
-  }
-
-  .notification-badge {
-    position: absolute;
-    top: -7px;
-    right: -7px;
-    min-width: 20px;
-    height: 20px;
-    display: grid;
-    place-items: center;
-    padding: 0 5px;
-    border: 2px solid #09090c;
-    border-radius: 999px;
-    background: #c96fff;
-    color: #0a0710;
-    font-size: 0.58rem;
-    font-weight: 900;
-    line-height: 1;
-  }
-
-  .notification-badge[hidden] {
-    display: none !important;
-  }
-
-  .notification-panel {
-    margin-top: 12px;
-    padding: 12px;
-    border: 1px solid rgba(177, 76, 255, 0.13);
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.018);
-  }
-
-  .notification-panel[hidden] {
-    display: none !important;
-  }
-
-  .notification-panel-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
-  }
-
-  .notification-panel-head strong {
-    display: block;
-    color: #eee9f1;
-    font-size: 0.84rem;
-  }
-
-  .notification-panel-head span {
-    display: block;
-    margin-top: 3px;
-    color: #817c86;
+  .team-atlas-context-meta {
+    color: #8f8994;
     font-size: 0.66rem;
+    line-height: 1.45;
   }
 
-  .notification-mark-all {
-    border: 0;
-    padding: 3px 0;
-    background: none;
-    color: #c9adde;
-    font: inherit;
-    font-size: 0.66rem;
-    font-weight: 800;
-    cursor: pointer;
-  }
-
-  .notification-mark-all:hover:not(:disabled) {
-    color: #fff;
-    text-decoration: underline;
-  }
-
-  .notification-mark-all:disabled {
-    opacity: 0.45;
-    cursor: default;
-  }
-
-  .notification-filters {
+  .team-atlas-context-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-top: 10px;
   }
 
-  .notification-filter {
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 999px;
-    padding: 5px 8px;
-    background: rgba(255, 255, 255, 0.015);
-    color: #89838e;
-    font: inherit;
-    font-size: 0.62rem;
-    font-weight: 800;
-    cursor: pointer;
+  .team-atlas-context-actions button {
+    min-height: 30px;
+    padding: 6px 8px;
+    font-size: 0.66rem;
   }
 
-  .notification-filter.active {
-    border-color: rgba(177, 76, 255, 0.25);
-    background: rgba(177, 76, 255, 0.06);
-    color: #e5d6ed;
-  }
-
-  .notification-list {
-    display: grid;
-    gap: 7px;
-    max-height: 390px;
-    margin-top: 10px;
-    overflow: auto;
-  }
-
-  .notification-item {
-    width: 100%;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 9px;
-    align-items: flex-start;
-    padding: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.012);
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .notification-item:hover {
-    border-color: rgba(177, 76, 255, 0.23);
-    background: rgba(177, 76, 255, 0.035);
-  }
-
-  .notification-item.unread {
-    border-color: rgba(177, 76, 255, 0.18);
-    background:
-      linear-gradient(135deg, rgba(177, 76, 255, 0.05), rgba(255, 77, 109, 0.018));
-  }
-
-  .notification-dot {
-    width: 8px;
-    height: 8px;
-    margin-top: 5px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.13);
-  }
-
-  .notification-item.unread .notification-dot {
-    background: #c96fff;
-    box-shadow: 0 0 0 4px rgba(201, 111, 255, 0.08);
-  }
-
-  .notification-item-main {
-    min-width: 0;
-  }
-
-  .notification-item-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-bottom: 5px;
-  }
-
-  .notification-item-badge {
+  .team-atlas-banner {
     display: inline-flex;
     align-items: center;
-    min-height: 20px;
-    padding: 3px 6px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    gap: 7px;
+    padding: 4px 8px;
+    border: 1px solid rgba(177, 76, 255, 0.18);
     border-radius: 999px;
-    color: #96909b;
-    font-size: 0.57rem;
-    font-weight: 850;
-  }
-
-  .notification-item-badge.accent {
-    border-color: rgba(177, 76, 255, 0.19);
-    color: #d2b7df;
-  }
-
-  .notification-item-title {
-    display: block;
-    overflow: hidden;
-    color: #e6e1e9;
-    font-size: 0.74rem;
-    font-weight: 820;
-    line-height: 1.35;
-    text-overflow: ellipsis;
-  }
-
-  .notification-item-body {
-    margin: 4px 0 0;
-    color: #8d8792;
+    background: rgba(177, 76, 255, 0.05);
+    color: #d5b9e3;
     font-size: 0.66rem;
-    line-height: 1.48;
+    font-weight: 820;
   }
 
-  .notification-item-date {
-    color: #6f6974;
-    font-size: 0.59rem;
-    white-space: nowrap;
-  }
-
-  .notification-empty {
-    padding: 18px 10px;
-    color: #817c86;
-    font-size: 0.7rem;
-    line-height: 1.5;
-    text-align: center;
-  }
-
-  .team-content-notify-label[hidden] {
+  .team-node-department-field[hidden] {
     display: none !important;
   }
-
-  @media (max-width: 520px) {
-    .notification-trigger {
-      padding: 7px 8px;
-    }
-
-    .notification-item {
-      grid-template-columns: auto minmax(0, 1fr);
-    }
-
-    .notification-item-date {
-      grid-column: 2;
-      white-space: normal;
-    }
-  }
-
 
   .topbar-brand,
   .topbar-team {
@@ -5738,12 +5274,23 @@
       </div>
 
       <button class="team-space-entry" id="teamSpaceEntry" type="button" hidden>
-        <span class="team-space-entry-label">Your Team</span>
+        <span class="team-space-entry-label">Team Atlas</span>
         <span class="team-space-entry-main">
-          <strong id="teamSpaceEntryName">Team Space</strong>
+          <strong id="teamSpaceEntryName">Team Atlas</strong>
           <span class="team-space-role" id="teamSpaceEntryRole">Member</span>
         </span>
       </button>
+
+      <div class="team-atlas-context" id="teamAtlasContext" hidden>
+        <div class="team-atlas-context-row">
+          <select id="teamAtlasSelect" aria-label="Select team"></select>
+        </div>
+        <div class="team-atlas-context-meta" id="teamAtlasContextMeta"></div>
+        <div class="team-atlas-context-actions">
+          <button class="btn" id="teamAtlasSettingsBtn" type="button" hidden>Team settings</button>
+          <button class="btn" id="teamAtlasMembersBtn" type="button" hidden>Members</button>
+        </div>
+      </div>
     </nav>
 
     <main class="map-surface" id="mapSurface">
@@ -5765,18 +5312,6 @@
           </div>
           <div class="tools-header-right">
             <button
-              class="notification-trigger"
-              id="notificationBtn"
-              type="button"
-              aria-expanded="false"
-              aria-controls="notificationPanel"
-              hidden
-            >
-              Notifications
-              <span class="notification-badge" id="notificationBadge" hidden>0</span>
-            </button>
-
-            <button
               class="account-trigger"
               id="accountBtn"
               type="button"
@@ -5793,29 +5328,6 @@
         </div>
 
         <div class="tools-body">
-          <div class="notification-panel" id="notificationPanel" hidden>
-            <div class="notification-panel-head">
-              <div>
-                <strong>Notifications</strong>
-                <span id="notificationPanelMeta">0 unread</span>
-              </div>
-
-              <button class="notification-mark-all" id="notificationMarkAllBtn" type="button">
-                Mark all read
-              </button>
-            </div>
-
-            <div class="notification-filters" id="notificationFilters">
-              <button class="notification-filter active" type="button" data-notification-filter="all">All</button>
-              <button class="notification-filter" type="button" data-notification-filter="unread">Unread</button>
-              <button class="notification-filter" type="button" data-notification-filter="team">Team</button>
-              <button class="notification-filter" type="button" data-notification-filter="department">Department</button>
-              <button class="notification-filter" type="button" data-notification-filter="system">System</button>
-            </div>
-
-            <div class="notification-list" id="notificationList"></div>
-          </div>
-
           <div class="account-panel" id="accountPanel" hidden>
             <div class="account-panel-title">
               <strong>Cont</strong>
@@ -6029,6 +5541,14 @@
           <div class="field">
             <label for="difficultyInput">Dificultate</label>
             <select id="difficultyInput"></select>
+          </div>
+        </div>
+
+        <div class="field team-node-department-field" id="teamNodeDepartmentField" hidden>
+          <label for="teamNodeDepartmentInput">Departament în Team Atlas</label>
+          <select id="teamNodeDepartmentInput"></select>
+          <div class="taxonomy-summary">
+            Coordinatorii pot edita doar nodurile din departamentele la care sunt asignați.
           </div>
         </div>
 
@@ -6401,110 +5921,6 @@
 
 
 
-
-
-  <div class="modal-backdrop team-content-manager-backdrop" id="teamContentManagerBackdrop">
-    <div class="modal team-content-manager-modal">
-      <div class="modal-head">
-        <div>
-          <h3>Private Team Content</h3>
-          <p>Administrează announcements, resources și notes private. Department Coordinators pot edita doar departamentele lor.</p>
-        </div>
-        <button class="icon-btn" id="closeTeamContentManagerBtn" aria-label="Close">✕</button>
-      </div>
-
-      <div class="team-content-manager-body">
-        <div class="public-content-manager-toolbar">
-          <div class="public-content-kind-tabs">
-            <button class="public-content-kind-tab active" type="button" data-team-content-kind="announcement">
-              Announcements
-            </button>
-            <button class="public-content-kind-tab" type="button" data-team-content-kind="resource">
-              Resources
-            </button>
-            <button class="public-content-kind-tab" type="button" data-team-content-kind="note">
-              Notes
-            </button>
-          </div>
-
-          <button class="btn primary" id="newTeamContentBtn" type="button">+ Nou</button>
-        </div>
-
-        <div class="count-strip" id="teamContentManagerSummary"></div>
-
-        <div class="team-content-manager-layout">
-          <div class="team-content-manager-list" id="teamContentManagerList"></div>
-
-          <div class="team-content-editor">
-            <div class="team-content-editor-head">
-              <strong id="teamContentEditorTitle">Announcement nou</strong>
-              <span id="teamContentEditorHint">Conținutul este vizibil numai membrilor care au acces la scope-ul ales.</span>
-            </div>
-
-            <div class="team-content-editor-fields">
-              <div class="field-grid">
-                <div class="field">
-                  <label for="teamContentTitleInput">Titlu</label>
-                  <input id="teamContentTitleInput" maxlength="180" placeholder="Titlu..." />
-                </div>
-
-                <div class="field">
-                  <label for="teamContentDepartmentInput">Scope</label>
-                  <select id="teamContentDepartmentInput"></select>
-                </div>
-              </div>
-
-              <div class="field">
-                <label for="teamContentSummaryInput">Rezumat</label>
-                <textarea
-                  id="teamContentSummaryInput"
-                  class="team-content-summary"
-                  maxlength="500"
-                  placeholder="Rezumat scurt..."
-                ></textarea>
-              </div>
-
-              <div class="field">
-                <label for="teamContentBodyInput">Conținut</label>
-                <textarea
-                  id="teamContentBodyInput"
-                  class="team-content-body"
-                  maxlength="12000"
-                  placeholder="Detalii..."
-                ></textarea>
-              </div>
-
-              <div class="field" id="teamContentUrlField">
-                <label for="teamContentUrlInput">URL</label>
-                <input id="teamContentUrlInput" placeholder="https://..." />
-              </div>
-
-              <div class="public-content-toggle-grid">
-                <label><input id="teamContentPinnedInput" type="checkbox" /> Pinned</label>
-                <label><input id="teamContentActiveInput" type="checkbox" checked /> Activ</label>
-                <label class="team-content-notify-label" id="teamContentNotifyLabel">
-                  <input id="teamContentNotifyInput" type="checkbox" checked />
-                  Notify members
-                </label>
-              </div>
-            </div>
-
-            <div class="count-strip" id="teamContentEditorStatus">Pregătit pentru editare.</div>
-
-            <div class="team-content-manager-actions">
-              <button class="btn danger" id="deleteTeamContentBtn" type="button" hidden>Șterge</button>
-              <button class="btn" id="resetTeamContentEditorBtn" type="button">Curăță</button>
-              <button class="btn primary" id="saveTeamContentBtn" type="button">Salvează</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-foot">
-        <button class="btn" id="closeTeamContentManagerFooterBtn" type="button">Închide</button>
-      </div>
-    </div>
-  </div>
 
   <div class="modal-backdrop team-members-backdrop" id="teamMembersBackdrop">
     <div class="modal team-members-modal">
@@ -7054,6 +6470,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=75"></script>
+  <script type="module" src="/js/atlas-script.js?v=76"></script>
 </body>
 </html>

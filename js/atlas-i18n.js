@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v75 · Full English UI + Notification Center
+// v76 · Full English UI + Team Atlas documentation
 //
 // Source language: Romanian
 // Secondary language: English
@@ -345,80 +345,28 @@ const UI_EN = new Map(Object.entries({
     'Invitation revoked.',
   'Onboarding finalizat.':
     'Onboarding completed.',
-  'Overview':
-    'Overview',
-  'Notes':
-    'Notes',
-  'Private Team Content':
-    'Private Team Content',
-  'Administrează announcements, resources și notes private. Department Coordinators pot edita doar departamentele lor.':
-    'Manage private announcements, resources and notes. Department Coordinators can edit only their assigned departments.',
-  'Announcement nou':
-    'New announcement',
-  'Resource nou':
-    'New resource',
-  'Note nou':
-    'New note',
-  'Conținutul este vizibil numai membrilor care au acces la scope-ul ales.':
-    'Content is visible only to members who have access to the selected scope.',
-  'Scope':
-    'Scope',
-  'Rezumat':
-    'Summary',
-  'Conținut':
-    'Content',
-  'Pregătit pentru editare.':
-    'Ready to edit.',
-  'Team-wide':
-    'Team-wide',
-  'Private announcements':
-    'Private announcements',
-  'Private resources':
-    'Private resources',
-  'Private notes':
-    'Private notes',
-  'Team-wide + departamentele la care ai acces.':
-    'Team-wide + the departments you can access.',
-  'Deschide link-ul':
-    'Open link',
-  'Conținut privat vizibil pentru rolul și departamentele tale.':
-    'Private content visible for your role and departments.',
-  'Latest announcement':
-    'Latest announcement',
-  'Vezi announcements':
-    'View announcements',
-  'All department content':
-    'All department content',
-  'Team Space este privat. Team Leader și Mentor pot vedea toate departamentele; Coordinator și Member văd team-wide + departamentele asignate. Editarea este limitată separat prin rol.':
-    'Team Space is private. Team Leaders and Mentors can see all departments; Coordinators and Members see team-wide content plus their assigned departments. Editing is separately limited by role.',
-  'Nu ai permisiunea pentru acest scope.':
-    'You do not have permission for this scope.',
-  'Un resource trebuie să aibă un URL valid.':
-    'A resource must have a valid URL.',
-  'Schimbările sunt vizibile imediat membrilor care au acces.':
-    'Changes are immediately visible to members who have access.',
-  'Notifications':
-    'Notifications',
-  'Mark all read':
-    'Mark all read',
-  'All':
-    'All',
-  'Unread':
-    'Unread',
-  'Team':
-    'Team',
-  'Department':
-    'Department',
-  'System':
-    'System',
-  'Notify members':
-    'Notify members',
-  'Nu există notificări în filtrul selectat.':
-    'There are no notifications in the selected filter.',
-  'Announcement':
-    'Announcement',
-  'Conținutul nu a putut fi salvat.':
-    'The content could not be saved.',
+  'Team Atlas':
+    'Team Atlas',
+  'Team settings':
+    'Team settings',
+  'Members':
+    'Members',
+  'Departament în Team Atlas':
+    'Team Atlas department',
+  'Coordinatorii pot edita doar nodurile din departamentele la care sunt asignați.':
+    'Coordinators can edit only nodes in departments they are assigned to.',
+  'Documentația echipei':
+    'Team documentation',
+  'documentație privată a echipei':
+    'private team documentation',
+  'Rolul tău nu permite editarea documentației acestei echipe.':
+    'Your role does not allow editing this team documentation.',
+  'Doar Team Leader, Department Coordinator, Mentor sau Platform Admin poate modifica Team Atlas.':
+    'Only a Team Leader, Department Coordinator, Mentor or Platform Admin can edit Team Atlas.',
+  'Doar editorii aprobați pot modifica atlasul public.':
+    'Only approved editors can edit the public Atlas.',
+  'Alege un departament pe care ai voie să îl editezi.':
+    'Choose a department you are allowed to edit.',
   'Creat de':
     'Created by',
   'navigare, editare și relații':

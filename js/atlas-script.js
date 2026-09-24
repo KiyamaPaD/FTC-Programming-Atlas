@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v75 · NOTIFICATION CENTER')
+console.log('ATLAS SCRIPT LOADED v76 · TEAM ATLAS DOCUMENTATION')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -37,8 +37,7 @@ const CACHE_KEYS = {
   department: 'ftc_atlas_department_v1',
   publicSection: 'ftc_atlas_public_section_v1',
   activeTeam: 'ftc_atlas_active_team_v1',
-  pendingTeamInvite: 'ftc_atlas_pending_team_invite_v1',
-  teamWorkspaceTab: 'ftc_atlas_team_workspace_tab_v1'
+  pendingTeamInvite: 'ftc_atlas_pending_team_invite_v1'
 }
 
 const initialTeamInviteToken = new URLSearchParams(window.location.search).get('teamInvite')
@@ -277,6 +276,9 @@ function saveView() {
 
 // Runtime application state
 let nodes = []
+let publicNodes = []
+let teamNodes = []
+let activeNodeScope = 'public'
 let selectedId = nodes[0]?.id ?? null
 let selectedEdge = null
 let selectedEdgePointIndex = null
@@ -300,24 +302,7 @@ let teamMemberDepartments = []
 let teamEnabledDepartments = []
 let teamInvites = []
 let teamManagerInvites = []
-let teamPrivateContent = []
-let notifications = []
-let notificationFilter = 'all'
-let notificationMutationBusy = false
 let activeTeamId = null
-
-const TEAM_WORKSPACE_TABS = new Set([
-  'overview',
-  'announcements',
-  'resources',
-  'notes'
-])
-
-let activeTeamWorkspaceTab = TEAM_WORKSPACE_TABS.has(
-  localStorage.getItem(CACHE_KEYS.teamWorkspaceTab)
-)
-  ? localStorage.getItem(CACHE_KEYS.teamWorkspaceTab)
-  : 'overview'
 
 const PUBLIC_SECTIONS = new Set([
   'explore',
@@ -346,9 +331,6 @@ let teamSetupCreateMode = false
 let teamMembersMutationBusy = false
 let teamMemberEditingId = null
 let teamOnboardingMutationBusy = false
-let teamContentManagerKind = 'announcement'
-let teamContentEditingId = null
-let teamContentMutationBusy = false
 let categoryFilterId = null
 let difficultyFilterId = null
 let tagFilterIds = new Set()
@@ -410,6 +392,11 @@ const atlasNavigationEyebrow = document.getElementById('atlasNavigationEyebrow')
 const teamSpaceEntry = document.getElementById('teamSpaceEntry')
 const teamSpaceEntryName = document.getElementById('teamSpaceEntryName')
 const teamSpaceEntryRole = document.getElementById('teamSpaceEntryRole')
+const teamAtlasContext = document.getElementById('teamAtlasContext')
+const teamAtlasSelect = document.getElementById('teamAtlasSelect')
+const teamAtlasContextMeta = document.getElementById('teamAtlasContextMeta')
+const teamAtlasSettingsBtn = document.getElementById('teamAtlasSettingsBtn')
+const teamAtlasMembersBtn = document.getElementById('teamAtlasMembersBtn')
 const mapSurface = document.getElementById('mapSurface')
 const world = document.getElementById('world')
 const nodeLayer = document.getElementById('nodeLayer')
@@ -463,14 +450,6 @@ const modeStrip = document.getElementById('modeStrip')
 const toolPanel = document.getElementById('toolPanel')
 const toolsHeader = document.getElementById('toolsHeader')
 const collapseBtn = document.getElementById('collapseBtn')
-const notificationBtn = document.getElementById('notificationBtn')
-const notificationBadge = document.getElementById('notificationBadge')
-const notificationPanel = document.getElementById('notificationPanel')
-const notificationPanelMeta = document.getElementById('notificationPanelMeta')
-const notificationMarkAllBtn = document.getElementById('notificationMarkAllBtn')
-const notificationFilters = document.getElementById('notificationFilters')
-const notificationList = document.getElementById('notificationList')
-
 const accountBtn = document.getElementById('accountBtn')
 const accountPanel = document.getElementById('accountPanel')
 const teamInvitesPanel = document.getElementById('teamInvitesPanel')
@@ -514,6 +493,8 @@ const titleInput = document.getElementById('titleInput')
 const categoryInput = document.getElementById('categoryInput')
 const difficultyInput = document.getElementById('difficultyInput')
 const nodeTagPicker = document.getElementById('nodeTagPicker')
+const teamNodeDepartmentField = document.getElementById('teamNodeDepartmentField')
+const teamNodeDepartmentInput = document.getElementById('teamNodeDepartmentInput')
 const nodeTagsField = document.getElementById('nodeTagsField')
 const contentInput = document.getElementById('contentInput')
 const contentInputLabel = document.getElementById('contentInputLabel')
@@ -765,29 +746,6 @@ const teamOnboardingContent = document.getElementById('teamOnboardingContent')
 const teamOnboardingStatus = document.getElementById('teamOnboardingStatus')
 const completeTeamOnboardingBtn = document.getElementById('completeTeamOnboardingBtn')
 
-const teamContentManagerBackdrop = document.getElementById('teamContentManagerBackdrop')
-const closeTeamContentManagerBtn = document.getElementById('closeTeamContentManagerBtn')
-const closeTeamContentManagerFooterBtn = document.getElementById('closeTeamContentManagerFooterBtn')
-const teamContentManagerSummary = document.getElementById('teamContentManagerSummary')
-const teamContentManagerList = document.getElementById('teamContentManagerList')
-const newTeamContentBtn = document.getElementById('newTeamContentBtn')
-const teamContentEditorTitle = document.getElementById('teamContentEditorTitle')
-const teamContentEditorHint = document.getElementById('teamContentEditorHint')
-const teamContentTitleInput = document.getElementById('teamContentTitleInput')
-const teamContentDepartmentInput = document.getElementById('teamContentDepartmentInput')
-const teamContentSummaryInput = document.getElementById('teamContentSummaryInput')
-const teamContentBodyInput = document.getElementById('teamContentBodyInput')
-const teamContentUrlField = document.getElementById('teamContentUrlField')
-const teamContentUrlInput = document.getElementById('teamContentUrlInput')
-const teamContentPinnedInput = document.getElementById('teamContentPinnedInput')
-const teamContentActiveInput = document.getElementById('teamContentActiveInput')
-const teamContentNotifyLabel = document.getElementById('teamContentNotifyLabel')
-const teamContentNotifyInput = document.getElementById('teamContentNotifyInput')
-const teamContentEditorStatus = document.getElementById('teamContentEditorStatus')
-const deleteTeamContentBtn = document.getElementById('deleteTeamContentBtn')
-const resetTeamContentEditorBtn = document.getElementById('resetTeamContentEditorBtn')
-const saveTeamContentBtn = document.getElementById('saveTeamContentBtn')
-
 // Node and relationship selection helpers
 function selectedNode() {
   return nodes.find((node) => String(node.id) === String(selectedId)) || null
@@ -813,6 +771,11 @@ function slugifyNodeTitle(value) {
 
 function nodeRoutePath(node) {
   if (!node) return HOME_PATH
+
+  if (node.isTeamNode) {
+    return `${HOME_PATH}#team-${Number(node.teamId)}-node-${Number(node.id)}`
+  }
+
   return `/node/${Number(node.id)}/${slugifyNodeTitle(node.title)}`
 }
 
@@ -880,7 +843,24 @@ function pushRouteState(path, state) {
 
 function setNodeRoute(node, { push = true } = {}) {
   if (!node) return
+
   const path = nodeRoutePath(node)
+
+  if (node.isTeamNode) {
+    const state = {
+      atlasRoute: 'team-node',
+      teamId: Number(node.teamId),
+      nodeId: Number(node.id)
+    }
+
+    if (push) pushRouteState(path, state)
+    else replaceRouteState(path, state)
+
+    const team = currentTeamRecord()
+    document.title = `${node.title} | ${team?.name || 'Team Atlas'} | FTC Programming Atlas`
+    return
+  }
+
   const state = { atlasRoute: 'node', nodeId: Number(node.id) }
 
   if (push) pushRouteState(path, state)
@@ -1463,6 +1443,9 @@ function renderResourceCards() {
 }
 
 async function openNodeFromPublicContent(nodeId) {
+  activePublicSection = 'explore'
+  syncActiveNodeCollection({ forceReset: true })
+
   const node = findNode(nodeId)
   if (!node) return
 
@@ -1490,7 +1473,7 @@ function isPublicContentManagerOpen() {
 function populatePublicContentNodeSelects() {
   const options = [
     '<option value="">— Fără nod asociat —</option>',
-    ...[...nodes]
+    ...[...publicNodes]
       .sort((a, b) =>
         String(a.title || '').localeCompare(String(b.title || ''), 'ro', {
           sensitivity: 'base'
@@ -2655,6 +2638,203 @@ async function deleteRoadmap() {
 }
 
 
+
+function isTeamAtlasMode() {
+  return activePublicSection === 'team' && activeTeamId != null
+}
+
+function teamAtlasRoleCanEdit(role) {
+  return ['team_leader', 'department_coordinator', 'mentor'].includes(role)
+}
+
+function canEditTeamAtlas() {
+  if (!currentUser || !activeTeamId) return false
+  if (canEdit) return true
+
+  const membership = currentTeamMembership()
+  return Boolean(membership && teamAtlasRoleCanEdit(membership.role))
+}
+
+function canUseEditorModeAnywhere() {
+  if (canEdit) return true
+
+  return ownActiveTeamMemberships().some((membership) =>
+    teamAtlasRoleCanEdit(membership.role)
+  )
+}
+
+function canEditCurrentAtlas() {
+  return isTeamAtlasMode() ? canEditTeamAtlas() : canEdit
+}
+
+function syncActiveNodeCollection({ forceReset = false } = {}) {
+  const nextScope = isTeamAtlasMode() ? 'team' : 'public'
+  const scopeChanged = nextScope !== activeNodeScope
+
+  activeNodeScope = nextScope
+  nodes = nextScope === 'team' ? teamNodes : publicNodes
+
+  if (scopeChanged || forceReset) {
+    selectedId = nodes[0]?.id ?? null
+    selectedEdge = null
+    selectedEdgePointIndex = null
+    detailOpen = false
+    relationMode = { active: false, sourceId: null }
+    setHomeRoute({ push: false })
+  } else if (
+    selectedId != null &&
+    !nodes.some((node) => Number(node.id) === Number(selectedId))
+  ) {
+    selectedId = nodes[0]?.id ?? null
+    selectedEdge = null
+    selectedEdgePointIndex = null
+    detailOpen = false
+  }
+}
+
+function coordinatorEditableDepartmentIds() {
+  const membership = currentTeamMembership()
+  if (!membership) return []
+
+  return membershipDepartmentIds(membership.id)
+}
+
+function canEditTeamDepartment(departmentId) {
+  if (canEdit) return true
+
+  const membership = currentTeamMembership()
+  if (!membership) return false
+
+  if (membership.role === 'team_leader' || membership.role === 'mentor') {
+    return true
+  }
+
+  if (membership.role === 'department_coordinator') {
+    return coordinatorEditableDepartmentIds().includes(Number(departmentId))
+  }
+
+  return false
+}
+
+function teamAtlasEditableDepartments() {
+  const enabledIds = new Set(currentTeamDepartmentIds())
+
+  return departments
+    .filter(
+      (department) =>
+        department.is_active !== false &&
+        enabledIds.has(Number(department.id)) &&
+        canEditTeamDepartment(department.id)
+    )
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+}
+
+function populateTeamNodeDepartmentSelect(selectedId = null) {
+  if (!teamNodeDepartmentInput) return
+
+  const items = teamAtlasEditableDepartments()
+
+  teamNodeDepartmentInput.innerHTML = items
+    .map(
+      (department) =>
+        `<option value="${Number(department.id)}">${escapeHtmlText(
+          department.name
+        )}</option>`
+    )
+    .join('')
+
+  if (
+    selectedId != null &&
+    items.some((department) => Number(department.id) === Number(selectedId))
+  ) {
+    teamNodeDepartmentInput.value = String(selectedId)
+  } else if (
+    activeDepartmentId != null &&
+    items.some((department) => Number(department.id) === Number(activeDepartmentId))
+  ) {
+    teamNodeDepartmentInput.value = String(activeDepartmentId)
+  }
+}
+
+async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
+  teamNodes = []
+
+  if (!currentUser || activeTeamId == null) {
+    syncActiveNodeCollection({ forceReset })
+    return
+  }
+
+  const [nodesResult, edgesResult] = await Promise.all([
+    supabase
+      .from('atlas_team_nodes')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', Number(activeTeamId))
+      .order('id', { ascending: true }),
+
+    supabase
+      .from('atlas_team_edges')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', Number(activeTeamId))
+      .order('source_id', { ascending: true })
+      .order('target_id', { ascending: true })
+  ])
+
+  if (nodesResult.error) throw nodesResult.error
+  if (edgesResult.error) throw edgesResult.error
+
+  const edgesBySource = new Map()
+
+  for (const edge of edgesResult.data || []) {
+    const sourceId = Number(edge.source_id)
+
+    if (!edgesBySource.has(sourceId)) {
+      edgesBySource.set(sourceId, [])
+    }
+
+    edgesBySource.get(sourceId).push({
+      targetId: Number(edge.target_id),
+      label: edge.label || 'relație',
+      controlPoints: normalizeEdgeControlPoints(
+        edge.control_points,
+        edge.control_x,
+        edge.control_y
+      )
+    })
+  }
+
+  teamNodes = (nodesResult.data || []).map((row) => ({
+    id: Number(row.id),
+    teamId: Number(row.team_id),
+    isTeamNode: true,
+    title: row.title || '',
+    legacyTag: row.tag || '',
+    categoryId: row.category_id == null ? null : Number(row.category_id),
+    difficultyId:
+      row.difficulty_id == null ? null : Number(row.difficulty_id),
+    departmentId:
+      row.department_id == null ? null : Number(row.department_id),
+    departmentIds:
+      row.department_id == null ? [] : [Number(row.department_id)],
+    tagIds: Array.isArray(row.tag_ids) ? row.tag_ids.map(Number) : [],
+    x: Number(row.x),
+    y: Number(row.y),
+    width: row.width == null ? null : Number(row.width),
+    height: row.height == null ? null : Number(row.height),
+    content: row.content || '',
+    contentFormat: row.content_format || 'html',
+    links: edgesBySource.get(Number(row.id)) || [],
+    media: [],
+    files: [],
+    codeSnippets: [],
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null
+  }))
+
+  syncActiveNodeCollection({ forceReset })
+}
+
 function teamRoleLabel(role) {
   const labels = {
     team_member: 'Member',
@@ -2713,37 +2893,45 @@ function currentTeamDepartmentIds() {
 function normalizeActiveTeam() {
   const ownMemberships = ownActiveTeamMemberships()
 
-  if (ownMemberships.length === 0) {
+  const availableTeamIds = canEdit
+    ? teamRecords.map((team) => Number(team.id))
+    : ownMemberships.map((membership) => Number(membership.teamId))
+
+  if (availableTeamIds.length === 0) {
     activeTeamId = null
+    teamNodes = []
 
     if (activePublicSection === 'team') {
       activePublicSection = 'explore'
       localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
     }
 
+    syncActiveNodeCollection({ forceReset: true })
     return
   }
 
   const cachedTeamId = Number(localStorage.getItem(CACHE_KEYS.activeTeam))
-  const cachedIsAvailable = ownMemberships.some(
-    (membership) => Number(membership.teamId) === cachedTeamId
-  )
+  const cachedIsAvailable = availableTeamIds.includes(cachedTeamId)
 
   if (cachedIsAvailable) {
     activeTeamId = cachedTeamId
     return
   }
 
-  activeTeamId = Number(ownMemberships[0].teamId)
+  activeTeamId = Number(availableTeamIds[0])
   localStorage.setItem(CACHE_KEYS.activeTeam, String(activeTeamId))
 }
 
-function selectActiveTeam(teamId) {
+async function selectActiveTeam(teamId) {
   const membership = ownActiveTeamMemberships().find(
     (item) => Number(item.teamId) === Number(teamId)
   )
 
-  if (!membership) return
+  const adminTeamAccess =
+    canEdit &&
+    teamRecords.some((team) => Number(team.id) === Number(teamId))
+
+  if (!membership && !adminTeamAccess) return
 
   activeTeamId = Number(teamId)
   localStorage.setItem(CACHE_KEYS.activeTeam, String(activeTeamId))
@@ -2752,11 +2940,9 @@ function selectActiveTeam(teamId) {
     closeTeamMembersManager()
   }
 
-  if (isTeamContentManagerOpen()) {
-    closeTeamContentManager()
-  }
-
+  await loadActiveTeamAtlasNodes({ forceReset: true })
   renderAll()
+  requestAnimationFrame(fitView)
 }
 
 async function loadTeamContext({ rerender = false } = {}) {
@@ -2766,10 +2952,11 @@ async function loadTeamContext({ rerender = false } = {}) {
   teamMemberDepartments = []
   teamEnabledDepartments = []
   teamInvites = []
-  teamPrivateContent = []
+  teamNodes = []
 
   if (!currentUser) {
     activeTeamId = null
+    syncActiveNodeCollection({ forceReset: true })
 
     if (rerender) renderAll()
     return
@@ -2777,25 +2964,35 @@ async function loadTeamContext({ rerender = false } = {}) {
 
   const normalizedEmail = String(currentUser.email || '').trim().toLowerCase()
 
-  const [ownMembershipResult, ownInvitesResult] = await Promise.all([
-    supabase
-      .from('atlas_team_memberships')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .eq('user_id', currentUser.id)
-      .eq('status', 'active'),
+  const [ownMembershipResult, ownInvitesResult, adminTeamsResult] =
+    await Promise.all([
+      supabase
+        .from('atlas_team_memberships')
+        .select('*')
+        .eq('project_id', PROJECT_ID)
+        .eq('user_id', currentUser.id)
+        .eq('status', 'active'),
 
-    normalizedEmail
-      ? supabase
-          .from('atlas_team_invites')
-          .select('*')
-          .eq('project_id', PROJECT_ID)
-          .eq('email', normalizedEmail)
-          .eq('status', 'pending')
-          .gt('expires_at', new Date().toISOString())
-          .order('created_at', { ascending: false })
-      : Promise.resolve({ data: [], error: null })
-  ])
+      normalizedEmail
+        ? supabase
+            .from('atlas_team_invites')
+            .select('*')
+            .eq('project_id', PROJECT_ID)
+            .eq('email', normalizedEmail)
+            .eq('status', 'pending')
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
+
+      canEdit
+        ? supabase
+            .from('atlas_teams')
+            .select('*')
+            .eq('project_id', PROJECT_ID)
+            .eq('is_active', true)
+            .order('name', { ascending: true })
+        : Promise.resolve({ data: [], error: null })
+    ])
 
   if (ownMembershipResult.error) {
     console.error('Team membership load failed:', ownMembershipResult.error)
@@ -2805,14 +3002,24 @@ async function loadTeamContext({ rerender = false } = {}) {
     console.error('Team invites load failed:', ownInvitesResult.error)
   }
 
+  if (adminTeamsResult.error) {
+    console.error('Admin team list load failed:', adminTeamsResult.error)
+  }
+
   const ownRows = ownMembershipResult.data || []
   const inviteRows = ownInvitesResult.data || []
+  const adminTeamRows = adminTeamsResult.data || []
 
   const membershipTeamIds = ownRows.map((row) => Number(row.team_id))
   const inviteTeamIds = inviteRows.map((row) => Number(row.team_id))
+  const adminTeamIds = adminTeamRows.map((row) => Number(row.id))
 
   const teamIds = [
-    ...new Set([...membershipTeamIds, ...inviteTeamIds])
+    ...new Set([
+      ...membershipTeamIds,
+      ...inviteTeamIds,
+      ...adminTeamIds
+    ])
   ].filter(Number.isFinite)
 
   if (teamIds.length === 0) {
@@ -2824,63 +3031,53 @@ async function loadTeamContext({ rerender = false } = {}) {
     return
   }
 
-  const membershipTeamIdsUnique = [...new Set(membershipTeamIds)].filter(Number.isFinite)
+  const membershipTeamIdsUnique = [
+    ...new Set(canEdit ? teamIds : membershipTeamIds)
+  ].filter(Number.isFinite)
 
   const [
     teamsResult,
     membershipsResult,
     memberDepartmentsResult,
-    enabledDepartmentsResult,
-    privateContentResult
+    enabledDepartmentsResult
   ] = await Promise.all([
-      supabase
-        .from('atlas_teams')
-        .select('*')
-        .eq('project_id', PROJECT_ID)
-        .in('id', teamIds)
-        .eq('is_active', true),
+    supabase
+      .from('atlas_teams')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .in('id', teamIds)
+      .eq('is_active', true),
 
-      membershipTeamIdsUnique.length > 0
-        ? supabase
-            .from('atlas_team_memberships')
-            .select('*')
-            .eq('project_id', PROJECT_ID)
-            .in('team_id', membershipTeamIdsUnique)
-        : Promise.resolve({ data: [], error: null }),
+    membershipTeamIdsUnique.length > 0
+      ? supabase
+          .from('atlas_team_memberships')
+          .select('*')
+          .eq('project_id', PROJECT_ID)
+          .in('team_id', membershipTeamIdsUnique)
+      : Promise.resolve({ data: [], error: null }),
 
-      membershipTeamIdsUnique.length > 0
-        ? supabase
-            .from('atlas_team_member_departments')
-            .select('membership_id, department_id, team_id')
-            .eq('project_id', PROJECT_ID)
-            .in('team_id', membershipTeamIdsUnique)
-        : Promise.resolve({ data: [], error: null }),
+    membershipTeamIdsUnique.length > 0
+      ? supabase
+          .from('atlas_team_member_departments')
+          .select('membership_id, department_id, team_id')
+          .eq('project_id', PROJECT_ID)
+          .in('team_id', membershipTeamIdsUnique)
+      : Promise.resolve({ data: [], error: null }),
 
-      membershipTeamIdsUnique.length > 0
-        ? supabase
-            .from('atlas_team_departments')
-            .select('team_id, department_id')
-            .eq('project_id', PROJECT_ID)
-            .in('team_id', membershipTeamIdsUnique)
-        : Promise.resolve({ data: [], error: null }),
-
-      membershipTeamIdsUnique.length > 0
-        ? supabase
-            .from('atlas_team_content')
-            .select('*')
-            .eq('project_id', PROJECT_ID)
-            .in('team_id', membershipTeamIdsUnique)
-            .order('is_pinned', { ascending: false })
-            .order('created_at', { ascending: false })
-        : Promise.resolve({ data: [], error: null })
-    ])
+    membershipTeamIdsUnique.length > 0
+      ? supabase
+          .from('atlas_team_departments')
+          .select('team_id, department_id')
+          .eq('project_id', PROJECT_ID)
+          .in('team_id', membershipTeamIdsUnique)
+      : Promise.resolve({ data: [], error: null })
+  ])
 
   const firstError = [
     teamsResult.error,
     membershipsResult.error,
     memberDepartmentsResult.error,
-    enabledDepartmentsResult.error,
-    privateContentResult.error
+    enabledDepartmentsResult.error
   ].find(Boolean)
 
   if (firstError) {
@@ -2923,23 +3120,6 @@ async function loadTeamContext({ rerender = false } = {}) {
     departmentId: Number(row.department_id)
   }))
 
-  teamPrivateContent = (privateContentResult.data || []).map((row) => ({
-    id: Number(row.id),
-    teamId: Number(row.team_id),
-    departmentId:
-      row.department_id == null ? null : Number(row.department_id),
-    contentType: row.content_type || 'note',
-    title: row.title || '',
-    summary: row.summary || '',
-    body: row.body || '',
-    url: row.url || '',
-    isPinned: row.is_pinned === true,
-    isActive: row.is_active !== false,
-    createdBy: row.created_by || null,
-    createdAt: row.created_at || null,
-    updatedAt: row.updated_at || null
-  }))
-
   teamInvites = inviteRows.map((row) => ({
     id: Number(row.id),
     teamId: Number(row.team_id),
@@ -2956,18 +3136,30 @@ async function loadTeamContext({ rerender = false } = {}) {
   }))
 
   normalizeActiveTeam()
+
+  if (activeTeamId != null) {
+    await loadActiveTeamAtlasNodes()
+  }
+
   renderTeamInvites()
   maybeOpenPendingTeamInvite()
 
   if (rerender) renderAll()
 }
+
 function renderTeamNavigation() {
   if (!teamSpaceEntry) return
 
   const membership = currentTeamMembership()
   const team = currentTeamRecord()
+  const ownMemberships = ownActiveTeamMemberships()
 
-  const visible = Boolean(currentUser && membership && team)
+  const visible = Boolean(currentUser && team && (membership || canEdit))
+  const roleLabel = membership
+    ? teamRoleLabel(membership.role)
+    : canEdit
+      ? 'Platform Admin'
+      : 'Member'
 
   teamSpaceEntry.hidden = !visible
   teamSpaceEntry.classList.toggle(
@@ -2975,1103 +3167,57 @@ function renderTeamNavigation() {
     visible && activePublicSection === 'team'
   )
 
-  if (!visible) return
+  if (!visible) {
+    if (teamAtlasContext) teamAtlasContext.hidden = true
+    return
+  }
 
   teamSpaceEntryName.textContent = team.teamNumber
     ? `${team.name} #${team.teamNumber}`
     : team.name
 
-  teamSpaceEntryRole.textContent = teamRoleLabel(membership.role)
-}
+  teamSpaceEntryRole.textContent = roleLabel
 
+  if (!teamAtlasContext) return
 
+  const inTeamAtlas = activePublicSection === 'team'
+  teamAtlasContext.hidden = !inTeamAtlas
 
-function notificationCategoryLabel(category) {
-  const labels = {
-    team: 'Team',
-    department: 'Department',
-    system: 'System'
-  }
+  if (!inTeamAtlas) return
 
-  return labels[category] || 'System'
-}
+  const selectableTeams = canEdit
+    ? teamRecords
+    : ownMemberships
+        .map((item) =>
+          teamRecords.find(
+            (candidate) => Number(candidate.id) === Number(item.teamId)
+          )
+        )
+        .filter(Boolean)
 
-function notificationUnreadCount() {
-  return notifications.filter((item) => item.isRead !== true).length
-}
-
-function visibleNotifications() {
-  return notifications.filter((item) => {
-    if (notificationFilter === 'all') return true
-    if (notificationFilter === 'unread') return item.isRead !== true
-    return item.category === notificationFilter
-  })
-}
-
-function notificationTeamLabel(item) {
-  if (item.teamId == null) return ''
-
-  const team = teamRecords.find(
-    (entry) => Number(entry.id) === Number(item.teamId)
-  )
-
-  if (!team) return ''
-
-  return team.teamNumber
-    ? `${team.name} #${team.teamNumber}`
-    : team.name
-}
-
-function renderNotificationCenter() {
-  if (!notificationBtn || !notificationPanel) return
-
-  const loggedIn = Boolean(currentUser)
-  const unread = loggedIn ? notificationUnreadCount() : 0
-
-  notificationBtn.hidden = !loggedIn
-  notificationBadge.hidden = !loggedIn || unread === 0
-  notificationBadge.textContent = unread > 99 ? '99+' : String(unread)
-
-  notificationPanelMeta.textContent = `${unread} unread`
-  notificationMarkAllBtn.disabled =
-    notificationMutationBusy || unread === 0
-
-  notificationFilters?.querySelectorAll('[data-notification-filter]').forEach(
-    (button) => {
-      button.classList.toggle(
-        'active',
-        button.dataset.notificationFilter === notificationFilter
-      )
-    }
-  )
-
-  if (!loggedIn) {
-    notificationPanel.hidden = true
-    notificationList.innerHTML = ''
-    return
-  }
-
-  const items = visibleNotifications()
-
-  if (items.length === 0) {
-    notificationList.innerHTML = `
-      <div class="notification-empty">
-        Nu există notificări în filtrul selectat.
-      </div>
-    `
-    return
-  }
-
-  notificationList.innerHTML = items
-    .map((item) => {
-      const teamLabel = notificationTeamLabel(item)
-      const department =
-        item.departmentId == null
-          ? null
-          : getDepartmentById(item.departmentId)
+  teamAtlasSelect.innerHTML = selectableTeams
+    .map((record) => {
+      const label = record.teamNumber
+        ? `${record.name} #${record.teamNumber}`
+        : record.name
 
       return `
-        <button
-          class="notification-item ${item.isRead ? '' : 'unread'}"
-          type="button"
-          data-notification-id="${Number(item.id)}"
-        >
-          <span class="notification-dot" aria-hidden="true"></span>
-
-          <span class="notification-item-main">
-            <span class="notification-item-badges">
-              <span class="notification-item-badge accent">${escapeHtmlText(
-                notificationCategoryLabel(item.category)
-              )}</span>
-              ${
-                teamLabel
-                  ? `<span class="notification-item-badge">${escapeHtmlText(
-                      teamLabel
-                    )}</span>`
-                  : ''
-              }
-              ${
-                department
-                  ? `<span class="notification-item-badge">${escapeHtmlText(
-                      department.short_name || department.name
-                    )}</span>`
-                  : ''
-              }
-            </span>
-
-            <span class="notification-item-title">${escapeHtmlText(
-              item.title
-            )}</span>
-
-            ${
-              item.body
-                ? `<span class="notification-item-body">${escapeHtml(
-                    item.body
-                  )}</span>`
-                : ''
-            }
-          </span>
-
-          <time class="notification-item-date">${escapeHtmlText(
-            formatPublicDate(item.createdAt)
-          )}</time>
-        </button>
-      `
-    })
-    .join('')
-}
-
-async function loadNotifications({ render = true } = {}) {
-  notifications = []
-
-  if (!currentUser) {
-    if (render) renderNotificationCenter()
-    return
-  }
-
-  const { data, error } = await supabase
-    .from('atlas_notifications')
-    .select('*')
-    .eq('project_id', PROJECT_ID)
-    .order('created_at', { ascending: false })
-    .limit(100)
-
-  if (error) {
-    console.error('Notifications load failed:', error)
-    if (render) renderNotificationCenter()
-    return
-  }
-
-  notifications = (data || []).map((row) => ({
-    id: Number(row.id),
-    teamId: row.team_id == null ? null : Number(row.team_id),
-    departmentId:
-      row.department_id == null ? null : Number(row.department_id),
-    category: row.category || 'system',
-    title: row.title || '',
-    body: row.body || '',
-    sourceType: row.source_type || '',
-    sourceId: row.source_id == null ? null : Number(row.source_id),
-    isRead: row.is_read === true,
-    readAt: row.read_at || null,
-    createdAt: row.created_at || null
-  }))
-
-  if (render) renderNotificationCenter()
-}
-
-function setNotificationPanel(open) {
-  if (!notificationPanel || !notificationBtn) return
-
-  const shouldOpen = Boolean(open)
-
-  notificationPanel.hidden = !shouldOpen
-  notificationBtn.classList.toggle('active', shouldOpen)
-  notificationBtn.setAttribute(
-    'aria-expanded',
-    shouldOpen ? 'true' : 'false'
-  )
-
-  if (shouldOpen) {
-    if (accountPanel && !accountPanel.hidden) {
-      accountPanel.hidden = true
-      accountBtn?.classList.remove('active')
-      accountBtn?.setAttribute('aria-expanded', 'false')
-    }
-
-    if (toolPanel?.classList.contains('collapsed')) {
-      togglePanel(false)
-    }
-  }
-}
-
-async function openNotificationPanel() {
-  if (!currentUser) return
-
-  setNotificationPanel(true)
-  await loadNotifications()
-}
-
-async function markNotificationRead(notificationId) {
-  const item = notifications.find(
-    (notification) => Number(notification.id) === Number(notificationId)
-  )
-
-  if (!item || item.isRead || notificationMutationBusy) return
-
-  notificationMutationBusy = true
-  renderNotificationCenter()
-
-  try {
-    const { error } = await supabase.rpc('atlas_notification_mark_read', {
-      p_project_id: PROJECT_ID,
-      p_notification_id: Number(notificationId)
-    })
-
-    if (error) throw error
-
-    item.isRead = true
-    item.readAt = new Date().toISOString()
-  } catch (error) {
-    console.error('Mark notification read failed:', error)
-  } finally {
-    notificationMutationBusy = false
-    renderNotificationCenter()
-  }
-}
-
-async function markAllNotificationsRead() {
-  if (!currentUser || notificationMutationBusy) return
-
-  notificationMutationBusy = true
-  renderNotificationCenter()
-
-  try {
-    const { error } = await supabase.rpc('atlas_notification_mark_all_read', {
-      p_project_id: PROJECT_ID
-    })
-
-    if (error) throw error
-
-    const now = new Date().toISOString()
-
-    notifications.forEach((item) => {
-      if (!item.isRead) {
-        item.isRead = true
-        item.readAt = now
-      }
-    })
-  } catch (error) {
-    console.error('Mark all notifications read failed:', error)
-  } finally {
-    notificationMutationBusy = false
-    renderNotificationCenter()
-  }
-}
-
-async function openNotification(notificationId) {
-  const item = notifications.find(
-    (notification) => Number(notification.id) === Number(notificationId)
-  )
-
-  if (!item) return
-
-  await markNotificationRead(item.id)
-  setNotificationPanel(false)
-
-  if (
-    item.sourceType === 'team_content' &&
-    item.teamId != null
-  ) {
-    const membership = ownActiveTeamMemberships().find(
-      (entry) => Number(entry.teamId) === Number(item.teamId)
-    )
-
-    if (!membership) return
-
-    activeTeamId = Number(item.teamId)
-    localStorage.setItem(CACHE_KEYS.activeTeam, String(activeTeamId))
-
-    activePublicSection = 'team'
-    localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
-
-    activeTeamWorkspaceTab = 'announcements'
-    localStorage.setItem(
-      CACHE_KEYS.teamWorkspaceTab,
-      activeTeamWorkspaceTab
-    )
-
-    renderAll()
-  }
-}
-
-function currentTeamPrivateContent() {
-  return teamPrivateContent.filter(
-    (item) => Number(item.teamId) === Number(activeTeamId)
-  )
-}
-
-function teamContentKindLabel(kind) {
-  const labels = {
-    announcement: 'Announcement',
-    resource: 'Resource',
-    note: 'Note'
-  }
-
-  return labels[kind] || 'Content'
-}
-
-function teamContentDepartmentLabel(item) {
-  if (item.departmentId == null) return 'Team-wide'
-
-  const department = getDepartmentById(item.departmentId)
-  return department?.short_name || department?.name || 'Department'
-}
-
-function memberCanSeeAllDepartmentContent() {
-  const membership = currentTeamMembership()
-  return Boolean(
-    membership &&
-      (membership.role === 'team_leader' || membership.role === 'mentor')
-  )
-}
-
-function canManageTeamContentScope(departmentId) {
-  const membership = currentTeamMembership()
-
-  if (canEdit) return true
-  if (!membership || membership.status !== 'active') return false
-
-  if (membership.role === 'team_leader') return true
-
-  if (
-    membership.role === 'department_coordinator' &&
-    departmentId != null
-  ) {
-    return membershipDepartmentIds(membership.id).includes(Number(departmentId))
-  }
-
-  return false
-}
-
-function canManageAnyTeamContent() {
-  const membership = currentTeamMembership()
-
-  return Boolean(
-    canEdit ||
-      membership?.role === 'team_leader' ||
-      membership?.role === 'department_coordinator'
-  )
-}
-
-function canManageTeamContentItem(item) {
-  if (!item) return false
-  return canManageTeamContentScope(item.departmentId)
-}
-
-function selectTeamWorkspaceTab(tab) {
-  if (!TEAM_WORKSPACE_TABS.has(tab)) return
-
-  activeTeamWorkspaceTab = tab
-  localStorage.setItem(CACHE_KEYS.teamWorkspaceTab, tab)
-  renderAll()
-}
-
-function teamContentForKind(kind) {
-  const typeMap = {
-    announcements: 'announcement',
-    resources: 'resource',
-    notes: 'note'
-  }
-
-  const contentType = typeMap[kind] || kind
-
-  return currentTeamPrivateContent()
-    .filter(
-      (item) =>
-        item.contentType === contentType &&
-        item.isActive !== false
-    )
-    .sort((a, b) => {
-      if (Boolean(a.isPinned) !== Boolean(b.isPinned)) {
-        return a.isPinned ? -1 : 1
-      }
-
-      return (
-        new Date(b.updatedAt || b.createdAt || 0).getTime() -
-        new Date(a.updatedAt || a.createdAt || 0).getTime()
-      )
-    })
-}
-
-function teamContentAuthorLabel(item) {
-  if (!item?.createdBy) return 'Team'
-
-  const member = teamMembers.find(
-    (membership) =>
-      Number(membership.teamId) === Number(item.teamId) &&
-      membership.userId === item.createdBy
-  )
-
-  if (member?.displayName) return member.displayName
-
-  if (item.createdBy === currentUser?.id) {
-    return currentUser?.email || 'You'
-  }
-
-  return 'Team'
-}
-
-function renderTeamPrivateContent(kind) {
-  const items = teamContentForKind(kind)
-
-  const labels = {
-    announcements: {
-      title: 'Private announcements',
-      empty: 'Nu există încă announcements private vizibile pentru acest scope.'
-    },
-    resources: {
-      title: 'Private resources',
-      empty: 'Nu există încă resources private vizibile pentru acest scope.'
-    },
-    notes: {
-      title: 'Private notes',
-      empty: 'Nu există încă notes private vizibile pentru acest scope.'
-    }
-  }
-
-  const copy = labels[kind] || labels.notes
-
-  return `
-    <div class="team-workspace-toolbar">
-      <div class="team-workspace-toolbar-copy">
-        <strong>${escapeHtmlText(copy.title)}</strong><br>
-        Team-wide + departamentele la care ai acces.
-      </div>
-
-      ${
-        canManageAnyTeamContent()
-          ? `
-            <button
-              class="public-hub-manage"
-              type="button"
-              data-open-team-content-manager="${escapeHtmlText(
-                kind === 'announcements'
-                  ? 'announcement'
-                  : kind === 'resources'
-                    ? 'resource'
-                    : 'note'
-              )}"
-            >
-              Manage
-            </button>
-          `
-          : ''
-      }
-    </div>
-
-    <div class="team-private-list">
-      ${
-        items.length === 0
-          ? `<div class="team-private-empty">${escapeHtmlText(copy.empty)}</div>`
-          : items
-              .map((item) => {
-                const url =
-                  item.url && normalizeHttpUrl(item.url)
-                    ? normalizeHttpUrl(item.url)
-                    : null
-
-                return `
-                  <article class="team-private-card ${item.isPinned ? 'pinned' : ''}">
-                    <div class="team-private-card-top">
-                      <div class="team-private-card-main">
-                        <div class="team-private-card-badges">
-                          <span class="team-private-badge accent">${escapeHtmlText(
-                            teamContentKindLabel(item.contentType)
-                          )}</span>
-                          <span class="team-private-badge">${escapeHtmlText(
-                            teamContentDepartmentLabel(item)
-                          )}</span>
-                          ${
-                            item.isPinned
-                              ? '<span class="team-private-badge">Pinned</span>'
-                              : ''
-                          }
-                        </div>
-
-                        <h3>${escapeHtmlText(item.title)}</h3>
-                      </div>
-
-                      <span class="team-private-card-date">${escapeHtmlText(
-                        formatPublicDate(item.updatedAt || item.createdAt)
-                      )}</span>
-                    </div>
-
-                    ${
-                      item.summary
-                        ? `<p class="team-private-summary">${escapeHtml(item.summary)}</p>`
-                        : ''
-                    }
-
-                    ${
-                      item.body
-                        ? `<p class="team-private-body">${escapeHtml(item.body)}</p>`
-                        : ''
-                    }
-
-                    <div class="team-private-card-foot">
-                      <span class="team-private-badge">
-                        ${escapeHtmlText(teamContentAuthorLabel(item))}
-                      </span>
-
-                      ${
-                        url
-                          ? `<a class="public-content-link" href="${escapeHtmlText(
-                              url
-                            )}" target="_blank" rel="noopener noreferrer">Deschide link-ul</a>`
-                          : ''
-                      }
-
-                      ${
-                        canManageTeamContentItem(item)
-                          ? `
-                            <button
-                              class="public-content-node-link"
-                              type="button"
-                              data-edit-team-content="${Number(item.id)}"
-                            >
-                              Editează
-                            </button>
-                          `
-                          : ''
-                      }
-                    </div>
-                  </article>
-                `
-              })
-              .join('')
-      }
-    </div>
-  `
-}
-
-function renderTeamOverview(membership, ownDepartments, enabledDepartments, members) {
-  const announcements = teamContentForKind('announcements')
-  const resources = teamContentForKind('resources')
-  const notes = teamContentForKind('notes')
-  const latestAnnouncement = announcements[0] || null
-
-  return `
-    <div class="team-space-grid">
-      ${renderTeamOnboardingCard(membership)}
-
-      <article class="team-space-card">
-        <span class="team-space-card-label">Rolul tău</span>
-        <h3>${escapeHtmlText(teamRoleLabel(membership.role))}</h3>
-        <p>
-          Permisiunile Team Space sunt separate de drepturile de editor ale Atlasului public.
-        </p>
-
-        <div class="team-space-chips">
-          ${
-            ownDepartments.length > 0
-              ? ownDepartments
-                  .map(
-                    (department) =>
-                      `<span class="team-space-chip">${escapeHtmlText(
-                        department.short_name || department.name
-                      )}</span>`
-                  )
-                  .join('')
-              : '<span class="team-space-chip">Universal / team-wide</span>'
-          }
-        </div>
-      </article>
-
-      <article class="team-space-card">
-        <span class="team-space-card-label">Private workspace</span>
-        <h3>${announcements.length + resources.length + notes.length} items</h3>
-        <p>
-          Conținut privat vizibil pentru rolul și departamentele tale.
-        </p>
-
-        <div class="team-space-chips">
-          <span class="team-space-chip">${announcements.length} announcements</span>
-          <span class="team-space-chip">${resources.length} resources</span>
-          <span class="team-space-chip">${notes.length} notes</span>
-        </div>
-      </article>
-
-      ${
-        latestAnnouncement
-          ? `
-            <article class="team-space-card wide">
-              <span class="team-space-card-label">Latest announcement</span>
-              <h3>${escapeHtmlText(latestAnnouncement.title)}</h3>
-              <p>${escapeHtml(
-                latestAnnouncement.summary ||
-                  latestAnnouncement.body ||
-                  'Deschide Announcements pentru detalii.'
-              )}</p>
-
-              <div class="public-hub-actions">
-                <button
-                  class="public-hub-manage"
-                  type="button"
-                  data-team-workspace-tab="announcements"
-                >
-                  Vezi announcements
-                </button>
-              </div>
-            </article>
-          `
-          : ''
-      }
-
-      <article class="team-space-card">
-        <span class="team-space-card-label">Departamente active</span>
-        <h3>Structura echipei</h3>
-        <p>
-          Acestea sunt departamentele activate momentan pentru Team Space.
-        </p>
-
-        <div class="team-space-chips">
-          ${
-            enabledDepartments.length > 0
-              ? enabledDepartments
-                  .map(
-                    (department) =>
-                      `<span class="team-space-chip">${escapeHtmlText(
-                        department.short_name || department.name
-                      )}</span>`
-                  )
-                  .join('')
-              : '<span class="team-space-chip">Niciun departament configurat</span>'
-          }
-        </div>
-      </article>
-
-      <article class="team-space-card">
-        <span class="team-space-card-label">Members</span>
-        <h3>${members.filter((member) => member.status === 'active').length} membri activi</h3>
-        <p>
-          Vezi lista completă de membri și roluri mai jos în Team Space.
-        </p>
-      </article>
-
-      <article class="team-space-card wide">
-        <span class="team-space-card-label">Members</span>
-        <h3>${members.filter((member) => member.status === 'active').length} membri activi</h3>
-
-        <div class="team-member-list">
-          ${members
-            .filter((member) => member.status === 'active')
-            .map((member) => {
-              const departmentNames = membershipDepartmentIds(member.id)
-                .map(
-                  (id) =>
-                    getDepartmentById(id)?.short_name ||
-                    getDepartmentById(id)?.name
-                )
-                .filter(Boolean)
-
-              const fallbackName =
-                member.userId === currentUser?.id
-                  ? currentUser?.email || 'You'
-                  : 'Team member'
-
-              return `
-                <div class="team-member-row">
-                  <div>
-                    <strong>${escapeHtmlText(
-                      member.displayName || fallbackName
-                    )}</strong>
-                    <span>${
-                      departmentNames.length > 0
-                        ? escapeHtmlText(departmentNames.join(' · '))
-                        : 'Team-wide'
-                    }</span>
-                  </div>
-
-                  <span class="team-member-role">${escapeHtmlText(
-                    teamRoleLabel(member.role)
-                  )}</span>
-                </div>
-              `
-            })
-            .join('')}
-        </div>
-      </article>
-    </div>
-  `
-}
-
-function isTeamContentManagerOpen() {
-  return Boolean(teamContentManagerBackdrop?.classList.contains('open'))
-}
-
-function teamContentManagerItems() {
-  return currentTeamPrivateContent()
-    .filter(
-      (item) =>
-        item.contentType === teamContentManagerKind &&
-        canManageTeamContentItem(item)
-    )
-    .sort((a, b) => {
-      if (Boolean(a.isActive) !== Boolean(b.isActive)) {
-        return a.isActive ? -1 : 1
-      }
-
-      if (Boolean(a.isPinned) !== Boolean(b.isPinned)) {
-        return a.isPinned ? -1 : 1
-      }
-
-      return (
-        new Date(b.updatedAt || b.createdAt || 0).getTime() -
-        new Date(a.updatedAt || a.createdAt || 0).getTime()
-      )
-    })
-}
-
-function managerDepartmentOptions() {
-  const membership = currentTeamMembership()
-  if (!membership) return []
-
-  const enabled = enabledTeamDepartments()
-
-  if (canEdit || membership.role === 'team_leader') {
-    return [
-      { id: null, label: 'Team-wide' },
-      ...enabled.map((department) => ({
-        id: Number(department.id),
-        label: department.short_name || department.name
-      }))
-    ]
-  }
-
-  if (membership.role === 'department_coordinator') {
-    const allowed = new Set(membershipDepartmentIds(membership.id))
-
-    return enabled
-      .filter((department) => allowed.has(Number(department.id)))
-      .map((department) => ({
-        id: Number(department.id),
-        label: department.short_name || department.name
-      }))
-  }
-
-  return []
-}
-
-function populateTeamContentDepartmentSelect(selectedId = null) {
-  const options = managerDepartmentOptions()
-
-  teamContentDepartmentInput.innerHTML = options
-    .map(
-      (item) => `
-        <option value="${item.id == null ? '' : Number(item.id)}">
-          ${escapeHtmlText(item.label)}
+        <option value="${Number(record.id)}" ${
+          Number(record.id) === Number(activeTeamId) ? 'selected' : ''
+        }>
+          ${escapeHtmlText(label)}
         </option>
       `
-    )
+    })
     .join('')
 
-  if (
-    selectedId != null &&
-    options.some((item) => Number(item.id) === Number(selectedId))
-  ) {
-    teamContentDepartmentInput.value = String(selectedId)
-  } else if (options.some((item) => item.id == null)) {
-    teamContentDepartmentInput.value = ''
-  }
-}
-
-function setTeamContentBusy(nextValue) {
-  teamContentMutationBusy = Boolean(nextValue)
-
-  newTeamContentBtn.disabled = teamContentMutationBusy
-  saveTeamContentBtn.disabled = teamContentMutationBusy
-  resetTeamContentEditorBtn.disabled = teamContentMutationBusy
-  deleteTeamContentBtn.disabled = teamContentMutationBusy
-
-  teamContentManagerList?.querySelectorAll('button').forEach((button) => {
-    button.disabled = teamContentMutationBusy
-  })
-
-  document.querySelectorAll('[data-team-content-kind]').forEach((button) => {
-    button.disabled = teamContentMutationBusy
-  })
-}
-
-function resetTeamContentEditor() {
-  teamContentEditingId = null
-
-  populateTeamContentDepartmentSelect(null)
-
-  teamContentEditorTitle.textContent = `${teamContentKindLabel(
-    teamContentManagerKind
-  )} nou`
-  teamContentEditorHint.textContent =
-    'Conținutul este vizibil numai membrilor care au acces la scope-ul ales.'
-
-  teamContentTitleInput.value = ''
-  teamContentSummaryInput.value = ''
-  teamContentBodyInput.value = ''
-  teamContentUrlInput.value = ''
-  teamContentPinnedInput.checked = false
-  teamContentActiveInput.checked = true
-  teamContentNotifyInput.checked =
-    teamContentManagerKind === 'announcement'
-
-  teamContentNotifyLabel.hidden =
-    teamContentManagerKind !== 'announcement'
-  teamContentUrlField.hidden = teamContentManagerKind === 'note'
-  deleteTeamContentBtn.hidden = true
-  teamContentEditorStatus.textContent = 'Pregătit pentru editare.'
-}
-
-function editTeamContent(id) {
-  const item = currentTeamPrivateContent().find(
-    (entry) => Number(entry.id) === Number(id)
-  )
-  if (!item || !canManageTeamContentItem(item)) return
-
-  teamContentManagerKind = item.contentType
-  teamContentEditingId = Number(item.id)
-
-  document.querySelectorAll('[data-team-content-kind]').forEach((button) => {
-    button.classList.toggle(
-      'active',
-      button.dataset.teamContentKind === teamContentManagerKind
-    )
-  })
-
-  populateTeamContentDepartmentSelect(item.departmentId)
-
-  teamContentEditorTitle.textContent = `Editează ${teamContentKindLabel(
-    item.contentType
-  ).toLowerCase()}`
-  teamContentEditorHint.textContent =
-    'Schimbările sunt vizibile imediat membrilor care au acces.'
-
-  teamContentTitleInput.value = item.title || ''
-  teamContentSummaryInput.value = item.summary || ''
-  teamContentBodyInput.value = item.body || ''
-  teamContentUrlInput.value = item.url || ''
-  teamContentPinnedInput.checked = Boolean(item.isPinned)
-  teamContentActiveInput.checked = item.isActive !== false
-  teamContentNotifyInput.checked = false
-
-  teamContentNotifyLabel.hidden =
-    teamContentManagerKind !== 'announcement'
-  teamContentUrlField.hidden = teamContentManagerKind === 'note'
-  deleteTeamContentBtn.hidden = false
-  teamContentEditorStatus.textContent = 'Element încărcat pentru editare.'
-
-  renderTeamContentManager()
-}
-
-function renderTeamContentManager() {
-  if (!isTeamContentManagerOpen()) return
-
-  document.querySelectorAll('[data-team-content-kind]').forEach((button) => {
-    button.classList.toggle(
-      'active',
-      button.dataset.teamContentKind === teamContentManagerKind
-    )
-  })
-
-  const items = teamContentManagerItems()
-
-  teamContentManagerSummary.innerHTML = `
-    <strong>${items.length} ${escapeHtmlText(
-      teamContentKindLabel(teamContentManagerKind).toLowerCase()
-    )}${items.length === 1 ? '' : 's'}</strong>
-    · doar scope-uri pe care le poți administra
+  teamAtlasContextMeta.innerHTML = `
+    <span class="team-atlas-banner">${escapeHtmlText(roleLabel)}</span>
+    · documentație privată a echipei
   `
 
-  teamContentManagerList.innerHTML =
-    items.length === 0
-      ? '<div class="public-content-manager-empty">Nu există conținut administrabil în acest scope.</div>'
-      : items
-          .map(
-            (item) => `
-              <article class="team-content-manager-item ${
-                item.isActive !== false ? '' : 'inactive'
-              }">
-                <div>
-                  <strong>${escapeHtmlText(item.title)}</strong>
-                  <span>
-                    ${escapeHtmlText(teamContentDepartmentLabel(item))}
-                    · ${item.isActive !== false ? 'Activ' : 'Draft'}
-                    ${item.isPinned ? ' · Pinned' : ''}
-                  </span>
-                </div>
-
-                <button
-                  class="taxonomy-mini-btn"
-                  type="button"
-                  data-manage-team-content="${Number(item.id)}"
-                >
-                  Editează
-                </button>
-              </article>
-            `
-          )
-          .join('')
-
-  teamContentManagerList
-    .querySelectorAll('[data-manage-team-content]')
-    .forEach((button) => {
-      button.addEventListener('click', () => {
-        editTeamContent(Number(button.dataset.manageTeamContent))
-      })
-    })
-
-  setTeamContentBusy(teamContentMutationBusy)
-}
-
-async function openTeamContentManager(kind = 'announcement', editId = null) {
-  if (!currentUser || !canManageAnyTeamContent()) return
-
-  teamContentManagerKind = ['announcement', 'resource', 'note'].includes(kind)
-    ? kind
-    : 'announcement'
-
-  teamContentManagerBackdrop.classList.add('open')
-  teamContentManagerSummary.textContent = 'Se încarcă...'
-
-  try {
-    await loadTeamContext()
-
-    if (!canManageAnyTeamContent()) {
-      closeTeamContentManager()
-      return
-    }
-
-    resetTeamContentEditor()
-    renderTeamContentManager()
-
-    if (editId != null) {
-      editTeamContent(Number(editId))
-    }
-  } catch (error) {
-    console.error('Private team content manager load failed:', error)
-    teamContentEditorStatus.textContent =
-      error?.message || 'Conținutul privat nu a putut fi încărcat.'
-  }
-}
-
-function closeTeamContentManager() {
-  teamContentManagerBackdrop.classList.remove('open')
-  teamContentEditingId = null
-  teamContentMutationBusy = false
-}
-
-async function saveTeamContent() {
-  if (!currentUser || !canManageAnyTeamContent() || teamContentMutationBusy) {
-    return
-  }
-
-  const title = teamContentTitleInput.value.trim()
-  const departmentId = teamContentDepartmentInput.value
-    ? Number(teamContentDepartmentInput.value)
-    : null
-  const urlRaw = teamContentUrlInput.value.trim()
-  const normalizedUrl = urlRaw ? normalizeHttpUrl(urlRaw) : null
-
-  if (title.length < 2) {
-    alert('Titlul trebuie să aibă cel puțin 2 caractere.')
-    return
-  }
-
-  if (!canManageTeamContentScope(departmentId)) {
-    alert('Nu ai permisiunea pentru acest scope.')
-    return
-  }
-
-  if (teamContentManagerKind === 'resource' && !normalizedUrl) {
-    alert('Un resource trebuie să aibă un URL valid.')
-    return
-  }
-
-  if (urlRaw && !normalizedUrl) {
-    alert('URL-ul trebuie să fie http:// sau https://.')
-    return
-  }
-
-  setTeamContentBusy(true)
-  teamContentEditorStatus.textContent = 'Se salvează...'
-
-  try {
-    const params = {
-      p_project_id: PROJECT_ID,
-      p_team_id: Number(activeTeamId),
-      p_content_type: teamContentManagerKind,
-      p_title: title,
-      p_summary: teamContentSummaryInput.value.trim(),
-      p_body: teamContentBodyInput.value.trim(),
-      p_url: normalizedUrl,
-      p_department_id: departmentId,
-      p_is_pinned: teamContentPinnedInput.checked,
-      p_is_active: teamContentActiveInput.checked,
-      p_notify_members:
-        teamContentManagerKind === 'announcement' &&
-        teamContentNotifyInput.checked
-    }
-
-    const rpcName =
-      teamContentEditingId == null
-        ? 'atlas_team_content_create'
-        : 'atlas_team_content_update'
-
-    if (teamContentEditingId != null) {
-      params.p_content_id = Number(teamContentEditingId)
-    }
-
-    const { error } = await supabase.rpc(rpcName, params)
-    if (error) throw error
-
-    await loadTeamContext()
-
-    resetTeamContentEditor()
-    renderTeamContentManager()
-    renderAll()
-
-    teamContentEditorStatus.textContent = 'Salvat.'
-  } catch (error) {
-    console.error('Private team content save failed:', error)
-    teamContentEditorStatus.textContent =
-      error?.message || 'Conținutul nu a putut fi salvat.'
-    alert(error?.message || 'Conținutul nu a putut fi salvat.')
-  } finally {
-    setTeamContentBusy(false)
-  }
-}
-
-async function deleteTeamContent() {
-  if (
-    !currentUser ||
-    teamContentEditingId == null ||
-    teamContentMutationBusy
-  ) {
-    return
-  }
-
-  const item = currentTeamPrivateContent().find(
-    (entry) => Number(entry.id) === Number(teamContentEditingId)
-  )
-
-  if (!item || !canManageTeamContentItem(item)) return
-
-  if (!confirm(`Ștergi „${item.title}”?`)) return
-
-  setTeamContentBusy(true)
-  teamContentEditorStatus.textContent = 'Se șterge...'
-
-  try {
-    const { error } = await supabase.rpc('atlas_team_content_delete', {
-      p_project_id: PROJECT_ID,
-      p_team_id: Number(activeTeamId),
-      p_content_id: Number(item.id)
-    })
-
-    if (error) throw error
-
-    await loadTeamContext()
-
-    resetTeamContentEditor()
-    renderTeamContentManager()
-    renderAll()
-
-    teamContentEditorStatus.textContent = 'Șters.'
-  } catch (error) {
-    console.error('Private team content delete failed:', error)
-    teamContentEditorStatus.textContent =
-      error?.message || 'Conținutul nu a putut fi șters.'
-  } finally {
-    setTeamContentBusy(false)
-  }
+  teamAtlasSettingsBtn.hidden = !canManageCurrentTeam()
+  teamAtlasMembersBtn.hidden = !canManageTeamMembers()
 }
 
 function renderTeamSpace() {
@@ -4104,16 +3250,6 @@ function renderTeamSpace() {
   const teamTitle = team.teamNumber
     ? `${team.name} #${team.teamNumber}`
     : team.name
-
-  const workspaceBody =
-    activeTeamWorkspaceTab === 'overview'
-      ? renderTeamOverview(
-          membership,
-          ownDepartments,
-          enabledDepartments,
-          members
-        )
-      : renderTeamPrivateContent(activeTeamWorkspaceTab)
 
   return `
     <div class="public-hub-inner">
@@ -4163,15 +3299,8 @@ function renderTeamSpace() {
         <span class="public-hub-chip">${escapeHtmlText(
           teamRoleLabel(membership.role)
         )}</span>
-        <span class="public-hub-chip">${
-          members.filter((member) => member.status === 'active').length
-        } members</span>
+        <span class="public-hub-chip">${members.length} members</span>
         <span class="public-hub-chip">${enabledDepartments.length} departments</span>
-        ${
-          memberCanSeeAllDepartmentContent()
-            ? '<span class="public-hub-chip">All department content</span>'
-            : ''
-        }
       </div>
 
       <div class="public-hub-actions">
@@ -4184,37 +3313,118 @@ function renderTeamSpace() {
         }
       </div>
 
-      <div class="team-workspace-tabs">
-        ${[
-          ['overview', 'Overview'],
-          ['announcements', 'Announcements'],
-          ['resources', 'Resources'],
-          ['notes', 'Notes']
-        ]
-          .map(
-            ([tab, label]) => `
-              <button
-                class="team-workspace-tab ${
-                  activeTeamWorkspaceTab === tab ? 'active' : ''
-                }"
-                type="button"
-                data-team-workspace-tab="${tab}"
-              >
-                ${label}
-              </button>
-            `
-          )
-          .join('')}
+      <div class="team-space-grid">
+        ${renderTeamOnboardingCard(membership)}
+        <article class="team-space-card">
+          <span class="team-space-card-label">Rolul tău</span>
+          <h3>${escapeHtmlText(teamRoleLabel(membership.role))}</h3>
+          <p>
+            Permisiunile Team Space sunt separate de drepturile de editor ale Atlasului public.
+          </p>
+
+          <div class="team-space-chips">
+            ${
+              ownDepartments.length > 0
+                ? ownDepartments
+                    .map(
+                      (department) =>
+                        `<span class="team-space-chip">${escapeHtmlText(
+                          department.short_name || department.name
+                        )}</span>`
+                    )
+                    .join('')
+                : '<span class="team-space-chip">Universal / team-wide</span>'
+            }
+          </div>
+        </article>
+
+        <article class="team-space-card">
+          <span class="team-space-card-label">Departamente active</span>
+          <h3>Structura echipei</h3>
+          <p>
+            Acestea sunt departamentele activate momentan pentru Team Space.
+          </p>
+
+          <div class="team-space-chips">
+            ${
+              enabledDepartments.length > 0
+                ? enabledDepartments
+                    .map(
+                      (department) =>
+                        `<span class="team-space-chip">${escapeHtmlText(
+                          department.short_name || department.name
+                        )}</span>`
+                    )
+                    .join('')
+                : '<span class="team-space-chip">Niciun departament configurat</span>'
+            }
+          </div>
+        </article>
+
+        <article class="team-space-card wide">
+          <span class="team-space-card-label">Members</span>
+          <h3>${members.length} membri activi</h3>
+
+          <div class="team-member-list">
+            ${members
+              .map((member) => {
+                const departmentNames = membershipDepartmentIds(member.id)
+                  .map((id) => getDepartmentById(id)?.short_name || getDepartmentById(id)?.name)
+                  .filter(Boolean)
+
+                const fallbackName =
+                  member.userId === currentUser?.id
+                    ? currentUser?.email || 'You'
+                    : 'Team member'
+
+                return `
+                  <div class="team-member-row">
+                    <div>
+                      <strong>${escapeHtmlText(
+                        member.displayName || fallbackName
+                      )}</strong>
+                      <span>${
+                        departmentNames.length > 0
+                          ? escapeHtmlText(departmentNames.join(' · '))
+                          : 'Team-wide'
+                      }</span>
+                    </div>
+
+                    <span class="team-member-role">${escapeHtmlText(
+                      teamRoleLabel(member.role)
+                    )}</span>
+                  </div>
+                `
+              })
+              .join('')}
+          </div>
+        </article>
+
+        <article class="team-space-card">
+          <span class="team-space-card-label">Private workspace</span>
+          <h3>Team-only content</h3>
+          <p>
+            Fundația este pregătită pentru note private, resurse interne și team roadmaps.
+            Acestea vor fi adăugate în fazele următoare.
+          </p>
+        </article>
+
+        <article class="team-space-card">
+          <span class="team-space-card-label">Coordination</span>
+          <h3>Announcements & tasks</h3>
+          <p>
+            Următoarea extensie poate adăuga anunțuri interne, notificări și coordonare pe departamente.
+          </p>
+        </article>
       </div>
 
-      ${workspaceBody}
-
       <div class="team-privacy-note">
-        Team Space este privat. Team Leader și Mentor pot vedea toate departamentele; Coordinator și Member văd team-wide + departamentele asignate. Editarea este limitată separat prin rol.
+        Team Space este privat. Datele de aici sunt citibile doar de membrii activi ai echipei și de editorii platformei autorizați.
       </div>
     </div>
   `
 }
+
 
 function pendingInviteToken() {
   return localStorage.getItem(CACHE_KEYS.pendingTeamInvite) || ''
@@ -4423,8 +3633,8 @@ function teamOnboardingProfile(role) {
           'Roadmap-urile sunt trasee orientative; orice nod public rămâne accesibil.'
         ],
         [
-          'Folosește workspace-ul privat',
-          'Poți publica announcements, resources și notes în departamentele pe care le coordonezi.'
+          'Pregătește coordonarea internă',
+          'Fazele următoare vor adăuga resurse private, announcements și task-uri pe departamente.'
         ]
       ]
     },
@@ -4443,7 +3653,7 @@ function teamOnboardingProfile(role) {
         ],
         [
           'Contribuie prin ghidaj',
-          'Poți consulta announcements, resources și notes din toate departamentele echipei.'
+          'Spațiul privat va putea găzdui ulterior note și resurse interne pentru echipă.'
         ]
       ]
     },
@@ -4461,8 +3671,8 @@ function teamOnboardingProfile(role) {
           'Poți deschide orice nod și urma roadmaps fără sistem de unlock.'
         ],
         [
-          'Folosește Team Space',
-          'Poți consulta conținutul team-wide și materialele private din departamentele tale.'
+          'Salvează progresul',
+          'Roadmap progress este personal și sincronizat cu contul tău.'
         ]
       ]
     }
@@ -5111,19 +4321,23 @@ function resetTeamSetupForm({ createMode = false } = {}) {
   const team = currentTeamRecord()
   const membership = currentTeamMembership()
 
-  if (!teamSetupCreateMode && team && membership) {
+  if (!teamSetupCreateMode && team && (membership || canEdit)) {
+    const roleLabel = membership
+      ? teamRoleLabel(membership.role)
+      : 'Platform Admin'
+
     teamSetupCurrent.innerHTML = `
       <strong>${escapeHtmlText(
         team.teamNumber ? `${team.name} #${team.teamNumber}` : team.name
       )}</strong><br>
-      ${escapeHtmlText(teamRoleLabel(membership.role))}
+      ${escapeHtmlText(roleLabel)}
     `
 
     teamNameInput.value = team.name || ''
     teamNumberInput.value = team.teamNumber || ''
     teamDescriptionInput.value = team.description || ''
     teamDisplayNameInput.value =
-      membership.displayName ||
+      membership?.displayName ||
       (currentUser?.email ? currentUser.email.split('@')[0] : '')
 
     renderTeamSetupDepartmentPicker(currentTeamDepartmentIds())
@@ -5238,7 +4452,7 @@ async function saveTeamSetup() {
       const team = currentTeamRecord()
       const membership = currentTeamMembership()
 
-      if (!team || !membership) {
+      if (!team || (!membership && !canEdit)) {
         throw new Error('Nu există o echipă activă pentru editare.')
       }
 
@@ -5277,7 +4491,7 @@ function publicSectionLabel(section) {
     roadmaps: 'Roadmaps',
     resources: 'Resources',
     announcements: 'Announcements',
-    team: 'Team Space'
+    team: 'Team Atlas'
   }
 
   return labels[section] || 'Explore'
@@ -5289,7 +4503,7 @@ function publicSectionEyebrow(section) {
     roadmaps: 'Parcursuri recomandate',
     resources: 'Resurse utile',
     announcements: 'Anunțuri universale',
-    team: 'Spațiul echipei'
+    team: 'Documentația echipei'
   }
 
   return labels[section] || labels.explore
@@ -5298,12 +4512,18 @@ function publicSectionEyebrow(section) {
 function selectPublicSection(section) {
   if (!PUBLIC_SECTIONS.has(section)) return
 
+  if (section === 'team' && !currentTeamRecord()) {
+    setAccountPanel(true)
+    return
+  }
+
   activePublicSection = section
   localStorage.setItem(CACHE_KEYS.publicSection, section)
 
+  syncActiveNodeCollection({ forceReset: true })
   renderAll()
 
-  if (section === 'explore') {
+  if (section === 'explore' || section === 'team') {
     requestAnimationFrame(fitView)
   }
 }
@@ -5312,12 +4532,13 @@ function renderPublicShell() {
   if (!appRoot || !publicSectionTabs || !publicHubPanel) return
 
   const isExplore = activePublicSection === 'explore'
-  const isGlobal =
-    activePublicSection === 'announcements' || activePublicSection === 'team'
+  const isTeamAtlas = activePublicSection === 'team'
+  const isMapSection = isExplore || isTeamAtlas
+  const isGlobal = activePublicSection === 'announcements'
   const department = getDepartmentById(activeDepartmentId)
   const departmentName = department?.name || 'Atlas'
 
-  appRoot.classList.toggle('public-section-open', !isExplore)
+  appRoot.classList.toggle('public-section-open', !isMapSection)
   appRoot.dataset.publicSection = activePublicSection
 
   atlasNavigation?.classList.toggle('global-section', isGlobal)
@@ -5333,18 +4554,13 @@ function renderPublicShell() {
     atlasNavigationEyebrow.textContent = publicSectionEyebrow(activePublicSection)
   }
 
-  if (isExplore) {
+  if (isMapSection) {
     publicHubPanel.classList.remove('open')
     publicHubPanel.innerHTML = ''
     return
   }
 
   publicHubPanel.classList.add('open')
-
-  if (activePublicSection === 'team') {
-    publicHubPanel.innerHTML = renderTeamSpace()
-    return
-  }
 
   if (activePublicSection === 'roadmaps') {
     publicHubPanel.innerHTML = `
@@ -5438,16 +4654,8 @@ function setAccountPanel(open) {
   accountBtn.classList.toggle('active', shouldOpen)
   accountBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false')
 
-  if (shouldOpen) {
-    if (notificationPanel && !notificationPanel.hidden) {
-      notificationPanel.hidden = true
-      notificationBtn?.classList.remove('active')
-      notificationBtn?.setAttribute('aria-expanded', 'false')
-    }
-
-    if (toolPanel?.classList.contains('collapsed')) {
-      togglePanel(false)
-    }
+  if (shouldOpen && toolPanel?.classList.contains('collapsed')) {
+    togglePanel(false)
   }
 }
 
@@ -6201,7 +5409,7 @@ function renderNodeMediaGallery(node) {
   const mediaItems = Array.isArray(node.media) ? node.media : []
 
   if (mediaItems.length === 0) {
-    if (!canEdit || !editorMode) return ''
+    if (!canEdit || !editorMode || isTeamAtlasMode()) return ''
 
     return `
       <section class="node-media-section empty">
@@ -6225,7 +5433,7 @@ function renderNodeMediaGallery(node) {
           <h3>Screenshoturi și videoclipuri</h3>
         </div>
         ${
-          canEdit && editorMode
+          canEdit && editorMode && !isTeamAtlasMode()
             ? '<button class="btn" type="button" data-open-node-media>Administrează</button>'
             : ''
         }
@@ -6321,7 +5529,7 @@ function renderNodeFiles(node) {
   const files = Array.isArray(node.files) ? node.files : []
 
   if (files.length === 0) {
-    if (!canEdit || !editorMode) return ''
+    if (!canEdit || !editorMode || isTeamAtlasMode()) return ''
 
     return `
       <section class="node-files-section empty">
@@ -6375,7 +5583,7 @@ function renderNodeFiles(node) {
           <span>fișiere</span>
           <h3>Fișiere și foldere · ${files.length}</h3>
         </div>
-        ${canEdit && editorMode ? '<button class="btn" type="button" data-open-node-files>Administrează</button>' : ''}
+        ${canEdit && editorMode && !isTeamAtlasMode() ? '<button class="btn" type="button" data-open-node-files>Administrează</button>' : ''}
       </div>
       ${groupsHtml}
     </section>
@@ -6438,7 +5646,7 @@ function renderNodeCodeSnippets(node) {
   const snippets = Array.isArray(node.codeSnippets) ? node.codeSnippets : []
 
   if (snippets.length === 0) {
-    if (!canEdit || !editorMode) return ''
+    if (!canEdit || !editorMode || isTeamAtlasMode()) return ''
 
     return `
       <section class="node-code-section empty">
@@ -6462,7 +5670,7 @@ function renderNodeCodeSnippets(node) {
           <h3>Snippet-uri de cod</h3>
         </div>
         ${
-          canEdit && editorMode
+          canEdit && editorMode && !isTeamAtlasMode()
             ? '<button class="btn" type="button" data-open-node-code>Administrează</button>'
             : ''
         }
@@ -6685,8 +5893,7 @@ function isAnyModalOpen() {
     roadmapManagerBackdrop?.classList.contains('open') ||
     teamSetupBackdrop?.classList.contains('open') ||
     teamMembersBackdrop?.classList.contains('open') ||
-    teamOnboardingBackdrop?.classList.contains('open') ||
-    teamContentManagerBackdrop?.classList.contains('open')
+    teamOnboardingBackdrop?.classList.contains('open')
   )
 }
 
@@ -7480,7 +6687,7 @@ function updateUndoRedoButtons() {
 
 // Supabase-backed Undo and Redo
 async function undo() {
-  if (!canEdit || !editorMode) return
+  if (!canEdit || !editorMode || isTeamAtlasMode()) return
 
   const { data, error } = await supabase.rpc('atlas_undo', {
     p_project_id: PROJECT_ID
@@ -7502,7 +6709,7 @@ async function undo() {
 }
 
 async function redo() {
-  if (!canEdit || !editorMode) return
+  if (!canEdit || !editorMode || isTeamAtlasMode()) return
 
   const { data, error } = await supabase.rpc('atlas_redo', {
     p_project_id: PROJECT_ID
@@ -7770,8 +6977,9 @@ async function fetchAllData() {
   const codeData = codeResult.data || []
 
   if (nodesData.length === 0) {
-    nodes = []
-    selectedId = null
+    publicNodes = []
+    syncActiveNodeCollection()
+    selectedId = nodes[0]?.id ?? null
     selectedEdge = null
     selectedEdgePointIndex = null
     detailOpen = false
@@ -7866,8 +7074,10 @@ async function fetchAllData() {
     })
   }
 
-  nodes = nodesData.map((node) => ({
+  publicNodes = nodesData.map((node) => ({
     id: Number(node.id),
+    isTeamNode: false,
+    teamId: null,
     title: node.title,
     legacyTag: node.tag,
     categoryId: node.category_id == null ? null : Number(node.category_id),
@@ -7886,6 +7096,7 @@ async function fetchAllData() {
     codeSnippets: codeByNode.get(Number(node.id)) || []
   }))
 
+  syncActiveNodeCollection()
   ensureNodePositions()
   normalizeSelectionAfterFilters()
 
@@ -7939,6 +7150,25 @@ function normalizeRpcRow(data, entityName) {
 }
 
 async function createNodeRemote(node) {
+  if (isTeamAtlasMode()) {
+    const { data, error } = await supabase.rpc('atlas_team_node_create', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(activeTeamId),
+      p_department_id: Number(node.departmentId),
+      p_title: node.title,
+      p_category_id: node.categoryId,
+      p_difficulty_id: node.difficultyId,
+      p_tag_ids: node.tagIds || [],
+      p_x: Number(node.x),
+      p_y: Number(node.y),
+      p_content: node.content,
+      p_content_format: node.contentFormat || 'html'
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Nodul de echipă creat')
+  }
+
   const { data, error } = await supabase.rpc('atlas_create_node_v3', {
     p_project_id: PROJECT_ID,
     p_title: node.title,
@@ -7956,6 +7186,26 @@ async function createNodeRemote(node) {
 }
 
 async function updateNodeRemote(node) {
+  if (node?.isTeamNode || isTeamAtlasMode()) {
+    const { data, error } = await supabase.rpc('atlas_team_node_update', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_node_id: Number(node.id),
+      p_department_id: Number(node.departmentId),
+      p_title: node.title,
+      p_category_id: node.categoryId,
+      p_difficulty_id: node.difficultyId,
+      p_tag_ids: node.tagIds || [],
+      p_x: Number(node.x),
+      p_y: Number(node.y),
+      p_content: node.content,
+      p_content_format: node.contentFormat || 'html'
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, `Nodul de echipă ${node.id}`)
+  }
+
   const { data, error } = await supabase.rpc('atlas_update_node_v3', {
     p_project_id: PROJECT_ID,
     p_node_id: Number(node.id),
@@ -7974,6 +7224,23 @@ async function updateNodeRemote(node) {
 }
 
 async function deleteNodeRemote(nodeId) {
+  const node = findNode(nodeId)
+
+  if (node?.isTeamNode || isTeamAtlasMode()) {
+    const { data, error } = await supabase.rpc('atlas_team_node_delete', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node?.teamId || activeTeamId),
+      p_node_id: Number(nodeId)
+    })
+
+    if (error) throw error
+    if (!data?.ok) {
+      throw new Error(`Nodul de echipă ${nodeId} nu a fost șters.`)
+    }
+
+    return data
+  }
+
   const { data, error } = await supabase.rpc('atlas_delete_node_v2', {
     p_project_id: PROJECT_ID,
     p_node_id: Number(nodeId)
@@ -8225,6 +7492,19 @@ async function replaceAndDeleteTaxonomyItemRemote(kind, itemId, replacementId) {
 }
 
 async function insertEdgeRemote(sourceId, targetId, label) {
+  if (isTeamAtlasMode()) {
+    const { data, error } = await supabase.rpc('atlas_team_edge_create', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(activeTeamId),
+      p_source_id: Number(sourceId),
+      p_target_id: Number(targetId),
+      p_label: label
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Muchia de echipă creată')
+  }
+
   const { data, error } = await supabase.rpc('atlas_create_edge', {
     p_project_id: PROJECT_ID,
     p_source_id: Number(sourceId),
@@ -8233,11 +7513,23 @@ async function insertEdgeRemote(sourceId, targetId, label) {
   })
 
   if (error) throw error
-
   return normalizeRpcRow(data, 'Muchia creată')
 }
 
 async function updateEdgeRemote(sourceId, targetId, label) {
+  if (isTeamAtlasMode()) {
+    const { data, error } = await supabase.rpc('atlas_team_edge_update', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(activeTeamId),
+      p_source_id: Number(sourceId),
+      p_target_id: Number(targetId),
+      p_label: label
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Muchia de echipă actualizată')
+  }
+
   const { data, error } = await supabase.rpc('atlas_update_edge', {
     p_project_id: PROJECT_ID,
     p_source_id: Number(sourceId),
@@ -8246,12 +7538,27 @@ async function updateEdgeRemote(sourceId, targetId, label) {
   })
 
   if (error) throw error
-
   return normalizeRpcRow(data, 'Muchia actualizată')
 }
 
 async function updateEdgeControlPointsRemote(sourceId, targetId, controlPoints) {
   const points = normalizeEdgeControlPoints(controlPoints)
+
+  if (isTeamAtlasMode()) {
+    const { data, error } = await supabase.rpc(
+      'atlas_team_edge_update_control_points',
+      {
+        p_project_id: PROJECT_ID,
+        p_team_id: Number(activeTeamId),
+        p_source_id: Number(sourceId),
+        p_target_id: Number(targetId),
+        p_control_points: points
+      }
+    )
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Traseul muchiei de echipă')
+  }
 
   const { data, error } = await supabase.rpc('atlas_update_edge_control_points', {
     p_project_id: PROJECT_ID,
@@ -8265,6 +7572,19 @@ async function updateEdgeControlPointsRemote(sourceId, targetId, controlPoints) 
 }
 
 async function deleteEdgeRemote(sourceId, targetId) {
+  if (isTeamAtlasMode()) {
+    const { data, error } = await supabase.rpc('atlas_team_edge_delete', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(activeTeamId),
+      p_source_id: Number(sourceId),
+      p_target_id: Number(targetId)
+    })
+
+    if (error) throw error
+    if (!data?.ok) throw new Error('Muchia de echipă nu a fost ștearsă.')
+    return data
+  }
+
   const { data, error } = await supabase.rpc('atlas_delete_edge', {
     p_project_id: PROJECT_ID,
     p_source_id: Number(sourceId),
@@ -8281,6 +7601,21 @@ async function deleteEdgeRemote(sourceId, targetId) {
 }
 
 async function updateNodeGeometryRemote(node) {
+  if (node?.isTeamNode || isTeamAtlasMode()) {
+    const { data, error } = await supabase.rpc('atlas_team_node_update_geometry', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_node_id: Number(node.id),
+      p_x: Number(node.x),
+      p_y: Number(node.y),
+      p_width: node.width == null ? null : Number(node.width),
+      p_height: node.height == null ? null : Number(node.height)
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Geometria nodului de echipă')
+  }
+
   const { data, error } = await supabase.rpc('atlas_update_node_geometry', {
     p_project_id: PROJECT_ID,
     p_node_id: Number(node.id),
@@ -8554,7 +7889,7 @@ function runKeyboardNodeMovementFrame(now) {
 }
 
 function startKeyboardNodeMovement(key) {
-  if (!canEdit || !editorMode || isAnyModalOpen() || selectedEdge) return false
+  if (!canEditCurrentAtlas() || !editorMode || isAnyModalOpen() || selectedEdge) return false
 
   const node = selectedNode()
 
@@ -8600,7 +7935,7 @@ function startKeyboardNodeMovement(key) {
 }
 
 async function nudgeSelectedNode(dx, dy) {
-  if (!canEdit || !editorMode) return
+  if (!canEditCurrentAtlas() || !editorMode) return
 
   const node = selectedNode()
 
@@ -8646,7 +7981,7 @@ async function nudgeSelectedNode(dx, dy) {
 }
 
 async function resizeSelectedNode(deltaWidth, deltaHeight) {
-  if (!canEdit || !editorMode || selectedEdge) return
+  if (!canEditCurrentAtlas() || !editorMode || selectedEdge) return
 
   const node = selectedNode()
   if (!node) return
@@ -8694,7 +8029,7 @@ async function resizeSelectedNode(deltaWidth, deltaHeight) {
 }
 
 async function resetSelectedNodeSize() {
-  if (!canEdit || !editorMode || selectedEdge) return
+  if (!canEditCurrentAtlas() || !editorMode || selectedEdge) return
 
   const node = selectedNode()
   if (!node) return
@@ -8732,15 +8067,35 @@ async function resetSelectedNodeSize() {
 // Authentication, permissions and Editor Mode
 function updateAuthUI() {
   renderTeamInvites()
-  renderNotificationCenter()
 
   if (accountBtn) {
     accountBtn.textContent = currentUser ? 'Profil' : 'Cont'
     accountBtn.title = currentUser?.email || 'Login'
   }
 
+  const currentAtlasEditable = canEditCurrentAtlas()
+  const editorActive = currentAtlasEditable && editorMode
+  const publicAdminEditorActive = canEdit && editorMode && !isTeamAtlasMode()
+
   if (!currentUser) {
     authStatusBox.innerHTML = 'Neautentificat. Atlasul este în Reader Mode.'
+  } else if (isTeamAtlasMode()) {
+    const membership = currentTeamMembership()
+    const role = membership
+      ? teamRoleLabel(membership.role)
+      : canEdit
+        ? 'Platform Admin'
+        : 'Member'
+
+    if (editorActive) {
+      authStatusBox.innerHTML = `<strong>Team Atlas · Editor Mode</strong><br>${escapeHtml(
+        currentTeamRecord()?.name || 'Team'
+      )} · ${escapeHtml(role)}`
+    } else {
+      authStatusBox.innerHTML = `<strong>Team Atlas</strong><br>${escapeHtml(
+        currentTeamRecord()?.name || 'Team'
+      )} · ${escapeHtml(role)}`
+    }
   } else if (canEdit && editorMode) {
     authStatusBox.innerHTML = `<strong>Editor Mode activ</strong><br>${escapeHtml(currentUser.email)}`
   } else if (canEdit) {
@@ -8749,34 +8104,33 @@ function updateAuthUI() {
     authStatusBox.innerHTML = `<strong>Logat doar pentru view:</strong><br>${escapeHtml(currentUser.email)}`
   }
 
-  if (!canEdit && editorMode) {
+  if (!canUseEditorModeAnywhere() && editorMode) {
     editorMode = false
-
     localStorage.setItem(CACHE_KEYS.editorMode, '0')
   }
 
-  const editorActive = canEdit && editorMode
-
   const editorBlocked = isAtlasLoading || !editorActive
-
   const hasSelectedNode = Boolean(selectedNode())
-
   const hasNodes = nodes.length > 0
 
-  editorModeBtn.hidden = !canEdit
-
+  editorModeBtn.hidden = !currentAtlasEditable
   editorModeBtn.textContent = editorMode ? 'Ieși din Editor' : 'Editor mode'
+  editorModeBtn.classList.toggle('active', editorMode && currentAtlasEditable)
 
-  editorModeBtn.classList.toggle('active', editorMode)
+  editorToolsSection.hidden = !publicAdminEditorActive
+  taxonomyManagerBtn.disabled = !publicAdminEditorActive || isAtlasLoading
+  publicContentManagerBtn.disabled = !publicAdminEditorActive || isAtlasLoading
+  roadmapManagerBtn.disabled = !publicAdminEditorActive || isAtlasLoading
+  if (teamSetupBtn) {
+    teamSetupBtn.disabled = !publicAdminEditorActive || isAtlasLoading
+  }
 
-  editorToolsSection.hidden = !editorActive
-  taxonomyManagerBtn.disabled = editorBlocked
-  publicContentManagerBtn.disabled = editorBlocked
-  roadmapManagerBtn.disabled = editorBlocked
-  teamSetupBtn.disabled = editorBlocked
-  mediaManagerBtn.disabled = editorBlocked || !hasSelectedNode
-  fileManagerBtn.disabled = editorBlocked || !hasSelectedNode
-  codeManagerBtn.disabled = editorBlocked || !hasSelectedNode
+  mediaManagerBtn.disabled =
+    editorBlocked || !hasSelectedNode || isTeamAtlasMode()
+  fileManagerBtn.disabled =
+    editorBlocked || !hasSelectedNode || isTeamAtlasMode()
+  codeManagerBtn.disabled =
+    editorBlocked || !hasSelectedNode || isTeamAtlasMode()
 
   const selectedHasUnsavedPosition =
     editorActive &&
@@ -8789,31 +8143,31 @@ function updateAuthUI() {
     ? 'Se salvează poziția...'
     : 'Salvează poziția · F'
 
-  if (!editorActive && isTaxonomyManagerOpen()) {
+  if (!publicAdminEditorActive && isTaxonomyManagerOpen()) {
     closeTaxonomyManager()
   }
 
-  if (!editorActive && isMediaManagerOpen()) {
+  if ((!publicAdminEditorActive || isTeamAtlasMode()) && isMediaManagerOpen()) {
     closeMediaManager()
   }
 
-  if (!editorActive && isFileManagerOpen()) {
+  if ((!publicAdminEditorActive || isTeamAtlasMode()) && isFileManagerOpen()) {
     closeFileManager()
   }
 
-  if (!editorActive && isCodeManagerOpen()) {
+  if ((!publicAdminEditorActive || isTeamAtlasMode()) && isCodeManagerOpen()) {
     closeCodeManager()
   }
 
-  if (!editorActive && isPublicContentManagerOpen()) {
+  if (!publicAdminEditorActive && isPublicContentManagerOpen()) {
     closePublicContentManager()
   }
 
-  if (!editorActive && isRoadmapManagerOpen()) {
+  if (!publicAdminEditorActive && isRoadmapManagerOpen()) {
     closeRoadmapManager()
   }
 
-  if (isTeamSetupOpen() && !canManageCurrentTeam() && !editorActive) {
+  if (isTeamSetupOpen() && !canManageCurrentTeam() && !publicAdminEditorActive) {
     closeTeamSetup()
   }
 
@@ -8821,16 +8175,9 @@ function updateAuthUI() {
     closeTeamMembersManager()
   }
 
-  if (isTeamContentManagerOpen() && !canManageAnyTeamContent()) {
-    closeTeamContentManager()
-  }
-
   createBtn.disabled = editorBlocked
-
   editBtn.disabled = editorBlocked || !hasSelectedNode
-
   deleteBtn.disabled = editorBlocked || !hasSelectedNode
-
   relationBtn.disabled = editorBlocked || !hasNodes
 
   const edgeInfo = selectedEdgeInfo()
@@ -8839,16 +8186,16 @@ function updateAuthUI() {
   addEdgePointBtn.disabled =
     editorBlocked || !selectedEdge || edgePointCount >= MAX_EDGE_CONTROL_POINTS
 
-  removeEdgePointBtn.disabled = editorBlocked || !selectedEdge || edgePointCount === 0
+  removeEdgePointBtn.disabled =
+    editorBlocked || !selectedEdge || edgePointCount === 0
 
-  resetEdgePathBtn.disabled = editorBlocked || !selectedEdge || edgePointCount === 0
+  resetEdgePathBtn.disabled =
+    editorBlocked || !selectedEdge || edgePointCount === 0
 
   editEdgeBtn.disabled = editorBlocked || !selectedEdge
-
   deleteEdgeBtn.disabled = editorBlocked || !selectedEdge
 
   logoutBtn.disabled = !currentUser
-
   searchInput.disabled = isAtlasLoading
   categoryFilter.disabled = isAtlasLoading
   difficultyFilter.disabled = isAtlasLoading
@@ -8859,16 +8206,13 @@ function updateAuthUI() {
   })
 
   zoomInBtn.disabled = isAtlasLoading || !hasNodes
-
   zoomOutBtn.disabled = isAtlasLoading || !hasNodes
-
   fitBtn.disabled = isAtlasLoading || !hasNodes
-
-  fitSelectionBtn.disabled = isAtlasLoading || (!selectedEdge && !hasSelectedNode)
-
+  fitSelectionBtn.disabled =
+    isAtlasLoading || (!selectedEdge && !hasSelectedNode)
   resetViewBtn.disabled = isAtlasLoading
 
-  if (isAtlasLoading || !editorActive) {
+  if (isAtlasLoading || !publicAdminEditorActive || isTeamAtlasMode()) {
     undoBtn.disabled = true
     redoBtn.disabled = true
   }
@@ -8879,13 +8223,16 @@ function updateAuthUI() {
 }
 
 function setEditorMode(nextValue) {
-  if (nextValue && !canEdit) {
-    alert('Trebuie să fii autentificat ca editor.')
+  if (nextValue && !canEditCurrentAtlas()) {
+    alert(
+      isTeamAtlasMode()
+        ? 'Rolul tău nu permite editarea documentației acestei echipe.'
+        : 'Trebuie să fii autentificat ca editor.'
+    )
     return
   }
 
   editorMode = Boolean(nextValue)
-
   localStorage.setItem(CACHE_KEYS.editorMode, editorMode ? '1' : '0')
 
   if (!editorMode) {
@@ -8918,8 +8265,12 @@ function setEditorMode(nextValue) {
 }
 
 function requireAuth() {
-  if (!canEdit) {
-    alert('Doar editorii aprobați pot modifica atlasul.')
+  if (!canEditCurrentAtlas()) {
+    alert(
+      isTeamAtlasMode()
+        ? 'Doar Team Leader, Department Coordinator, Mentor sau Platform Admin poate modifica Team Atlas.'
+        : 'Doar editorii aprobați pot modifica atlasul public.'
+    )
     return false
   }
 
@@ -8949,7 +8300,6 @@ async function refreshSession() {
   await refreshEditorAccess()
   await loadRoadmapProgress()
   await loadTeamContext()
-  await loadNotifications({ render: false })
 
   updateAuthUI()
   maybeOpenPendingTeamInvite()
@@ -9046,7 +8396,7 @@ function handleEdgePick(sourceId, targetId) {
   edgeClickState = { key: edgeKey, time: now }
   selectEdge(sourceId, targetId)
 
-  if (isDouble && canEdit && editorMode) {
+  if (isDouble && canEditCurrentAtlas() && editorMode) {
     openSelectedEdgeEdit()
   }
 }
@@ -9207,7 +8557,7 @@ function edgeWorldPoint(clientX, clientY) {
 }
 
 function startEdgeControlDrag(event, sourceId, targetId, pointIndex) {
-  if (!canEdit || !editorMode) return
+  if (!canEditCurrentAtlas() || !editorMode) return
   if (event.button !== 0 && event.pointerType !== 'touch') return
 
   const info = getEdgeInfo(sourceId, targetId)
@@ -9350,7 +8700,7 @@ function findEdgePointInsertion(source, target, controlPoints) {
 }
 
 async function addEdgeControlPoint() {
-  if (!canEdit || !editorMode) return
+  if (!canEditCurrentAtlas() || !editorMode) return
 
   const info = selectedEdgeInfo()
   if (!info) {
@@ -9393,7 +8743,7 @@ async function addEdgeControlPoint() {
 }
 
 async function removeSelectedEdgeControlPoint() {
-  if (!canEdit || !editorMode) return
+  if (!canEditCurrentAtlas() || !editorMode) return
 
   const info = selectedEdgeInfo()
   if (!info) {
@@ -9440,7 +8790,7 @@ async function removeSelectedEdgeControlPoint() {
 }
 
 async function resetEdgeControl(sourceId, targetId) {
-  if (!canEdit || !editorMode) return
+  if (!canEditCurrentAtlas() || !editorMode) return
 
   const info = getEdgeInfo(sourceId, targetId)
   if (!info) return
@@ -9531,7 +8881,7 @@ function renderLinks() {
         : `animation: circuitFlow ${duration}s linear infinite, circuitPulse 2s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(177,76,255,0.28));`
 
       const editorControl =
-        edgeSelected && canEdit && editorMode
+        edgeSelected && canEditCurrentAtlas() && editorMode
           ? `
           <path
             class="edge-control-guide"
@@ -9666,7 +9016,7 @@ function renderNodes() {
 
     const tagNames = nodeTagNames(node)
     const resizeHandles =
-      canEdit && editorMode && node.id === selectedId
+      canEditCurrentAtlas() && editorMode && node.id === selectedId
         ? `
         <span class="node-resize-handle east" data-node-resize="e" aria-hidden="true"></span>
         <span class="node-resize-handle south" data-node-resize="s" aria-hidden="true"></span>
@@ -9680,7 +9030,7 @@ function renderNodes() {
           <span class="pill category-pill">${escapeHtml(nodeCategoryName(node))}</span>
           <span class="pill difficulty-pill">${escapeHtml(nodeDifficultyName(node))}</span>
         </div>
-        ${node.id === selectedId ? `<span class="open-mark">${canEdit && editorMode ? '2× open' : 'open'}</span>` : ''}
+        ${node.id === selectedId ? `<span class="open-mark">${canEditCurrentAtlas() && editorMode ? '2× open' : 'open'}</span>` : ''}
       </div>
       <h3 class="node-title">${escapeHtml(node.title)}</h3>
       <p class="node-preview">${escapeHtml(nodeContentPlainText(node))}</p>
@@ -9751,7 +9101,7 @@ function renderNodes() {
 
         if (interactionMode !== 'drag') return
       } else {
-        if (!canEdit || !editorMode) return
+        if (!canEditCurrentAtlas() || !editorMode) return
         if (!moved && distance < DRAG_THRESHOLD) return
         interactionMode = 'drag'
       }
@@ -9791,7 +9141,7 @@ function renderNodes() {
         return
       }
 
-      if (!canEdit || !editorMode || interactionMode !== 'drag') {
+      if (!canEditCurrentAtlas() || !editorMode || interactionMode !== 'drag') {
         renderAll()
         return
       }
@@ -9870,7 +9220,7 @@ function renderNodes() {
       moved = false
       interactionMode = event.pointerType === 'touch' ? 'pending' : 'idle'
 
-      if (event.pointerType === 'touch' && canEdit && editorMode) {
+      if (event.pointerType === 'touch' && canEditCurrentAtlas() && editorMode) {
         touchLongPressTimer = window.setTimeout(() => {
           interactionMode = 'drag'
         }, MOBILE_LONG_PRESS_MS)
@@ -9887,7 +9237,7 @@ function renderNodes() {
 
     el.querySelectorAll('[data-node-resize]').forEach((handle) => {
       handle.addEventListener('pointerdown', (event) => {
-        if (!canEdit || !editorMode) return
+        if (!canEditCurrentAtlas() || !editorMode) return
         if (event.button !== 0 && event.pointerType !== 'touch') return
 
         event.preventDefault()
@@ -10008,7 +9358,7 @@ function renderSelectedStrip() {
         ${escapeHtml(info.link.label || 'relație')}<br>
         ${pointCount} ${pointCount === 1 ? 'punct de traseu' : 'puncte de traseu'}${selectedPointText}<br>
         ${
-          canEdit && editorMode
+          canEditCurrentAtlas() && editorMode
             ? 'Folosește „+ Punct muchie”, apoi trage fiecare punct numerotat.'
             : ''
         }
@@ -10043,10 +9393,29 @@ function renderSelectedStrip() {
 
 function renderModeStrip() {
   if (!relationMode.active) {
-    modeStrip.classList.remove('show')
-    modeStrip.innerHTML = ''
     relationBtn.classList.remove('active')
     relationBtn.textContent = 'Adaugă relație'
+
+    if (isTeamAtlasMode()) {
+      const membership = currentTeamMembership()
+      modeStrip.classList.add('show')
+      modeStrip.innerHTML = `
+        <strong>Team Atlas</strong><br>
+        ${escapeHtml(currentTeamRecord()?.name || 'Team')} ·
+        ${escapeHtml(
+          membership
+            ? teamRoleLabel(membership.role)
+            : canEdit
+              ? 'Platform Admin'
+              : 'Member'
+        )} ·
+        documentație privată
+      `
+      return
+    }
+
+    modeStrip.classList.remove('show')
+    modeStrip.innerHTML = ''
     return
   }
 
@@ -11465,6 +10834,7 @@ function renderDetailPanel() {
 }
 
 function renderAll() {
+  syncActiveNodeCollection()
   normalizeSelectionAfterFilters()
   renderTaxonomyControls()
   renderDepartmentNavigation()
@@ -11576,12 +10946,15 @@ function openModal(mode) {
 
   if (mode === 'node' || mode === 'tutorial') {
     nodeFields.style.display = mode === 'tutorial' ? 'none' : 'grid'
+    teamNodeDepartmentField.hidden =
+      mode !== 'node' || !isTeamAtlasMode()
     nodeTagsField.style.display = mode === 'tutorial' ? 'none' : 'block'
     nodeContentField.style.display = 'block'
     relationTargetField.style.display = 'none'
     relationLabelField.style.display = 'none'
   } else {
     nodeFields.style.display = 'none'
+    teamNodeDepartmentField.hidden = true
     nodeTagsField.style.display = 'none'
     nodeContentField.style.display = 'none'
     relationTargetField.style.display = 'block'
@@ -11612,6 +10985,11 @@ function openCreate() {
   const defaultDifficultyId = difficulties.find((item) => item.is_active !== false)?.id || null
 
   populateNodeTaxonomyFields(defaultCategoryId, defaultDifficultyId)
+
+  if (isTeamAtlasMode()) {
+    populateTeamNodeDepartmentSelect(activeDepartmentId)
+  }
+
   nodeTagDraft = new Set()
   renderNodeTagPicker()
 
@@ -11638,6 +11016,11 @@ function openEdit(id) {
   titleInput.value = node.title
 
   populateNodeTaxonomyFields(node.categoryId, node.difficultyId)
+
+  if (node.isTeamNode) {
+    populateTeamNodeDepartmentSelect(node.departmentId)
+  }
+
   nodeTagDraft = new Set((node.tagIds || []).map(Number))
   renderNodeTagPicker()
 
@@ -11735,6 +11118,9 @@ async function saveNode() {
   const categoryId = categoryInput.value ? Number(categoryInput.value) : null
   const difficultyId = difficultyInput.value ? Number(difficultyInput.value) : null
   const tagIds = Array.from(nodeTagDraft).map(Number)
+  const departmentId = isTeamAtlasMode()
+    ? Number(teamNodeDepartmentInput.value)
+    : null
   const content = getRichEditorHtml() || '<p>Fără documentație încă.</p>'
   const contentFormat = 'html'
 
@@ -11753,6 +11139,13 @@ async function saveNode() {
     return
   }
 
+  if (isTeamAtlasMode()) {
+    if (!departmentId || !canEditTeamDepartment(departmentId)) {
+      alert('Alege un departament pe care ai voie să îl editezi.')
+      return
+    }
+  }
+
   try {
     if (editingId == null) {
       const tempId = Date.now()
@@ -11768,6 +11161,7 @@ async function saveNode() {
         title,
         categoryId,
         difficultyId,
+        departmentId,
         tagIds,
         content,
         contentFormat,
@@ -11777,20 +11171,44 @@ async function saveNode() {
 
       const newNode = {
         id: Number(inserted.id),
+        isTeamNode: isTeamAtlasMode(),
+        teamId: isTeamAtlasMode() ? Number(activeTeamId) : null,
         title: inserted.title,
         legacyTag: inserted.tag,
-        categoryId: inserted.category_id == null ? categoryId : Number(inserted.category_id),
+        categoryId:
+          inserted.category_id == null ? categoryId : Number(inserted.category_id),
         difficultyId:
-          inserted.difficulty_id == null ? difficultyId : Number(inserted.difficulty_id),
+          inserted.difficulty_id == null
+            ? difficultyId
+            : Number(inserted.difficulty_id),
+        departmentId:
+          isTeamAtlasMode()
+            ? Number(inserted.department_id ?? departmentId)
+            : null,
+        departmentIds:
+          isTeamAtlasMode()
+            ? [Number(inserted.department_id ?? departmentId)]
+            : [],
         tagIds,
         content: inserted.content,
         contentFormat: inserted.content_format || contentFormat,
         x: Number(inserted.x),
         y: Number(inserted.y),
-        links: []
+        width: inserted.width == null ? null : Number(inserted.width),
+        height: inserted.height == null ? null : Number(inserted.height),
+        links: [],
+        media: [],
+        files: [],
+        codeSnippets: []
       }
 
       nodes.push(newNode)
+
+      if (newNode.isTeamNode) {
+        teamNodes = nodes
+      } else {
+        publicNodes = nodes
+      }
       selectedId = newNode.id
       clearEdgeSelection()
     } else {
@@ -11805,6 +11223,7 @@ async function saveNode() {
         title,
         categoryId,
         difficultyId,
+        departmentId: node.isTeamNode ? departmentId : node.departmentId,
         tagIds,
         content,
         contentFormat
@@ -11816,6 +11235,12 @@ async function saveNode() {
       node.difficultyId =
         updated.difficulty_id == null ? difficultyId : Number(updated.difficulty_id)
       node.tagIds = tagIds
+
+      if (node.isTeamNode) {
+        node.departmentId = Number(updated.department_id ?? departmentId)
+        node.departmentIds = [node.departmentId]
+      }
+
       node.content = updated.content
       node.contentFormat = updated.content_format || contentFormat
       node.x = Number(updated.x)
@@ -11961,8 +11386,16 @@ async function deleteSelected() {
       .filter((currentNode) => Number(currentNode.id) !== Number(node.id))
       .map((currentNode) => ({
         ...currentNode,
-        links: (currentNode.links || []).filter((link) => Number(link.targetId) !== Number(node.id))
+        links: (currentNode.links || []).filter(
+          (link) => Number(link.targetId) !== Number(node.id)
+        )
       }))
+
+    if (node.isTeamNode) {
+      teamNodes = nodes
+    } else {
+      publicNodes = nodes
+    }
 
     if (
       selectedEdge &&
@@ -12500,6 +11933,24 @@ teamSpaceEntry?.addEventListener('click', () => {
   selectPublicSection('team')
 })
 
+teamAtlasSelect?.addEventListener('change', () => {
+  selectActiveTeam(Number(teamAtlasSelect.value)).catch((error) => {
+    console.error('Switch Team Atlas failed:', error)
+  })
+})
+
+teamAtlasSettingsBtn?.addEventListener('click', () => {
+  openTeamSetup().catch((error) => {
+    console.error('Open Team Setup failed:', error)
+  })
+})
+
+teamAtlasMembersBtn?.addEventListener('click', () => {
+  openTeamMembersManager().catch((error) => {
+    console.error('Open Members & Invites failed:', error)
+  })
+})
+
 teamInvitesList?.addEventListener('click', (event) => {
   const acceptButton = event.target.closest?.('[data-accept-team-invite]')
   if (acceptButton) {
@@ -12511,44 +11962,6 @@ teamInvitesList?.addEventListener('click', (event) => {
   if (declineButton) {
     respondToTeamInvite(declineButton.dataset.declineTeamInvite, 'decline')
   }
-})
-
-closeTeamContentManagerBtn?.addEventListener('click', closeTeamContentManager)
-closeTeamContentManagerFooterBtn?.addEventListener('click', closeTeamContentManager)
-
-teamContentManagerBackdrop?.addEventListener('click', (event) => {
-  if (event.target === teamContentManagerBackdrop) {
-    closeTeamContentManager()
-  }
-})
-
-document.querySelectorAll('[data-team-content-kind]').forEach((button) => {
-  button.addEventListener('click', () => {
-    if (teamContentMutationBusy) return
-
-    teamContentManagerKind = button.dataset.teamContentKind
-    resetTeamContentEditor()
-    renderTeamContentManager()
-  })
-})
-
-newTeamContentBtn?.addEventListener('click', () => {
-  if (teamContentMutationBusy) return
-  resetTeamContentEditor()
-  renderTeamContentManager()
-})
-
-resetTeamContentEditorBtn?.addEventListener('click', () => {
-  if (teamContentMutationBusy) return
-  resetTeamContentEditor()
-})
-
-saveTeamContentBtn?.addEventListener('click', () => {
-  saveTeamContent()
-})
-
-deleteTeamContentBtn?.addEventListener('click', () => {
-  deleteTeamContent()
 })
 
 closeTeamMembersBtn?.addEventListener('click', closeTeamMembersManager)
@@ -12580,12 +11993,6 @@ teamOnboardingBackdrop?.addEventListener('click', (event) => {
 
 completeTeamOnboardingBtn?.addEventListener('click', () => {
   completeTeamOnboarding()
-})
-
-teamSetupBtn?.addEventListener('click', () => {
-  openTeamSetup().catch((error) => {
-    console.error('Open Team Setup failed:', error)
-  })
 })
 
 closeTeamSetupBtn?.addEventListener('click', closeTeamSetup)
@@ -12690,39 +12097,6 @@ deletePublicContentBtn?.addEventListener('click', () => {
 })
 
 publicHubPanel?.addEventListener('click', (event) => {
-  const workspaceTabButton = event.target.closest?.('[data-team-workspace-tab]')
-  if (workspaceTabButton) {
-    selectTeamWorkspaceTab(workspaceTabButton.dataset.teamWorkspaceTab)
-    return
-  }
-
-  const teamContentManagerTrigger = event.target.closest?.(
-    '[data-open-team-content-manager]'
-  )
-  if (teamContentManagerTrigger) {
-    openTeamContentManager(
-      teamContentManagerTrigger.dataset.openTeamContentManager
-    ).catch((error) => {
-      console.error('Open private team content manager failed:', error)
-    })
-    return
-  }
-
-  const teamContentEditButton = event.target.closest?.('[data-edit-team-content]')
-  if (teamContentEditButton) {
-    const item = currentTeamPrivateContent().find(
-      (entry) =>
-        Number(entry.id) === Number(teamContentEditButton.dataset.editTeamContent)
-    )
-
-    if (item) {
-      openTeamContentManager(item.contentType, item.id).catch((error) => {
-        console.error('Open private team content editor failed:', error)
-      })
-    }
-    return
-  }
-
   const teamMembersTrigger = event.target.closest?.('[data-open-team-members]')
   if (teamMembersTrigger) {
     openTeamMembersManager().catch((error) => {
@@ -12800,66 +12174,19 @@ publicSectionTabs?.querySelectorAll('[data-public-section]').forEach((button) =>
   })
 })
 
-notificationBtn?.addEventListener('click', (event) => {
-  event.stopPropagation()
-
-  if (notificationPanel?.hidden === false) {
-    setNotificationPanel(false)
-    return
-  }
-
-  openNotificationPanel().catch((error) => {
-    console.error('Open Notification Center failed:', error)
-  })
-})
-
-notificationFilters?.addEventListener('click', (event) => {
-  const button = event.target.closest?.('[data-notification-filter]')
-  if (!button) return
-
-  notificationFilter = button.dataset.notificationFilter || 'all'
-  renderNotificationCenter()
-})
-
-notificationList?.addEventListener('click', (event) => {
-  const item = event.target.closest?.('[data-notification-id]')
-  if (!item) return
-
-  openNotification(Number(item.dataset.notificationId)).catch((error) => {
-    console.error('Open notification failed:', error)
-  })
-})
-
-notificationMarkAllBtn?.addEventListener('click', () => {
-  markAllNotificationsRead()
-})
-
 accountBtn?.addEventListener('click', (event) => {
   event.stopPropagation()
   setAccountPanel(accountPanel?.hidden !== false)
 })
 
 document.addEventListener('click', (event) => {
+  if (!accountPanel || accountPanel.hidden) return
+
   const target = event.target
   if (!(target instanceof Node)) return
+  if (accountPanel.contains(target) || accountBtn?.contains(target)) return
 
-  if (
-    accountPanel &&
-    !accountPanel.hidden &&
-    !accountPanel.contains(target) &&
-    !accountBtn?.contains(target)
-  ) {
-    setAccountPanel(false)
-  }
-
-  if (
-    notificationPanel &&
-    !notificationPanel.hidden &&
-    !notificationPanel.contains(target) &&
-    !notificationBtn?.contains(target)
-  ) {
-    setNotificationPanel(false)
-  }
+  setAccountPanel(false)
 })
 
 loginBtn.addEventListener('click', () => {
@@ -12918,12 +12245,6 @@ clearFiltersBtn.addEventListener('click', () => {
 toolsHeader.addEventListener('click', (event) => {
   if (event.target === collapseBtn) return
   if (accountBtn && (event.target === accountBtn || accountBtn.contains(event.target))) return
-  if (
-    notificationBtn &&
-    (event.target === notificationBtn || notificationBtn.contains(event.target))
-  ) {
-    return
-  }
   togglePanel()
 })
 
@@ -12942,12 +12263,6 @@ function togglePanel(force) {
     accountPanel.hidden = true
     accountBtn?.classList.remove('active')
     accountBtn?.setAttribute('aria-expanded', 'false')
-  }
-
-  if (collapsed && notificationPanel) {
-    notificationPanel.hidden = true
-    notificationBtn?.classList.remove('active')
-    notificationBtn?.setAttribute('aria-expanded', 'false')
   }
 
   localStorage.setItem(CACHE_KEYS.panel, collapsed ? '1' : '0')
@@ -12986,7 +12301,7 @@ async function runHistoryActionWithUnsavedGuard(action) {
 }
 
 async function refreshHistoryButtons() {
-  if (!canEdit || !editorMode) {
+  if (!canEdit || !editorMode || isTeamAtlasMode()) {
     undoBtn.disabled = true
     redoBtn.disabled = true
     return
@@ -13155,9 +12470,7 @@ window.addEventListener('keydown', (event) => {
 
   if (event.key === 'Escape') {
     if (!introDismissed) dismissIntro()
-    else if (teamContentManagerBackdrop?.classList.contains('open')) {
-      closeTeamContentManager()
-    } else if (teamOnboardingBackdrop?.classList.contains('open')) {
+    else if (teamOnboardingBackdrop?.classList.contains('open')) {
       closeTeamOnboarding()
     } else if (teamMembersBackdrop?.classList.contains('open')) {
       closeTeamMembersManager()
@@ -13224,14 +12537,6 @@ document.addEventListener('focusin', (event) => {
   keepFocusedEditorFieldVisible(event.target)
 })
 
-window.addEventListener('focus', () => {
-  if (!currentUser) return
-
-  loadNotifications().catch((error) => {
-    console.error('Notification refresh on focus failed:', error)
-  })
-})
-
 window.addEventListener('resize', () => {
   updateAtlasViewportHeight()
   renderAll()
@@ -13265,8 +12570,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     updateAuthUI()
     Promise.all([
       loadRoadmapProgress(),
-      loadTeamContext(),
-      loadNotifications({ render: false })
+      loadTeamContext()
     ])
       .then(() => renderAll())
       .catch((error) => {
@@ -13291,9 +12595,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     teamEnabledDepartments = []
     teamInvites = []
     teamManagerInvites = []
-    teamPrivateContent = []
-    notifications = []
-    notificationFilter = 'all'
+    teamNodes = []
     activeTeamId = null
 
     if (activePublicSection === 'team') {
@@ -13314,7 +12616,6 @@ supabase.auth.onAuthStateChange((event, session) => {
       await refreshEditorAccess()
       await loadRoadmapProgress()
       await loadTeamContext()
-      await loadNotifications({ render: false })
 
       updateAuthUI()
       renderAll()
@@ -13357,9 +12658,6 @@ window.atlasDebug = {
   openTeamSetup,
   openTeamMembersManager,
   openTeamOnboarding,
-  openTeamContentManager,
-  openNotificationPanel,
-  loadNotifications,
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,
