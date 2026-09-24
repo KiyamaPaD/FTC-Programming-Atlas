@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v73 · TEAM MEMBERS + INVITES + ONBOARDING')
+console.log('ATLAS SCRIPT LOADED v74 · PRIVATE TEAM WORKSPACE')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -37,7 +37,8 @@ const CACHE_KEYS = {
   department: 'ftc_atlas_department_v1',
   publicSection: 'ftc_atlas_public_section_v1',
   activeTeam: 'ftc_atlas_active_team_v1',
-  pendingTeamInvite: 'ftc_atlas_pending_team_invite_v1'
+  pendingTeamInvite: 'ftc_atlas_pending_team_invite_v1',
+  teamWorkspaceTab: 'ftc_atlas_team_workspace_tab_v1'
 }
 
 const initialTeamInviteToken = new URLSearchParams(window.location.search).get('teamInvite')
@@ -299,7 +300,21 @@ let teamMemberDepartments = []
 let teamEnabledDepartments = []
 let teamInvites = []
 let teamManagerInvites = []
+let teamPrivateContent = []
 let activeTeamId = null
+
+const TEAM_WORKSPACE_TABS = new Set([
+  'overview',
+  'announcements',
+  'resources',
+  'notes'
+])
+
+let activeTeamWorkspaceTab = TEAM_WORKSPACE_TABS.has(
+  localStorage.getItem(CACHE_KEYS.teamWorkspaceTab)
+)
+  ? localStorage.getItem(CACHE_KEYS.teamWorkspaceTab)
+  : 'overview'
 
 const PUBLIC_SECTIONS = new Set([
   'explore',
@@ -328,6 +343,9 @@ let teamSetupCreateMode = false
 let teamMembersMutationBusy = false
 let teamMemberEditingId = null
 let teamOnboardingMutationBusy = false
+let teamContentManagerKind = 'announcement'
+let teamContentEditingId = null
+let teamContentMutationBusy = false
 let categoryFilterId = null
 let difficultyFilterId = null
 let tagFilterIds = new Set()
@@ -735,6 +753,27 @@ const closeTeamOnboardingFooterBtn = document.getElementById('closeTeamOnboardin
 const teamOnboardingContent = document.getElementById('teamOnboardingContent')
 const teamOnboardingStatus = document.getElementById('teamOnboardingStatus')
 const completeTeamOnboardingBtn = document.getElementById('completeTeamOnboardingBtn')
+
+const teamContentManagerBackdrop = document.getElementById('teamContentManagerBackdrop')
+const closeTeamContentManagerBtn = document.getElementById('closeTeamContentManagerBtn')
+const closeTeamContentManagerFooterBtn = document.getElementById('closeTeamContentManagerFooterBtn')
+const teamContentManagerSummary = document.getElementById('teamContentManagerSummary')
+const teamContentManagerList = document.getElementById('teamContentManagerList')
+const newTeamContentBtn = document.getElementById('newTeamContentBtn')
+const teamContentEditorTitle = document.getElementById('teamContentEditorTitle')
+const teamContentEditorHint = document.getElementById('teamContentEditorHint')
+const teamContentTitleInput = document.getElementById('teamContentTitleInput')
+const teamContentDepartmentInput = document.getElementById('teamContentDepartmentInput')
+const teamContentSummaryInput = document.getElementById('teamContentSummaryInput')
+const teamContentBodyInput = document.getElementById('teamContentBodyInput')
+const teamContentUrlField = document.getElementById('teamContentUrlField')
+const teamContentUrlInput = document.getElementById('teamContentUrlInput')
+const teamContentPinnedInput = document.getElementById('teamContentPinnedInput')
+const teamContentActiveInput = document.getElementById('teamContentActiveInput')
+const teamContentEditorStatus = document.getElementById('teamContentEditorStatus')
+const deleteTeamContentBtn = document.getElementById('deleteTeamContentBtn')
+const resetTeamContentEditorBtn = document.getElementById('resetTeamContentEditorBtn')
+const saveTeamContentBtn = document.getElementById('saveTeamContentBtn')
 
 // Node and relationship selection helpers
 function selectedNode() {
@@ -2700,6 +2739,10 @@ function selectActiveTeam(teamId) {
     closeTeamMembersManager()
   }
 
+  if (isTeamContentManagerOpen()) {
+    closeTeamContentManager()
+  }
+
   renderAll()
 }
 
@@ -2710,6 +2753,7 @@ async function loadTeamContext({ rerender = false } = {}) {
   teamMemberDepartments = []
   teamEnabledDepartments = []
   teamInvites = []
+  teamPrivateContent = []
 
   if (!currentUser) {
     activeTeamId = null
@@ -2769,8 +2813,13 @@ async function loadTeamContext({ rerender = false } = {}) {
 
   const membershipTeamIdsUnique = [...new Set(membershipTeamIds)].filter(Number.isFinite)
 
-  const [teamsResult, membershipsResult, memberDepartmentsResult, enabledDepartmentsResult] =
-    await Promise.all([
+  const [
+    teamsResult,
+    membershipsResult,
+    memberDepartmentsResult,
+    enabledDepartmentsResult,
+    privateContentResult
+  ] = await Promise.all([
       supabase
         .from('atlas_teams')
         .select('*')
@@ -2800,6 +2849,16 @@ async function loadTeamContext({ rerender = false } = {}) {
             .select('team_id, department_id')
             .eq('project_id', PROJECT_ID)
             .in('team_id', membershipTeamIdsUnique)
+        : Promise.resolve({ data: [], error: null }),
+
+      membershipTeamIdsUnique.length > 0
+        ? supabase
+            .from('atlas_team_content')
+            .select('*')
+            .eq('project_id', PROJECT_ID)
+            .in('team_id', membershipTeamIdsUnique)
+            .order('is_pinned', { ascending: false })
+            .order('created_at', { ascending: false })
         : Promise.resolve({ data: [], error: null })
     ])
 
@@ -2807,7 +2866,8 @@ async function loadTeamContext({ rerender = false } = {}) {
     teamsResult.error,
     membershipsResult.error,
     memberDepartmentsResult.error,
-    enabledDepartmentsResult.error
+    enabledDepartmentsResult.error,
+    privateContentResult.error
   ].find(Boolean)
 
   if (firstError) {
@@ -2848,6 +2908,23 @@ async function loadTeamContext({ rerender = false } = {}) {
   teamEnabledDepartments = (enabledDepartmentsResult.data || []).map((row) => ({
     teamId: Number(row.team_id),
     departmentId: Number(row.department_id)
+  }))
+
+  teamPrivateContent = (privateContentResult.data || []).map((row) => ({
+    id: Number(row.id),
+    teamId: Number(row.team_id),
+    departmentId:
+      row.department_id == null ? null : Number(row.department_id),
+    contentType: row.content_type || 'note',
+    title: row.title || '',
+    summary: row.summary || '',
+    body: row.body || '',
+    url: row.url || '',
+    isPinned: row.is_pinned === true,
+    isActive: row.is_active !== false,
+    createdBy: row.created_by || null,
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null
   }))
 
   teamInvites = inviteRows.map((row) => ({
@@ -2894,6 +2971,786 @@ function renderTeamNavigation() {
   teamSpaceEntryRole.textContent = teamRoleLabel(membership.role)
 }
 
+
+function currentTeamPrivateContent() {
+  return teamPrivateContent.filter(
+    (item) => Number(item.teamId) === Number(activeTeamId)
+  )
+}
+
+function teamContentKindLabel(kind) {
+  const labels = {
+    announcement: 'Announcement',
+    resource: 'Resource',
+    note: 'Note'
+  }
+
+  return labels[kind] || 'Content'
+}
+
+function teamContentDepartmentLabel(item) {
+  if (item.departmentId == null) return 'Team-wide'
+
+  const department = getDepartmentById(item.departmentId)
+  return department?.short_name || department?.name || 'Department'
+}
+
+function memberCanSeeAllDepartmentContent() {
+  const membership = currentTeamMembership()
+  return Boolean(
+    membership &&
+      (membership.role === 'team_leader' || membership.role === 'mentor')
+  )
+}
+
+function canManageTeamContentScope(departmentId) {
+  const membership = currentTeamMembership()
+
+  if (canEdit) return true
+  if (!membership || membership.status !== 'active') return false
+
+  if (membership.role === 'team_leader') return true
+
+  if (
+    membership.role === 'department_coordinator' &&
+    departmentId != null
+  ) {
+    return membershipDepartmentIds(membership.id).includes(Number(departmentId))
+  }
+
+  return false
+}
+
+function canManageAnyTeamContent() {
+  const membership = currentTeamMembership()
+
+  return Boolean(
+    canEdit ||
+      membership?.role === 'team_leader' ||
+      membership?.role === 'department_coordinator'
+  )
+}
+
+function canManageTeamContentItem(item) {
+  if (!item) return false
+  return canManageTeamContentScope(item.departmentId)
+}
+
+function selectTeamWorkspaceTab(tab) {
+  if (!TEAM_WORKSPACE_TABS.has(tab)) return
+
+  activeTeamWorkspaceTab = tab
+  localStorage.setItem(CACHE_KEYS.teamWorkspaceTab, tab)
+  renderAll()
+}
+
+function teamContentForKind(kind) {
+  const typeMap = {
+    announcements: 'announcement',
+    resources: 'resource',
+    notes: 'note'
+  }
+
+  const contentType = typeMap[kind] || kind
+
+  return currentTeamPrivateContent()
+    .filter(
+      (item) =>
+        item.contentType === contentType &&
+        item.isActive !== false
+    )
+    .sort((a, b) => {
+      if (Boolean(a.isPinned) !== Boolean(b.isPinned)) {
+        return a.isPinned ? -1 : 1
+      }
+
+      return (
+        new Date(b.updatedAt || b.createdAt || 0).getTime() -
+        new Date(a.updatedAt || a.createdAt || 0).getTime()
+      )
+    })
+}
+
+function teamContentAuthorLabel(item) {
+  if (!item?.createdBy) return 'Team'
+
+  const member = teamMembers.find(
+    (membership) =>
+      Number(membership.teamId) === Number(item.teamId) &&
+      membership.userId === item.createdBy
+  )
+
+  if (member?.displayName) return member.displayName
+
+  if (item.createdBy === currentUser?.id) {
+    return currentUser?.email || 'You'
+  }
+
+  return 'Team'
+}
+
+function renderTeamPrivateContent(kind) {
+  const items = teamContentForKind(kind)
+
+  const labels = {
+    announcements: {
+      title: 'Private announcements',
+      empty: 'Nu există încă announcements private vizibile pentru acest scope.'
+    },
+    resources: {
+      title: 'Private resources',
+      empty: 'Nu există încă resources private vizibile pentru acest scope.'
+    },
+    notes: {
+      title: 'Private notes',
+      empty: 'Nu există încă notes private vizibile pentru acest scope.'
+    }
+  }
+
+  const copy = labels[kind] || labels.notes
+
+  return `
+    <div class="team-workspace-toolbar">
+      <div class="team-workspace-toolbar-copy">
+        <strong>${escapeHtmlText(copy.title)}</strong><br>
+        Team-wide + departamentele la care ai acces.
+      </div>
+
+      ${
+        canManageAnyTeamContent()
+          ? `
+            <button
+              class="public-hub-manage"
+              type="button"
+              data-open-team-content-manager="${escapeHtmlText(
+                kind === 'announcements'
+                  ? 'announcement'
+                  : kind === 'resources'
+                    ? 'resource'
+                    : 'note'
+              )}"
+            >
+              Manage
+            </button>
+          `
+          : ''
+      }
+    </div>
+
+    <div class="team-private-list">
+      ${
+        items.length === 0
+          ? `<div class="team-private-empty">${escapeHtmlText(copy.empty)}</div>`
+          : items
+              .map((item) => {
+                const url =
+                  item.url && normalizeHttpUrl(item.url)
+                    ? normalizeHttpUrl(item.url)
+                    : null
+
+                return `
+                  <article class="team-private-card ${item.isPinned ? 'pinned' : ''}">
+                    <div class="team-private-card-top">
+                      <div class="team-private-card-main">
+                        <div class="team-private-card-badges">
+                          <span class="team-private-badge accent">${escapeHtmlText(
+                            teamContentKindLabel(item.contentType)
+                          )}</span>
+                          <span class="team-private-badge">${escapeHtmlText(
+                            teamContentDepartmentLabel(item)
+                          )}</span>
+                          ${
+                            item.isPinned
+                              ? '<span class="team-private-badge">Pinned</span>'
+                              : ''
+                          }
+                        </div>
+
+                        <h3>${escapeHtmlText(item.title)}</h3>
+                      </div>
+
+                      <span class="team-private-card-date">${escapeHtmlText(
+                        formatPublicDate(item.updatedAt || item.createdAt)
+                      )}</span>
+                    </div>
+
+                    ${
+                      item.summary
+                        ? `<p class="team-private-summary">${escapeHtml(item.summary)}</p>`
+                        : ''
+                    }
+
+                    ${
+                      item.body
+                        ? `<p class="team-private-body">${escapeHtml(item.body)}</p>`
+                        : ''
+                    }
+
+                    <div class="team-private-card-foot">
+                      <span class="team-private-badge">
+                        ${escapeHtmlText(teamContentAuthorLabel(item))}
+                      </span>
+
+                      ${
+                        url
+                          ? `<a class="public-content-link" href="${escapeHtmlText(
+                              url
+                            )}" target="_blank" rel="noopener noreferrer">Deschide link-ul</a>`
+                          : ''
+                      }
+
+                      ${
+                        canManageTeamContentItem(item)
+                          ? `
+                            <button
+                              class="public-content-node-link"
+                              type="button"
+                              data-edit-team-content="${Number(item.id)}"
+                            >
+                              Editează
+                            </button>
+                          `
+                          : ''
+                      }
+                    </div>
+                  </article>
+                `
+              })
+              .join('')
+      }
+    </div>
+  `
+}
+
+function renderTeamOverview(membership, ownDepartments, enabledDepartments, members) {
+  const announcements = teamContentForKind('announcements')
+  const resources = teamContentForKind('resources')
+  const notes = teamContentForKind('notes')
+  const latestAnnouncement = announcements[0] || null
+
+  return `
+    <div class="team-space-grid">
+      ${renderTeamOnboardingCard(membership)}
+
+      <article class="team-space-card">
+        <span class="team-space-card-label">Rolul tău</span>
+        <h3>${escapeHtmlText(teamRoleLabel(membership.role))}</h3>
+        <p>
+          Permisiunile Team Space sunt separate de drepturile de editor ale Atlasului public.
+        </p>
+
+        <div class="team-space-chips">
+          ${
+            ownDepartments.length > 0
+              ? ownDepartments
+                  .map(
+                    (department) =>
+                      `<span class="team-space-chip">${escapeHtmlText(
+                        department.short_name || department.name
+                      )}</span>`
+                  )
+                  .join('')
+              : '<span class="team-space-chip">Universal / team-wide</span>'
+          }
+        </div>
+      </article>
+
+      <article class="team-space-card">
+        <span class="team-space-card-label">Private workspace</span>
+        <h3>${announcements.length + resources.length + notes.length} items</h3>
+        <p>
+          Conținut privat vizibil pentru rolul și departamentele tale.
+        </p>
+
+        <div class="team-space-chips">
+          <span class="team-space-chip">${announcements.length} announcements</span>
+          <span class="team-space-chip">${resources.length} resources</span>
+          <span class="team-space-chip">${notes.length} notes</span>
+        </div>
+      </article>
+
+      ${
+        latestAnnouncement
+          ? `
+            <article class="team-space-card wide">
+              <span class="team-space-card-label">Latest announcement</span>
+              <h3>${escapeHtmlText(latestAnnouncement.title)}</h3>
+              <p>${escapeHtml(
+                latestAnnouncement.summary ||
+                  latestAnnouncement.body ||
+                  'Deschide Announcements pentru detalii.'
+              )}</p>
+
+              <div class="public-hub-actions">
+                <button
+                  class="public-hub-manage"
+                  type="button"
+                  data-team-workspace-tab="announcements"
+                >
+                  Vezi announcements
+                </button>
+              </div>
+            </article>
+          `
+          : ''
+      }
+
+      <article class="team-space-card">
+        <span class="team-space-card-label">Departamente active</span>
+        <h3>Structura echipei</h3>
+        <p>
+          Acestea sunt departamentele activate momentan pentru Team Space.
+        </p>
+
+        <div class="team-space-chips">
+          ${
+            enabledDepartments.length > 0
+              ? enabledDepartments
+                  .map(
+                    (department) =>
+                      `<span class="team-space-chip">${escapeHtmlText(
+                        department.short_name || department.name
+                      )}</span>`
+                  )
+                  .join('')
+              : '<span class="team-space-chip">Niciun departament configurat</span>'
+          }
+        </div>
+      </article>
+
+      <article class="team-space-card">
+        <span class="team-space-card-label">Members</span>
+        <h3>${members.filter((member) => member.status === 'active').length} membri activi</h3>
+        <p>
+          Vezi lista completă de membri și roluri mai jos în Team Space.
+        </p>
+      </article>
+
+      <article class="team-space-card wide">
+        <span class="team-space-card-label">Members</span>
+        <h3>${members.filter((member) => member.status === 'active').length} membri activi</h3>
+
+        <div class="team-member-list">
+          ${members
+            .filter((member) => member.status === 'active')
+            .map((member) => {
+              const departmentNames = membershipDepartmentIds(member.id)
+                .map(
+                  (id) =>
+                    getDepartmentById(id)?.short_name ||
+                    getDepartmentById(id)?.name
+                )
+                .filter(Boolean)
+
+              const fallbackName =
+                member.userId === currentUser?.id
+                  ? currentUser?.email || 'You'
+                  : 'Team member'
+
+              return `
+                <div class="team-member-row">
+                  <div>
+                    <strong>${escapeHtmlText(
+                      member.displayName || fallbackName
+                    )}</strong>
+                    <span>${
+                      departmentNames.length > 0
+                        ? escapeHtmlText(departmentNames.join(' · '))
+                        : 'Team-wide'
+                    }</span>
+                  </div>
+
+                  <span class="team-member-role">${escapeHtmlText(
+                    teamRoleLabel(member.role)
+                  )}</span>
+                </div>
+              `
+            })
+            .join('')}
+        </div>
+      </article>
+    </div>
+  `
+}
+
+function isTeamContentManagerOpen() {
+  return Boolean(teamContentManagerBackdrop?.classList.contains('open'))
+}
+
+function teamContentManagerItems() {
+  return currentTeamPrivateContent()
+    .filter(
+      (item) =>
+        item.contentType === teamContentManagerKind &&
+        canManageTeamContentItem(item)
+    )
+    .sort((a, b) => {
+      if (Boolean(a.isActive) !== Boolean(b.isActive)) {
+        return a.isActive ? -1 : 1
+      }
+
+      if (Boolean(a.isPinned) !== Boolean(b.isPinned)) {
+        return a.isPinned ? -1 : 1
+      }
+
+      return (
+        new Date(b.updatedAt || b.createdAt || 0).getTime() -
+        new Date(a.updatedAt || a.createdAt || 0).getTime()
+      )
+    })
+}
+
+function managerDepartmentOptions() {
+  const membership = currentTeamMembership()
+  if (!membership) return []
+
+  const enabled = enabledTeamDepartments()
+
+  if (canEdit || membership.role === 'team_leader') {
+    return [
+      { id: null, label: 'Team-wide' },
+      ...enabled.map((department) => ({
+        id: Number(department.id),
+        label: department.short_name || department.name
+      }))
+    ]
+  }
+
+  if (membership.role === 'department_coordinator') {
+    const allowed = new Set(membershipDepartmentIds(membership.id))
+
+    return enabled
+      .filter((department) => allowed.has(Number(department.id)))
+      .map((department) => ({
+        id: Number(department.id),
+        label: department.short_name || department.name
+      }))
+  }
+
+  return []
+}
+
+function populateTeamContentDepartmentSelect(selectedId = null) {
+  const options = managerDepartmentOptions()
+
+  teamContentDepartmentInput.innerHTML = options
+    .map(
+      (item) => `
+        <option value="${item.id == null ? '' : Number(item.id)}">
+          ${escapeHtmlText(item.label)}
+        </option>
+      `
+    )
+    .join('')
+
+  if (
+    selectedId != null &&
+    options.some((item) => Number(item.id) === Number(selectedId))
+  ) {
+    teamContentDepartmentInput.value = String(selectedId)
+  } else if (options.some((item) => item.id == null)) {
+    teamContentDepartmentInput.value = ''
+  }
+}
+
+function setTeamContentBusy(nextValue) {
+  teamContentMutationBusy = Boolean(nextValue)
+
+  newTeamContentBtn.disabled = teamContentMutationBusy
+  saveTeamContentBtn.disabled = teamContentMutationBusy
+  resetTeamContentEditorBtn.disabled = teamContentMutationBusy
+  deleteTeamContentBtn.disabled = teamContentMutationBusy
+
+  teamContentManagerList?.querySelectorAll('button').forEach((button) => {
+    button.disabled = teamContentMutationBusy
+  })
+
+  document.querySelectorAll('[data-team-content-kind]').forEach((button) => {
+    button.disabled = teamContentMutationBusy
+  })
+}
+
+function resetTeamContentEditor() {
+  teamContentEditingId = null
+
+  populateTeamContentDepartmentSelect(null)
+
+  teamContentEditorTitle.textContent = `${teamContentKindLabel(
+    teamContentManagerKind
+  )} nou`
+  teamContentEditorHint.textContent =
+    'Conținutul este vizibil numai membrilor care au acces la scope-ul ales.'
+
+  teamContentTitleInput.value = ''
+  teamContentSummaryInput.value = ''
+  teamContentBodyInput.value = ''
+  teamContentUrlInput.value = ''
+  teamContentPinnedInput.checked = false
+  teamContentActiveInput.checked = true
+
+  teamContentUrlField.hidden = teamContentManagerKind === 'note'
+  deleteTeamContentBtn.hidden = true
+  teamContentEditorStatus.textContent = 'Pregătit pentru editare.'
+}
+
+function editTeamContent(id) {
+  const item = currentTeamPrivateContent().find(
+    (entry) => Number(entry.id) === Number(id)
+  )
+  if (!item || !canManageTeamContentItem(item)) return
+
+  teamContentManagerKind = item.contentType
+  teamContentEditingId = Number(item.id)
+
+  document.querySelectorAll('[data-team-content-kind]').forEach((button) => {
+    button.classList.toggle(
+      'active',
+      button.dataset.teamContentKind === teamContentManagerKind
+    )
+  })
+
+  populateTeamContentDepartmentSelect(item.departmentId)
+
+  teamContentEditorTitle.textContent = `Editează ${teamContentKindLabel(
+    item.contentType
+  ).toLowerCase()}`
+  teamContentEditorHint.textContent =
+    'Schimbările sunt vizibile imediat membrilor care au acces.'
+
+  teamContentTitleInput.value = item.title || ''
+  teamContentSummaryInput.value = item.summary || ''
+  teamContentBodyInput.value = item.body || ''
+  teamContentUrlInput.value = item.url || ''
+  teamContentPinnedInput.checked = Boolean(item.isPinned)
+  teamContentActiveInput.checked = item.isActive !== false
+
+  teamContentUrlField.hidden = teamContentManagerKind === 'note'
+  deleteTeamContentBtn.hidden = false
+  teamContentEditorStatus.textContent = 'Element încărcat pentru editare.'
+
+  renderTeamContentManager()
+}
+
+function renderTeamContentManager() {
+  if (!isTeamContentManagerOpen()) return
+
+  document.querySelectorAll('[data-team-content-kind]').forEach((button) => {
+    button.classList.toggle(
+      'active',
+      button.dataset.teamContentKind === teamContentManagerKind
+    )
+  })
+
+  const items = teamContentManagerItems()
+
+  teamContentManagerSummary.innerHTML = `
+    <strong>${items.length} ${escapeHtmlText(
+      teamContentKindLabel(teamContentManagerKind).toLowerCase()
+    )}${items.length === 1 ? '' : 's'}</strong>
+    · doar scope-uri pe care le poți administra
+  `
+
+  teamContentManagerList.innerHTML =
+    items.length === 0
+      ? '<div class="public-content-manager-empty">Nu există conținut administrabil în acest scope.</div>'
+      : items
+          .map(
+            (item) => `
+              <article class="team-content-manager-item ${
+                item.isActive !== false ? '' : 'inactive'
+              }">
+                <div>
+                  <strong>${escapeHtmlText(item.title)}</strong>
+                  <span>
+                    ${escapeHtmlText(teamContentDepartmentLabel(item))}
+                    · ${item.isActive !== false ? 'Activ' : 'Draft'}
+                    ${item.isPinned ? ' · Pinned' : ''}
+                  </span>
+                </div>
+
+                <button
+                  class="taxonomy-mini-btn"
+                  type="button"
+                  data-manage-team-content="${Number(item.id)}"
+                >
+                  Editează
+                </button>
+              </article>
+            `
+          )
+          .join('')
+
+  teamContentManagerList
+    .querySelectorAll('[data-manage-team-content]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        editTeamContent(Number(button.dataset.manageTeamContent))
+      })
+    })
+
+  setTeamContentBusy(teamContentMutationBusy)
+}
+
+async function openTeamContentManager(kind = 'announcement', editId = null) {
+  if (!currentUser || !canManageAnyTeamContent()) return
+
+  teamContentManagerKind = ['announcement', 'resource', 'note'].includes(kind)
+    ? kind
+    : 'announcement'
+
+  teamContentManagerBackdrop.classList.add('open')
+  teamContentManagerSummary.textContent = 'Se încarcă...'
+
+  try {
+    await loadTeamContext()
+
+    if (!canManageAnyTeamContent()) {
+      closeTeamContentManager()
+      return
+    }
+
+    resetTeamContentEditor()
+    renderTeamContentManager()
+
+    if (editId != null) {
+      editTeamContent(Number(editId))
+    }
+  } catch (error) {
+    console.error('Private team content manager load failed:', error)
+    teamContentEditorStatus.textContent =
+      error?.message || 'Conținutul privat nu a putut fi încărcat.'
+  }
+}
+
+function closeTeamContentManager() {
+  teamContentManagerBackdrop.classList.remove('open')
+  teamContentEditingId = null
+  teamContentMutationBusy = false
+}
+
+async function saveTeamContent() {
+  if (!currentUser || !canManageAnyTeamContent() || teamContentMutationBusy) {
+    return
+  }
+
+  const title = teamContentTitleInput.value.trim()
+  const departmentId = teamContentDepartmentInput.value
+    ? Number(teamContentDepartmentInput.value)
+    : null
+  const urlRaw = teamContentUrlInput.value.trim()
+  const normalizedUrl = urlRaw ? normalizeHttpUrl(urlRaw) : null
+
+  if (title.length < 2) {
+    alert('Titlul trebuie să aibă cel puțin 2 caractere.')
+    return
+  }
+
+  if (!canManageTeamContentScope(departmentId)) {
+    alert('Nu ai permisiunea pentru acest scope.')
+    return
+  }
+
+  if (teamContentManagerKind === 'resource' && !normalizedUrl) {
+    alert('Un resource trebuie să aibă un URL valid.')
+    return
+  }
+
+  if (urlRaw && !normalizedUrl) {
+    alert('URL-ul trebuie să fie http:// sau https://.')
+    return
+  }
+
+  setTeamContentBusy(true)
+  teamContentEditorStatus.textContent = 'Se salvează...'
+
+  try {
+    const params = {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(activeTeamId),
+      p_content_type: teamContentManagerKind,
+      p_title: title,
+      p_summary: teamContentSummaryInput.value.trim(),
+      p_body: teamContentBodyInput.value.trim(),
+      p_url: normalizedUrl,
+      p_department_id: departmentId,
+      p_is_pinned: teamContentPinnedInput.checked,
+      p_is_active: teamContentActiveInput.checked
+    }
+
+    const rpcName =
+      teamContentEditingId == null
+        ? 'atlas_team_content_create'
+        : 'atlas_team_content_update'
+
+    if (teamContentEditingId != null) {
+      params.p_content_id = Number(teamContentEditingId)
+    }
+
+    const { error } = await supabase.rpc(rpcName, params)
+    if (error) throw error
+
+    await loadTeamContext()
+
+    resetTeamContentEditor()
+    renderTeamContentManager()
+    renderAll()
+
+    teamContentEditorStatus.textContent = 'Salvat.'
+  } catch (error) {
+    console.error('Private team content save failed:', error)
+    teamContentEditorStatus.textContent =
+      error?.message || 'Conținutul nu a putut fi salvat.'
+    alert(error?.message || 'Conținutul nu a putut fi salvat.')
+  } finally {
+    setTeamContentBusy(false)
+  }
+}
+
+async function deleteTeamContent() {
+  if (
+    !currentUser ||
+    teamContentEditingId == null ||
+    teamContentMutationBusy
+  ) {
+    return
+  }
+
+  const item = currentTeamPrivateContent().find(
+    (entry) => Number(entry.id) === Number(teamContentEditingId)
+  )
+
+  if (!item || !canManageTeamContentItem(item)) return
+
+  if (!confirm(`Ștergi „${item.title}”?`)) return
+
+  setTeamContentBusy(true)
+  teamContentEditorStatus.textContent = 'Se șterge...'
+
+  try {
+    const { error } = await supabase.rpc('atlas_team_content_delete', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(activeTeamId),
+      p_content_id: Number(item.id)
+    })
+
+    if (error) throw error
+
+    await loadTeamContext()
+
+    resetTeamContentEditor()
+    renderTeamContentManager()
+    renderAll()
+
+    teamContentEditorStatus.textContent = 'Șters.'
+  } catch (error) {
+    console.error('Private team content delete failed:', error)
+    teamContentEditorStatus.textContent =
+      error?.message || 'Conținutul nu a putut fi șters.'
+  } finally {
+    setTeamContentBusy(false)
+  }
+}
+
 function renderTeamSpace() {
   const membership = currentTeamMembership()
   const team = currentTeamRecord()
@@ -2924,6 +3781,16 @@ function renderTeamSpace() {
   const teamTitle = team.teamNumber
     ? `${team.name} #${team.teamNumber}`
     : team.name
+
+  const workspaceBody =
+    activeTeamWorkspaceTab === 'overview'
+      ? renderTeamOverview(
+          membership,
+          ownDepartments,
+          enabledDepartments,
+          members
+        )
+      : renderTeamPrivateContent(activeTeamWorkspaceTab)
 
   return `
     <div class="public-hub-inner">
@@ -2973,8 +3840,15 @@ function renderTeamSpace() {
         <span class="public-hub-chip">${escapeHtmlText(
           teamRoleLabel(membership.role)
         )}</span>
-        <span class="public-hub-chip">${members.length} members</span>
+        <span class="public-hub-chip">${
+          members.filter((member) => member.status === 'active').length
+        } members</span>
         <span class="public-hub-chip">${enabledDepartments.length} departments</span>
+        ${
+          memberCanSeeAllDepartmentContent()
+            ? '<span class="public-hub-chip">All department content</span>'
+            : ''
+        }
       </div>
 
       <div class="public-hub-actions">
@@ -2987,118 +3861,37 @@ function renderTeamSpace() {
         }
       </div>
 
-      <div class="team-space-grid">
-        ${renderTeamOnboardingCard(membership)}
-        <article class="team-space-card">
-          <span class="team-space-card-label">Rolul tău</span>
-          <h3>${escapeHtmlText(teamRoleLabel(membership.role))}</h3>
-          <p>
-            Permisiunile Team Space sunt separate de drepturile de editor ale Atlasului public.
-          </p>
-
-          <div class="team-space-chips">
-            ${
-              ownDepartments.length > 0
-                ? ownDepartments
-                    .map(
-                      (department) =>
-                        `<span class="team-space-chip">${escapeHtmlText(
-                          department.short_name || department.name
-                        )}</span>`
-                    )
-                    .join('')
-                : '<span class="team-space-chip">Universal / team-wide</span>'
-            }
-          </div>
-        </article>
-
-        <article class="team-space-card">
-          <span class="team-space-card-label">Departamente active</span>
-          <h3>Structura echipei</h3>
-          <p>
-            Acestea sunt departamentele activate momentan pentru Team Space.
-          </p>
-
-          <div class="team-space-chips">
-            ${
-              enabledDepartments.length > 0
-                ? enabledDepartments
-                    .map(
-                      (department) =>
-                        `<span class="team-space-chip">${escapeHtmlText(
-                          department.short_name || department.name
-                        )}</span>`
-                    )
-                    .join('')
-                : '<span class="team-space-chip">Niciun departament configurat</span>'
-            }
-          </div>
-        </article>
-
-        <article class="team-space-card wide">
-          <span class="team-space-card-label">Members</span>
-          <h3>${members.length} membri activi</h3>
-
-          <div class="team-member-list">
-            ${members
-              .map((member) => {
-                const departmentNames = membershipDepartmentIds(member.id)
-                  .map((id) => getDepartmentById(id)?.short_name || getDepartmentById(id)?.name)
-                  .filter(Boolean)
-
-                const fallbackName =
-                  member.userId === currentUser?.id
-                    ? currentUser?.email || 'You'
-                    : 'Team member'
-
-                return `
-                  <div class="team-member-row">
-                    <div>
-                      <strong>${escapeHtmlText(
-                        member.displayName || fallbackName
-                      )}</strong>
-                      <span>${
-                        departmentNames.length > 0
-                          ? escapeHtmlText(departmentNames.join(' · '))
-                          : 'Team-wide'
-                      }</span>
-                    </div>
-
-                    <span class="team-member-role">${escapeHtmlText(
-                      teamRoleLabel(member.role)
-                    )}</span>
-                  </div>
-                `
-              })
-              .join('')}
-          </div>
-        </article>
-
-        <article class="team-space-card">
-          <span class="team-space-card-label">Private workspace</span>
-          <h3>Team-only content</h3>
-          <p>
-            Fundația este pregătită pentru note private, resurse interne și team roadmaps.
-            Acestea vor fi adăugate în fazele următoare.
-          </p>
-        </article>
-
-        <article class="team-space-card">
-          <span class="team-space-card-label">Coordination</span>
-          <h3>Announcements & tasks</h3>
-          <p>
-            Următoarea extensie poate adăuga anunțuri interne, notificări și coordonare pe departamente.
-          </p>
-        </article>
+      <div class="team-workspace-tabs">
+        ${[
+          ['overview', 'Overview'],
+          ['announcements', 'Announcements'],
+          ['resources', 'Resources'],
+          ['notes', 'Notes']
+        ]
+          .map(
+            ([tab, label]) => `
+              <button
+                class="team-workspace-tab ${
+                  activeTeamWorkspaceTab === tab ? 'active' : ''
+                }"
+                type="button"
+                data-team-workspace-tab="${tab}"
+              >
+                ${label}
+              </button>
+            `
+          )
+          .join('')}
       </div>
 
+      ${workspaceBody}
+
       <div class="team-privacy-note">
-        Team Space este privat. Datele de aici sunt citibile doar de membrii activi ai echipei și de editorii platformei autorizați.
+        Team Space este privat. Team Leader și Mentor pot vedea toate departamentele; Coordinator și Member văd team-wide + departamentele asignate. Editarea este limitată separat prin rol.
       </div>
     </div>
   `
 }
-
 
 function pendingInviteToken() {
   return localStorage.getItem(CACHE_KEYS.pendingTeamInvite) || ''
@@ -3307,8 +4100,8 @@ function teamOnboardingProfile(role) {
           'Roadmap-urile sunt trasee orientative; orice nod public rămâne accesibil.'
         ],
         [
-          'Pregătește coordonarea internă',
-          'Fazele următoare vor adăuga resurse private, announcements și task-uri pe departamente.'
+          'Folosește workspace-ul privat',
+          'Poți publica announcements, resources și notes în departamentele pe care le coordonezi.'
         ]
       ]
     },
@@ -3327,7 +4120,7 @@ function teamOnboardingProfile(role) {
         ],
         [
           'Contribuie prin ghidaj',
-          'Spațiul privat va putea găzdui ulterior note și resurse interne pentru echipă.'
+          'Poți consulta announcements, resources și notes din toate departamentele echipei.'
         ]
       ]
     },
@@ -3345,8 +4138,8 @@ function teamOnboardingProfile(role) {
           'Poți deschide orice nod și urma roadmaps fără sistem de unlock.'
         ],
         [
-          'Salvează progresul',
-          'Roadmap progress este personal și sincronizat cu contul tău.'
+          'Folosește Team Space',
+          'Poți consulta conținutul team-wide și materialele private din departamentele tale.'
         ]
       ]
     }
@@ -5561,7 +6354,8 @@ function isAnyModalOpen() {
     roadmapManagerBackdrop?.classList.contains('open') ||
     teamSetupBackdrop?.classList.contains('open') ||
     teamMembersBackdrop?.classList.contains('open') ||
-    teamOnboardingBackdrop?.classList.contains('open')
+    teamOnboardingBackdrop?.classList.contains('open') ||
+    teamContentManagerBackdrop?.classList.contains('open')
   )
 }
 
@@ -7693,6 +8487,10 @@ function updateAuthUI() {
 
   if (isTeamMembersManagerOpen() && !canManageTeamMembers()) {
     closeTeamMembersManager()
+  }
+
+  if (isTeamContentManagerOpen() && !canManageAnyTeamContent()) {
+    closeTeamContentManager()
   }
 
   createBtn.disabled = editorBlocked
@@ -11382,6 +12180,44 @@ teamInvitesList?.addEventListener('click', (event) => {
   }
 })
 
+closeTeamContentManagerBtn?.addEventListener('click', closeTeamContentManager)
+closeTeamContentManagerFooterBtn?.addEventListener('click', closeTeamContentManager)
+
+teamContentManagerBackdrop?.addEventListener('click', (event) => {
+  if (event.target === teamContentManagerBackdrop) {
+    closeTeamContentManager()
+  }
+})
+
+document.querySelectorAll('[data-team-content-kind]').forEach((button) => {
+  button.addEventListener('click', () => {
+    if (teamContentMutationBusy) return
+
+    teamContentManagerKind = button.dataset.teamContentKind
+    resetTeamContentEditor()
+    renderTeamContentManager()
+  })
+})
+
+newTeamContentBtn?.addEventListener('click', () => {
+  if (teamContentMutationBusy) return
+  resetTeamContentEditor()
+  renderTeamContentManager()
+})
+
+resetTeamContentEditorBtn?.addEventListener('click', () => {
+  if (teamContentMutationBusy) return
+  resetTeamContentEditor()
+})
+
+saveTeamContentBtn?.addEventListener('click', () => {
+  saveTeamContent()
+})
+
+deleteTeamContentBtn?.addEventListener('click', () => {
+  deleteTeamContent()
+})
+
 closeTeamMembersBtn?.addEventListener('click', closeTeamMembersManager)
 closeTeamMembersFooterBtn?.addEventListener('click', closeTeamMembersManager)
 
@@ -11521,6 +12357,39 @@ deletePublicContentBtn?.addEventListener('click', () => {
 })
 
 publicHubPanel?.addEventListener('click', (event) => {
+  const workspaceTabButton = event.target.closest?.('[data-team-workspace-tab]')
+  if (workspaceTabButton) {
+    selectTeamWorkspaceTab(workspaceTabButton.dataset.teamWorkspaceTab)
+    return
+  }
+
+  const teamContentManagerTrigger = event.target.closest?.(
+    '[data-open-team-content-manager]'
+  )
+  if (teamContentManagerTrigger) {
+    openTeamContentManager(
+      teamContentManagerTrigger.dataset.openTeamContentManager
+    ).catch((error) => {
+      console.error('Open private team content manager failed:', error)
+    })
+    return
+  }
+
+  const teamContentEditButton = event.target.closest?.('[data-edit-team-content]')
+  if (teamContentEditButton) {
+    const item = currentTeamPrivateContent().find(
+      (entry) =>
+        Number(entry.id) === Number(teamContentEditButton.dataset.editTeamContent)
+    )
+
+    if (item) {
+      openTeamContentManager(item.contentType, item.id).catch((error) => {
+        console.error('Open private team content editor failed:', error)
+      })
+    }
+    return
+  }
+
   const teamMembersTrigger = event.target.closest?.('[data-open-team-members]')
   if (teamMembersTrigger) {
     openTeamMembersManager().catch((error) => {
@@ -11894,7 +12763,9 @@ window.addEventListener('keydown', (event) => {
 
   if (event.key === 'Escape') {
     if (!introDismissed) dismissIntro()
-    else if (teamOnboardingBackdrop?.classList.contains('open')) {
+    else if (teamContentManagerBackdrop?.classList.contains('open')) {
+      closeTeamContentManager()
+    } else if (teamOnboardingBackdrop?.classList.contains('open')) {
       closeTeamOnboarding()
     } else if (teamMembersBackdrop?.classList.contains('open')) {
       closeTeamMembersManager()
@@ -12019,6 +12890,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     teamEnabledDepartments = []
     teamInvites = []
     teamManagerInvites = []
+    teamPrivateContent = []
     activeTeamId = null
 
     if (activePublicSection === 'team') {
@@ -12081,6 +12953,7 @@ window.atlasDebug = {
   openTeamSetup,
   openTeamMembersManager,
   openTeamOnboarding,
+  openTeamContentManager,
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,

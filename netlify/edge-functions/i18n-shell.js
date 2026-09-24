@@ -1,6 +1,6 @@
-const I18N_SCRIPT = '/js/atlas-i18n.js?v=73'
+const I18N_SCRIPT = '/js/atlas-i18n.js?v=74'
 const I18N_COVERAGE_SCRIPT = '/js/atlas-i18n-v56.js?v=56'
-const MARKER = 'data-atlas-i18n="v73"'
+const MARKER = 'data-atlas-i18n="v74"'
 
 const HOME_TITLE =
   'FTC Programming Atlas | FTC Robotics Programming Guide'
