@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v68 · DEPARTMENT NAVIGATION FOUNDATION')
+console.log('ATLAS SCRIPT LOADED v69 · PUBLIC SHELL')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -34,7 +34,8 @@ const CACHE_KEYS = {
   editorMode: 'ftc_atlas_editor_mode_v1',
   codeDrafts: 'ftc_atlas_code_drafts_v1',
   codeManagerOpen: 'ftc_atlas_code_manager_open_v1',
-  department: 'ftc_atlas_department_v1'
+  department: 'ftc_atlas_department_v1',
+  publicSection: 'ftc_atlas_public_section_v1'
 }
 
 const DEFAULT_VIEW = { x: -120, y: -80, scale: 1 }
@@ -279,6 +280,20 @@ let difficulties = []
 let taxonomyTags = []
 let departments = []
 let activeDepartmentId = null
+
+const PUBLIC_SECTIONS = new Set([
+  'explore',
+  'roadmaps',
+  'resources',
+  'announcements'
+])
+
+let activePublicSection = PUBLIC_SECTIONS.has(
+  localStorage.getItem(CACHE_KEYS.publicSection)
+)
+  ? localStorage.getItem(CACHE_KEYS.publicSection)
+  : 'explore'
+
 let tutorialContent = DEFAULT_TUTORIAL_CONTENT
 let categoryFilterId = null
 let difficultyFilterId = null
@@ -333,6 +348,11 @@ let unsavedNodePosition = null
 let positionSaveBusy = false
 
 // Frequently used DOM references
+const appRoot = document.querySelector('.app')
+const atlasNavigation = document.getElementById('atlasNavigation')
+const publicSectionTabs = document.getElementById('publicSectionTabs')
+const publicHubPanel = document.getElementById('publicHubPanel')
+const atlasNavigationEyebrow = document.getElementById('atlasNavigationEyebrow')
 const mapSurface = document.getElementById('mapSurface')
 const world = document.getElementById('world')
 const nodeLayer = document.getElementById('nodeLayer')
@@ -383,6 +403,8 @@ const modeStrip = document.getElementById('modeStrip')
 const toolPanel = document.getElementById('toolPanel')
 const toolsHeader = document.getElementById('toolsHeader')
 const collapseBtn = document.getElementById('collapseBtn')
+const accountBtn = document.getElementById('accountBtn')
+const accountPanel = document.getElementById('accountPanel')
 const authStatusBox = document.getElementById('authStatusBox')
 const authEmailInput = document.getElementById('authEmailInput')
 const authOtpRow = document.getElementById('authOtpRow')
@@ -944,6 +966,178 @@ function getTagById(id) {
 }
 
 
+
+function publicSectionLabel(section) {
+  const labels = {
+    explore: 'Explore',
+    roadmaps: 'Roadmaps',
+    resources: 'Resources',
+    announcements: 'Announcements'
+  }
+
+  return labels[section] || 'Explore'
+}
+
+function publicSectionEyebrow(section) {
+  const labels = {
+    explore: 'Explorează Atlasul',
+    roadmaps: 'Parcursuri recomandate',
+    resources: 'Resurse utile',
+    announcements: 'Anunțuri universale'
+  }
+
+  return labels[section] || labels.explore
+}
+
+function selectPublicSection(section) {
+  if (!PUBLIC_SECTIONS.has(section)) return
+
+  activePublicSection = section
+  localStorage.setItem(CACHE_KEYS.publicSection, section)
+
+  renderAll()
+
+  if (section === 'explore') {
+    requestAnimationFrame(fitView)
+  }
+}
+
+function renderPublicShell() {
+  if (!appRoot || !publicSectionTabs || !publicHubPanel) return
+
+  const isExplore = activePublicSection === 'explore'
+  const isGlobal = activePublicSection === 'announcements'
+  const department = getDepartmentById(activeDepartmentId)
+  const departmentName = department?.name || 'Atlas'
+
+  appRoot.classList.toggle('public-section-open', !isExplore)
+  appRoot.dataset.publicSection = activePublicSection
+
+  atlasNavigation?.classList.toggle('global-section', isGlobal)
+
+  publicSectionTabs.querySelectorAll('[data-public-section]').forEach((button) => {
+    const selected = button.dataset.publicSection === activePublicSection
+
+    button.classList.toggle('active', selected)
+    button.setAttribute('aria-selected', selected ? 'true' : 'false')
+  })
+
+  if (atlasNavigationEyebrow) {
+    atlasNavigationEyebrow.textContent = publicSectionEyebrow(activePublicSection)
+  }
+
+  if (isExplore) {
+    publicHubPanel.classList.remove('open')
+    publicHubPanel.innerHTML = ''
+    return
+  }
+
+  publicHubPanel.classList.add('open')
+
+  if (activePublicSection === 'roadmaps') {
+    publicHubPanel.innerHTML = `
+      <div class="public-hub-inner">
+        <p class="public-hub-kicker">Roadmaps · ${escapeHtml(departmentName)}</p>
+        <h1 class="public-hub-title">Învață în ordinea care are sens pentru tine.</h1>
+        <p class="public-hub-description">
+          Roadmap-urile oferă un traseu recomandat prin Atlas, dar nu blochează noduri.
+          Toată documentația publică rămâne accesibilă oricând.
+        </p>
+
+        <div class="public-hub-meta">
+          <span class="public-hub-chip">${escapeHtml(departmentName)}</span>
+          <span class="public-hub-chip">Acces liber la toate nodurile</span>
+        </div>
+
+        <div class="public-hub-grid">
+          <article class="public-hub-card wide">
+            <span class="public-hub-card-label">Roadmaps publicate</span>
+            <h3>Niciun roadmap publicat momentan.</h3>
+            <p>
+              Roadmap-urile pentru acest departament vor apărea aici, separat de harta de concepte.
+            </p>
+            <div class="public-hub-empty">Poți continua să explorezi toate nodurile direct din Atlas.</div>
+          </article>
+        </div>
+      </div>
+    `
+    return
+  }
+
+  if (activePublicSection === 'resources') {
+    publicHubPanel.innerHTML = `
+      <div class="public-hub-inner">
+        <p class="public-hub-kicker">Resources · ${escapeHtml(departmentName)}</p>
+        <h1 class="public-hub-title">Documentație și resurse care merită păstrate aproape.</h1>
+        <p class="public-hub-description">
+          Aici vor fi grupate resurse relevante pentru departamentul selectat:
+          documentație oficială, ghiduri și materiale de referință.
+        </p>
+
+        <div class="public-hub-meta">
+          <span class="public-hub-chip">${escapeHtml(departmentName)}</span>
+          <span class="public-hub-chip">Surse externe + resurse Atlas</span>
+        </div>
+
+        <div class="public-hub-grid">
+          <article class="public-hub-card">
+            <span class="public-hub-card-label">Useful Resources</span>
+            <h3>Nicio resursă publicată momentan.</h3>
+            <p>Lista va fi organizată pe departamente și topicuri.</p>
+          </article>
+
+          <article class="public-hub-card">
+            <span class="public-hub-card-label">Surse</span>
+            <h3>Linkuri clare către materialele originale.</h3>
+            <p>Resursele vor putea indica sursa și nodurile relevante din Atlas.</p>
+          </article>
+        </div>
+      </div>
+    `
+    return
+  }
+
+  publicHubPanel.innerHTML = `
+    <div class="public-hub-inner">
+      <p class="public-hub-kicker">Universal · Announcements</p>
+      <h1 class="public-hub-title">Announcements</h1>
+      <p class="public-hub-description">
+        Actualizări publice importante pentru comunitatea Atlas: Game Manual, sezon,
+        events, resurse și schimbări relevante ale platformei.
+      </p>
+
+      <div class="public-hub-meta">
+        <span class="public-hub-chip">Universal</span>
+        <span class="public-hub-chip">Public</span>
+      </div>
+
+      <div class="public-hub-grid">
+        <article class="public-hub-card wide">
+          <span class="public-hub-card-label">Latest announcements</span>
+          <h3>Niciun anunț publicat momentan.</h3>
+          <p>
+            Anunțurile scrise de administratorii Atlasului vor apărea aici și vor rămâne disponibile pentru consultare.
+          </p>
+        </article>
+      </div>
+    </div>
+  `
+}
+
+function setAccountPanel(open) {
+  if (!accountPanel || !accountBtn) return
+
+  const shouldOpen = Boolean(open)
+
+  accountPanel.hidden = !shouldOpen
+  accountBtn.classList.toggle('active', shouldOpen)
+  accountBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false')
+
+  if (shouldOpen && toolPanel?.classList.contains('collapsed')) {
+    togglePanel(false)
+  }
+}
+
 function getDepartmentById(id) {
   return departments.find((item) => Number(item.id) === Number(id)) || null
 }
@@ -1039,7 +1233,9 @@ function selectDepartment(id) {
   normalizeSelectionAfterFilters()
   renderAll()
 
-  requestAnimationFrame(fitView)
+  if (activePublicSection === 'explore') {
+    requestAnimationFrame(fitView)
+  }
 }
 
 function renderDepartmentNavigation() {
@@ -4100,6 +4296,11 @@ async function resetSelectedNodeSize() {
 
 // Authentication, permissions and Editor Mode
 function updateAuthUI() {
+  if (accountBtn) {
+    accountBtn.textContent = currentUser ? 'Profil' : 'Cont'
+    accountBtn.title = currentUser?.email || 'Login'
+  }
+
   if (!currentUser) {
     authStatusBox.innerHTML = 'Neautentificat. Atlasul este în Reader Mode.'
   } else if (canEdit && editorMode) {
@@ -6796,6 +6997,7 @@ function renderAll() {
   normalizeSelectionAfterFilters()
   renderTaxonomyControls()
   renderDepartmentNavigation()
+  renderPublicShell()
 
   const visibleCount = getVisibleNodes().length
   const departmentTotal = getDepartmentNodes().length
@@ -7821,6 +8023,27 @@ taxonomyReplaceBackdrop.addEventListener('click', (event) => {
 
 fitSelectionBtn.addEventListener('click', fitCurrentSelection)
 
+publicSectionTabs?.querySelectorAll('[data-public-section]').forEach((button) => {
+  button.addEventListener('click', () => {
+    selectPublicSection(button.dataset.publicSection)
+  })
+})
+
+accountBtn?.addEventListener('click', (event) => {
+  event.stopPropagation()
+  setAccountPanel(accountPanel?.hidden !== false)
+})
+
+document.addEventListener('click', (event) => {
+  if (!accountPanel || accountPanel.hidden) return
+
+  const target = event.target
+  if (!(target instanceof Node)) return
+  if (accountPanel.contains(target) || accountBtn?.contains(target)) return
+
+  setAccountPanel(false)
+})
+
 loginBtn.addEventListener('click', () => {
   sendMagicLink().catch((error) => alert(error.message || 'Eroare la login.'))
 })
@@ -7876,6 +8099,7 @@ clearFiltersBtn.addEventListener('click', () => {
 
 toolsHeader.addEventListener('click', (event) => {
   if (event.target === collapseBtn) return
+  if (accountBtn && (event.target === accountBtn || accountBtn.contains(event.target))) return
   togglePanel()
 })
 
@@ -7889,6 +8113,13 @@ function togglePanel(force) {
 
   toolPanel.classList.toggle('collapsed', collapsed)
   collapseBtn.textContent = collapsed ? '+' : '–'
+
+  if (collapsed && accountPanel) {
+    accountPanel.hidden = true
+    accountBtn?.classList.remove('active')
+    accountBtn?.setAttribute('aria-expanded', 'false')
+  }
+
   localStorage.setItem(CACHE_KEYS.panel, collapsed ? '1' : '0')
 }
 

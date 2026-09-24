@@ -2564,6 +2564,313 @@
 
 
 
+  /* -----------------------------------------------------------------------
+     Public shell · primary sections
+     Keeps the public product navigation separate from editor/admin controls.
+     ----------------------------------------------------------------------- */
+
+  .atlas-navigation {
+    width: min(336px, calc(100vw - 44px));
+  }
+
+  .atlas-primary-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+    margin-bottom: 11px;
+    padding-bottom: 11px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  }
+
+  .atlas-primary-tab {
+    border: 1px solid rgba(255, 255, 255, 0.065);
+    border-radius: 12px;
+    padding: 9px 10px;
+    background: rgba(255, 255, 255, 0.022);
+    color: #aaa5b0;
+    font: inherit;
+    font-size: 0.74rem;
+    font-weight: 760;
+    cursor: pointer;
+    transition:
+      color 140ms ease,
+      border-color 140ms ease,
+      background 140ms ease,
+      transform 140ms ease;
+  }
+
+  .atlas-primary-tab:hover {
+    color: #fff;
+    border-color: rgba(177, 76, 255, 0.28);
+    background: rgba(177, 76, 255, 0.065);
+    transform: translateY(-1px);
+  }
+
+  .atlas-primary-tab.active {
+    color: #fff;
+    border-color: rgba(255, 77, 109, 0.4);
+    background:
+      linear-gradient(
+        135deg,
+        rgba(177, 76, 255, 0.15),
+        rgba(255, 77, 109, 0.1)
+      );
+  }
+
+  .atlas-navigation.global-section .atlas-navigation-head,
+  .atlas-navigation.global-section .department-tabs {
+    display: none;
+  }
+
+  .public-hub-panel {
+    position: fixed;
+    z-index: 28;
+    top: 86px;
+    right: 22px;
+    bottom: 22px;
+    left: 382px;
+    display: none;
+    overflow: auto;
+    padding: clamp(22px, 3vw, 42px);
+    border: 1px solid rgba(177, 76, 255, 0.15);
+    border-radius: 24px;
+    background:
+      radial-gradient(circle at 12% 0%, rgba(177, 76, 255, 0.08), transparent 34%),
+      linear-gradient(180deg, rgba(8, 8, 11, 0.95), rgba(4, 4, 6, 0.97));
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(18px);
+  }
+
+  .public-hub-panel.open {
+    display: block;
+  }
+
+  .public-hub-inner {
+    width: min(920px, 100%);
+    margin: 0 auto;
+  }
+
+  .public-hub-kicker {
+    margin: 0 0 8px;
+    color: #bda9ca;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .public-hub-title {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(1.75rem, 3vw, 3rem);
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+  }
+
+  .public-hub-description {
+    max-width: 720px;
+    margin: 14px 0 0;
+    color: #aaa5b0;
+    font-size: 0.98rem;
+    line-height: 1.7;
+  }
+
+  .public-hub-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 18px;
+  }
+
+  .public-hub-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 6px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.025);
+    color: #c1bcc6;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+
+  .public-hub-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 28px;
+  }
+
+  .public-hub-card {
+    min-height: 156px;
+    padding: 19px;
+    border: 1px solid rgba(255, 255, 255, 0.065);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.018);
+  }
+
+  .public-hub-card.wide {
+    grid-column: 1 / -1;
+  }
+
+  .public-hub-card-label {
+    display: block;
+    margin-bottom: 8px;
+    color: #d8b8ee;
+    font-size: 0.68rem;
+    font-weight: 820;
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+  }
+
+  .public-hub-card h3 {
+    margin: 0;
+    color: #f4f1f6;
+    font-size: 1rem;
+  }
+
+  .public-hub-card p {
+    margin: 8px 0 0;
+    color: #9994a0;
+    font-size: 0.84rem;
+    line-height: 1.6;
+  }
+
+  .public-hub-empty {
+    margin-top: 12px;
+    padding: 11px 12px;
+    border: 1px dashed rgba(177, 76, 255, 0.18);
+    border-radius: 12px;
+    color: #87828e;
+    font-size: 0.78rem;
+  }
+
+  .app.public-section-open .map-surface {
+    opacity: 0.2;
+    filter: saturate(0.55);
+    pointer-events: none;
+  }
+
+  .app.public-section-open .floating-tools,
+  .app.public-section-open .detail-panel,
+  .app.public-section-open .empty-panel {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .account-trigger {
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 7px 9px;
+    background: rgba(255, 255, 255, 0.025);
+    color: #aaa5b0;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 760;
+    cursor: pointer;
+  }
+
+  .account-trigger:hover,
+  .account-trigger.active {
+    color: #fff;
+    border-color: rgba(177, 76, 255, 0.3);
+    background: rgba(177, 76, 255, 0.075);
+  }
+
+  .account-panel {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid rgba(177, 76, 255, 0.12);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.018);
+  }
+
+  .account-panel[hidden] {
+    display: none !important;
+  }
+
+  .account-panel-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .account-panel-title strong {
+    font-size: 0.82rem;
+  }
+
+  .account-panel-title span {
+    color: var(--muted);
+    font-size: 0.7rem;
+  }
+
+  .editor-tools-note {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .atlas-primary-tabs {
+      display: flex;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 9px;
+    }
+
+    .atlas-primary-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .atlas-primary-tab {
+      flex: 0 0 auto;
+      min-width: 94px;
+    }
+
+    .public-hub-panel {
+      top: 184px;
+      right: 12px;
+      bottom: 12px;
+      left: 12px;
+      padding: 20px 16px;
+      border-radius: 20px;
+    }
+
+    .atlas-navigation.global-section + .map-surface + .public-hub-panel {
+      top: 132px;
+    }
+
+    .public-hub-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .public-hub-card.wide {
+      grid-column: auto;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .atlas-primary-tab {
+      min-width: 86px;
+      padding: 8px 9px;
+      font-size: 0.7rem;
+    }
+
+    .public-hub-panel {
+      padding: 18px 14px;
+    }
+
+    .public-hub-title {
+      font-size: 1.7rem;
+    }
+  }
+
+
   .topbar-brand,
   .topbar-team {
     display: flex;
@@ -3398,10 +3705,17 @@
       </div>
     </div>
 
-    <nav class="atlas-navigation" aria-label="Navigare Atlas">
+    <nav class="atlas-navigation" id="atlasNavigation" aria-label="Navigare Atlas">
+      <div class="atlas-primary-tabs" id="publicSectionTabs" role="tablist" aria-label="Navigare principală">
+        <button class="atlas-primary-tab active" type="button" role="tab" data-public-section="explore">Explore</button>
+        <button class="atlas-primary-tab" type="button" role="tab" data-public-section="roadmaps">Roadmaps</button>
+        <button class="atlas-primary-tab" type="button" role="tab" data-public-section="resources">Resources</button>
+        <button class="atlas-primary-tab" type="button" role="tab" data-public-section="announcements">Announcements</button>
+      </div>
+
       <div class="atlas-navigation-head">
         <div class="atlas-navigation-copy">
-          <span class="atlas-navigation-eyebrow">Explorează Atlasul</span>
+          <span class="atlas-navigation-eyebrow" id="atlasNavigationEyebrow">Explorează Atlasul</span>
           <strong class="atlas-navigation-title" id="activeDepartmentTitle">Programming</strong>
         </div>
         <span class="atlas-navigation-context" id="departmentContext">departament</span>
@@ -3420,14 +3734,23 @@
       </div>
     </main>
 
+    <section class="public-hub-panel" id="publicHubPanel" aria-live="polite"></section>
+
     <aside class="floating-tools" id="toolPanel">
       <div class="tools-shell">
         <div class="tools-header" id="toolsHeader">
           <div class="tools-header-left">
-            <strong>Quick controls</strong>
-            <span>navigare, editare și relații</span>
+            <strong>Explore</strong>
+            <span>căutare, filtre și hartă</span>
           </div>
           <div class="tools-header-right">
+            <button
+              class="account-trigger"
+              id="accountBtn"
+              type="button"
+              aria-expanded="false"
+              aria-controls="accountPanel"
+            >Cont</button>
             <img
               class="site-corner-logo"
               src="/img/FTCProgrammingAtlasLogo.png"
@@ -3438,29 +3761,36 @@
         </div>
 
         <div class="tools-body">
-          <div class="count-strip" id="authStatusBox">Neautentificat. Poți citi atlasul, dar pentru editare trebuie login.</div>
-          <input id="authEmailInput" class="search-input" placeholder="Email pentru magic link..." />
-          <div class="btn-row">
-            <button class="btn primary" id="loginBtn">Trimite magic link</button>
-            <button class="btn" id="logoutBtn">Logout</button>
-          </div>
+          <div class="account-panel" id="accountPanel" hidden>
+            <div class="account-panel-title">
+              <strong>Cont</strong>
+              <span>login și acces</span>
+            </div>
 
-          <div class="auth-otp-row" id="authOtpRow" hidden>
-            <input
-              id="authOtpInput"
-              class="search-input"
-              inputmode="numeric"
-              autocomplete="one-time-code"
-              maxlength="10"
-              pattern="[0-9]{6,10}"
-              placeholder="Cod OTP..."
-            />
-            <button class="btn" id="verifyOtpBtn" type="button">Verifică codul</button>
+            <div class="count-strip" id="authStatusBox">Neautentificat. Poți citi atlasul, dar pentru editare trebuie login.</div>
+            <input id="authEmailInput" class="search-input" placeholder="Email pentru magic link..." />
+            <div class="btn-row">
+              <button class="btn primary" id="loginBtn">Trimite magic link</button>
+              <button class="btn" id="logoutBtn">Logout</button>
+            </div>
+
+            <div class="auth-otp-row" id="authOtpRow" hidden>
+              <input
+                id="authOtpInput"
+                class="search-input"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                maxlength="10"
+                pattern="[0-9]{6,10}"
+                placeholder="Cod OTP..."
+              />
+              <button class="btn" id="verifyOtpBtn" type="button">Verifică codul</button>
+            </div>
+            <p class="privacy-login-note">
+              Adresa de email este folosită pentru autentificare și controlul accesului.
+              <a href="/privacy.html">Politica de confidențialitate</a>
+            </p>
           </div>
-          <p class="privacy-login-note">
-            Adresa de email este folosită pentru autentificare și controlul accesului de editor.
-            <a href="/privacy.html">Politica de confidențialitate</a>
-          </p>
 
           <input id="searchInput" class="search-input" placeholder="Caută topic, categorie, dificultate, etichetă sau text..." />
 
@@ -3575,15 +3905,17 @@
                 Taxonomy Manager
               </button>
             </div>
+
+            <div class="editor-tools-note">
+              Editor Mode este disponibil doar conturilor autorizate. Controalele de editare nu fac parte din interfața publică.
+            </div>
           </div>
 
           <div class="count-strip"><strong id="nodeCount">0</strong> topicuri încărcate din atlas.</div>
           <div class="selected-strip" id="selectedStrip">Niciun nod selectat.</div>
           <div class="mode-strip" id="modeStrip"></div>
           <div class="tools-note">
-            Click sau tap pe un nod pentru documentație. Zoom cu scroll și pan cu drag pe fundal.
-            În Editor Mode poți redimensiona nodurile, selecta o muchie, adăuga mai multe puncte și trage fiecare punct numerotat.
-            WASD mută rapid nodul selectat doar local; apasă F sau „Salvează poziția” ca să trimiți o singură actualizare în Supabase. Săgețile păstrează mutarea fină cu salvare directă.
+            Click sau tap pe un nod pentru documentație. Folosește scroll pentru zoom și drag pe fundal pentru pan.
           </div>
         </div>
       </div>

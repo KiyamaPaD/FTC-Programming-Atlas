@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v53 · Full English UI + global bilingual content
+// v69 · Full English UI + public shell
 //
 // Source language: Romanian
 // Secondary language: English
@@ -31,6 +31,72 @@ const UI_EN = new Map(Object.entries({
     'Loading departments...',
   'Nu există departamente active.':
     'No active departments.',
+  'Navigare principală':
+    'Primary navigation',
+  'Explore':
+    'Explore',
+  'Roadmaps':
+    'Roadmaps',
+  'Resources':
+    'Resources',
+  'Announcements':
+    'Announcements',
+  'Parcursuri recomandate':
+    'Recommended paths',
+  'Resurse utile':
+    'Useful resources',
+  'Anunțuri universale':
+    'Universal announcements',
+  'căutare, filtre și hartă':
+    'search, filters and map',
+  'Cont':
+    'Account',
+  'Profil':
+    'Profile',
+  'login și acces':
+    'login and access',
+  'Adresa de email este folosită pentru autentificare și controlul accesului.':
+    'Your email address is used for authentication and access control.',
+  'Click sau tap pe un nod pentru documentație. Folosește scroll pentru zoom și drag pe fundal pentru pan.':
+    'Click or tap a node to open its documentation. Use the scroll wheel to zoom and drag the background to pan.',
+  'Editor Mode este disponibil doar conturilor autorizate. Controalele de editare nu fac parte din interfața publică.':
+    'Editor Mode is available only to authorized accounts. Editing controls are not part of the public interface.',
+  'Învață în ordinea care are sens pentru tine.':
+    'Learn in the order that makes sense for you.',
+  'Roadmap-urile oferă un traseu recomandat prin Atlas, dar nu blochează noduri. Toată documentația publică rămâne accesibilă oricând.':
+    'Roadmaps provide a recommended path through the Atlas without locking nodes. All public documentation remains accessible at any time.',
+  'Acces liber la toate nodurile':
+    'Open access to all nodes',
+  'Roadmaps publicate':
+    'Published roadmaps',
+  'Niciun roadmap publicat momentan.':
+    'No roadmap has been published yet.',
+  'Roadmap-urile pentru acest departament vor apărea aici, separat de harta de concepte.':
+    'Roadmaps for this department will appear here, separately from the concept map.',
+  'Poți continua să explorezi toate nodurile direct din Atlas.':
+    'You can keep exploring every node directly in the Atlas.',
+  'Documentație și resurse care merită păstrate aproape.':
+    'Documentation and resources worth keeping close.',
+  'Aici vor fi grupate resurse relevante pentru departamentul selectat: documentație oficială, ghiduri și materiale de referință.':
+    'Relevant resources for the selected department will be grouped here: official documentation, guides and reference material.',
+  'Surse externe + resurse Atlas':
+    'External sources + Atlas resources',
+  'Nicio resursă publicată momentan.':
+    'No resource has been published yet.',
+  'Lista va fi organizată pe departamente și topicuri.':
+    'The list will be organized by department and topic.',
+  'Surse':
+    'Sources',
+  'Linkuri clare către materialele originale.':
+    'Clear links to original material.',
+  'Resursele vor putea indica sursa și nodurile relevante din Atlas.':
+    'Resources can point to their source and the relevant Atlas nodes.',
+  'Actualizări publice importante pentru comunitatea Atlas: Game Manual, sezon, events, resurse și schimbări relevante ale platformei.':
+    'Important public updates for the Atlas community: Game Manual, season, events, resources and relevant platform changes.',
+  'Niciun anunț publicat momentan.':
+    'No announcement has been published yet.',
+  'Anunțurile scrise de administratorii Atlasului vor apărea aici și vor rămâne disponibile pentru consultare.':
+    'Announcements written by Atlas administrators will appear here and remain available for reference.',
   'Creat de':
     'Created by',
   'navigare, editare și relații':
