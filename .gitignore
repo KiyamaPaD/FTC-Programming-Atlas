@@ -23,3 +23,10 @@ Thumbs.db
 
 # Electron desktop build output
 dist-desktop/
+
+# Signing material (keep private and backed up outside the repository)
+*.jks
+*.keystore
+
+# Generated Capacitor plugin build state
+android/capacitor-cordova-android-plugins/build/

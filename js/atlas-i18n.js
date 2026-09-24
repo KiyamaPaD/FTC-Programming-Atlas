@@ -23,6 +23,14 @@ const SUPPORTED_LANGUAGES = new Set(['ro', 'en'])
 const UI_EN = new Map(Object.entries({
   'manual interactiv pentru generațiile următoare':
     'interactive manual for future generations',
+  'Explorează Atlasul':
+    'Explore the Atlas',
+  'departament':
+    'department',
+  'Se încarcă departamentele...':
+    'Loading departments...',
+  'Nu există departamente active.':
+    'No active departments.',
   'Creat de':
     'Created by',
   'navigare, editare și relații':

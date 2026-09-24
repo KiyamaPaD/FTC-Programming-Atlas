@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v52 · GLOBAL ENGLISH SEO + BILINGUAL CONTENT')
+console.log('ATLAS SCRIPT LOADED v68 · DEPARTMENT NAVIGATION FOUNDATION')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -33,7 +33,8 @@ const CACHE_KEYS = {
   intro: 'ftc_atlas_intro_v1',
   editorMode: 'ftc_atlas_editor_mode_v1',
   codeDrafts: 'ftc_atlas_code_drafts_v1',
-  codeManagerOpen: 'ftc_atlas_code_manager_open_v1'
+  codeManagerOpen: 'ftc_atlas_code_manager_open_v1',
+  department: 'ftc_atlas_department_v1'
 }
 
 const DEFAULT_VIEW = { x: -120, y: -80, scale: 1 }
@@ -276,6 +277,8 @@ let searchQuery = ''
 let categories = []
 let difficulties = []
 let taxonomyTags = []
+let departments = []
+let activeDepartmentId = null
 let tutorialContent = DEFAULT_TUTORIAL_CONTENT
 let categoryFilterId = null
 let difficultyFilterId = null
@@ -337,6 +340,9 @@ const linkLayer = document.getElementById('linkLayer')
 const detailPanel = document.getElementById('detailPanel')
 const emptyPanel = document.getElementById('emptyPanel')
 const searchInput = document.getElementById('searchInput')
+const departmentTabs = document.getElementById('departmentTabs')
+const activeDepartmentTitle = document.getElementById('activeDepartmentTitle')
+const departmentContext = document.getElementById('departmentContext')
 const categoryFilter = document.getElementById('categoryFilter')
 const difficultyFilter = document.getElementById('difficultyFilter')
 const tagFilterChips = document.getElementById('tagFilterChips')
@@ -700,6 +706,7 @@ function applyRouteFromLocation({ canonicalize = true } = {}) {
     return null
   }
 
+  activateDepartmentForNode(node, { persist: false })
   clearFiltersForDeepLink()
   selectedId = node.id
   clearEdgeSelection()
@@ -936,6 +943,160 @@ function getTagById(id) {
   return taxonomyTags.find((item) => Number(item.id) === Number(id)) || null
 }
 
+
+function getDepartmentById(id) {
+  return departments.find((item) => Number(item.id) === Number(id)) || null
+}
+
+function getDepartmentBySlug(slug) {
+  return departments.find((item) => item.slug === slug) || null
+}
+
+function nodeDepartmentIds(node) {
+  if (Array.isArray(node?.departmentIds) && node.departmentIds.length > 0) {
+    return node.departmentIds.map(Number)
+  }
+
+  // Backwards-compatible fallback while the editor is being reworked:
+  // old or newly-created unmapped nodes remain visible in Programming.
+  const programming = getDepartmentBySlug('programming')
+  return programming ? [Number(programming.id)] : []
+}
+
+function nodeDepartmentNames(node) {
+  return nodeDepartmentIds(node)
+    .map((id) => getDepartmentById(id)?.name)
+    .filter(Boolean)
+}
+
+function normalizeDepartmentState() {
+  const activeDepartments = departments.filter((item) => item.is_active !== false)
+
+  if (activeDepartments.length === 0) {
+    activeDepartmentId = null
+    return
+  }
+
+  const requestedSlug = localStorage.getItem(CACHE_KEYS.department)
+  const requested = requestedSlug
+    ? activeDepartments.find((item) => item.slug === requestedSlug)
+    : null
+
+  if (requested) {
+    activeDepartmentId = Number(requested.id)
+    return
+  }
+
+  const currentStillExists = activeDepartments.some(
+    (item) => Number(item.id) === Number(activeDepartmentId)
+  )
+
+  if (currentStillExists) return
+
+  // Programming remains the default landing department during the migration.
+  // Universal becomes the broader entry point as its content is expanded.
+  const programming = activeDepartments.find((item) => item.slug === 'programming')
+  activeDepartmentId = Number((programming || activeDepartments[0]).id)
+}
+
+function matchesDepartment(node) {
+  if (activeDepartmentId == null) return true
+
+  return nodeDepartmentIds(node).some(
+    (id) => Number(id) === Number(activeDepartmentId)
+  )
+}
+
+function getDepartmentNodes() {
+  return nodes.filter((node) => matchesDepartment(node))
+}
+
+function activateDepartmentForNode(node, { persist = false } = {}) {
+  if (!node) return
+
+  const ids = nodeDepartmentIds(node)
+  if (ids.length === 0) return
+
+  if (ids.some((id) => Number(id) === Number(activeDepartmentId))) return
+
+  activeDepartmentId = Number(ids[0])
+
+  if (persist) {
+    const department = getDepartmentById(activeDepartmentId)
+    if (department) {
+      localStorage.setItem(CACHE_KEYS.department, department.slug)
+    }
+  }
+}
+
+function selectDepartment(id) {
+  const department = getDepartmentById(id)
+  if (!department || department.is_active === false) return
+
+  activeDepartmentId = Number(department.id)
+  localStorage.setItem(CACHE_KEYS.department, department.slug)
+
+  normalizeSelectionAfterFilters()
+  renderAll()
+
+  requestAnimationFrame(fitView)
+}
+
+function renderDepartmentNavigation() {
+  if (!departmentTabs) return
+
+  const active = departments
+    .filter((item) => item.is_active !== false)
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+
+  const current = getDepartmentById(activeDepartmentId)
+
+  if (activeDepartmentTitle) {
+    activeDepartmentTitle.textContent = current?.name || 'Atlas'
+  }
+
+  if (departmentContext) {
+    departmentContext.textContent = current?.slug === 'universal' ? 'universal' : 'departament'
+  }
+
+  if (active.length === 0) {
+    departmentTabs.innerHTML =
+      '<span class="department-tabs-loading">Nu există departamente active.</span>'
+    return
+  }
+
+  departmentTabs.innerHTML = active
+    .map((department) => {
+      const count = nodes.filter((node) =>
+        nodeDepartmentIds(node).some((id) => Number(id) === Number(department.id))
+      ).length
+
+      const selected = Number(department.id) === Number(activeDepartmentId)
+
+      return `
+        <button
+          class="department-tab ${selected ? 'active' : ''}"
+          type="button"
+          role="tab"
+          aria-selected="${selected ? 'true' : 'false'}"
+          data-department-id="${Number(department.id)}"
+        >
+          <span class="department-tab-name">${escapeHtml(
+            department.short_name || department.name
+          )}</span>
+          <span class="department-tab-count">${count}</span>
+        </button>
+      `
+    })
+    .join('')
+
+  departmentTabs.querySelectorAll('[data-department-id]').forEach((button) => {
+    button.addEventListener('click', () => {
+      selectDepartment(Number(button.dataset.departmentId))
+    })
+  })
+}
+
 function normalizeTaxonomyState() {
   const activeCategoryIds = new Set(
     categories.filter((item) => item.is_active !== false).map((item) => Number(item.id))
@@ -987,6 +1148,7 @@ function matchesSearch(node) {
     nodeContentPlainText(node),
     nodeCategoryName(node),
     nodeDifficultyName(node),
+    ...nodeDepartmentNames(node),
     ...nodeTagNames(node),
     ...(node.media || []).flatMap((media) => [media.title || '', media.caption || '']),
     ...(node.files || []).flatMap((file) => [
@@ -1030,7 +1192,12 @@ function matchesTaxonomyFilters(node) {
 }
 
 function getVisibleNodes() {
-  return nodes.filter((node) => matchesSearch(node) && matchesTaxonomyFilters(node))
+  return nodes.filter(
+    (node) =>
+      matchesDepartment(node) &&
+      matchesSearch(node) &&
+      matchesTaxonomyFilters(node)
+  )
 }
 
 function getVisibleNodeIdSet() {
@@ -2850,6 +3017,8 @@ async function fetchAllData() {
     categoriesResult,
     difficultiesResult,
     tagsResult,
+    departmentsResult,
+    nodeDepartmentsResult,
     nodeTagsResult,
     mediaResult,
     filesResult,
@@ -2890,6 +3059,18 @@ async function fetchAllData() {
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true }),
 
+    supabase
+      .from('atlas_departments')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true }),
+
+    supabase
+      .from('atlas_node_departments')
+      .select('node_id, department_id')
+      .eq('project_id', PROJECT_ID),
+
     supabase.from('atlas_node_tags').select('node_id, tag_id').eq('project_id', PROJECT_ID),
 
     supabase
@@ -2929,6 +3110,8 @@ async function fetchAllData() {
     categoriesResult,
     difficultiesResult,
     tagsResult,
+    departmentsResult,
+    nodeDepartmentsResult,
     nodeTagsResult,
     mediaResult,
     filesResult,
@@ -2941,12 +3124,15 @@ async function fetchAllData() {
   categories = categoriesResult.data || []
   difficulties = difficultiesResult.data || []
   taxonomyTags = tagsResult.data || []
+  departments = departmentsResult.data || []
   tutorialContent = tutorialResult.data?.content || DEFAULT_TUTORIAL_CONTENT
 
   normalizeTaxonomyState()
+  normalizeDepartmentState()
 
   const nodesData = nodesResult.data || []
   const edgesData = edgesResult.data || []
+  const nodeDepartmentsData = nodeDepartmentsResult.data || []
   const nodeTagsData = nodeTagsResult.data || []
   const mediaData = mediaResult.data || []
   const filesData = filesResult.data || []
@@ -2974,6 +3160,13 @@ async function fetchAllData() {
       label: edge.label || 'relație',
       controlPoints: normalizeEdgeControlPoints(edge.control_points, edge.control_x, edge.control_y)
     })
+  }
+
+  const departmentsByNode = new Map()
+  for (const row of nodeDepartmentsData) {
+    const nodeId = Number(row.node_id)
+    if (!departmentsByNode.has(nodeId)) departmentsByNode.set(nodeId, [])
+    departmentsByNode.get(nodeId).push(Number(row.department_id))
   }
 
   const tagsByNode = new Map()
@@ -3048,6 +3241,7 @@ async function fetchAllData() {
     legacyTag: node.tag,
     categoryId: node.category_id == null ? null : Number(node.category_id),
     difficultyId: node.difficulty_id == null ? null : Number(node.difficulty_id),
+    departmentIds: departmentsByNode.get(Number(node.id)) || [],
     tagIds: tagsByNode.get(Number(node.id)) || [],
     x: Number(node.x),
     y: Number(node.y),
@@ -6601,11 +6795,14 @@ function renderDetailPanel() {
 function renderAll() {
   normalizeSelectionAfterFilters()
   renderTaxonomyControls()
+  renderDepartmentNavigation()
 
   const visibleCount = getVisibleNodes().length
+  const departmentTotal = getDepartmentNodes().length
+
   nodeCount.textContent = hasActiveFilters()
-    ? `${visibleCount} / ${nodes.length}`
-    : String(nodes.length)
+    ? `${visibleCount} / ${departmentTotal}`
+    : String(departmentTotal)
 
   renderSelectedStrip()
   renderModeStrip()

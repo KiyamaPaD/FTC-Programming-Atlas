@@ -2373,6 +2373,197 @@
     }
 
 
+  /* -----------------------------------------------------------------------
+     Public Atlas navigation
+     Department navigation is intentionally separate from editor/admin tools.
+     ----------------------------------------------------------------------- */
+
+  .atlas-navigation {
+    position: fixed;
+    top: 82px;
+    left: 22px;
+    z-index: 32;
+    width: min(292px, calc(100vw - 44px));
+    padding: 12px;
+    border: 1px solid rgba(177, 76, 255, 0.18);
+    border-radius: 18px;
+    background:
+      linear-gradient(180deg, rgba(10, 9, 13, 0.94), rgba(6, 6, 8, 0.92));
+    box-shadow:
+      0 18px 46px rgba(0, 0, 0, 0.34),
+      0 0 24px rgba(177, 76, 255, 0.05);
+    backdrop-filter: blur(14px);
+  }
+
+  .atlas-navigation-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .atlas-navigation-copy {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .atlas-navigation-eyebrow {
+    color: var(--muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .atlas-navigation-title {
+    color: #f5f3f7;
+    font-size: 0.95rem;
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .atlas-navigation-context {
+    color: var(--muted);
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .department-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .department-tab {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 7px;
+    padding: 9px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.025);
+    color: #c7c3cb;
+    font: inherit;
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+    transition:
+      border-color 140ms ease,
+      background 140ms ease,
+      color 140ms ease,
+      transform 140ms ease;
+  }
+
+  .department-tab:hover {
+    color: #fff;
+    border-color: rgba(177, 76, 255, 0.32);
+    background: rgba(177, 76, 255, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .department-tab.active {
+    color: #fff;
+    border-color: rgba(255, 77, 109, 0.46);
+    background:
+      linear-gradient(
+        135deg,
+        rgba(177, 76, 255, 0.15),
+        rgba(255, 77, 109, 0.11)
+      );
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025);
+  }
+
+  .department-tab-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .department-tab-count {
+    flex: 0 0 auto;
+    min-width: 23px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.055);
+    color: #9994a0;
+    font-size: 0.66rem;
+    text-align: center;
+  }
+
+  .department-tab.active .department-tab-count {
+    color: #f5dfe8;
+    background: rgba(255, 77, 109, 0.12);
+  }
+
+  .department-tabs-loading {
+    grid-column: 1 / -1;
+    color: var(--muted);
+    font-size: 0.76rem;
+    padding: 7px 2px 2px;
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .atlas-navigation {
+      top: max(72px, calc(env(safe-area-inset-top) + 64px));
+      left: 12px;
+      right: 12px;
+      width: auto;
+      padding: 9px 10px 10px;
+      border-radius: 16px;
+    }
+
+    .atlas-navigation-head {
+      margin-bottom: 8px;
+    }
+
+    .atlas-navigation-context {
+      display: none;
+    }
+
+    .department-tabs {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 1px;
+    }
+
+    .department-tabs::-webkit-scrollbar {
+      display: none;
+    }
+
+    .department-tab {
+      flex: 0 0 auto;
+      min-width: 104px;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .atlas-navigation-title {
+      font-size: 0.88rem;
+    }
+
+    .atlas-navigation-eyebrow {
+      font-size: 0.64rem;
+    }
+
+    .department-tab {
+      min-width: 94px;
+      padding: 8px 9px;
+      font-size: 0.72rem;
+    }
+  }
+
+
+
   .topbar-brand,
   .topbar-team {
     display: flex;
@@ -3206,6 +3397,20 @@
         >InfotronX #19119</a>
       </div>
     </div>
+
+    <nav class="atlas-navigation" aria-label="Navigare Atlas">
+      <div class="atlas-navigation-head">
+        <div class="atlas-navigation-copy">
+          <span class="atlas-navigation-eyebrow">Explorează Atlasul</span>
+          <strong class="atlas-navigation-title" id="activeDepartmentTitle">Programming</strong>
+        </div>
+        <span class="atlas-navigation-context" id="departmentContext">departament</span>
+      </div>
+
+      <div class="department-tabs" id="departmentTabs" role="tablist" aria-label="Departamente FTC">
+        <span class="department-tabs-loading">Se încarcă departamentele...</span>
+      </div>
+    </nav>
 
     <main class="map-surface" id="mapSurface">
       <div class="world" id="world">
