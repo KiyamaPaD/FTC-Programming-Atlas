@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v70 · Full English UI + public content
+// v71 · Full English UI + roadmaps
 //
 // Source language: Romanian
 // Secondary language: English
@@ -171,6 +171,48 @@ const UI_EN = new Map(Object.entries({
     'Inactive resources remain saved but are not shown publicly.',
   'Adaugă o resursă utilă și alege departamentele unde trebuie să apară.':
     'Add a useful resource and choose the departments where it should appear.',
+  'Roadmap Manager':
+    'Roadmap Manager',
+  'Construiește trasee recomandate. Nodurile rămân mereu accesibile, indiferent de progres.':
+    'Build recommended learning paths. Nodes always remain accessible regardless of progress.',
+  'Roadmaps publice':
+    'Public roadmaps',
+  'Ordinea din roadmap este orientativă, nu un sistem de unlock.':
+    'Roadmap order is guidance, not an unlock system.',
+  '+ Roadmap nou':
+    '+ New roadmap',
+  'Roadmap nou':
+    'New roadmap',
+  'Alege departamentul și adaugă nodurile în ordinea recomandată.':
+    'Choose the department and add nodes in the recommended order.',
+  'Pași recomandați':
+    'Recommended steps',
+  'Notă scurtă':
+    'Short note',
+  '+ Adaugă pas':
+    '+ Add step',
+  'Activ / public':
+    'Active / public',
+  'Nu ai adăugat încă niciun pas. Roadmap-ul poate fi salvat și completat ulterior.':
+    'You have not added any steps yet. The roadmap can be saved and completed later.',
+  'Poți reordona pașii fără să blochezi accesul la niciun nod.':
+    'You can reorder steps without blocking access to any node.',
+  'Roadmap încărcat pentru editare.':
+    'Roadmap loaded for editing.',
+  'Niciun nod nu este blocat.':
+    'No node is locked.',
+  'Progresul este salvat în contul tău. Niciun nod nu este blocat.':
+    'Your progress is saved to your account. No node is locked.',
+  'Toate nodurile sunt accesibile.':
+    'All nodes are accessible.',
+  'Loghează-te pentru a salva progresul.':
+    'Log in to save your progress.',
+  'Manage roadmaps':
+    'Manage roadmaps',
+  'Recommended':
+    'Recommended',
+  'Optional':
+    'Optional',
   'Creat de':
     'Created by',
   'navigare, editare și relații':

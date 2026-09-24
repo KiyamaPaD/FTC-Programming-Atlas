@@ -3279,6 +3279,433 @@
   }
 
 
+  /* -----------------------------------------------------------------------
+     Roadmaps · recommended learning paths, never locked progression
+     ----------------------------------------------------------------------- */
+
+  .roadmap-list {
+    display: grid;
+    gap: 16px;
+    margin-top: 28px;
+  }
+
+  .roadmap-card {
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.065);
+    border-radius: 20px;
+    background:
+      radial-gradient(circle at 8% 0%, rgba(177, 76, 255, 0.07), transparent 34%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.012));
+  }
+
+  .roadmap-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .roadmap-card-main {
+    min-width: 0;
+  }
+
+  .roadmap-card-label {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 4px 8px;
+    margin-bottom: 8px;
+    border: 1px solid rgba(177, 76, 255, 0.22);
+    border-radius: 999px;
+    background: rgba(177, 76, 255, 0.055);
+    color: #d9b9eb;
+    font-size: 0.65rem;
+    font-weight: 820;
+  }
+
+  .roadmap-card h2 {
+    margin: 0;
+    color: #f6f3f8;
+    font-size: 1.1rem;
+    line-height: 1.3;
+  }
+
+  .roadmap-card-description {
+    max-width: 720px;
+    margin: 9px 0 0;
+    color: #a49fa9;
+    font-size: 0.84rem;
+    line-height: 1.65;
+  }
+
+  .roadmap-progress-copy {
+    flex: 0 0 auto;
+    color: #928d97;
+    font-size: 0.72rem;
+    font-weight: 760;
+    white-space: nowrap;
+  }
+
+  .roadmap-progress-track {
+    height: 7px;
+    margin-top: 15px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.045);
+  }
+
+  .roadmap-progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, rgba(177, 76, 255, 0.78), rgba(255, 77, 109, 0.78));
+    transition: width 180ms ease;
+  }
+
+  .roadmap-steps {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .roadmap-step {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.052);
+    border-radius: 13px;
+    background: rgba(255, 255, 255, 0.014);
+  }
+
+  .roadmap-step.completed {
+    border-color: rgba(177, 76, 255, 0.18);
+    background: rgba(177, 76, 255, 0.025);
+  }
+
+  .roadmap-step-check {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.02);
+    color: #8f8994;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .roadmap-step-check:hover:not(:disabled) {
+    border-color: rgba(177, 76, 255, 0.4);
+    color: #fff;
+  }
+
+  .roadmap-step-check.completed {
+    border-color: rgba(177, 76, 255, 0.42);
+    background: rgba(177, 76, 255, 0.14);
+    color: #f4eafa;
+  }
+
+  .roadmap-step-check:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+
+  .roadmap-step-main {
+    min-width: 0;
+  }
+
+  .roadmap-step-node {
+    display: inline;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #e8e4eb;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 780;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .roadmap-step-node:hover {
+    color: #fff;
+    text-decoration: underline;
+    text-decoration-color: rgba(177, 76, 255, 0.5);
+    text-underline-offset: 3px;
+  }
+
+  .roadmap-step-note {
+    margin: 4px 0 0;
+    color: #85808b;
+    font-size: 0.72rem;
+    line-height: 1.5;
+  }
+
+  .roadmap-step-index {
+    min-width: 34px;
+    color: #746f79;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-align: right;
+  }
+
+  .roadmap-step-optional {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 3px 7px;
+    margin-left: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+    color: #817c86;
+    font-size: 0.6rem;
+    font-weight: 800;
+    vertical-align: middle;
+  }
+
+  .roadmap-card-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.045);
+  }
+
+  .roadmap-card-foot p {
+    margin: 0;
+    color: #817c86;
+    font-size: 0.72rem;
+    line-height: 1.5;
+  }
+
+  .roadmap-login-link {
+    border: 0;
+    padding: 0;
+    background: none;
+    color: #d8b8ee;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .roadmap-login-link:hover {
+    color: #fff;
+    text-decoration: underline;
+  }
+
+  .roadmap-manager-modal {
+    width: min(1160px, 100%);
+    max-height: min(880px, calc(100vh - 44px));
+    display: flex;
+    flex-direction: column;
+  }
+
+  .roadmap-manager-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 16px 18px 18px;
+  }
+
+  .roadmap-manager-layout {
+    display: grid;
+    grid-template-columns: minmax(270px, 0.72fr) minmax(520px, 1.28fr);
+    gap: 14px;
+    align-items: start;
+  }
+
+  .roadmap-manager-list,
+  .roadmap-editor {
+    min-width: 0;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.014);
+  }
+
+  .roadmap-manager-list {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .roadmap-manager-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.018);
+  }
+
+  .roadmap-manager-item.inactive {
+    opacity: 0.6;
+  }
+
+  .roadmap-manager-item strong {
+    display: block;
+    overflow: hidden;
+    color: #ece8ef;
+    font-size: 0.8rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .roadmap-manager-item span {
+    display: block;
+    margin-top: 4px;
+    color: #817c86;
+    font-size: 0.68rem;
+  }
+
+  .roadmap-editor {
+    padding: 14px;
+  }
+
+  .roadmap-editor-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .roadmap-editor-head strong {
+    display: block;
+    color: #f2eef4;
+    font-size: 0.92rem;
+  }
+
+  .roadmap-editor-head span {
+    display: block;
+    margin-top: 4px;
+    color: #817c86;
+    font-size: 0.7rem;
+  }
+
+  .roadmap-step-builder {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.012);
+  }
+
+  .roadmap-step-builder-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 0.75fr) auto;
+    gap: 8px;
+    align-items: end;
+  }
+
+  .roadmap-step-builder-toggle {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #aaa5b0;
+    font-size: 0.72rem;
+  }
+
+  .roadmap-step-builder-toggle input {
+    width: auto;
+  }
+
+  .roadmap-editor-steps {
+    display: grid;
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  .roadmap-editor-step {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 9px;
+    align-items: center;
+    padding: 9px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.015);
+  }
+
+  .roadmap-editor-step-index {
+    color: #77717d;
+    font-size: 0.66rem;
+    font-weight: 900;
+  }
+
+  .roadmap-editor-step-main {
+    min-width: 0;
+  }
+
+  .roadmap-editor-step-main strong {
+    display: block;
+    overflow: hidden;
+    color: #ddd8e1;
+    font-size: 0.76rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .roadmap-editor-step-main span {
+    display: block;
+    margin-top: 3px;
+    color: #817c86;
+    font-size: 0.66rem;
+  }
+
+  .roadmap-editor-step-actions {
+    display: flex;
+    gap: 5px;
+  }
+
+  .roadmap-editor-step-actions button {
+    min-width: 30px;
+  }
+
+  .roadmap-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.055);
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .roadmap-manager-layout {
+      grid-template-columns: 1fr;
+    }
+
+    .roadmap-manager-modal {
+      max-height: none;
+    }
+
+    .roadmap-step-builder-row {
+      grid-template-columns: 1fr;
+    }
+
+    .roadmap-card-head {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .roadmap-progress-copy {
+      white-space: normal;
+    }
+  }
+
+
   .topbar-brand,
   .topbar-team {
     display: flex;
@@ -4316,6 +4743,10 @@
               <button class="btn" id="publicContentManagerBtn" type="button">
                 Public Content
               </button>
+
+              <button class="btn" id="roadmapManagerBtn" type="button">
+                Roadmap Manager
+              </button>
             </div>
 
             <div class="editor-tools-note">
@@ -4736,6 +5167,120 @@
   </div>
 
 
+
+  <div class="modal-backdrop roadmap-manager-backdrop" id="roadmapManagerBackdrop">
+    <div class="modal roadmap-manager-modal">
+      <div class="modal-head">
+        <div>
+          <h3>Roadmap Manager</h3>
+          <p>Construiește trasee recomandate. Nodurile rămân mereu accesibile, indiferent de progres.</p>
+        </div>
+        <button class="icon-btn" id="closeRoadmapManagerBtn" aria-label="Close">✕</button>
+      </div>
+
+      <div class="roadmap-manager-body">
+        <div class="public-content-manager-toolbar">
+          <div>
+            <strong>Roadmaps publice</strong>
+            <div class="editor-tools-note">Ordinea din roadmap este orientativă, nu un sistem de unlock.</div>
+          </div>
+
+          <button class="btn primary" id="newRoadmapBtn" type="button">+ Roadmap nou</button>
+        </div>
+
+        <div class="count-strip" id="roadmapManagerSummary"></div>
+
+        <div class="roadmap-manager-layout">
+          <div class="roadmap-manager-list" id="roadmapManagerList"></div>
+
+          <div class="roadmap-editor">
+            <div class="roadmap-editor-head">
+              <div>
+                <strong id="roadmapEditorTitle">Roadmap nou</strong>
+                <span id="roadmapEditorHint">Alege departamentul și adaugă nodurile în ordinea recomandată.</span>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <div class="field">
+                <label for="roadmapTitleInput">Titlu</label>
+                <input id="roadmapTitleInput" maxlength="180" placeholder="Ex: Programming Foundations" />
+              </div>
+
+              <div class="field">
+                <label for="roadmapDepartmentInput">Departament</label>
+                <select id="roadmapDepartmentInput"></select>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="roadmapDescriptionInput">Descriere</label>
+              <textarea
+                id="roadmapDescriptionInput"
+                class="compact-textarea"
+                maxlength="1500"
+                placeholder="Ce recomandă acest roadmap și pentru cine?"
+              ></textarea>
+            </div>
+
+            <div class="field-grid">
+              <div class="field">
+                <label for="roadmapSortOrderInput">Ordine</label>
+                <input id="roadmapSortOrderInput" type="number" step="1" value="0" />
+              </div>
+
+              <div class="field">
+                <label>Status</label>
+                <div class="public-content-toggle-grid">
+                  <label><input id="roadmapActiveInput" type="checkbox" checked /> Activ / public</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Pași recomandați</label>
+
+              <div class="roadmap-step-builder">
+                <div class="roadmap-step-builder-row">
+                  <div class="field">
+                    <label for="roadmapStepNodeInput">Nod</label>
+                    <select id="roadmapStepNodeInput"></select>
+                  </div>
+
+                  <div class="field">
+                    <label for="roadmapStepNoteInput">Notă scurtă</label>
+                    <input id="roadmapStepNoteInput" maxlength="280" placeholder="Opțional..." />
+                  </div>
+
+                  <label class="roadmap-step-builder-toggle">
+                    <input id="roadmapStepOptionalInput" type="checkbox" />
+                    Optional
+                  </label>
+                </div>
+
+                <button class="btn" id="addRoadmapStepBtn" type="button">+ Adaugă pas</button>
+              </div>
+
+              <div class="roadmap-editor-steps" id="roadmapEditorSteps"></div>
+            </div>
+
+            <div class="count-strip" id="roadmapEditorStatus">Pregătit pentru editare.</div>
+
+            <div class="roadmap-editor-actions">
+              <button class="btn danger" id="deleteRoadmapBtn" type="button" hidden>Șterge</button>
+              <button class="btn" id="resetRoadmapEditorBtn" type="button">Curăță</button>
+              <button class="btn primary" id="saveRoadmapBtn" type="button">Salvează</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" id="closeRoadmapManagerFooterBtn" type="button">Închide</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop public-content-manager-backdrop" id="publicContentManagerBackdrop">
     <div class="modal public-content-modal">
       <div class="modal-head">
@@ -4972,6 +5517,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=70"></script>
+  <script type="module" src="/js/atlas-script.js?v=71"></script>
 </body>
 </html>

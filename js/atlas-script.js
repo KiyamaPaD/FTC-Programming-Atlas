@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v70 · PUBLIC CONTENT')
+console.log('ATLAS SCRIPT LOADED v71 · ROADMAPS')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -282,6 +282,8 @@ let departments = []
 let activeDepartmentId = null
 let announcements = []
 let resources = []
+let roadmaps = []
+let roadmapProgress = new Set()
 
 const PUBLIC_SECTIONS = new Set([
   'explore',
@@ -300,6 +302,10 @@ let tutorialContent = DEFAULT_TUTORIAL_CONTENT
 let publicContentManagerKind = 'announcements'
 let publicContentEditingId = null
 let publicContentMutationBusy = false
+let roadmapManagerEditingId = null
+let roadmapManagerDraftSteps = []
+let roadmapManagerMutationBusy = false
+let roadmapProgressMutationKeys = new Set()
 let categoryFilterId = null
 let difficultyFilterId = null
 let tagFilterIds = new Set()
@@ -394,6 +400,7 @@ const editorToolsSection = document.getElementById('editorToolsSection')
 
 const taxonomyManagerBtn = document.getElementById('taxonomyManagerBtn')
 const publicContentManagerBtn = document.getElementById('publicContentManagerBtn')
+const roadmapManagerBtn = document.getElementById('roadmapManagerBtn')
 
 const mediaManagerBtn = document.getElementById('mediaManagerBtn')
 
@@ -634,6 +641,29 @@ const resourceSortOrderInput = document.getElementById('resourceSortOrderInput')
 const resourceDepartmentPicker = document.getElementById('resourceDepartmentPicker')
 const resourceActiveInput = document.getElementById('resourceActiveInput')
 const resourceFeaturedInput = document.getElementById('resourceFeaturedInput')
+
+const roadmapManagerBackdrop = document.getElementById('roadmapManagerBackdrop')
+const closeRoadmapManagerBtn = document.getElementById('closeRoadmapManagerBtn')
+const closeRoadmapManagerFooterBtn = document.getElementById('closeRoadmapManagerFooterBtn')
+const newRoadmapBtn = document.getElementById('newRoadmapBtn')
+const roadmapManagerSummary = document.getElementById('roadmapManagerSummary')
+const roadmapManagerList = document.getElementById('roadmapManagerList')
+const roadmapEditorTitle = document.getElementById('roadmapEditorTitle')
+const roadmapEditorHint = document.getElementById('roadmapEditorHint')
+const roadmapTitleInput = document.getElementById('roadmapTitleInput')
+const roadmapDepartmentInput = document.getElementById('roadmapDepartmentInput')
+const roadmapDescriptionInput = document.getElementById('roadmapDescriptionInput')
+const roadmapSortOrderInput = document.getElementById('roadmapSortOrderInput')
+const roadmapActiveInput = document.getElementById('roadmapActiveInput')
+const roadmapStepNodeInput = document.getElementById('roadmapStepNodeInput')
+const roadmapStepNoteInput = document.getElementById('roadmapStepNoteInput')
+const roadmapStepOptionalInput = document.getElementById('roadmapStepOptionalInput')
+const addRoadmapStepBtn = document.getElementById('addRoadmapStepBtn')
+const roadmapEditorSteps = document.getElementById('roadmapEditorSteps')
+const roadmapEditorStatus = document.getElementById('roadmapEditorStatus')
+const deleteRoadmapBtn = document.getElementById('deleteRoadmapBtn')
+const resetRoadmapEditorBtn = document.getElementById('resetRoadmapEditorBtn')
+const saveRoadmapBtn = document.getElementById('saveRoadmapBtn')
 
 // Node and relationship selection helpers
 function selectedNode() {
@@ -1784,6 +1814,723 @@ async function deletePublicContentItem() {
   }
 }
 
+
+function roadmapProgressKey(roadmapId, nodeId) {
+  return `${Number(roadmapId)}:${Number(nodeId)}`
+}
+
+function isRoadmapStepCompleted(roadmapId, nodeId) {
+  return roadmapProgress.has(roadmapProgressKey(roadmapId, nodeId))
+}
+
+function visibleRoadmaps() {
+  return roadmaps
+    .filter(
+      (roadmap) =>
+        roadmap.isActive !== false &&
+        Number(roadmap.departmentId) === Number(activeDepartmentId)
+    )
+    .sort((a, b) => {
+      const orderDifference = Number(a.sortOrder || 0) - Number(b.sortOrder || 0)
+      if (orderDifference !== 0) return orderDifference
+
+      return String(a.title || '').localeCompare(String(b.title || ''), 'ro', {
+        sensitivity: 'base'
+      })
+    })
+}
+
+function roadmapProgressStats(roadmap) {
+  const steps = Array.isArray(roadmap?.steps) ? roadmap.steps : []
+  const completed = steps.filter((step) =>
+    isRoadmapStepCompleted(roadmap.id, step.nodeId)
+  ).length
+
+  return {
+    completed,
+    total: steps.length,
+    percent: steps.length > 0 ? Math.round((completed / steps.length) * 100) : 0
+  }
+}
+
+async function loadRoadmapProgress({ rerender = false } = {}) {
+  roadmapProgress = new Set()
+
+  if (!currentUser) {
+    if (rerender) renderAll()
+    return
+  }
+
+  const { data, error } = await supabase
+    .from('atlas_roadmap_progress')
+    .select('roadmap_id, node_id')
+    .eq('project_id', PROJECT_ID)
+
+  if (error) {
+    console.error('Roadmap progress load failed:', error)
+    if (rerender) renderAll()
+    return
+  }
+
+  roadmapProgress = new Set(
+    (data || []).map((row) => roadmapProgressKey(row.roadmap_id, row.node_id))
+  )
+
+  if (rerender) renderAll()
+}
+
+async function toggleRoadmapProgress(roadmapId, nodeId) {
+  const key = roadmapProgressKey(roadmapId, nodeId)
+
+  if (!currentUser) {
+    setAccountPanel(true)
+    return
+  }
+
+  if (roadmapProgressMutationKeys.has(key)) return
+
+  roadmapProgressMutationKeys.add(key)
+
+  try {
+    if (roadmapProgress.has(key)) {
+      const { error } = await supabase
+        .from('atlas_roadmap_progress')
+        .delete()
+        .eq('project_id', PROJECT_ID)
+        .eq('roadmap_id', Number(roadmapId))
+        .eq('node_id', Number(nodeId))
+
+      if (error) throw error
+      roadmapProgress.delete(key)
+    } else {
+      const { error } = await supabase.from('atlas_roadmap_progress').insert({
+        project_id: PROJECT_ID,
+        roadmap_id: Number(roadmapId),
+        node_id: Number(nodeId),
+        user_id: currentUser.id
+      })
+
+      if (error) throw error
+      roadmapProgress.add(key)
+    }
+
+    renderAll()
+  } catch (error) {
+    console.error('Roadmap progress update failed:', error)
+    alert(error?.message || 'Progresul nu a putut fi salvat.')
+  } finally {
+    roadmapProgressMutationKeys.delete(key)
+  }
+}
+
+function renderRoadmapCards() {
+  const items = visibleRoadmaps()
+
+  if (items.length === 0) {
+    return `
+      <div class="roadmap-list">
+        <article class="public-hub-card wide">
+          <span class="public-hub-card-label">Roadmaps publicate</span>
+          <h3>Niciun roadmap publicat momentan.</h3>
+          <p>
+            Roadmap-urile pentru acest departament vor apărea aici, separat de harta de concepte.
+          </p>
+          <div class="public-hub-empty">
+            Poți continua să explorezi toate nodurile direct din Atlas.
+          </div>
+        </article>
+      </div>
+    `
+  }
+
+  return `
+    <div class="roadmap-list">
+      ${items
+        .map((roadmap) => {
+          const stats = roadmapProgressStats(roadmap)
+          const department = getDepartmentById(roadmap.departmentId)
+
+          return `
+            <article class="roadmap-card">
+              <div class="roadmap-card-head">
+                <div class="roadmap-card-main">
+                  <span class="roadmap-card-label">${escapeHtmlText(
+                    department?.short_name || department?.name || 'Roadmap'
+                  )}</span>
+                  <h2>${escapeHtmlText(roadmap.title)}</h2>
+                  ${
+                    roadmap.description
+                      ? `<p class="roadmap-card-description">${escapeHtml(
+                          roadmap.description
+                        )}</p>`
+                      : ''
+                  }
+                </div>
+
+                <span class="roadmap-progress-copy">
+                  ${stats.completed} / ${stats.total} completed
+                </span>
+              </div>
+
+              <div class="roadmap-progress-track" aria-hidden="true">
+                <div class="roadmap-progress-fill" style="width:${stats.percent}%"></div>
+              </div>
+
+              <div class="roadmap-steps">
+                ${(roadmap.steps || [])
+                  .map((step, index) => {
+                    const node = findNode(step.nodeId)
+                    if (!node) return ''
+
+                    const completed = isRoadmapStepCompleted(roadmap.id, step.nodeId)
+                    const busy = roadmapProgressMutationKeys.has(
+                      roadmapProgressKey(roadmap.id, step.nodeId)
+                    )
+
+                    return `
+                      <div class="roadmap-step ${completed ? 'completed' : ''}">
+                        <button
+                          class="roadmap-step-check ${completed ? 'completed' : ''}"
+                          type="button"
+                          data-roadmap-progress-roadmap="${Number(roadmap.id)}"
+                          data-roadmap-progress-node="${Number(step.nodeId)}"
+                          aria-pressed="${completed ? 'true' : 'false'}"
+                          aria-label="${completed ? 'Marchează ca nefinalizat' : 'Marchează ca finalizat'}"
+                          ${busy ? 'disabled' : ''}
+                        >
+                          ${completed ? '✓' : ''}
+                        </button>
+
+                        <div class="roadmap-step-main">
+                          <button
+                            class="roadmap-step-node"
+                            type="button"
+                            data-roadmap-node-id="${Number(step.nodeId)}"
+                          >
+                            ${escapeHtmlText(node.title)}
+                          </button>
+
+                          ${
+                            step.isOptional
+                              ? '<span class="roadmap-step-optional">Optional</span>'
+                              : ''
+                          }
+
+                          ${
+                            step.note
+                              ? `<p class="roadmap-step-note">${escapeHtml(step.note)}</p>`
+                              : ''
+                          }
+                        </div>
+
+                        <span class="roadmap-step-index">${String(index + 1).padStart(
+                          2,
+                          '0'
+                        )}</span>
+                      </div>
+                    `
+                  })
+                  .join('')}
+              </div>
+
+              <div class="roadmap-card-foot">
+                ${
+                  currentUser
+                    ? `<p>Progresul este salvat în contul tău. Niciun nod nu este blocat.</p>`
+                    : `
+                      <p>
+                        Toate nodurile sunt accesibile.
+                        <button class="roadmap-login-link" type="button" data-roadmap-login>
+                          Loghează-te pentru a salva progresul.
+                        </button>
+                      </p>
+                    `
+                }
+                <p>${stats.percent}%</p>
+              </div>
+            </article>
+          `
+        })
+        .join('')}
+    </div>
+  `
+}
+
+function roadmapManagerButton() {
+  if (!(canEdit && editorMode)) return ''
+
+  return `
+    <div class="public-hub-actions">
+      <button class="public-hub-manage" type="button" data-open-roadmap-manager>
+        Manage roadmaps
+      </button>
+    </div>
+  `
+}
+
+function isRoadmapManagerOpen() {
+  return Boolean(roadmapManagerBackdrop?.classList.contains('open'))
+}
+
+function setRoadmapManagerBusy(nextValue) {
+  roadmapManagerMutationBusy = Boolean(nextValue)
+
+  newRoadmapBtn.disabled = roadmapManagerMutationBusy
+  addRoadmapStepBtn.disabled = roadmapManagerMutationBusy
+  resetRoadmapEditorBtn.disabled = roadmapManagerMutationBusy
+  saveRoadmapBtn.disabled = roadmapManagerMutationBusy
+  deleteRoadmapBtn.disabled = roadmapManagerMutationBusy
+
+  roadmapManagerList?.querySelectorAll('button').forEach((button) => {
+    button.disabled = roadmapManagerMutationBusy
+  })
+
+  roadmapEditorSteps?.querySelectorAll('button').forEach((button) => {
+    button.disabled = roadmapManagerMutationBusy
+  })
+}
+
+function populateRoadmapEditorSelects() {
+  const departmentValue = roadmapDepartmentInput.value
+  roadmapDepartmentInput.innerHTML = departments
+    .filter((item) => item.is_active !== false)
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+    .map(
+      (department) =>
+        `<option value="${Number(department.id)}">${escapeHtmlText(
+          department.name
+        )}</option>`
+    )
+    .join('')
+
+  if (
+    departmentValue &&
+    departments.some((item) => String(item.id) === String(departmentValue))
+  ) {
+    roadmapDepartmentInput.value = departmentValue
+  } else if (activeDepartmentId != null) {
+    roadmapDepartmentInput.value = String(activeDepartmentId)
+  }
+
+  const selectedNodeValue = roadmapStepNodeInput.value
+  roadmapStepNodeInput.innerHTML = [
+    '<option value="">— Alege un nod —</option>',
+    ...[...nodes]
+      .sort((a, b) =>
+        String(a.title || '').localeCompare(String(b.title || ''), 'ro', {
+          sensitivity: 'base'
+        })
+      )
+      .map(
+        (node) =>
+          `<option value="${Number(node.id)}">${escapeHtmlText(node.title)}</option>`
+      )
+  ].join('')
+
+  if (
+    selectedNodeValue &&
+    nodes.some((node) => String(node.id) === String(selectedNodeValue))
+  ) {
+    roadmapStepNodeInput.value = selectedNodeValue
+  }
+}
+
+function renderRoadmapDraftSteps() {
+  if (!roadmapEditorSteps) return
+
+  if (roadmapManagerDraftSteps.length === 0) {
+    roadmapEditorSteps.innerHTML = `
+      <div class="public-content-manager-empty">
+        Nu ai adăugat încă niciun pas. Roadmap-ul poate fi salvat și completat ulterior.
+      </div>
+    `
+    return
+  }
+
+  roadmapEditorSteps.innerHTML = roadmapManagerDraftSteps
+    .map((step, index) => {
+      const node = findNode(step.nodeId)
+
+      return `
+        <div class="roadmap-editor-step">
+          <span class="roadmap-editor-step-index">${String(index + 1).padStart(
+            2,
+            '0'
+          )}</span>
+
+          <div class="roadmap-editor-step-main">
+            <strong>${escapeHtmlText(node?.title || `Node #${step.nodeId}`)}</strong>
+            <span>
+              ${step.isOptional ? 'Optional' : 'Recommended'}
+              ${step.note ? ` · ${escapeHtmlText(step.note)}` : ''}
+            </span>
+          </div>
+
+          <div class="roadmap-editor-step-actions">
+            <button
+              class="taxonomy-mini-btn"
+              type="button"
+              data-roadmap-step-up="${index}"
+              ${index === 0 ? 'disabled' : ''}
+              aria-label="Move up"
+            >↑</button>
+
+            <button
+              class="taxonomy-mini-btn"
+              type="button"
+              data-roadmap-step-down="${index}"
+              ${index === roadmapManagerDraftSteps.length - 1 ? 'disabled' : ''}
+              aria-label="Move down"
+            >↓</button>
+
+            <button
+              class="taxonomy-mini-btn danger"
+              type="button"
+              data-roadmap-step-remove="${index}"
+              aria-label="Remove"
+            >✕</button>
+          </div>
+        </div>
+      `
+    })
+    .join('')
+
+  roadmapEditorSteps.querySelectorAll('[data-roadmap-step-up]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.roadmapStepUp)
+      if (index <= 0) return
+
+      ;[
+        roadmapManagerDraftSteps[index - 1],
+        roadmapManagerDraftSteps[index]
+      ] = [
+        roadmapManagerDraftSteps[index],
+        roadmapManagerDraftSteps[index - 1]
+      ]
+
+      renderRoadmapDraftSteps()
+    })
+  })
+
+  roadmapEditorSteps.querySelectorAll('[data-roadmap-step-down]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.roadmapStepDown)
+      if (index >= roadmapManagerDraftSteps.length - 1) return
+
+      ;[
+        roadmapManagerDraftSteps[index + 1],
+        roadmapManagerDraftSteps[index]
+      ] = [
+        roadmapManagerDraftSteps[index],
+        roadmapManagerDraftSteps[index + 1]
+      ]
+
+      renderRoadmapDraftSteps()
+    })
+  })
+
+  roadmapEditorSteps.querySelectorAll('[data-roadmap-step-remove]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.roadmapStepRemove)
+      roadmapManagerDraftSteps.splice(index, 1)
+      renderRoadmapDraftSteps()
+    })
+  })
+
+  setRoadmapManagerBusy(roadmapManagerMutationBusy)
+}
+
+function resetRoadmapEditor() {
+  roadmapManagerEditingId = null
+  roadmapManagerDraftSteps = []
+
+  populateRoadmapEditorSelects()
+
+  roadmapEditorTitle.textContent = 'Roadmap nou'
+  roadmapEditorHint.textContent =
+    'Alege departamentul și adaugă nodurile în ordinea recomandată.'
+
+  roadmapTitleInput.value = ''
+  roadmapDescriptionInput.value = ''
+  roadmapSortOrderInput.value = '0'
+  roadmapActiveInput.checked = true
+
+  if (activeDepartmentId != null) {
+    roadmapDepartmentInput.value = String(activeDepartmentId)
+  }
+
+  roadmapStepNodeInput.value = ''
+  roadmapStepNoteInput.value = ''
+  roadmapStepOptionalInput.checked = false
+
+  deleteRoadmapBtn.hidden = true
+  roadmapEditorStatus.textContent = 'Pregătit pentru editare.'
+
+  renderRoadmapDraftSteps()
+}
+
+function editRoadmap(id) {
+  const roadmap = roadmaps.find((item) => Number(item.id) === Number(id))
+  if (!roadmap) return
+
+  roadmapManagerEditingId = Number(roadmap.id)
+  roadmapManagerDraftSteps = (roadmap.steps || []).map((step) => ({
+    nodeId: Number(step.nodeId),
+    note: step.note || '',
+    isOptional: Boolean(step.isOptional)
+  }))
+
+  populateRoadmapEditorSelects()
+
+  roadmapEditorTitle.textContent = 'Editează roadmap'
+  roadmapEditorHint.textContent =
+    'Poți reordona pașii fără să blochezi accesul la niciun nod.'
+
+  roadmapTitleInput.value = roadmap.title || ''
+  roadmapDescriptionInput.value = roadmap.description || ''
+  roadmapDepartmentInput.value = String(roadmap.departmentId || '')
+  roadmapSortOrderInput.value = String(Number(roadmap.sortOrder || 0))
+  roadmapActiveInput.checked = roadmap.isActive !== false
+
+  roadmapStepNodeInput.value = ''
+  roadmapStepNoteInput.value = ''
+  roadmapStepOptionalInput.checked = false
+
+  deleteRoadmapBtn.hidden = false
+  roadmapEditorStatus.textContent = 'Roadmap încărcat pentru editare.'
+
+  renderRoadmapDraftSteps()
+}
+
+function renderRoadmapManager() {
+  if (!isRoadmapManagerOpen()) return
+
+  const items = [...roadmaps].sort((a, b) => {
+    const departmentOrder =
+      Number(getDepartmentById(a.departmentId)?.sort_order || 0) -
+      Number(getDepartmentById(b.departmentId)?.sort_order || 0)
+
+    if (departmentOrder !== 0) return departmentOrder
+
+    const orderDifference = Number(a.sortOrder || 0) - Number(b.sortOrder || 0)
+    if (orderDifference !== 0) return orderDifference
+
+    return String(a.title || '').localeCompare(String(b.title || ''), 'ro', {
+      sensitivity: 'base'
+    })
+  })
+
+  roadmapManagerSummary.innerHTML = `<strong>${items.length} roadmaps</strong> · ${
+    items.filter((item) => item.isActive !== false).length
+  } active.`
+
+  if (items.length === 0) {
+    roadmapManagerList.innerHTML = `
+      <div class="public-content-manager-empty">
+        Nu există încă roadmaps.
+      </div>
+    `
+  } else {
+    roadmapManagerList.innerHTML = items
+      .map((roadmap) => {
+        const department = getDepartmentById(roadmap.departmentId)
+
+        return `
+          <article class="roadmap-manager-item ${
+            roadmap.isActive !== false ? '' : 'inactive'
+          }">
+            <div>
+              <strong>${escapeHtmlText(roadmap.title)}</strong>
+              <span>
+                ${escapeHtmlText(
+                  department?.short_name || department?.name || '—'
+                )} · ${(roadmap.steps || []).length} steps · ${
+                  roadmap.isActive !== false ? 'Public' : 'Draft'
+                }
+              </span>
+            </div>
+
+            <button
+              class="taxonomy-mini-btn"
+              type="button"
+              data-edit-roadmap="${Number(roadmap.id)}"
+            >
+              Editează
+            </button>
+          </article>
+        `
+      })
+      .join('')
+  }
+
+  roadmapManagerList.querySelectorAll('[data-edit-roadmap]').forEach((button) => {
+    button.addEventListener('click', () => {
+      editRoadmap(Number(button.dataset.editRoadmap))
+    })
+  })
+
+  setRoadmapManagerBusy(roadmapManagerMutationBusy)
+}
+
+async function openRoadmapManager() {
+  if (!requireAuth()) return
+
+  roadmapManagerBackdrop.classList.add('open')
+  roadmapManagerSummary.textContent = 'Se încarcă roadmaps...'
+  roadmapManagerList.innerHTML =
+    '<div class="public-content-manager-empty">Se încarcă...</div>'
+
+  try {
+    await fetchAllData()
+    await loadRoadmapProgress()
+    resetRoadmapEditor()
+    renderRoadmapManager()
+  } catch (error) {
+    console.error('Roadmap manager refresh failed:', error)
+    roadmapManagerSummary.textContent =
+      error?.message || 'Roadmap-urile nu au putut fi încărcate.'
+  }
+}
+
+function closeRoadmapManager() {
+  roadmapManagerBackdrop.classList.remove('open')
+  roadmapManagerEditingId = null
+  roadmapManagerDraftSteps = []
+  roadmapManagerMutationBusy = false
+}
+
+function addRoadmapDraftStep() {
+  const nodeId = Number(roadmapStepNodeInput.value)
+  if (!Number.isFinite(nodeId) || !findNode(nodeId)) {
+    alert('Alege un nod pentru pasul nou.')
+    return
+  }
+
+  if (roadmapManagerDraftSteps.some((step) => Number(step.nodeId) === nodeId)) {
+    alert('Acest nod există deja în roadmap.')
+    return
+  }
+
+  roadmapManagerDraftSteps.push({
+    nodeId,
+    note: roadmapStepNoteInput.value.trim(),
+    isOptional: roadmapStepOptionalInput.checked
+  })
+
+  roadmapStepNodeInput.value = ''
+  roadmapStepNoteInput.value = ''
+  roadmapStepOptionalInput.checked = false
+
+  renderRoadmapDraftSteps()
+}
+
+async function saveRoadmap() {
+  if (!requireAuth() || roadmapManagerMutationBusy) return
+
+  const title = roadmapTitleInput.value.trim()
+  const departmentId = Number(roadmapDepartmentInput.value)
+
+  if (title.length < 3) {
+    alert('Titlul trebuie să aibă cel puțin 3 caractere.')
+    return
+  }
+
+  if (!Number.isFinite(departmentId) || !getDepartmentById(departmentId)) {
+    alert('Alege un departament valid.')
+    return
+  }
+
+  setRoadmapManagerBusy(true)
+  roadmapEditorStatus.textContent = 'Se salvează...'
+
+  try {
+    const params = {
+      p_project_id: PROJECT_ID,
+      p_title: title,
+      p_description: roadmapDescriptionInput.value.trim(),
+      p_department_id: departmentId,
+      p_is_active: roadmapActiveInput.checked,
+      p_sort_order: Number(roadmapSortOrderInput.value || 0),
+      p_steps: roadmapManagerDraftSteps.map((step) => ({
+        node_id: Number(step.nodeId),
+        note: step.note || '',
+        is_optional: Boolean(step.isOptional)
+      }))
+    }
+
+    const rpcName =
+      roadmapManagerEditingId == null
+        ? 'atlas_roadmap_create'
+        : 'atlas_roadmap_update'
+
+    if (roadmapManagerEditingId != null) {
+      params.p_roadmap_id = Number(roadmapManagerEditingId)
+    }
+
+    const { error } = await supabase.rpc(rpcName, params)
+    if (error) throw error
+
+    await fetchAllData()
+    await loadRoadmapProgress()
+
+    resetRoadmapEditor()
+    renderRoadmapManager()
+    renderAll()
+
+    roadmapEditorStatus.textContent = 'Salvat.'
+  } catch (error) {
+    console.error('Roadmap save failed:', error)
+    roadmapEditorStatus.textContent = error?.message || 'Eroare la salvare.'
+    alert(error?.message || 'Roadmap-ul nu a putut fi salvat.')
+  } finally {
+    setRoadmapManagerBusy(false)
+  }
+}
+
+async function deleteRoadmap() {
+  if (
+    !requireAuth() ||
+    roadmapManagerMutationBusy ||
+    roadmapManagerEditingId == null
+  ) {
+    return
+  }
+
+  const roadmap = roadmaps.find(
+    (item) => Number(item.id) === Number(roadmapManagerEditingId)
+  )
+  if (!roadmap) return
+
+  if (!confirm(`Sigur vrei să ștergi roadmap-ul „${roadmap.title}”?`)) return
+
+  setRoadmapManagerBusy(true)
+  roadmapEditorStatus.textContent = 'Se șterge...'
+
+  try {
+    const { error } = await supabase.rpc('atlas_roadmap_delete', {
+      p_project_id: PROJECT_ID,
+      p_roadmap_id: Number(roadmapManagerEditingId)
+    })
+
+    if (error) throw error
+
+    await fetchAllData()
+    await loadRoadmapProgress()
+
+    resetRoadmapEditor()
+    renderRoadmapManager()
+    renderAll()
+
+    roadmapEditorStatus.textContent = 'Șters.'
+  } catch (error) {
+    console.error('Roadmap delete failed:', error)
+    roadmapEditorStatus.textContent = error?.message || 'Eroare la ștergere.'
+    alert(error?.message || 'Roadmap-ul nu a putut fi șters.')
+  } finally {
+    setRoadmapManagerBusy(false)
+  }
+}
+
 function publicSectionLabel(section) {
   const labels = {
     explore: 'Explore',
@@ -1864,18 +2611,11 @@ function renderPublicShell() {
         <div class="public-hub-meta">
           <span class="public-hub-chip">${escapeHtml(departmentName)}</span>
           <span class="public-hub-chip">Acces liber la toate nodurile</span>
+          <span class="public-hub-chip">${visibleRoadmaps().length} roadmaps</span>
         </div>
 
-        <div class="public-hub-grid">
-          <article class="public-hub-card wide">
-            <span class="public-hub-card-label">Roadmaps publicate</span>
-            <h3>Niciun roadmap publicat momentan.</h3>
-            <p>
-              Roadmap-urile pentru acest departament vor apărea aici, separat de harta de concepte.
-            </p>
-            <div class="public-hub-empty">Poți continua să explorezi toate nodurile direct din Atlas.</div>
-          </article>
-        </div>
+        ${roadmapManagerButton()}
+        ${renderRoadmapCards()}
       </div>
     `
     return
@@ -3169,7 +3909,8 @@ function isAnyModalOpen() {
     taxonomyManagerBackdrop.classList.contains('open') ||
     taxonomyItemBackdrop.classList.contains('open') ||
     taxonomyReplaceBackdrop.classList.contains('open') ||
-    publicContentManagerBackdrop?.classList.contains('open')
+    publicContentManagerBackdrop?.classList.contains('open') ||
+    roadmapManagerBackdrop?.classList.contains('open')
   )
 }
 
@@ -3739,6 +4480,7 @@ async function loadAtlasWithUi() {
 
     try {
       await fetchAllData()
+      await loadRoadmapProgress()
 
       if (nodes.length === 0) {
         showEmptyAtlasState()
@@ -4016,6 +4758,8 @@ async function fetchAllData() {
     difficultiesResult,
     tagsResult,
     departmentsResult,
+    roadmapsResult,
+    roadmapStepsResult,
     announcementsResult,
     resourcesResult,
     resourceDepartmentsResult,
@@ -4066,6 +4810,20 @@ async function fetchAllData() {
       .eq('project_id', PROJECT_ID)
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true }),
+
+    supabase
+      .from('atlas_roadmaps')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .order('sort_order', { ascending: true })
+      .order('title', { ascending: true }),
+
+    supabase
+      .from('atlas_roadmap_steps')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .order('roadmap_id', { ascending: true })
+      .order('position', { ascending: true }),
 
     supabase
       .from('atlas_announcements')
@@ -4132,6 +4890,8 @@ async function fetchAllData() {
     difficultiesResult,
     tagsResult,
     departmentsResult,
+    roadmapsResult,
+    roadmapStepsResult,
     announcementsResult,
     resourcesResult,
     resourceDepartmentsResult,
@@ -4150,6 +4910,35 @@ async function fetchAllData() {
   taxonomyTags = tagsResult.data || []
   departments = departmentsResult.data || []
   tutorialContent = tutorialResult.data?.content || DEFAULT_TUTORIAL_CONTENT
+
+  const roadmapStepsByRoadmap = new Map()
+  for (const row of roadmapStepsResult.data || []) {
+    const roadmapId = Number(row.roadmap_id)
+    if (!roadmapStepsByRoadmap.has(roadmapId)) {
+      roadmapStepsByRoadmap.set(roadmapId, [])
+    }
+
+    roadmapStepsByRoadmap.get(roadmapId).push({
+      id: Number(row.id),
+      nodeId: Number(row.node_id),
+      position: Number(row.position || 0),
+      note: row.note || '',
+      isOptional: row.is_optional === true
+    })
+  }
+
+  roadmaps = (roadmapsResult.data || []).map((row) => ({
+    id: Number(row.id),
+    title: row.title || '',
+    slug: row.slug || '',
+    description: row.description || '',
+    departmentId: Number(row.department_id),
+    isActive: row.is_active !== false,
+    sortOrder: Number(row.sort_order || 0),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+    steps: roadmapStepsByRoadmap.get(Number(row.id)) || []
+  }))
 
   const resourceDepartmentsByResource = new Map()
   for (const row of resourceDepartmentsResult.data || []) {
@@ -5204,6 +5993,7 @@ function updateAuthUI() {
   editorToolsSection.hidden = !editorActive
   taxonomyManagerBtn.disabled = editorBlocked
   publicContentManagerBtn.disabled = editorBlocked
+  roadmapManagerBtn.disabled = editorBlocked
   mediaManagerBtn.disabled = editorBlocked || !hasSelectedNode
   fileManagerBtn.disabled = editorBlocked || !hasSelectedNode
   codeManagerBtn.disabled = editorBlocked || !hasSelectedNode
@@ -5237,6 +6027,10 @@ function updateAuthUI() {
 
   if (!editorActive && isPublicContentManagerOpen()) {
     closePublicContentManager()
+  }
+
+  if (!editorActive && isRoadmapManagerOpen()) {
+    closeRoadmapManager()
   }
 
   createBtn.disabled = editorBlocked
@@ -5316,6 +6110,8 @@ function setEditorMode(nextValue) {
     closeMediaManager()
     closeFileManager()
     closeCodeManager()
+    closePublicContentManager()
+    closeRoadmapManager()
   }
 
   renderAll()
@@ -5355,6 +6151,7 @@ async function refreshSession() {
   }
 
   await refreshEditorAccess()
+  await loadRoadmapProgress()
 
   updateAuthUI()
   await refreshHistoryButtons()
@@ -8898,6 +9695,45 @@ taxonomyReplaceBackdrop.addEventListener('click', (event) => {
 
 fitSelectionBtn.addEventListener('click', fitCurrentSelection)
 
+roadmapManagerBtn?.addEventListener('click', () => {
+  openRoadmapManager().catch((error) => {
+    console.error('Open roadmap manager failed:', error)
+  })
+})
+
+closeRoadmapManagerBtn?.addEventListener('click', closeRoadmapManager)
+closeRoadmapManagerFooterBtn?.addEventListener('click', closeRoadmapManager)
+
+roadmapManagerBackdrop?.addEventListener('click', (event) => {
+  if (event.target === roadmapManagerBackdrop) {
+    closeRoadmapManager()
+  }
+})
+
+newRoadmapBtn?.addEventListener('click', () => {
+  if (roadmapManagerMutationBusy) return
+  resetRoadmapEditor()
+  renderRoadmapManager()
+})
+
+resetRoadmapEditorBtn?.addEventListener('click', () => {
+  if (roadmapManagerMutationBusy) return
+  resetRoadmapEditor()
+})
+
+addRoadmapStepBtn?.addEventListener('click', () => {
+  if (roadmapManagerMutationBusy) return
+  addRoadmapDraftStep()
+})
+
+saveRoadmapBtn?.addEventListener('click', () => {
+  saveRoadmap()
+})
+
+deleteRoadmapBtn?.addEventListener('click', () => {
+  deleteRoadmap()
+})
+
 publicContentManagerBtn?.addEventListener('click', () => {
   openPublicContentManager().catch((error) => {
     console.error('Open public content manager failed:', error)
@@ -8943,6 +9779,35 @@ deletePublicContentBtn?.addEventListener('click', () => {
 })
 
 publicHubPanel?.addEventListener('click', (event) => {
+  const roadmapManagerTrigger = event.target.closest?.('[data-open-roadmap-manager]')
+  if (roadmapManagerTrigger) {
+    openRoadmapManager().catch((error) => {
+      console.error('Open roadmap manager failed:', error)
+    })
+    return
+  }
+
+  const progressButton = event.target.closest?.('[data-roadmap-progress-roadmap]')
+  if (progressButton) {
+    toggleRoadmapProgress(
+      Number(progressButton.dataset.roadmapProgressRoadmap),
+      Number(progressButton.dataset.roadmapProgressNode)
+    )
+    return
+  }
+
+  const roadmapNodeButton = event.target.closest?.('[data-roadmap-node-id]')
+  if (roadmapNodeButton) {
+    openNodeFromPublicContent(Number(roadmapNodeButton.dataset.roadmapNodeId))
+    return
+  }
+
+  const roadmapLoginButton = event.target.closest?.('[data-roadmap-login]')
+  if (roadmapLoginButton) {
+    setAccountPanel(true)
+    return
+  }
+
   const managerButton = event.target.closest?.('[data-open-public-content-manager]')
   if (managerButton) {
     openPublicContentManager(managerButton.dataset.openPublicContentManager).catch((error) => {
@@ -9259,7 +10124,9 @@ window.addEventListener('keydown', (event) => {
 
   if (event.key === 'Escape') {
     if (!introDismissed) dismissIntro()
-    else if (publicContentManagerBackdrop?.classList.contains('open')) {
+    else if (roadmapManagerBackdrop?.classList.contains('open')) {
+      closeRoadmapManager()
+    } else if (publicContentManagerBackdrop?.classList.contains('open')) {
       closePublicContentManager()
     } else if (codeManagerBackdrop.classList.contains('open')) {
       closeCodeManager()
@@ -9349,6 +10216,9 @@ supabase.auth.onAuthStateChange((event, session) => {
 
   if (sameUser) {
     updateAuthUI()
+    loadRoadmapProgress({ rerender: true }).catch((error) => {
+      console.error('Roadmap progress refresh failed:', error)
+    })
     return
   }
 
@@ -9360,7 +10230,9 @@ supabase.auth.onAuthStateChange((event, session) => {
       localStorage.setItem(CACHE_KEYS.editorMode, '0')
     }
 
+    roadmapProgress = new Set()
     updateAuthUI()
+    renderAll()
     return
   }
 
@@ -9370,8 +10242,10 @@ supabase.auth.onAuthStateChange((event, session) => {
   setTimeout(async () => {
     try {
       await refreshEditorAccess()
+      await loadRoadmapProgress()
 
       updateAuthUI()
+      renderAll()
       await refreshHistoryButtons()
 
       if (nodes.length === 0 && !isAtlasLoading) {
@@ -9404,6 +10278,7 @@ window.atlasDebug = {
   openMediaManager,
   openCodeManager,
   openPublicContentManager,
+  openRoadmapManager,
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,
