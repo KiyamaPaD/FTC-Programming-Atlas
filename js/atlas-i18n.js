@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v74 · Full English UI + private team workspace
+// v75 · Full English UI + Notification Center
 //
 // Source language: Romanian
 // Secondary language: English
@@ -397,6 +397,28 @@ const UI_EN = new Map(Object.entries({
     'A resource must have a valid URL.',
   'Schimbările sunt vizibile imediat membrilor care au acces.':
     'Changes are immediately visible to members who have access.',
+  'Notifications':
+    'Notifications',
+  'Mark all read':
+    'Mark all read',
+  'All':
+    'All',
+  'Unread':
+    'Unread',
+  'Team':
+    'Team',
+  'Department':
+    'Department',
+  'System':
+    'System',
+  'Notify members':
+    'Notify members',
+  'Nu există notificări în filtrul selectat.':
+    'There are no notifications in the selected filter.',
+  'Announcement':
+    'Announcement',
+  'Conținutul nu a putut fi salvat.':
+    'The content could not be saved.',
   'Creat de':
     'Created by',
   'navigare, editare și relații':

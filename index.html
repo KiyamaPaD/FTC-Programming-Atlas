@@ -4628,6 +4628,261 @@
   }
 
 
+  /* -----------------------------------------------------------------------
+     Notification Center · in-app, per-user read/unread
+     ----------------------------------------------------------------------- */
+
+  .notification-trigger {
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 7px 9px;
+    background: rgba(255, 255, 255, 0.025);
+    color: #aaa5b0;
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 760;
+    cursor: pointer;
+  }
+
+  .notification-trigger:hover,
+  .notification-trigger.active {
+    color: #fff;
+    border-color: rgba(177, 76, 255, 0.3);
+    background: rgba(177, 76, 255, 0.075);
+  }
+
+  .notification-trigger[hidden] {
+    display: none !important;
+  }
+
+  .notification-badge {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    min-width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    padding: 0 5px;
+    border: 2px solid #09090c;
+    border-radius: 999px;
+    background: #c96fff;
+    color: #0a0710;
+    font-size: 0.58rem;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .notification-badge[hidden] {
+    display: none !important;
+  }
+
+  .notification-panel {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid rgba(177, 76, 255, 0.13);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.018);
+  }
+
+  .notification-panel[hidden] {
+    display: none !important;
+  }
+
+  .notification-panel-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .notification-panel-head strong {
+    display: block;
+    color: #eee9f1;
+    font-size: 0.84rem;
+  }
+
+  .notification-panel-head span {
+    display: block;
+    margin-top: 3px;
+    color: #817c86;
+    font-size: 0.66rem;
+  }
+
+  .notification-mark-all {
+    border: 0;
+    padding: 3px 0;
+    background: none;
+    color: #c9adde;
+    font: inherit;
+    font-size: 0.66rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .notification-mark-all:hover:not(:disabled) {
+    color: #fff;
+    text-decoration: underline;
+  }
+
+  .notification-mark-all:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .notification-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .notification-filter {
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+    padding: 5px 8px;
+    background: rgba(255, 255, 255, 0.015);
+    color: #89838e;
+    font: inherit;
+    font-size: 0.62rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .notification-filter.active {
+    border-color: rgba(177, 76, 255, 0.25);
+    background: rgba(177, 76, 255, 0.06);
+    color: #e5d6ed;
+  }
+
+  .notification-list {
+    display: grid;
+    gap: 7px;
+    max-height: 390px;
+    margin-top: 10px;
+    overflow: auto;
+  }
+
+  .notification-item {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 9px;
+    align-items: flex-start;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.012);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .notification-item:hover {
+    border-color: rgba(177, 76, 255, 0.23);
+    background: rgba(177, 76, 255, 0.035);
+  }
+
+  .notification-item.unread {
+    border-color: rgba(177, 76, 255, 0.18);
+    background:
+      linear-gradient(135deg, rgba(177, 76, 255, 0.05), rgba(255, 77, 109, 0.018));
+  }
+
+  .notification-dot {
+    width: 8px;
+    height: 8px;
+    margin-top: 5px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.13);
+  }
+
+  .notification-item.unread .notification-dot {
+    background: #c96fff;
+    box-shadow: 0 0 0 4px rgba(201, 111, 255, 0.08);
+  }
+
+  .notification-item-main {
+    min-width: 0;
+  }
+
+  .notification-item-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 5px;
+  }
+
+  .notification-item-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 3px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+    color: #96909b;
+    font-size: 0.57rem;
+    font-weight: 850;
+  }
+
+  .notification-item-badge.accent {
+    border-color: rgba(177, 76, 255, 0.19);
+    color: #d2b7df;
+  }
+
+  .notification-item-title {
+    display: block;
+    overflow: hidden;
+    color: #e6e1e9;
+    font-size: 0.74rem;
+    font-weight: 820;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+  }
+
+  .notification-item-body {
+    margin: 4px 0 0;
+    color: #8d8792;
+    font-size: 0.66rem;
+    line-height: 1.48;
+  }
+
+  .notification-item-date {
+    color: #6f6974;
+    font-size: 0.59rem;
+    white-space: nowrap;
+  }
+
+  .notification-empty {
+    padding: 18px 10px;
+    color: #817c86;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .team-content-notify-label[hidden] {
+    display: none !important;
+  }
+
+  @media (max-width: 520px) {
+    .notification-trigger {
+      padding: 7px 8px;
+    }
+
+    .notification-item {
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .notification-item-date {
+      grid-column: 2;
+      white-space: normal;
+    }
+  }
+
+
   .topbar-brand,
   .topbar-team {
     display: flex;
@@ -5510,6 +5765,18 @@
           </div>
           <div class="tools-header-right">
             <button
+              class="notification-trigger"
+              id="notificationBtn"
+              type="button"
+              aria-expanded="false"
+              aria-controls="notificationPanel"
+              hidden
+            >
+              Notifications
+              <span class="notification-badge" id="notificationBadge" hidden>0</span>
+            </button>
+
+            <button
               class="account-trigger"
               id="accountBtn"
               type="button"
@@ -5526,6 +5793,29 @@
         </div>
 
         <div class="tools-body">
+          <div class="notification-panel" id="notificationPanel" hidden>
+            <div class="notification-panel-head">
+              <div>
+                <strong>Notifications</strong>
+                <span id="notificationPanelMeta">0 unread</span>
+              </div>
+
+              <button class="notification-mark-all" id="notificationMarkAllBtn" type="button">
+                Mark all read
+              </button>
+            </div>
+
+            <div class="notification-filters" id="notificationFilters">
+              <button class="notification-filter active" type="button" data-notification-filter="all">All</button>
+              <button class="notification-filter" type="button" data-notification-filter="unread">Unread</button>
+              <button class="notification-filter" type="button" data-notification-filter="team">Team</button>
+              <button class="notification-filter" type="button" data-notification-filter="department">Department</button>
+              <button class="notification-filter" type="button" data-notification-filter="system">System</button>
+            </div>
+
+            <div class="notification-list" id="notificationList"></div>
+          </div>
+
           <div class="account-panel" id="accountPanel" hidden>
             <div class="account-panel-title">
               <strong>Cont</strong>
@@ -6192,6 +6482,10 @@
               <div class="public-content-toggle-grid">
                 <label><input id="teamContentPinnedInput" type="checkbox" /> Pinned</label>
                 <label><input id="teamContentActiveInput" type="checkbox" checked /> Activ</label>
+                <label class="team-content-notify-label" id="teamContentNotifyLabel">
+                  <input id="teamContentNotifyInput" type="checkbox" checked />
+                  Notify members
+                </label>
               </div>
             </div>
 
@@ -6760,6 +7054,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=74"></script>
+  <script type="module" src="/js/atlas-script.js?v=75"></script>
 </body>
 </html>

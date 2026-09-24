@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v74 · PRIVATE TEAM WORKSPACE')
+console.log('ATLAS SCRIPT LOADED v75 · NOTIFICATION CENTER')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -301,6 +301,9 @@ let teamEnabledDepartments = []
 let teamInvites = []
 let teamManagerInvites = []
 let teamPrivateContent = []
+let notifications = []
+let notificationFilter = 'all'
+let notificationMutationBusy = false
 let activeTeamId = null
 
 const TEAM_WORKSPACE_TABS = new Set([
@@ -460,6 +463,14 @@ const modeStrip = document.getElementById('modeStrip')
 const toolPanel = document.getElementById('toolPanel')
 const toolsHeader = document.getElementById('toolsHeader')
 const collapseBtn = document.getElementById('collapseBtn')
+const notificationBtn = document.getElementById('notificationBtn')
+const notificationBadge = document.getElementById('notificationBadge')
+const notificationPanel = document.getElementById('notificationPanel')
+const notificationPanelMeta = document.getElementById('notificationPanelMeta')
+const notificationMarkAllBtn = document.getElementById('notificationMarkAllBtn')
+const notificationFilters = document.getElementById('notificationFilters')
+const notificationList = document.getElementById('notificationList')
+
 const accountBtn = document.getElementById('accountBtn')
 const accountPanel = document.getElementById('accountPanel')
 const teamInvitesPanel = document.getElementById('teamInvitesPanel')
@@ -770,6 +781,8 @@ const teamContentUrlField = document.getElementById('teamContentUrlField')
 const teamContentUrlInput = document.getElementById('teamContentUrlInput')
 const teamContentPinnedInput = document.getElementById('teamContentPinnedInput')
 const teamContentActiveInput = document.getElementById('teamContentActiveInput')
+const teamContentNotifyLabel = document.getElementById('teamContentNotifyLabel')
+const teamContentNotifyInput = document.getElementById('teamContentNotifyInput')
 const teamContentEditorStatus = document.getElementById('teamContentEditorStatus')
 const deleteTeamContentBtn = document.getElementById('deleteTeamContentBtn')
 const resetTeamContentEditorBtn = document.getElementById('resetTeamContentEditorBtn')
@@ -2972,6 +2985,306 @@ function renderTeamNavigation() {
 }
 
 
+
+function notificationCategoryLabel(category) {
+  const labels = {
+    team: 'Team',
+    department: 'Department',
+    system: 'System'
+  }
+
+  return labels[category] || 'System'
+}
+
+function notificationUnreadCount() {
+  return notifications.filter((item) => item.isRead !== true).length
+}
+
+function visibleNotifications() {
+  return notifications.filter((item) => {
+    if (notificationFilter === 'all') return true
+    if (notificationFilter === 'unread') return item.isRead !== true
+    return item.category === notificationFilter
+  })
+}
+
+function notificationTeamLabel(item) {
+  if (item.teamId == null) return ''
+
+  const team = teamRecords.find(
+    (entry) => Number(entry.id) === Number(item.teamId)
+  )
+
+  if (!team) return ''
+
+  return team.teamNumber
+    ? `${team.name} #${team.teamNumber}`
+    : team.name
+}
+
+function renderNotificationCenter() {
+  if (!notificationBtn || !notificationPanel) return
+
+  const loggedIn = Boolean(currentUser)
+  const unread = loggedIn ? notificationUnreadCount() : 0
+
+  notificationBtn.hidden = !loggedIn
+  notificationBadge.hidden = !loggedIn || unread === 0
+  notificationBadge.textContent = unread > 99 ? '99+' : String(unread)
+
+  notificationPanelMeta.textContent = `${unread} unread`
+  notificationMarkAllBtn.disabled =
+    notificationMutationBusy || unread === 0
+
+  notificationFilters?.querySelectorAll('[data-notification-filter]').forEach(
+    (button) => {
+      button.classList.toggle(
+        'active',
+        button.dataset.notificationFilter === notificationFilter
+      )
+    }
+  )
+
+  if (!loggedIn) {
+    notificationPanel.hidden = true
+    notificationList.innerHTML = ''
+    return
+  }
+
+  const items = visibleNotifications()
+
+  if (items.length === 0) {
+    notificationList.innerHTML = `
+      <div class="notification-empty">
+        Nu există notificări în filtrul selectat.
+      </div>
+    `
+    return
+  }
+
+  notificationList.innerHTML = items
+    .map((item) => {
+      const teamLabel = notificationTeamLabel(item)
+      const department =
+        item.departmentId == null
+          ? null
+          : getDepartmentById(item.departmentId)
+
+      return `
+        <button
+          class="notification-item ${item.isRead ? '' : 'unread'}"
+          type="button"
+          data-notification-id="${Number(item.id)}"
+        >
+          <span class="notification-dot" aria-hidden="true"></span>
+
+          <span class="notification-item-main">
+            <span class="notification-item-badges">
+              <span class="notification-item-badge accent">${escapeHtmlText(
+                notificationCategoryLabel(item.category)
+              )}</span>
+              ${
+                teamLabel
+                  ? `<span class="notification-item-badge">${escapeHtmlText(
+                      teamLabel
+                    )}</span>`
+                  : ''
+              }
+              ${
+                department
+                  ? `<span class="notification-item-badge">${escapeHtmlText(
+                      department.short_name || department.name
+                    )}</span>`
+                  : ''
+              }
+            </span>
+
+            <span class="notification-item-title">${escapeHtmlText(
+              item.title
+            )}</span>
+
+            ${
+              item.body
+                ? `<span class="notification-item-body">${escapeHtml(
+                    item.body
+                  )}</span>`
+                : ''
+            }
+          </span>
+
+          <time class="notification-item-date">${escapeHtmlText(
+            formatPublicDate(item.createdAt)
+          )}</time>
+        </button>
+      `
+    })
+    .join('')
+}
+
+async function loadNotifications({ render = true } = {}) {
+  notifications = []
+
+  if (!currentUser) {
+    if (render) renderNotificationCenter()
+    return
+  }
+
+  const { data, error } = await supabase
+    .from('atlas_notifications')
+    .select('*')
+    .eq('project_id', PROJECT_ID)
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  if (error) {
+    console.error('Notifications load failed:', error)
+    if (render) renderNotificationCenter()
+    return
+  }
+
+  notifications = (data || []).map((row) => ({
+    id: Number(row.id),
+    teamId: row.team_id == null ? null : Number(row.team_id),
+    departmentId:
+      row.department_id == null ? null : Number(row.department_id),
+    category: row.category || 'system',
+    title: row.title || '',
+    body: row.body || '',
+    sourceType: row.source_type || '',
+    sourceId: row.source_id == null ? null : Number(row.source_id),
+    isRead: row.is_read === true,
+    readAt: row.read_at || null,
+    createdAt: row.created_at || null
+  }))
+
+  if (render) renderNotificationCenter()
+}
+
+function setNotificationPanel(open) {
+  if (!notificationPanel || !notificationBtn) return
+
+  const shouldOpen = Boolean(open)
+
+  notificationPanel.hidden = !shouldOpen
+  notificationBtn.classList.toggle('active', shouldOpen)
+  notificationBtn.setAttribute(
+    'aria-expanded',
+    shouldOpen ? 'true' : 'false'
+  )
+
+  if (shouldOpen) {
+    if (accountPanel && !accountPanel.hidden) {
+      accountPanel.hidden = true
+      accountBtn?.classList.remove('active')
+      accountBtn?.setAttribute('aria-expanded', 'false')
+    }
+
+    if (toolPanel?.classList.contains('collapsed')) {
+      togglePanel(false)
+    }
+  }
+}
+
+async function openNotificationPanel() {
+  if (!currentUser) return
+
+  setNotificationPanel(true)
+  await loadNotifications()
+}
+
+async function markNotificationRead(notificationId) {
+  const item = notifications.find(
+    (notification) => Number(notification.id) === Number(notificationId)
+  )
+
+  if (!item || item.isRead || notificationMutationBusy) return
+
+  notificationMutationBusy = true
+  renderNotificationCenter()
+
+  try {
+    const { error } = await supabase.rpc('atlas_notification_mark_read', {
+      p_project_id: PROJECT_ID,
+      p_notification_id: Number(notificationId)
+    })
+
+    if (error) throw error
+
+    item.isRead = true
+    item.readAt = new Date().toISOString()
+  } catch (error) {
+    console.error('Mark notification read failed:', error)
+  } finally {
+    notificationMutationBusy = false
+    renderNotificationCenter()
+  }
+}
+
+async function markAllNotificationsRead() {
+  if (!currentUser || notificationMutationBusy) return
+
+  notificationMutationBusy = true
+  renderNotificationCenter()
+
+  try {
+    const { error } = await supabase.rpc('atlas_notification_mark_all_read', {
+      p_project_id: PROJECT_ID
+    })
+
+    if (error) throw error
+
+    const now = new Date().toISOString()
+
+    notifications.forEach((item) => {
+      if (!item.isRead) {
+        item.isRead = true
+        item.readAt = now
+      }
+    })
+  } catch (error) {
+    console.error('Mark all notifications read failed:', error)
+  } finally {
+    notificationMutationBusy = false
+    renderNotificationCenter()
+  }
+}
+
+async function openNotification(notificationId) {
+  const item = notifications.find(
+    (notification) => Number(notification.id) === Number(notificationId)
+  )
+
+  if (!item) return
+
+  await markNotificationRead(item.id)
+  setNotificationPanel(false)
+
+  if (
+    item.sourceType === 'team_content' &&
+    item.teamId != null
+  ) {
+    const membership = ownActiveTeamMemberships().find(
+      (entry) => Number(entry.teamId) === Number(item.teamId)
+    )
+
+    if (!membership) return
+
+    activeTeamId = Number(item.teamId)
+    localStorage.setItem(CACHE_KEYS.activeTeam, String(activeTeamId))
+
+    activePublicSection = 'team'
+    localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+
+    activeTeamWorkspaceTab = 'announcements'
+    localStorage.setItem(
+      CACHE_KEYS.teamWorkspaceTab,
+      activeTeamWorkspaceTab
+    )
+
+    renderAll()
+  }
+}
+
 function currentTeamPrivateContent() {
   return teamPrivateContent.filter(
     (item) => Number(item.teamId) === Number(activeTeamId)
@@ -3487,7 +3800,11 @@ function resetTeamContentEditor() {
   teamContentUrlInput.value = ''
   teamContentPinnedInput.checked = false
   teamContentActiveInput.checked = true
+  teamContentNotifyInput.checked =
+    teamContentManagerKind === 'announcement'
 
+  teamContentNotifyLabel.hidden =
+    teamContentManagerKind !== 'announcement'
   teamContentUrlField.hidden = teamContentManagerKind === 'note'
   deleteTeamContentBtn.hidden = true
   teamContentEditorStatus.textContent = 'Pregătit pentru editare.'
@@ -3523,7 +3840,10 @@ function editTeamContent(id) {
   teamContentUrlInput.value = item.url || ''
   teamContentPinnedInput.checked = Boolean(item.isPinned)
   teamContentActiveInput.checked = item.isActive !== false
+  teamContentNotifyInput.checked = false
 
+  teamContentNotifyLabel.hidden =
+    teamContentManagerKind !== 'announcement'
   teamContentUrlField.hidden = teamContentManagerKind === 'note'
   deleteTeamContentBtn.hidden = false
   teamContentEditorStatus.textContent = 'Element încărcat pentru editare.'
@@ -3674,7 +3994,10 @@ async function saveTeamContent() {
       p_url: normalizedUrl,
       p_department_id: departmentId,
       p_is_pinned: teamContentPinnedInput.checked,
-      p_is_active: teamContentActiveInput.checked
+      p_is_active: teamContentActiveInput.checked,
+      p_notify_members:
+        teamContentManagerKind === 'announcement' &&
+        teamContentNotifyInput.checked
     }
 
     const rpcName =
@@ -5115,8 +5438,16 @@ function setAccountPanel(open) {
   accountBtn.classList.toggle('active', shouldOpen)
   accountBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false')
 
-  if (shouldOpen && toolPanel?.classList.contains('collapsed')) {
-    togglePanel(false)
+  if (shouldOpen) {
+    if (notificationPanel && !notificationPanel.hidden) {
+      notificationPanel.hidden = true
+      notificationBtn?.classList.remove('active')
+      notificationBtn?.setAttribute('aria-expanded', 'false')
+    }
+
+    if (toolPanel?.classList.contains('collapsed')) {
+      togglePanel(false)
+    }
   }
 }
 
@@ -8401,6 +8732,7 @@ async function resetSelectedNodeSize() {
 // Authentication, permissions and Editor Mode
 function updateAuthUI() {
   renderTeamInvites()
+  renderNotificationCenter()
 
   if (accountBtn) {
     accountBtn.textContent = currentUser ? 'Profil' : 'Cont'
@@ -8617,6 +8949,7 @@ async function refreshSession() {
   await refreshEditorAccess()
   await loadRoadmapProgress()
   await loadTeamContext()
+  await loadNotifications({ render: false })
 
   updateAuthUI()
   maybeOpenPendingTeamInvite()
@@ -12467,19 +12800,66 @@ publicSectionTabs?.querySelectorAll('[data-public-section]').forEach((button) =>
   })
 })
 
+notificationBtn?.addEventListener('click', (event) => {
+  event.stopPropagation()
+
+  if (notificationPanel?.hidden === false) {
+    setNotificationPanel(false)
+    return
+  }
+
+  openNotificationPanel().catch((error) => {
+    console.error('Open Notification Center failed:', error)
+  })
+})
+
+notificationFilters?.addEventListener('click', (event) => {
+  const button = event.target.closest?.('[data-notification-filter]')
+  if (!button) return
+
+  notificationFilter = button.dataset.notificationFilter || 'all'
+  renderNotificationCenter()
+})
+
+notificationList?.addEventListener('click', (event) => {
+  const item = event.target.closest?.('[data-notification-id]')
+  if (!item) return
+
+  openNotification(Number(item.dataset.notificationId)).catch((error) => {
+    console.error('Open notification failed:', error)
+  })
+})
+
+notificationMarkAllBtn?.addEventListener('click', () => {
+  markAllNotificationsRead()
+})
+
 accountBtn?.addEventListener('click', (event) => {
   event.stopPropagation()
   setAccountPanel(accountPanel?.hidden !== false)
 })
 
 document.addEventListener('click', (event) => {
-  if (!accountPanel || accountPanel.hidden) return
-
   const target = event.target
   if (!(target instanceof Node)) return
-  if (accountPanel.contains(target) || accountBtn?.contains(target)) return
 
-  setAccountPanel(false)
+  if (
+    accountPanel &&
+    !accountPanel.hidden &&
+    !accountPanel.contains(target) &&
+    !accountBtn?.contains(target)
+  ) {
+    setAccountPanel(false)
+  }
+
+  if (
+    notificationPanel &&
+    !notificationPanel.hidden &&
+    !notificationPanel.contains(target) &&
+    !notificationBtn?.contains(target)
+  ) {
+    setNotificationPanel(false)
+  }
 })
 
 loginBtn.addEventListener('click', () => {
@@ -12538,6 +12918,12 @@ clearFiltersBtn.addEventListener('click', () => {
 toolsHeader.addEventListener('click', (event) => {
   if (event.target === collapseBtn) return
   if (accountBtn && (event.target === accountBtn || accountBtn.contains(event.target))) return
+  if (
+    notificationBtn &&
+    (event.target === notificationBtn || notificationBtn.contains(event.target))
+  ) {
+    return
+  }
   togglePanel()
 })
 
@@ -12556,6 +12942,12 @@ function togglePanel(force) {
     accountPanel.hidden = true
     accountBtn?.classList.remove('active')
     accountBtn?.setAttribute('aria-expanded', 'false')
+  }
+
+  if (collapsed && notificationPanel) {
+    notificationPanel.hidden = true
+    notificationBtn?.classList.remove('active')
+    notificationBtn?.setAttribute('aria-expanded', 'false')
   }
 
   localStorage.setItem(CACHE_KEYS.panel, collapsed ? '1' : '0')
@@ -12832,6 +13224,14 @@ document.addEventListener('focusin', (event) => {
   keepFocusedEditorFieldVisible(event.target)
 })
 
+window.addEventListener('focus', () => {
+  if (!currentUser) return
+
+  loadNotifications().catch((error) => {
+    console.error('Notification refresh on focus failed:', error)
+  })
+})
+
 window.addEventListener('resize', () => {
   updateAtlasViewportHeight()
   renderAll()
@@ -12865,7 +13265,8 @@ supabase.auth.onAuthStateChange((event, session) => {
     updateAuthUI()
     Promise.all([
       loadRoadmapProgress(),
-      loadTeamContext()
+      loadTeamContext(),
+      loadNotifications({ render: false })
     ])
       .then(() => renderAll())
       .catch((error) => {
@@ -12891,6 +13292,8 @@ supabase.auth.onAuthStateChange((event, session) => {
     teamInvites = []
     teamManagerInvites = []
     teamPrivateContent = []
+    notifications = []
+    notificationFilter = 'all'
     activeTeamId = null
 
     if (activePublicSection === 'team') {
@@ -12911,6 +13314,7 @@ supabase.auth.onAuthStateChange((event, session) => {
       await refreshEditorAccess()
       await loadRoadmapProgress()
       await loadTeamContext()
+      await loadNotifications({ render: false })
 
       updateAuthUI()
       renderAll()
@@ -12954,6 +13358,8 @@ window.atlasDebug = {
   openTeamMembersManager,
   openTeamOnboarding,
   openTeamContentManager,
+  openNotificationPanel,
+  loadNotifications,
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,
