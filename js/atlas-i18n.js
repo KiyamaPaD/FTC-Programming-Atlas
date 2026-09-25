@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v82 · Full English UI + Team Atlas documentation index
+// v83 · Full English UI + Team Atlas private roadmaps
 //
 // Source language: Romanian
 // Secondary language: English
@@ -443,6 +443,20 @@ const UI_EN = new Map(Object.entries({
     'Uncategorized',
   'Private team scope':
     'Private team scope',
+  'Team Roadmaps':
+    'Team Roadmaps',
+  'Parcursuri prin documentația echipei':
+    'Recommended paths through team documentation',
+  'Roadmaps':
+    'Roadmaps',
+  'Manage team roadmaps':
+    'Manage team roadmaps',
+  'Rolul tău nu permite administrarea roadmap-urilor Team Atlas.':
+    'Your role does not allow managing Team Atlas roadmaps.',
+  'Doar editorii aprobați pot administra roadmap-urile publice.':
+    'Only approved editors can manage public roadmaps.',
+  'Progresul Team Atlas nu a putut fi salvat.':
+    'Team Atlas progress could not be saved.',
   'Copy private Team Atlas link':
     'Copy private Team Atlas link',
   'Creat de':

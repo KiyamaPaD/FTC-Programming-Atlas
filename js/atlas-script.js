@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v82 · TEAM DOCUMENTATION INDEX')
+console.log('ATLAS SCRIPT LOADED v83 · TEAM ATLAS ROADMAPS')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -322,6 +322,9 @@ let resources = []
 let roadmaps = []
 let roadmapProgress = new Set()
 
+let teamRoadmaps = []
+let teamRoadmapProgress = new Set()
+
 let teamMemberships = []
 let teamRecords = []
 let teamMembers = []
@@ -337,7 +340,8 @@ const PUBLIC_SECTIONS = new Set([
   'resources',
   'announcements',
   'team',
-  'team-index'
+  'team-index',
+  'team-roadmaps'
 ])
 
 let activePublicSection = PUBLIC_SECTIONS.has(
@@ -353,7 +357,9 @@ let publicContentMutationBusy = false
 let roadmapManagerEditingId = null
 let roadmapManagerDraftSteps = []
 let roadmapManagerMutationBusy = false
+let roadmapManagerScope = 'public'
 let roadmapProgressMutationKeys = new Set()
+let teamRoadmapProgressMutationKeys = new Set()
 let teamSetupMutationBusy = false
 let teamImportSourceNodeId = null
 let teamImportMutationBusy = false
@@ -426,6 +432,7 @@ const teamAtlasContext = document.getElementById('teamAtlasContext')
 const teamAtlasSelect = document.getElementById('teamAtlasSelect')
 const teamAtlasContextMeta = document.getElementById('teamAtlasContextMeta')
 const teamAtlasIndexBtn = document.getElementById('teamAtlasIndexBtn')
+const teamAtlasRoadmapsBtn = document.getElementById('teamAtlasRoadmapsBtn')
 const teamAtlasTaxonomyBtn = document.getElementById('teamAtlasTaxonomyBtn')
 const teamAtlasSettingsBtn = document.getElementById('teamAtlasSettingsBtn')
 const teamAtlasMembersBtn = document.getElementById('teamAtlasMembersBtn')
@@ -730,6 +737,7 @@ const closeRoadmapManagerBtn = document.getElementById('closeRoadmapManagerBtn')
 const closeRoadmapManagerFooterBtn = document.getElementById('closeRoadmapManagerFooterBtn')
 const newRoadmapBtn = document.getElementById('newRoadmapBtn')
 const roadmapManagerSummary = document.getElementById('roadmapManagerSummary')
+const roadmapManagerScopeLabel = document.getElementById('roadmapManagerScopeLabel')
 const roadmapManagerList = document.getElementById('roadmapManagerList')
 const roadmapEditorTitle = document.getElementById('roadmapEditorTitle')
 const roadmapEditorHint = document.getElementById('roadmapEditorHint')
@@ -2110,6 +2118,305 @@ async function deletePublicContentItem() {
 }
 
 
+function teamRoadmapProgressKey(roadmapId, nodeId) {
+  return `${Number(roadmapId)}:${Number(nodeId)}`
+}
+
+function isTeamRoadmapStepCompleted(roadmapId, nodeId) {
+  return teamRoadmapProgress.has(
+    teamRoadmapProgressKey(roadmapId, nodeId)
+  )
+}
+
+function visibleTeamRoadmaps() {
+  return teamRoadmaps
+    .filter(
+      (roadmap) =>
+        roadmap.isActive !== false &&
+        Number(roadmap.departmentId) === Number(activeDepartmentId)
+    )
+    .sort((a, b) => {
+      const orderDifference =
+        Number(a.sortOrder || 0) - Number(b.sortOrder || 0)
+
+      if (orderDifference !== 0) return orderDifference
+
+      return String(a.title || '').localeCompare(
+        String(b.title || ''),
+        'ro',
+        { sensitivity: 'base' }
+      )
+    })
+}
+
+function teamRoadmapProgressStats(roadmap) {
+  const steps = Array.isArray(roadmap?.steps) ? roadmap.steps : []
+
+  const completed = steps.filter((step) =>
+    isTeamRoadmapStepCompleted(roadmap.id, step.nodeId)
+  ).length
+
+  return {
+    completed,
+    total: steps.length,
+    percent:
+      steps.length > 0
+        ? Math.round((completed / steps.length) * 100)
+        : 0
+  }
+}
+
+async function toggleTeamRoadmapProgress(roadmapId, nodeId) {
+  if (!currentUser || activeTeamId == null) {
+    setAccountPanel(true)
+    return
+  }
+
+  const key = teamRoadmapProgressKey(roadmapId, nodeId)
+
+  if (teamRoadmapProgressMutationKeys.has(key)) return
+
+  teamRoadmapProgressMutationKeys.add(key)
+
+  try {
+    if (teamRoadmapProgress.has(key)) {
+      const { error } = await supabase
+        .from('atlas_team_roadmap_progress')
+        .delete()
+        .eq('project_id', PROJECT_ID)
+        .eq('team_id', Number(activeTeamId))
+        .eq('roadmap_id', Number(roadmapId))
+        .eq('node_id', Number(nodeId))
+        .eq('user_id', currentUser.id)
+
+      if (error) throw error
+
+      teamRoadmapProgress.delete(key)
+    } else {
+      const { error } = await supabase
+        .from('atlas_team_roadmap_progress')
+        .insert({
+          project_id: PROJECT_ID,
+          team_id: Number(activeTeamId),
+          roadmap_id: Number(roadmapId),
+          node_id: Number(nodeId),
+          user_id: currentUser.id
+        })
+
+      if (error) throw error
+
+      teamRoadmapProgress.add(key)
+    }
+
+    renderAll()
+  } catch (error) {
+    console.error('Team roadmap progress update failed:', error)
+    alert(error?.message || 'Progresul Team Atlas nu a putut fi salvat.')
+  } finally {
+    teamRoadmapProgressMutationKeys.delete(key)
+  }
+}
+
+function teamRoadmapManagerButton() {
+  if (
+    !editorMode ||
+    !canEditTeamAtlas() ||
+    teamAtlasEditableDepartments().length === 0
+  ) {
+    return ''
+  }
+
+  return `
+    <div class="public-hub-actions">
+      <button
+        class="public-hub-manage"
+        type="button"
+        data-open-team-roadmap-manager
+      >
+        Manage team roadmaps
+      </button>
+    </div>
+  `
+}
+
+function renderTeamRoadmapCards() {
+  const items = visibleTeamRoadmaps()
+
+  if (items.length === 0) {
+    return `
+      <div class="roadmap-list">
+        <article class="public-hub-card wide">
+          <span class="public-hub-card-label">Team roadmaps</span>
+          <h3>Niciun roadmap privat în acest departament.</h3>
+          <p>
+            Sunt trasee recomandate prin documentația internă, nu task-uri.
+            Nu au deadline-uri și nu blochează niciun nod.
+          </p>
+          <div class="public-hub-empty">
+            Toată documentația rămâne accesibilă direct din hartă și Index.
+          </div>
+        </article>
+      </div>
+    `
+  }
+
+  return `
+    <div class="roadmap-list">
+      ${items
+        .map((roadmap) => {
+          const stats = teamRoadmapProgressStats(roadmap)
+          const department = getDepartmentById(roadmap.departmentId)
+
+          return `
+            <article class="roadmap-card">
+              <div class="roadmap-card-head">
+                <div class="roadmap-card-main">
+                  <span class="roadmap-card-label">${escapeHtmlText(
+                    department?.short_name ||
+                      department?.name ||
+                      'Team roadmap'
+                  )}</span>
+
+                  <h2>${escapeHtmlText(roadmap.title)}</h2>
+
+                  ${
+                    roadmap.description
+                      ? `<p class="roadmap-card-description">${escapeHtml(
+                          roadmap.description
+                        )}</p>`
+                      : ''
+                  }
+                </div>
+
+                <span class="roadmap-progress-copy">
+                  ${stats.completed} / ${stats.total} completed
+                </span>
+              </div>
+
+              <div class="roadmap-progress-track" aria-hidden="true">
+                <div
+                  class="roadmap-progress-fill"
+                  style="width:${stats.percent}%"
+                ></div>
+              </div>
+
+              <div class="roadmap-steps">
+                ${(roadmap.steps || [])
+                  .map((step, index) => {
+                    const node = teamNodes.find(
+                      (candidate) =>
+                        Number(candidate.id) === Number(step.nodeId)
+                    )
+
+                    if (!node) return ''
+
+                    const completed = isTeamRoadmapStepCompleted(
+                      roadmap.id,
+                      step.nodeId
+                    )
+
+                    const busy = teamRoadmapProgressMutationKeys.has(
+                      teamRoadmapProgressKey(
+                        roadmap.id,
+                        step.nodeId
+                      )
+                    )
+
+                    return `
+                      <div class="roadmap-step ${
+                        completed ? 'completed' : ''
+                      }">
+                        <button
+                          class="roadmap-step-check ${
+                            completed ? 'completed' : ''
+                          }"
+                          type="button"
+                          data-team-roadmap-progress-roadmap="${Number(
+                            roadmap.id
+                          )}"
+                          data-team-roadmap-progress-node="${Number(
+                            step.nodeId
+                          )}"
+                          aria-pressed="${completed ? 'true' : 'false'}"
+                          aria-label="${
+                            completed
+                              ? 'Marchează ca nefinalizat'
+                              : 'Marchează ca finalizat'
+                          }"
+                          ${busy ? 'disabled' : ''}
+                        >
+                          ${completed ? '✓' : ''}
+                        </button>
+
+                        <div class="roadmap-step-main">
+                          <button
+                            class="roadmap-step-node"
+                            type="button"
+                            data-team-roadmap-node-id="${Number(step.nodeId)}"
+                          >
+                            ${escapeHtmlText(node.title)}
+                          </button>
+
+                          ${
+                            step.isOptional
+                              ? '<span class="roadmap-step-optional">Optional</span>'
+                              : ''
+                          }
+
+                          ${
+                            step.note
+                              ? `<p class="roadmap-step-note">${escapeHtml(
+                                  step.note
+                                )}</p>`
+                              : ''
+                          }
+                        </div>
+
+                        <span class="roadmap-step-index">
+                          ${String(index + 1).padStart(2, '0')}
+                        </span>
+                      </div>
+                    `
+                  })
+                  .join('')}
+              </div>
+
+              <div class="roadmap-card-foot">
+                <p>Progres personal · zero locks · documentația rămâne liberă.</p>
+                <p>${stats.percent}%</p>
+              </div>
+            </article>
+          `
+        })
+        .join('')}
+    </div>
+  `
+}
+
+function openTeamRoadmapNode(nodeId) {
+  const node = teamNodes.find(
+    (candidate) => Number(candidate.id) === Number(nodeId)
+  )
+
+  if (!node) return
+
+  activePublicSection = 'team'
+  localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+
+  syncActiveNodeCollection({ forceReset: true })
+  activateDepartmentForNode(node, { persist: true })
+  clearFiltersForDeepLink()
+
+  selectedId = node.id
+  clearEdgeSelection()
+  detailOpen = true
+
+  renderAll()
+  setNodeRoute(node, { push: true })
+
+  requestAnimationFrame(() => centerOnNode(node))
+}
+
 function roadmapProgressKey(roadmapId, nodeId) {
   return `${Number(roadmapId)}:${Number(nodeId)}`
 }
@@ -2356,11 +2663,90 @@ function roadmapManagerButton() {
 
   return `
     <div class="public-hub-actions">
-      <button class="public-hub-manage" type="button" data-open-roadmap-manager>
+      <button
+        class="public-hub-manage"
+        type="button"
+        data-open-roadmap-manager
+      >
         Manage roadmaps
       </button>
     </div>
   `
+}
+
+function currentRoadmapManagerItems() {
+  if (roadmapManagerScope !== 'team') return roadmaps
+
+  return teamRoadmaps.filter((roadmap) =>
+    canEditTeamDepartment(roadmap.departmentId)
+  )
+}
+
+function currentRoadmapManagerDepartments() {
+  if (roadmapManagerScope === 'team') {
+    return teamAtlasEditableDepartments()
+  }
+
+  return departments
+    .filter((item) => item.is_active !== false)
+    .sort(
+      (a, b) =>
+        Number(a.sort_order || 0) - Number(b.sort_order || 0)
+    )
+}
+
+function currentRoadmapManagerNodes() {
+  if (roadmapManagerScope !== 'team') {
+    return publicNodes
+  }
+
+  const departmentId = Number(roadmapDepartmentInput?.value)
+
+  return teamNodes.filter((node) => {
+    if (!canEditNode(node)) return false
+
+    if (Number.isFinite(departmentId)) {
+      return Number(node.departmentId) === departmentId
+    }
+
+    return true
+  })
+}
+
+function canManageRoadmapScope(scope = roadmapManagerScope) {
+  if (!editorMode) return false
+
+  if (scope === 'team') {
+    return Boolean(
+      activeTeamId != null &&
+      canEditTeamAtlas() &&
+      teamAtlasEditableDepartments().length > 0
+    )
+  }
+
+  return Boolean(canEdit)
+}
+
+function requireRoadmapManagerAuth(scope = roadmapManagerScope) {
+  if (!canManageRoadmapScope(scope)) {
+    alert(
+      scope === 'team'
+        ? 'Rolul tău nu permite administrarea roadmap-urilor Team Atlas.'
+        : 'Doar editorii aprobați pot administra roadmap-urile publice.'
+    )
+    return false
+  }
+
+  return true
+}
+
+async function refreshRoadmapManagerData() {
+  if (roadmapManagerScope === 'team') {
+    await loadActiveTeamAtlasNodes()
+  } else {
+    await fetchAllData()
+    await loadRoadmapProgress()
+  }
 }
 
 function isRoadmapManagerOpen() {
@@ -2387,9 +2773,9 @@ function setRoadmapManagerBusy(nextValue) {
 
 function populateRoadmapEditorSelects() {
   const departmentValue = roadmapDepartmentInput.value
-  roadmapDepartmentInput.innerHTML = departments
-    .filter((item) => item.is_active !== false)
-    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+  const departmentItems = currentRoadmapManagerDepartments()
+
+  roadmapDepartmentInput.innerHTML = departmentItems
     .map(
       (department) =>
         `<option value="${Number(department.id)}">${escapeHtmlText(
@@ -2400,33 +2786,52 @@ function populateRoadmapEditorSelects() {
 
   if (
     departmentValue &&
-    departments.some((item) => String(item.id) === String(departmentValue))
+    departmentItems.some(
+      (item) => String(item.id) === String(departmentValue)
+    )
   ) {
     roadmapDepartmentInput.value = departmentValue
-  } else if (activeDepartmentId != null) {
+  } else if (
+    activeDepartmentId != null &&
+    departmentItems.some(
+      (item) => Number(item.id) === Number(activeDepartmentId)
+    )
+  ) {
     roadmapDepartmentInput.value = String(activeDepartmentId)
+  } else if (departmentItems[0]) {
+    roadmapDepartmentInput.value = String(departmentItems[0].id)
   }
 
   const selectedNodeValue = roadmapStepNodeInput.value
+  const nodeItems = currentRoadmapManagerNodes()
+
   roadmapStepNodeInput.innerHTML = [
     '<option value="">— Alege un nod —</option>',
-    ...[...nodes]
+    ...[...nodeItems]
       .sort((a, b) =>
-        String(a.title || '').localeCompare(String(b.title || ''), 'ro', {
-          sensitivity: 'base'
-        })
+        String(a.title || '').localeCompare(
+          String(b.title || ''),
+          'ro',
+          { sensitivity: 'base' }
+        )
       )
       .map(
         (node) =>
-          `<option value="${Number(node.id)}">${escapeHtmlText(node.title)}</option>`
+          `<option value="${Number(node.id)}">${escapeHtmlText(
+            node.title
+          )}</option>`
       )
   ].join('')
 
   if (
     selectedNodeValue &&
-    nodes.some((node) => String(node.id) === String(selectedNodeValue))
+    nodeItems.some(
+      (node) => String(node.id) === String(selectedNodeValue)
+    )
   ) {
     roadmapStepNodeInput.value = selectedNodeValue
+  } else {
+    roadmapStepNodeInput.value = ''
   }
 }
 
@@ -2490,47 +2895,54 @@ function renderRoadmapDraftSteps() {
     })
     .join('')
 
-  roadmapEditorSteps.querySelectorAll('[data-roadmap-step-up]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const index = Number(button.dataset.roadmapStepUp)
-      if (index <= 0) return
+  roadmapEditorSteps
+    .querySelectorAll('[data-roadmap-step-up]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        const index = Number(button.dataset.roadmapStepUp)
+        if (index <= 0) return
 
-      ;[
-        roadmapManagerDraftSteps[index - 1],
-        roadmapManagerDraftSteps[index]
-      ] = [
-        roadmapManagerDraftSteps[index],
-        roadmapManagerDraftSteps[index - 1]
-      ]
+        ;[
+          roadmapManagerDraftSteps[index - 1],
+          roadmapManagerDraftSteps[index]
+        ] = [
+          roadmapManagerDraftSteps[index],
+          roadmapManagerDraftSteps[index - 1]
+        ]
 
-      renderRoadmapDraftSteps()
+        renderRoadmapDraftSteps()
+      })
     })
-  })
 
-  roadmapEditorSteps.querySelectorAll('[data-roadmap-step-down]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const index = Number(button.dataset.roadmapStepDown)
-      if (index >= roadmapManagerDraftSteps.length - 1) return
+  roadmapEditorSteps
+    .querySelectorAll('[data-roadmap-step-down]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        const index = Number(button.dataset.roadmapStepDown)
 
-      ;[
-        roadmapManagerDraftSteps[index + 1],
-        roadmapManagerDraftSteps[index]
-      ] = [
-        roadmapManagerDraftSteps[index],
-        roadmapManagerDraftSteps[index + 1]
-      ]
+        if (index >= roadmapManagerDraftSteps.length - 1) return
 
-      renderRoadmapDraftSteps()
+        ;[
+          roadmapManagerDraftSteps[index + 1],
+          roadmapManagerDraftSteps[index]
+        ] = [
+          roadmapManagerDraftSteps[index],
+          roadmapManagerDraftSteps[index + 1]
+        ]
+
+        renderRoadmapDraftSteps()
+      })
     })
-  })
 
-  roadmapEditorSteps.querySelectorAll('[data-roadmap-step-remove]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const index = Number(button.dataset.roadmapStepRemove)
-      roadmapManagerDraftSteps.splice(index, 1)
-      renderRoadmapDraftSteps()
+  roadmapEditorSteps
+    .querySelectorAll('[data-roadmap-step-remove]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        const index = Number(button.dataset.roadmapStepRemove)
+        roadmapManagerDraftSteps.splice(index, 1)
+        renderRoadmapDraftSteps()
+      })
     })
-  })
 
   setRoadmapManagerBusy(roadmapManagerMutationBusy)
 }
@@ -2550,9 +2962,17 @@ function resetRoadmapEditor() {
   roadmapSortOrderInput.value = '0'
   roadmapActiveInput.checked = true
 
-  if (activeDepartmentId != null) {
+  if (
+    activeDepartmentId != null &&
+    currentRoadmapManagerDepartments().some(
+      (department) =>
+        Number(department.id) === Number(activeDepartmentId)
+    )
+  ) {
     roadmapDepartmentInput.value = String(activeDepartmentId)
   }
+
+  populateRoadmapEditorSelects()
 
   roadmapStepNodeInput.value = ''
   roadmapStepNoteInput.value = ''
@@ -2565,7 +2985,10 @@ function resetRoadmapEditor() {
 }
 
 function editRoadmap(id) {
-  const roadmap = roadmaps.find((item) => Number(item.id) === Number(id))
+  const roadmap = currentRoadmapManagerItems().find(
+    (item) => Number(item.id) === Number(id)
+  )
+
   if (!roadmap) return
 
   roadmapManagerEditingId = Number(roadmap.id)
@@ -2584,6 +3007,9 @@ function editRoadmap(id) {
   roadmapTitleInput.value = roadmap.title || ''
   roadmapDescriptionInput.value = roadmap.description || ''
   roadmapDepartmentInput.value = String(roadmap.departmentId || '')
+
+  populateRoadmapEditorSelects()
+
   roadmapSortOrderInput.value = String(Number(roadmap.sortOrder || 0))
   roadmapActiveInput.checked = roadmap.isActive !== false
 
@@ -2600,35 +3026,55 @@ function editRoadmap(id) {
 function renderRoadmapManager() {
   if (!isRoadmapManagerOpen()) return
 
-  const items = [...roadmaps].sort((a, b) => {
+  const items = [...currentRoadmapManagerItems()].sort((a, b) => {
     const departmentOrder =
       Number(getDepartmentById(a.departmentId)?.sort_order || 0) -
       Number(getDepartmentById(b.departmentId)?.sort_order || 0)
 
     if (departmentOrder !== 0) return departmentOrder
 
-    const orderDifference = Number(a.sortOrder || 0) - Number(b.sortOrder || 0)
+    const orderDifference =
+      Number(a.sortOrder || 0) - Number(b.sortOrder || 0)
+
     if (orderDifference !== 0) return orderDifference
 
-    return String(a.title || '').localeCompare(String(b.title || ''), 'ro', {
-      sensitivity: 'base'
-    })
+    return String(a.title || '').localeCompare(
+      String(b.title || ''),
+      'ro',
+      { sensitivity: 'base' }
+    )
   })
 
-  roadmapManagerSummary.innerHTML = `<strong>${items.length} roadmaps</strong> · ${
-    items.filter((item) => item.isActive !== false).length
-  } active.`
+  if (roadmapManagerScopeLabel) {
+    roadmapManagerScopeLabel.textContent =
+      roadmapManagerScope === 'team'
+        ? `Team roadmaps · ${currentTeamRecord()?.name || 'Team Atlas'}`
+        : 'Roadmaps publice'
+  }
+
+  roadmapManagerSummary.innerHTML = `
+    <strong>${items.length} roadmaps</strong>
+    · ${items.filter((item) => item.isActive !== false).length} active
+    · ${roadmapManagerScope === 'team' ? 'private team scope' : 'public scope'}.
+  `
 
   if (items.length === 0) {
     roadmapManagerList.innerHTML = `
       <div class="public-content-manager-empty">
-        Nu există încă roadmaps.
+        Nu există încă roadmaps în acest scope.
       </div>
     `
   } else {
     roadmapManagerList.innerHTML = items
       .map((roadmap) => {
         const department = getDepartmentById(roadmap.departmentId)
+
+        const visibility =
+          roadmap.isActive !== false
+            ? roadmapManagerScope === 'team'
+              ? 'Private'
+              : 'Public'
+            : 'Draft'
 
         return `
           <article class="roadmap-manager-item ${
@@ -2639,9 +3085,9 @@ function renderRoadmapManager() {
               <span>
                 ${escapeHtmlText(
                   department?.short_name || department?.name || '—'
-                )} · ${(roadmap.steps || []).length} steps · ${
-                  roadmap.isActive !== false ? 'Public' : 'Draft'
-                }
+                )}
+                · ${(roadmap.steps || []).length} steps
+                · ${visibility}
               </span>
             </div>
 
@@ -2658,17 +3104,21 @@ function renderRoadmapManager() {
       .join('')
   }
 
-  roadmapManagerList.querySelectorAll('[data-edit-roadmap]').forEach((button) => {
-    button.addEventListener('click', () => {
-      editRoadmap(Number(button.dataset.editRoadmap))
+  roadmapManagerList
+    .querySelectorAll('[data-edit-roadmap]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        editRoadmap(Number(button.dataset.editRoadmap))
+      })
     })
-  })
 
   setRoadmapManagerBusy(roadmapManagerMutationBusy)
 }
 
-async function openRoadmapManager() {
-  if (!requireAuth()) return
+async function openRoadmapManager(scope = 'public') {
+  roadmapManagerScope = scope === 'team' ? 'team' : 'public'
+
+  if (!requireRoadmapManagerAuth(roadmapManagerScope)) return
 
   roadmapManagerBackdrop.classList.add('open')
   roadmapManagerSummary.textContent = 'Se încarcă roadmaps...'
@@ -2676,8 +3126,7 @@ async function openRoadmapManager() {
     '<div class="public-content-manager-empty">Se încarcă...</div>'
 
   try {
-    await fetchAllData()
-    await loadRoadmapProgress()
+    await refreshRoadmapManagerData()
     resetRoadmapEditor()
     renderRoadmapManager()
   } catch (error) {
@@ -2692,16 +3141,28 @@ function closeRoadmapManager() {
   roadmapManagerEditingId = null
   roadmapManagerDraftSteps = []
   roadmapManagerMutationBusy = false
+  roadmapManagerScope = 'public'
 }
 
 function addRoadmapDraftStep() {
   const nodeId = Number(roadmapStepNodeInput.value)
-  if (!Number.isFinite(nodeId) || !findNode(nodeId)) {
+  const availableNodes = currentRoadmapManagerNodes()
+
+  if (
+    !Number.isFinite(nodeId) ||
+    !availableNodes.some(
+      (node) => Number(node.id) === Number(nodeId)
+    )
+  ) {
     alert('Alege un nod pentru pasul nou.')
     return
   }
 
-  if (roadmapManagerDraftSteps.some((step) => Number(step.nodeId) === nodeId)) {
+  if (
+    roadmapManagerDraftSteps.some(
+      (step) => Number(step.nodeId) === nodeId
+    )
+  ) {
     alert('Acest nod există deja în roadmap.')
     return
   }
@@ -2720,7 +3181,12 @@ function addRoadmapDraftStep() {
 }
 
 async function saveRoadmap() {
-  if (!requireAuth() || roadmapManagerMutationBusy) return
+  if (
+    !requireRoadmapManagerAuth(roadmapManagerScope) ||
+    roadmapManagerMutationBusy
+  ) {
+    return
+  }
 
   const title = roadmapTitleInput.value.trim()
   const departmentId = Number(roadmapDepartmentInput.value)
@@ -2730,8 +3196,19 @@ async function saveRoadmap() {
     return
   }
 
-  if (!Number.isFinite(departmentId) || !getDepartmentById(departmentId)) {
+  if (
+    !Number.isFinite(departmentId) ||
+    !getDepartmentById(departmentId)
+  ) {
     alert('Alege un departament valid.')
+    return
+  }
+
+  if (
+    roadmapManagerScope === 'team' &&
+    !canEditTeamDepartment(departmentId)
+  ) {
+    alert('Nu ai drept de editare în departamentul ales.')
     return
   }
 
@@ -2753,10 +3230,20 @@ async function saveRoadmap() {
       }))
     }
 
-    const rpcName =
-      roadmapManagerEditingId == null
-        ? 'atlas_roadmap_create'
-        : 'atlas_roadmap_update'
+    let rpcName
+
+    if (roadmapManagerScope === 'team') {
+      params.p_team_id = Number(activeTeamId)
+      rpcName =
+        roadmapManagerEditingId == null
+          ? 'atlas_team_roadmap_create'
+          : 'atlas_team_roadmap_update'
+    } else {
+      rpcName =
+        roadmapManagerEditingId == null
+          ? 'atlas_roadmap_create'
+          : 'atlas_roadmap_update'
+    }
 
     if (roadmapManagerEditingId != null) {
       params.p_roadmap_id = Number(roadmapManagerEditingId)
@@ -2765,8 +3252,7 @@ async function saveRoadmap() {
     const { error } = await supabase.rpc(rpcName, params)
     if (error) throw error
 
-    await fetchAllData()
-    await loadRoadmapProgress()
+    await refreshRoadmapManagerData()
 
     resetRoadmapEditor()
     renderRoadmapManager()
@@ -2775,7 +3261,8 @@ async function saveRoadmap() {
     roadmapEditorStatus.textContent = 'Salvat.'
   } catch (error) {
     console.error('Roadmap save failed:', error)
-    roadmapEditorStatus.textContent = error?.message || 'Eroare la salvare.'
+    roadmapEditorStatus.textContent =
+      error?.message || 'Eroare la salvare.'
     alert(error?.message || 'Roadmap-ul nu a putut fi salvat.')
   } finally {
     setRoadmapManagerBusy(false)
@@ -2784,33 +3271,45 @@ async function saveRoadmap() {
 
 async function deleteRoadmap() {
   if (
-    !requireAuth() ||
+    !requireRoadmapManagerAuth(roadmapManagerScope) ||
     roadmapManagerMutationBusy ||
     roadmapManagerEditingId == null
   ) {
     return
   }
 
-  const roadmap = roadmaps.find(
+  const roadmap = currentRoadmapManagerItems().find(
     (item) => Number(item.id) === Number(roadmapManagerEditingId)
   )
+
   if (!roadmap) return
 
-  if (!confirm(`Sigur vrei să ștergi roadmap-ul „${roadmap.title}”?`)) return
+  if (!confirm(`Sigur vrei să ștergi roadmap-ul „${roadmap.title}”?`)) {
+    return
+  }
 
   setRoadmapManagerBusy(true)
   roadmapEditorStatus.textContent = 'Se șterge...'
 
   try {
-    const { error } = await supabase.rpc('atlas_roadmap_delete', {
+    const rpcName =
+      roadmapManagerScope === 'team'
+        ? 'atlas_team_roadmap_delete'
+        : 'atlas_roadmap_delete'
+
+    const params = {
       p_project_id: PROJECT_ID,
       p_roadmap_id: Number(roadmapManagerEditingId)
-    })
+    }
 
+    if (roadmapManagerScope === 'team') {
+      params.p_team_id = Number(activeTeamId)
+    }
+
+    const { error } = await supabase.rpc(rpcName, params)
     if (error) throw error
 
-    await fetchAllData()
-    await loadRoadmapProgress()
+    await refreshRoadmapManagerData()
 
     resetRoadmapEditor()
     renderRoadmapManager()
@@ -2819,7 +3318,8 @@ async function deleteRoadmap() {
     roadmapEditorStatus.textContent = 'Șters.'
   } catch (error) {
     console.error('Roadmap delete failed:', error)
-    roadmapEditorStatus.textContent = error?.message || 'Eroare la ștergere.'
+    roadmapEditorStatus.textContent =
+      error?.message || 'Eroare la ștergere.'
     alert(error?.message || 'Roadmap-ul nu a putut fi șters.')
   } finally {
     setRoadmapManagerBusy(false)
@@ -2831,7 +3331,8 @@ async function deleteRoadmap() {
 function isTeamAtlasMode() {
   return (
     (activePublicSection === 'team' ||
-      activePublicSection === 'team-index') &&
+      activePublicSection === 'team-index' ||
+      activePublicSection === 'team-roadmaps') &&
     activeTeamId != null
   )
 }
@@ -3020,6 +3521,8 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   teamCategories = []
   teamDifficulties = []
   teamTaxonomyTags = []
+  teamRoadmaps = []
+  teamRoadmapProgress = new Set()
 
   if (!currentUser || activeTeamId == null) {
     syncActiveNodeCollection({ forceReset })
@@ -3034,7 +3537,10 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     filesResult,
     teamCategoriesResult,
     teamDifficultiesResult,
-    teamTagsResult
+    teamTagsResult,
+    teamRoadmapsResult,
+    teamRoadmapStepsResult,
+    teamRoadmapProgressResult
   ] = await Promise.all([
     supabase
       .from('atlas_team_nodes')
@@ -3097,7 +3603,30 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
       .order('sort_order', { ascending: true })
-      .order('name', { ascending: true })
+      .order('name', { ascending: true }),
+
+    supabase
+      .from('atlas_team_roadmaps')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', Number(activeTeamId))
+      .order('sort_order', { ascending: true })
+      .order('title', { ascending: true }),
+
+    supabase
+      .from('atlas_team_roadmap_steps')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', Number(activeTeamId))
+      .order('roadmap_id', { ascending: true })
+      .order('position', { ascending: true }),
+
+    supabase
+      .from('atlas_team_roadmap_progress')
+      .select('roadmap_id, node_id')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', Number(activeTeamId))
+      .eq('user_id', currentUser.id)
   ])
 
   if (nodesResult.error) throw nodesResult.error
@@ -3108,10 +3637,51 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   if (teamCategoriesResult.error) throw teamCategoriesResult.error
   if (teamDifficultiesResult.error) throw teamDifficultiesResult.error
   if (teamTagsResult.error) throw teamTagsResult.error
+  if (teamRoadmapsResult.error) throw teamRoadmapsResult.error
+  if (teamRoadmapStepsResult.error) throw teamRoadmapStepsResult.error
+  if (teamRoadmapProgressResult.error) throw teamRoadmapProgressResult.error
 
   teamCategories = teamCategoriesResult.data || []
   teamDifficulties = teamDifficultiesResult.data || []
   teamTaxonomyTags = teamTagsResult.data || []
+
+  const teamRoadmapStepsByRoadmap = new Map()
+
+  for (const row of teamRoadmapStepsResult.data || []) {
+    const roadmapId = Number(row.roadmap_id)
+
+    if (!teamRoadmapStepsByRoadmap.has(roadmapId)) {
+      teamRoadmapStepsByRoadmap.set(roadmapId, [])
+    }
+
+    teamRoadmapStepsByRoadmap.get(roadmapId).push({
+      id: Number(row.id),
+      nodeId: Number(row.node_id),
+      position: Number(row.position || 0),
+      note: row.note || '',
+      isOptional: row.is_optional === true
+    })
+  }
+
+  teamRoadmaps = (teamRoadmapsResult.data || []).map((row) => ({
+    id: Number(row.id),
+    teamId: Number(row.team_id),
+    title: row.title || '',
+    description: row.description || '',
+    departmentId: Number(row.department_id),
+    isActive: row.is_active !== false,
+    sortOrder: Number(row.sort_order || 0),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null,
+    steps:
+      teamRoadmapStepsByRoadmap.get(Number(row.id)) || []
+  }))
+
+  teamRoadmapProgress = new Set(
+    (teamRoadmapProgressResult.data || []).map((row) =>
+      teamRoadmapProgressKey(row.roadmap_id, row.node_id)
+    )
+  )
 
   const edgesBySource = new Map()
 
@@ -3415,7 +3985,11 @@ function normalizeActiveTeam() {
     activeTeamId = null
     teamNodes = []
 
-    if (activePublicSection === 'team') {
+    if (
+      activePublicSection === 'team' ||
+      activePublicSection === 'team-index' ||
+      activePublicSection === 'team-roadmaps'
+    ) {
       activePublicSection = 'explore'
       localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
     }
@@ -3470,6 +4044,8 @@ async function loadTeamContext({ rerender = false } = {}) {
   teamCategories = []
   teamDifficulties = []
   teamTaxonomyTags = []
+  teamRoadmaps = []
+  teamRoadmapProgress = new Set()
 
   if (!currentUser) {
     activeTeamId = null
@@ -3683,7 +4259,8 @@ function renderTeamNavigation() {
     'active',
     visible &&
       (activePublicSection === 'team' ||
-        activePublicSection === 'team-index')
+        activePublicSection === 'team-index' ||
+        activePublicSection === 'team-roadmaps')
   )
 
   if (!visible) {
@@ -3701,7 +4278,8 @@ function renderTeamNavigation() {
 
   const inTeamAtlas =
     activePublicSection === 'team' ||
-    activePublicSection === 'team-index'
+    activePublicSection === 'team-index' ||
+    activePublicSection === 'team-roadmaps'
 
   teamAtlasContext.hidden = !inTeamAtlas
 
@@ -3749,6 +4327,18 @@ function renderTeamNavigation() {
   )
 
   teamAtlasIndexBtn.disabled = isAtlasLoading
+
+  teamAtlasRoadmapsBtn.textContent =
+    activePublicSection === 'team-roadmaps'
+      ? 'Atlas map'
+      : 'Roadmaps'
+
+  teamAtlasRoadmapsBtn.classList.toggle(
+    'primary',
+    activePublicSection === 'team-roadmaps'
+  )
+
+  teamAtlasRoadmapsBtn.disabled = isAtlasLoading
 
   teamAtlasTaxonomyBtn.hidden = !canManageTeamTaxonomy()
   teamAtlasTaxonomyBtn.disabled = !editorMode || isAtlasLoading
@@ -5482,7 +6072,8 @@ function publicSectionLabel(section) {
     resources: 'Resources',
     announcements: 'Announcements',
     team: 'Team Atlas',
-    'team-index': 'Team Index'
+    'team-index': 'Team Index',
+    'team-roadmaps': 'Team Roadmaps'
   }
 
   return labels[section] || 'Explore'
@@ -5495,7 +6086,8 @@ function publicSectionEyebrow(section) {
     resources: 'Resurse utile',
     announcements: 'Anunțuri universale',
     team: 'Documentația echipei',
-    'team-index': 'Indexul documentației echipei'
+    'team-index': 'Indexul documentației echipei',
+    'team-roadmaps': 'Parcursuri prin documentația echipei'
   }
 
   return labels[section] || labels.explore
@@ -5505,7 +6097,11 @@ function selectPublicSection(section) {
   if (!PUBLIC_SECTIONS.has(section)) return
 
   if (
-    (section === 'team' || section === 'team-index') &&
+    (
+      section === 'team' ||
+      section === 'team-index' ||
+      section === 'team-roadmaps'
+    ) &&
     !currentTeamRecord()
   ) {
     setAccountPanel(true)
@@ -5541,6 +6137,8 @@ function renderPublicShell() {
   const isExplore = activePublicSection === 'explore'
   const isTeamAtlas = activePublicSection === 'team'
   const isTeamIndex = activePublicSection === 'team-index'
+  const isTeamRoadmaps =
+    activePublicSection === 'team-roadmaps'
   const isMapSection = isExplore || isTeamAtlas
   const isGlobal = activePublicSection === 'announcements'
   const department = getDepartmentById(activeDepartmentId)
@@ -5604,6 +6202,47 @@ function renderPublicShell() {
         </div>
 
         ${renderTeamDocumentationIndex()}
+      </div>
+    `
+    return
+  }
+
+  if (isTeamRoadmaps) {
+    const team = currentTeamRecord()
+
+    const teamName = team?.teamNumber
+      ? `${team.name} #${team.teamNumber}`
+      : team?.name || 'Team Atlas'
+
+    publicHubPanel.innerHTML = `
+      <div class="public-hub-inner">
+        <p class="public-hub-kicker">
+          Team Roadmaps · ${escapeHtml(teamName)} · ${escapeHtml(
+            departmentName
+          )}
+        </p>
+
+        <h1 class="public-hub-title">
+          Parcursuri recomandate prin documentația internă.
+        </h1>
+
+        <p class="public-hub-description">
+          Roadmap-urile organizează ordinea în care merită citite și înțelese
+          nodurile Team Atlas. Nu sunt task-uri, nu au deadline-uri, nu blochează
+          documentația și progresul este personal.
+        </p>
+
+        <div class="public-hub-meta">
+          <span class="public-hub-chip">${escapeHtml(teamName)}</span>
+          <span class="public-hub-chip">${escapeHtml(departmentName)}</span>
+          <span class="public-hub-chip">
+            ${visibleTeamRoadmaps().length} team roadmaps
+          </span>
+          <span class="public-hub-chip">Zero locks</span>
+        </div>
+
+        ${teamRoadmapManagerButton()}
+        ${renderTeamRoadmapCards()}
       </div>
     `
     return
@@ -9607,7 +10246,10 @@ function updateAuthUI() {
     closePublicContentManager()
   }
 
-  if (!publicAdminEditorActive && isRoadmapManagerOpen()) {
+  if (
+    isRoadmapManagerOpen() &&
+    !canManageRoadmapScope(roadmapManagerScope)
+  ) {
     closeRoadmapManager()
   }
 
@@ -13563,6 +14205,14 @@ teamAtlasIndexBtn?.addEventListener('click', () => {
   )
 })
 
+teamAtlasRoadmapsBtn?.addEventListener('click', () => {
+  selectPublicSection(
+    activePublicSection === 'team-roadmaps'
+      ? 'team'
+      : 'team-roadmaps'
+  )
+})
+
 teamAtlasTaxonomyBtn?.addEventListener('click', () => {
   openTaxonomyManager('category')
 })
@@ -13642,7 +14292,7 @@ saveTeamSetupBtn?.addEventListener('click', () => {
 })
 
 roadmapManagerBtn?.addEventListener('click', () => {
-  openRoadmapManager().catch((error) => {
+  openRoadmapManager('public').catch((error) => {
     console.error('Open roadmap manager failed:', error)
   })
 })
@@ -13660,6 +14310,17 @@ newRoadmapBtn?.addEventListener('click', () => {
   if (roadmapManagerMutationBusy) return
   resetRoadmapEditor()
   renderRoadmapManager()
+})
+
+roadmapDepartmentInput?.addEventListener('change', () => {
+  if (
+    roadmapManagerMutationBusy ||
+    roadmapManagerScope !== 'team'
+  ) {
+    return
+  }
+
+  populateRoadmapEditorSelects()
 })
 
 resetRoadmapEditorBtn?.addEventListener('click', () => {
@@ -13782,9 +14443,42 @@ publicHubPanel?.addEventListener('click', (event) => {
     return
   }
 
+  const teamRoadmapManagerTrigger =
+    event.target.closest?.('[data-open-team-roadmap-manager]')
+
+  if (teamRoadmapManagerTrigger) {
+    openRoadmapManager('team').catch((error) => {
+      console.error('Open Team Roadmap manager failed:', error)
+    })
+    return
+  }
+
+  const teamProgressButton = event.target.closest?.(
+    '[data-team-roadmap-progress-roadmap]'
+  )
+
+  if (teamProgressButton) {
+    toggleTeamRoadmapProgress(
+      Number(teamProgressButton.dataset.teamRoadmapProgressRoadmap),
+      Number(teamProgressButton.dataset.teamRoadmapProgressNode)
+    )
+    return
+  }
+
+  const teamRoadmapNodeButton = event.target.closest?.(
+    '[data-team-roadmap-node-id]'
+  )
+
+  if (teamRoadmapNodeButton) {
+    openTeamRoadmapNode(
+      Number(teamRoadmapNodeButton.dataset.teamRoadmapNodeId)
+    )
+    return
+  }
+
   const roadmapManagerTrigger = event.target.closest?.('[data-open-roadmap-manager]')
   if (roadmapManagerTrigger) {
-    openRoadmapManager().catch((error) => {
+    openRoadmapManager('public').catch((error) => {
       console.error('Open roadmap manager failed:', error)
     })
     return
@@ -14262,7 +14956,11 @@ supabase.auth.onAuthStateChange((event, session) => {
       teamImportBackdrop.classList.remove('open')
     }
 
-    if (activePublicSection === 'team') {
+    if (
+      activePublicSection === 'team' ||
+      activePublicSection === 'team-index' ||
+      activePublicSection === 'team-roadmaps'
+    ) {
       activePublicSection = 'explore'
       localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
     }

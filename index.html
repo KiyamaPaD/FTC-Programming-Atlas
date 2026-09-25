@@ -5485,6 +5485,7 @@
         <div class="team-atlas-context-meta" id="teamAtlasContextMeta"></div>
         <div class="team-atlas-context-actions">
           <button class="btn" id="teamAtlasIndexBtn" type="button">Index</button>
+          <button class="btn" id="teamAtlasRoadmapsBtn" type="button">Roadmaps</button>
           <button class="btn" id="teamAtlasTaxonomyBtn" type="button" hidden>Taxonomy</button>
           <button class="btn" id="teamAtlasSettingsBtn" type="button" hidden>Team settings</button>
           <button class="btn" id="teamAtlasMembersBtn" type="button" hidden>Members</button>
@@ -6386,7 +6387,7 @@
       <div class="roadmap-manager-body">
         <div class="public-content-manager-toolbar">
           <div>
-            <strong>Roadmaps publice</strong>
+            <strong id="roadmapManagerScopeLabel">Roadmaps publice</strong>
             <div class="editor-tools-note">Ordinea din roadmap este orientativă, nu un sistem de unlock.</div>
           </div>
 
@@ -6437,7 +6438,7 @@
               <div class="field">
                 <label>Status</label>
                 <div class="public-content-toggle-grid">
-                  <label><input id="roadmapActiveInput" type="checkbox" checked /> Activ / public</label>
+                  <label><input id="roadmapActiveInput" type="checkbox" checked /> Activ / vizibil</label>
                 </div>
               </div>
             </div>
@@ -6722,6 +6723,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=82"></script>
+  <script type="module" src="/js/atlas-script.js?v=83"></script>
 </body>
 </html>
