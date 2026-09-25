@@ -3922,6 +3922,220 @@
 
 
 
+
+  .documentation-health-modal {
+    width: min(1040px, 100%);
+    max-height: min(900px, calc(100vh - 36px));
+    display: flex;
+    flex-direction: column;
+  }
+
+  .documentation-health-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 16px 18px 20px;
+  }
+
+  .documentation-health-summary {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .documentation-health-stat {
+    padding: 11px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.012);
+  }
+
+  .documentation-health-stat strong {
+    display: block;
+    color: #eee9f0;
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+
+  .documentation-health-stat span {
+    display: block;
+    margin-top: 5px;
+    color: #77717d;
+    font-size: 0.6rem;
+    line-height: 1.25;
+  }
+
+  .documentation-health-controls {
+    display: grid;
+    grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) 150px auto;
+    gap: 9px;
+    align-items: end;
+    margin-bottom: 12px;
+  }
+
+  .documentation-health-lens {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 10px;
+    color: #8d8792;
+    font-size: 0.65rem;
+    white-space: nowrap;
+  }
+
+  .documentation-health-lens input {
+    accent-color: #b14cff;
+  }
+
+  .documentation-health-status {
+    margin-bottom: 10px;
+  }
+
+  .documentation-health-results {
+    display: grid;
+    gap: 8px;
+  }
+
+  .documentation-health-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 13px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.012);
+  }
+
+  .documentation-health-row.has-issues {
+    border-color: rgba(255, 184, 84, 0.11);
+  }
+
+  .documentation-health-row-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .documentation-health-row-title strong {
+    color: #eee9f0;
+    font-size: 0.78rem;
+  }
+
+  .documentation-health-row-meta {
+    margin-top: 5px;
+    color: #746e79;
+    font-size: 0.61rem;
+    line-height: 1.45;
+  }
+
+  .documentation-health-issues {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 8px;
+  }
+
+  .documentation-health-issue {
+    padding: 4px 7px;
+    border: 1px solid rgba(255, 184, 84, 0.11);
+    border-radius: 999px;
+    color: #bca27a;
+    font-size: 0.57rem;
+    line-height: 1.2;
+  }
+
+  .documentation-health-issue.source-newer {
+    border-color: rgba(177, 76, 255, 0.18);
+    color: #c79bdd;
+  }
+
+  .documentation-health-issue.review {
+    border-color: rgba(255, 184, 84, 0.17);
+    color: #d4b581;
+  }
+
+  .documentation-health-clean {
+    padding: 4px 7px;
+    border: 1px solid rgba(104, 213, 157, 0.13);
+    border-radius: 999px;
+    color: #99c8ac;
+    font-size: 0.57rem;
+  }
+
+  .documentation-health-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .documentation-health-empty {
+    padding: 28px 16px;
+    border: 1px dashed rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    color: #79737e;
+    text-align: center;
+    font-size: 0.7rem;
+    line-height: 1.55;
+  }
+
+  .node.quality-attention {
+    border-color: rgba(255, 184, 84, 0.22);
+    box-shadow:
+      0 0 0 1px rgba(255, 184, 84, 0.035),
+      0 12px 36px rgba(0, 0, 0, 0.16);
+  }
+
+  .node.quality-clean {
+    border-color: rgba(104, 213, 157, 0.13);
+  }
+
+  .node-health-badge {
+    flex: 0 0 auto;
+    padding: 3px 6px;
+    border: 1px solid rgba(255, 184, 84, 0.12);
+    border-radius: 999px;
+    color: #c5a77d;
+    font-size: 0.55rem;
+    line-height: 1;
+  }
+
+  .node-health-badge.clean {
+    border-color: rgba(104, 213, 157, 0.12);
+    color: #91bea3;
+  }
+
+  @media (max-width: 940px) {
+    .documentation-health-summary {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .documentation-health-controls {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 620px) {
+    .documentation-health-summary,
+    .documentation-health-controls {
+      grid-template-columns: 1fr;
+    }
+
+    .documentation-health-row {
+      grid-template-columns: 1fr;
+    }
+
+    .documentation-health-actions {
+      justify-content: flex-start;
+    }
+  }
+
+
   .documentation-meta-modal {
     width: min(920px, 100%);
     max-height: min(880px, calc(100vh - 40px));
@@ -6061,6 +6275,9 @@
             <button class="btn" id="savedDocsBtn" type="button">
               ☆ Saved
             </button>
+            <button class="btn" id="documentationHealthBtn" type="button" hidden>
+              ◈ Health
+            </button>
           </div>
 
           <div class="taxonomy-filters" id="taxonomyFilters">
@@ -6752,6 +6969,73 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="documentationHealthBackdrop">
+    <div class="modal documentation-health-modal">
+      <div class="modal-head">
+        <div>
+          <h3 id="documentationHealthTitle">Documentation Health</h3>
+          <p>Review queue și diagnostic pentru calitatea documentației din scope-ul curent.</p>
+        </div>
+        <button class="icon-btn" id="closeDocumentationHealthBtn" type="button" aria-label="Close">✕</button>
+      </div>
+
+      <div class="documentation-health-body">
+        <div class="documentation-health-summary" id="documentationHealthSummary"></div>
+
+        <div class="documentation-health-controls">
+          <div class="field">
+            <label for="documentationHealthIssueInput">Issue</label>
+            <select id="documentationHealthIssueInput">
+              <option value="all">All documents</option>
+              <option value="attention">Needs attention</option>
+              <option value="not_reviewed">Not reviewed</option>
+              <option value="needs_review">Needs review</option>
+              <option value="missing_sources">Missing sources</option>
+              <option value="no_primary_source">No primary source</option>
+              <option value="stale">Stale</option>
+              <option value="thin_content">Thin content</option>
+              <option value="orphan">Orphaned</option>
+              <option value="no_tags">No tags</option>
+              <option value="source_newer">Public source newer</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="documentationHealthDepartmentInput">Department</label>
+            <select id="documentationHealthDepartmentInput"></select>
+          </div>
+
+          <div class="field">
+            <label for="documentationHealthStaleInput">Stale after</label>
+            <select id="documentationHealthStaleInput">
+              <option value="90">90 days</option>
+              <option value="180">180 days</option>
+              <option value="365">365 days</option>
+            </select>
+          </div>
+
+          <label class="documentation-health-lens">
+            <input id="documentationQualityLensInput" type="checkbox" />
+            Quality lens on map
+          </label>
+        </div>
+
+        <div class="count-strip documentation-health-status" id="documentationHealthStatus"></div>
+
+        <div class="documentation-health-results" id="documentationHealthResults"></div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" id="copyDocumentationHealthReportBtn" type="button">
+          Copy report
+        </button>
+        <button class="btn primary" id="closeDocumentationHealthFooterBtn" type="button">
+          Închide
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="documentationMetaBackdrop">
     <div class="modal documentation-meta-modal">
       <div class="modal-head">
@@ -7387,6 +7671,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=85"></script>
+  <script type="module" src="/js/atlas-script.js?v=86"></script>
 </body>
 </html>

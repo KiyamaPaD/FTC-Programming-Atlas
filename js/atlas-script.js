@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v85 · DOCUMENTATION QUALITY')
+console.log('ATLAS SCRIPT LOADED v86 · DOCUMENTATION HEALTH')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -43,7 +43,9 @@ const CACHE_KEYS = {
   pendingTeamInvite: 'ftc_atlas_pending_team_invite_v1',
   pendingTeamRoute: 'ftc_atlas_pending_team_route_v1',
   recentDocs: 'ftc_atlas_recent_docs_v1',
-  localBookmarks: 'ftc_atlas_local_bookmarks_v1'
+  localBookmarks: 'ftc_atlas_local_bookmarks_v1',
+  qualityLens: 'ftc_atlas_quality_lens_v1',
+  healthStaleDays: 'ftc_atlas_health_stale_days_v1'
 }
 
 const initialTeamInviteToken = new URLSearchParams(window.location.search).get('teamInvite')
@@ -371,6 +373,18 @@ let finderSelectedIndex = 0
 let documentationMetaTarget = null
 let documentationReferenceEditingId = null
 let documentationMetaMutationBusy = false
+
+let qualityLensEnabled =
+  localStorage.getItem(CACHE_KEYS.qualityLens) === '1'
+
+let healthIssueFilter = 'attention'
+let healthDepartmentFilter = 'all'
+
+let healthStaleDays = [90, 180, 365].includes(
+  Number(localStorage.getItem(CACHE_KEYS.healthStaleDays))
+)
+  ? Number(localStorage.getItem(CACHE_KEYS.healthStaleDays))
+  : 180
 let teamSetupMutationBusy = false
 let teamImportSourceNodeId = null
 let teamImportMutationBusy = false
@@ -559,6 +573,47 @@ const closeDocumentationLibraryFooterBtn = document.getElementById(
 const clearRecentDocsBtn = document.getElementById('clearRecentDocsBtn')
 const documentationLibraryBody = document.getElementById(
   'documentationLibraryBody'
+)
+
+const documentationHealthBtn = document.getElementById(
+  'documentationHealthBtn'
+)
+
+const documentationHealthBackdrop = document.getElementById(
+  'documentationHealthBackdrop'
+)
+const documentationHealthTitle = document.getElementById(
+  'documentationHealthTitle'
+)
+const closeDocumentationHealthBtn = document.getElementById(
+  'closeDocumentationHealthBtn'
+)
+const closeDocumentationHealthFooterBtn = document.getElementById(
+  'closeDocumentationHealthFooterBtn'
+)
+const documentationHealthSummary = document.getElementById(
+  'documentationHealthSummary'
+)
+const documentationHealthIssueInput = document.getElementById(
+  'documentationHealthIssueInput'
+)
+const documentationHealthDepartmentInput = document.getElementById(
+  'documentationHealthDepartmentInput'
+)
+const documentationHealthStaleInput = document.getElementById(
+  'documentationHealthStaleInput'
+)
+const documentationQualityLensInput = document.getElementById(
+  'documentationQualityLensInput'
+)
+const documentationHealthStatus = document.getElementById(
+  'documentationHealthStatus'
+)
+const documentationHealthResults = document.getElementById(
+  'documentationHealthResults'
+)
+const copyDocumentationHealthReportBtn = document.getElementById(
+  'copyDocumentationHealthReportBtn'
 )
 
 const documentationMetaBackdrop = document.getElementById(
@@ -8723,7 +8778,8 @@ function isAnyModalOpen() {
     teamImportBackdrop?.classList.contains('open') ||
     documentationFinderBackdrop?.classList.contains('open') ||
     documentationLibraryBackdrop?.classList.contains('open') ||
-    documentationMetaBackdrop?.classList.contains('open')
+    documentationMetaBackdrop?.classList.contains('open') ||
+    documentationHealthBackdrop?.classList.contains('open')
   )
 }
 
@@ -11373,6 +11429,13 @@ function updateAuthUI() {
     closeRoadmapManager()
   }
 
+  if (
+    isDocumentationHealthOpen() &&
+    !canOpenDocumentationHealth()
+  ) {
+    closeDocumentationHealth()
+  }
+
   if (isDocumentationMetaOpen()) {
     const metadataNode =
       currentDocumentationMetaNode()
@@ -12232,7 +12295,20 @@ function renderNodes() {
     el.href = nodeRoutePath(node)
     el.setAttribute('aria-label', `Deschide documentația: ${node.title}`)
     el.dataset.nodeId = String(node.id)
-    el.className = `node ${node.id === selectedId ? 'active' : ''}`
+
+    const healthIssues = qualityLensIssues(node)
+
+    el.className = [
+      'node',
+      node.id === selectedId ? 'active' : '',
+      qualityLensEnabled && canOpenDocumentationHealth()
+        ? healthIssues.length > 0
+          ? 'quality-attention'
+          : 'quality-clean'
+        : ''
+    ]
+      .filter(Boolean)
+      .join(' ')
     el.style.left = `${node.x}px`
     el.style.top = `${node.y}px`
     el.style.width = `${nodeWidthValue}px`
@@ -12255,6 +12331,14 @@ function renderNodes() {
           <span class="pill category-pill">${escapeHtml(nodeCategoryName(node))}</span>
           <span class="pill difficulty-pill">${escapeHtml(nodeDifficultyName(node))}</span>
         </div>
+        ${
+          qualityLensEnabled &&
+          canOpenDocumentationHealth()
+            ? healthIssues.length > 0
+              ? `<span class="node-health-badge">⚠ ${healthIssues.length}</span>`
+              : '<span class="node-health-badge clean">✓</span>'
+            : ''
+        }
         ${node.id === selectedId ? `<span class="open-mark">${canEditNode(node) && editorMode ? '2× open' : 'open'}</span>` : ''}
       </div>
       <h3 class="node-title">${escapeHtml(node.title)}</h3>
@@ -13929,6 +14013,687 @@ async function moveCodeItem(codeId, direction) {
 
 // Full-screen node documentation and editor modals
 
+
+const DOCUMENT_HEALTH_ISSUES = {
+  not_reviewed: {
+    label: 'Not reviewed',
+    className: 'review',
+    weight: 7
+  },
+  needs_review: {
+    label: 'Needs review',
+    className: 'review',
+    weight: 10
+  },
+  missing_sources: {
+    label: 'Missing sources',
+    className: '',
+    weight: 6
+  },
+  no_primary_source: {
+    label: 'No primary source',
+    className: '',
+    weight: 3
+  },
+  stale: {
+    label: 'Stale',
+    className: '',
+    weight: 5
+  },
+  thin_content: {
+    label: 'Thin content',
+    className: '',
+    weight: 4
+  },
+  orphan: {
+    label: 'Orphaned',
+    className: '',
+    weight: 4
+  },
+  no_tags: {
+    label: 'No tags',
+    className: '',
+    weight: 2
+  },
+  source_newer: {
+    label: 'Public source newer',
+    className: 'source-newer',
+    weight: 8
+  }
+}
+
+function canOpenDocumentationHealth() {
+  if (!editorMode) return false
+
+  if (isTeamAtlasMode()) {
+    return teamAtlasEditableDepartments().length > 0
+  }
+
+  return Boolean(canEdit)
+}
+
+function healthScopeLabel() {
+  if (isTeamAtlasMode()) {
+    const team = currentTeamRecord()
+
+    return team?.teamNumber
+      ? `${team.name} #${team.teamNumber}`
+      : team?.name || 'Team Atlas'
+  }
+
+  return 'Public Atlas'
+}
+
+function healthEditableNodes() {
+  if (isTeamAtlasMode()) {
+    return teamNodes.filter((node) => canEditNode(node))
+  }
+
+  return publicNodes
+}
+
+function healthNodeDate(node) {
+  const candidates = [
+    node?.updatedAt,
+    node?.reviewState?.lastReviewedAt,
+    node?.reviewState?.updatedAt
+  ]
+    .map((value) => {
+      const timestamp = new Date(value || 0).getTime()
+      return Number.isFinite(timestamp) ? timestamp : 0
+    })
+    .filter((timestamp) => timestamp > 0)
+
+  return candidates.length > 0
+    ? Math.max(...candidates)
+    : 0
+}
+
+function isHealthNodeStale(node) {
+  const timestamp = healthNodeDate(node)
+
+  if (!timestamp) return true
+
+  return (
+    Date.now() - timestamp >
+    Number(healthStaleDays) * 24 * 60 * 60 * 1000
+  )
+}
+
+function healthInboundCount(node) {
+  if (!node) return 0
+
+  return nodes.reduce((count, source) => {
+    return (
+      count +
+      (source.links || []).filter(
+        (link) =>
+          Number(link.targetId) === Number(node.id)
+      ).length
+    )
+  }, 0)
+}
+
+function publicSourceNewerThanTeamNode(node) {
+  if (
+    !node?.isTeamNode ||
+    !node.sourcePublicNodeId
+  ) {
+    return false
+  }
+
+  const source = publicNodes.find(
+    (candidate) =>
+      Number(candidate.id) ===
+      Number(node.sourcePublicNodeId)
+  )
+
+  if (!source?.updatedAt) return false
+
+  const sourceTime =
+    new Date(source.updatedAt).getTime()
+
+  const teamTime =
+    new Date(node.updatedAt || node.createdAt || 0)
+      .getTime()
+
+  if (
+    !Number.isFinite(sourceTime) ||
+    !Number.isFinite(teamTime)
+  ) {
+    return false
+  }
+
+  return sourceTime > teamTime + 60 * 1000
+}
+
+function documentHealthIssues(node) {
+  if (!node) return []
+
+  const issues = []
+  const review = node.reviewState
+  const references = node.references || []
+  const contentLength =
+    nodeContentPlainText(node).trim().length
+
+  if (!review) {
+    issues.push('not_reviewed')
+  } else if (review.status === 'needs_review') {
+    issues.push('needs_review')
+  }
+
+  if (references.length === 0) {
+    issues.push('missing_sources')
+  } else if (
+    !references.some(
+      (reference) => reference.isPrimary === true
+    )
+  ) {
+    issues.push('no_primary_source')
+  }
+
+  if (isHealthNodeStale(node)) {
+    issues.push('stale')
+  }
+
+  if (contentLength < 350) {
+    issues.push('thin_content')
+  }
+
+  if (
+    (node.links || []).length === 0 &&
+    healthInboundCount(node) === 0
+  ) {
+    issues.push('orphan')
+  }
+
+  if ((node.tagIds || []).length === 0) {
+    issues.push('no_tags')
+  }
+
+  if (publicSourceNewerThanTeamNode(node)) {
+    issues.push('source_newer')
+  }
+
+  return issues
+}
+
+function documentHealthWeight(node) {
+  return documentHealthIssues(node).reduce(
+    (total, issue) =>
+      total +
+      Number(
+        DOCUMENT_HEALTH_ISSUES[issue]?.weight || 0
+      ),
+    0
+  )
+}
+
+function healthDepartmentsForScope() {
+  if (isTeamAtlasMode()) {
+    return teamAtlasEditableDepartments()
+  }
+
+  return departments
+    .filter((department) => department.is_active !== false)
+    .sort(
+      (a, b) =>
+        Number(a.sort_order || 0) -
+        Number(b.sort_order || 0)
+    )
+}
+
+function nodeMatchesHealthDepartment(node) {
+  if (
+    healthDepartmentFilter === 'all' ||
+    !healthDepartmentFilter
+  ) {
+    return true
+  }
+
+  return nodeDepartmentIds(node).includes(
+    Number(healthDepartmentFilter)
+  )
+}
+
+function nodeMatchesHealthIssue(node) {
+  const issues = documentHealthIssues(node)
+
+  if (healthIssueFilter === 'all') return true
+
+  if (healthIssueFilter === 'attention') {
+    return issues.length > 0
+  }
+
+  return issues.includes(healthIssueFilter)
+}
+
+function filteredHealthNodes() {
+  return healthEditableNodes()
+    .filter(nodeMatchesHealthDepartment)
+    .filter(nodeMatchesHealthIssue)
+    .sort((a, b) => {
+      const weightDifference =
+        documentHealthWeight(b) -
+        documentHealthWeight(a)
+
+      if (weightDifference !== 0) {
+        return weightDifference
+      }
+
+      const aTime = healthNodeDate(a)
+      const bTime = healthNodeDate(b)
+
+      if (aTime !== bTime) return aTime - bTime
+
+      return String(a.title || '').localeCompare(
+        String(b.title || ''),
+        'ro',
+        { sensitivity: 'base' }
+      )
+    })
+}
+
+function healthSummaryStats() {
+  const items = healthEditableNodes()
+    .filter(nodeMatchesHealthDepartment)
+
+  const issueSets = items.map((node) =>
+    new Set(documentHealthIssues(node))
+  )
+
+  return {
+    total: items.length,
+    attention: issueSets.filter(
+      (set) => set.size > 0
+    ).length,
+    review: issueSets.filter(
+      (set) =>
+        set.has('not_reviewed') ||
+        set.has('needs_review')
+    ).length,
+    sources: issueSets.filter(
+      (set) => set.has('missing_sources')
+    ).length,
+    stale: issueSets.filter(
+      (set) => set.has('stale')
+    ).length,
+    sourceNewer: issueSets.filter(
+      (set) => set.has('source_newer')
+    ).length
+  }
+}
+
+function qualityLensIssues(node) {
+  if (
+    !qualityLensEnabled ||
+    !canOpenDocumentationHealth()
+  ) {
+    return []
+  }
+
+  return documentHealthIssues(node)
+}
+
+function renderHealthToolState() {
+  if (!documentationHealthBtn) return
+
+  const visible = canOpenDocumentationHealth()
+
+  documentationHealthBtn.hidden = !visible
+
+  if (!visible) return
+
+  const attentionCount = healthEditableNodes().filter(
+    (node) => documentHealthIssues(node).length > 0
+  ).length
+
+  documentationHealthBtn.textContent =
+    attentionCount > 0
+      ? `◈ Health · ${attentionCount}`
+      : '◇ Health'
+}
+
+function populateHealthDepartmentFilter() {
+  const departmentsForScope =
+    healthDepartmentsForScope()
+
+  const requested = String(
+    healthDepartmentFilter || 'all'
+  )
+
+  documentationHealthDepartmentInput.innerHTML = [
+    '<option value="all">All editable departments</option>',
+    ...departmentsForScope.map(
+      (department) =>
+        `<option value="${Number(
+          department.id
+        )}">${escapeHtmlText(
+          department.name
+        )}</option>`
+    )
+  ].join('')
+
+  if (
+    requested !== 'all' &&
+    departmentsForScope.some(
+      (department) =>
+        String(department.id) === requested
+    )
+  ) {
+    documentationHealthDepartmentInput.value =
+      requested
+  } else {
+    healthDepartmentFilter = 'all'
+    documentationHealthDepartmentInput.value =
+      'all'
+  }
+}
+
+function renderHealthIssueBadges(node) {
+  const issues = documentHealthIssues(node)
+
+  if (issues.length === 0) {
+    return `
+      <span class="documentation-health-clean">
+        No current flags
+      </span>
+    `
+  }
+
+  return issues
+    .map((issue) => {
+      const definition =
+        DOCUMENT_HEALTH_ISSUES[issue]
+
+      return `
+        <span
+          class="documentation-health-issue ${
+            definition?.className || ''
+          }"
+        >
+          ${escapeHtmlText(
+            definition?.label || issue
+          )}
+        </span>
+      `
+    })
+    .join('')
+}
+
+function healthNodeMeta(node) {
+  const references = node.references || []
+  const primaryCount = references.filter(
+    (reference) => reference.isPrimary
+  ).length
+
+  const lastTouch = healthNodeDate(node)
+
+  const updatedCopy = lastTouch
+    ? formatPublicDate(
+        new Date(lastTouch).toISOString()
+      )
+    : 'unknown'
+
+  return [
+    nodeCategoryName(node),
+    nodeDifficultyName(node),
+    `${references.length} sources`,
+    `${primaryCount} primary`,
+    `last touch ${updatedCopy}`
+  ].join(' · ')
+}
+
+function renderDocumentationHealth() {
+  if (!isDocumentationHealthOpen()) return
+
+  const scope = healthScopeLabel()
+
+  documentationHealthTitle.textContent =
+    `Documentation Health · ${scope}`
+
+  populateHealthDepartmentFilter()
+
+  documentationHealthIssueInput.value =
+    healthIssueFilter
+
+  documentationHealthStaleInput.value =
+    String(healthStaleDays)
+
+  documentationQualityLensInput.checked =
+    qualityLensEnabled
+
+  const stats = healthSummaryStats()
+
+  documentationHealthSummary.innerHTML = [
+    ['Docs', stats.total],
+    ['Needs attention', stats.attention],
+    ['Review queue', stats.review],
+    ['Missing sources', stats.sources],
+    [`Stale > ${healthStaleDays}d`, stats.stale],
+    ['Source newer', stats.sourceNewer]
+  ]
+    .map(
+      ([label, value]) => `
+        <div class="documentation-health-stat">
+          <strong>${Number(value)}</strong>
+          <span>${escapeHtmlText(label)}</span>
+        </div>
+      `
+    )
+    .join('')
+
+  const items = filteredHealthNodes()
+
+  documentationHealthStatus.innerHTML = `
+    <strong>${items.length}</strong>
+    ${
+      items.length === 1
+        ? 'document'
+        : 'documents'
+    }
+    · ${escapeHtmlText(scope)}
+    · stale threshold ${Number(healthStaleDays)} days
+  `
+
+  if (items.length === 0) {
+    documentationHealthResults.innerHTML = `
+      <div class="documentation-health-empty">
+        Niciun document nu corespunde filtrului curent.
+      </div>
+    `
+    return
+  }
+
+  documentationHealthResults.innerHTML = items
+    .map((node) => {
+      const issues = documentHealthIssues(node)
+
+      return `
+        <article
+          class="documentation-health-row ${
+            issues.length ? 'has-issues' : ''
+          }"
+        >
+          <div>
+            <div class="documentation-health-row-title">
+              <strong>${escapeHtmlText(node.title)}</strong>
+
+              ${
+                node.isTeamNode
+                  ? '<span class="document-reference-badge">Team</span>'
+                  : '<span class="document-reference-badge">Public</span>'
+              }
+            </div>
+
+            <div class="documentation-health-row-meta">
+              ${escapeHtmlText(healthNodeMeta(node))}
+            </div>
+
+            <div class="documentation-health-issues">
+              ${renderHealthIssueBadges(node)}
+            </div>
+          </div>
+
+          <div class="documentation-health-actions">
+            ${
+              issues.includes('source_newer')
+                ? `
+                  <button
+                    class="taxonomy-mini-btn"
+                    type="button"
+                    data-health-public-source="${Number(
+                      node.id
+                    )}"
+                  >
+                    Public source
+                  </button>
+                `
+                : ''
+            }
+
+            <button
+              class="taxonomy-mini-btn"
+              type="button"
+              data-health-meta="${Number(node.id)}"
+            >
+              Sources / review
+            </button>
+
+            <button
+              class="taxonomy-mini-btn"
+              type="button"
+              data-health-open="${Number(node.id)}"
+            >
+              Open
+            </button>
+          </div>
+        </article>
+      `
+    })
+    .join('')
+}
+
+function isDocumentationHealthOpen() {
+  return Boolean(
+    documentationHealthBackdrop?.classList.contains(
+      'open'
+    )
+  )
+}
+
+function openDocumentationHealth() {
+  if (!canOpenDocumentationHealth()) {
+    alert(
+      'Documentation Health este disponibil în Editor Mode pentru documentele pe care le poți edita.'
+    )
+    return
+  }
+
+  healthIssueFilter = 'attention'
+
+  if (
+    activeDepartmentId != null &&
+    healthDepartmentsForScope().some(
+      (department) =>
+        Number(department.id) ===
+        Number(activeDepartmentId)
+    )
+  ) {
+    healthDepartmentFilter =
+      String(activeDepartmentId)
+  } else {
+    healthDepartmentFilter = 'all'
+  }
+
+  documentationHealthBackdrop.classList.add(
+    'open'
+  )
+
+  renderDocumentationHealth()
+}
+
+function closeDocumentationHealth() {
+  documentationHealthBackdrop?.classList.remove(
+    'open'
+  )
+}
+
+function openHealthNode(nodeId) {
+  const node = findNode(nodeId)
+  if (!node) return
+
+  closeDocumentationHealth()
+
+  activateDepartmentForNode(node, {
+    persist: true
+  })
+
+  clearFiltersForDeepLink()
+
+  selectedId = node.id
+  clearEdgeSelection()
+  detailOpen = true
+
+  renderAll()
+  setNodeRoute(node, { push: true })
+
+  requestAnimationFrame(() =>
+    centerOnNode(node)
+  )
+}
+
+function openHealthPublicSource(teamNodeId) {
+  const teamNode = teamNodes.find(
+    (node) =>
+      Number(node.id) === Number(teamNodeId)
+  )
+
+  if (!teamNode?.sourcePublicNodeId) return
+
+  closeDocumentationHealth()
+  openPublicSourceFromTeamNode(teamNode)
+}
+
+function healthReportText() {
+  const scope = healthScopeLabel()
+  const stats = healthSummaryStats()
+  const items = filteredHealthNodes()
+
+  const lines = [
+    `FTC Programming Atlas — Documentation Health`,
+    `Scope: ${scope}`,
+    `Stale threshold: ${healthStaleDays} days`,
+    ``,
+    `Docs: ${stats.total}`,
+    `Needs attention: ${stats.attention}`,
+    `Review queue: ${stats.review}`,
+    `Missing sources: ${stats.sources}`,
+    `Stale: ${stats.stale}`,
+    `Public source newer: ${stats.sourceNewer}`,
+    ``,
+    `Current filter: ${healthIssueFilter}`,
+    `Results: ${items.length}`,
+    ``
+  ]
+
+  for (const node of items) {
+    const labels = documentHealthIssues(node)
+      .map(
+        (issue) =>
+          DOCUMENT_HEALTH_ISSUES[issue]?.label ||
+          issue
+      )
+      .join(', ')
+
+    lines.push(
+      `- ${node.title}${labels ? ` — ${labels}` : ''}`
+    )
+  }
+
+  return lines.join('\n')
+}
+
 function referenceTypeLabel(value) {
   const labels = {
     official: 'Official',
@@ -15215,10 +15980,15 @@ function renderAll() {
 
   renderSelectedStrip()
   renderModeStrip()
+  renderHealthToolState()
   renderLinks()
   renderNodes()
   renderDetailPanel()
   updateAuthUI()
+
+  if (isDocumentationHealthOpen()) {
+    renderDocumentationHealth()
+  }
 
   if (isTaxonomyManagerOpen()) {
     renderTaxonomyManager()
@@ -16355,6 +17125,137 @@ teamAtlasSelect?.addEventListener('change', () => {
   })
 })
 
+documentationHealthBtn?.addEventListener(
+  'click',
+  openDocumentationHealth
+)
+
+closeDocumentationHealthBtn?.addEventListener(
+  'click',
+  closeDocumentationHealth
+)
+
+closeDocumentationHealthFooterBtn?.addEventListener(
+  'click',
+  closeDocumentationHealth
+)
+
+documentationHealthBackdrop?.addEventListener(
+  'click',
+  (event) => {
+    if (event.target === documentationHealthBackdrop) {
+      closeDocumentationHealth()
+    }
+  }
+)
+
+documentationHealthIssueInput?.addEventListener(
+  'change',
+  () => {
+    healthIssueFilter =
+      documentationHealthIssueInput.value
+
+    renderDocumentationHealth()
+  }
+)
+
+documentationHealthDepartmentInput?.addEventListener(
+  'change',
+  () => {
+    healthDepartmentFilter =
+      documentationHealthDepartmentInput.value
+
+    renderDocumentationHealth()
+  }
+)
+
+documentationHealthStaleInput?.addEventListener(
+  'change',
+  () => {
+    const next = Number(
+      documentationHealthStaleInput.value
+    )
+
+    healthStaleDays = [90, 180, 365].includes(next)
+      ? next
+      : 180
+
+    localStorage.setItem(
+      CACHE_KEYS.healthStaleDays,
+      String(healthStaleDays)
+    )
+
+    renderAll()
+  }
+)
+
+documentationQualityLensInput?.addEventListener(
+  'change',
+  () => {
+    qualityLensEnabled =
+      documentationQualityLensInput.checked
+
+    localStorage.setItem(
+      CACHE_KEYS.qualityLens,
+      qualityLensEnabled ? '1' : '0'
+    )
+
+    renderAll()
+  }
+)
+
+documentationHealthResults?.addEventListener(
+  'click',
+  (event) => {
+    const openButton = event.target.closest?.(
+      '[data-health-open]'
+    )
+
+    if (openButton) {
+      openHealthNode(
+        Number(openButton.dataset.healthOpen)
+      )
+      return
+    }
+
+    const metaButton = event.target.closest?.(
+      '[data-health-meta]'
+    )
+
+    if (metaButton) {
+      const nodeId =
+        Number(metaButton.dataset.healthMeta)
+
+      closeDocumentationHealth()
+      openDocumentationMetaManager(nodeId)
+      return
+    }
+
+    const sourceButton = event.target.closest?.(
+      '[data-health-public-source]'
+    )
+
+    if (sourceButton) {
+      openHealthPublicSource(
+        Number(
+          sourceButton.dataset.healthPublicSource
+        )
+      )
+    }
+  }
+)
+
+copyDocumentationHealthReportBtn?.addEventListener(
+  'click',
+  () => {
+    copyTextToClipboard(
+      healthReportText(),
+      copyDocumentationHealthReportBtn,
+      'Copied'
+    )
+  }
+)
+
 closeDocumentationMetaBtn?.addEventListener(
   'click',
   closeDocumentationMetaManager
@@ -17269,7 +18170,9 @@ window.addEventListener('keydown', (event) => {
 
   if (event.key === 'Escape') {
     if (!introDismissed) dismissIntro()
-    else if (documentationMetaBackdrop?.classList.contains('open')) {
+    else if (documentationHealthBackdrop?.classList.contains('open')) {
+      closeDocumentationHealth()
+    } else if (documentationMetaBackdrop?.classList.contains('open')) {
       closeDocumentationMetaManager()
     } else if (documentationFinderBackdrop?.classList.contains('open')) {
       closeDocumentationFinder()
@@ -17497,6 +18400,7 @@ window.atlasDebug = {
   openSavedDocs: openDocumentationLibrary,
   openDocumentationMeta: () =>
     openDocumentationMetaManager(selectedId),
+  openDocumentationHealth,
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,

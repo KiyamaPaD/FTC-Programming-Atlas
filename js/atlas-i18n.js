@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v85 · Full English UI + sources, review state and reader navigation
+// v86 · Full English UI + documentation health and quality lens
 //
 // Source language: Romanian
 // Secondary language: English
@@ -443,6 +443,34 @@ const UI_EN = new Map(Object.entries({
     'Sign in to save Team Atlas documents.',
   'Loghează-te pentru a deschide documentația Team Atlas.':
     'Sign in to open Team Atlas documentation.',
+  'Documentation Health':
+    'Documentation Health',
+  'Needs attention':
+    'Needs attention',
+  'Review queue':
+    'Review queue',
+  'Missing sources':
+    'Missing sources',
+  'No primary source':
+    'No primary source',
+  'Stale':
+    'Stale',
+  'Thin content':
+    'Thin content',
+  'Orphaned':
+    'Orphaned',
+  'No tags':
+    'No tags',
+  'Public source newer':
+    'Public source newer',
+  'Quality lens on map':
+    'Quality lens on map',
+  'Copy report':
+    'Copy report',
+  'All editable departments':
+    'All editable departments',
+  'Documentation Health este disponibil în Editor Mode pentru documentele pe care le poți edita.':
+    'Documentation Health is available in Editor Mode for documents you can edit.',
   'Sources & review':
     'Sources & review',
   'Review state':
