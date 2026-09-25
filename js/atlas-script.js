@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v80 · PUBLIC TO TEAM IMPORT')
+console.log('ATLAS SCRIPT LOADED v81 · TEAM ATLAS DEEP LINKS')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -40,12 +40,27 @@ const CACHE_KEYS = {
   department: 'ftc_atlas_department_v1',
   publicSection: 'ftc_atlas_public_section_v1',
   activeTeam: 'ftc_atlas_active_team_v1',
-  pendingTeamInvite: 'ftc_atlas_pending_team_invite_v1'
+  pendingTeamInvite: 'ftc_atlas_pending_team_invite_v1',
+  pendingTeamRoute: 'ftc_atlas_pending_team_route_v1'
 }
 
 const initialTeamInviteToken = new URLSearchParams(window.location.search).get('teamInvite')
 if (initialTeamInviteToken) {
   localStorage.setItem(CACHE_KEYS.pendingTeamInvite, initialTeamInviteToken)
+}
+
+const INITIAL_TEAM_ROUTE_MATCH = window.location.hash.match(
+  /^#team-(\d+)-node-(\d+)$/
+)
+
+if (INITIAL_TEAM_ROUTE_MATCH) {
+  localStorage.setItem(
+    CACHE_KEYS.pendingTeamRoute,
+    JSON.stringify({
+      hash: window.location.hash,
+      savedAt: Date.now()
+    })
+  )
 }
 
 const DEFAULT_VIEW = { x: -120, y: -80, scale: 1 }
@@ -815,6 +830,73 @@ function routeNodeIdFromLocation() {
   return match ? Number(match[1]) : null
 }
 
+function teamNodeRouteFromLocation() {
+  const match = window.location.hash.match(
+    /^#team-(\d+)-node-(\d+)$/
+  )
+
+  if (!match) return null
+
+  return {
+    teamId: Number(match[1]),
+    nodeId: Number(match[2])
+  }
+}
+
+function rememberPendingTeamRoute(hash = window.location.hash) {
+  if (!/^#team-\d+-node-\d+$/.test(String(hash || ''))) return
+
+  localStorage.setItem(
+    CACHE_KEYS.pendingTeamRoute,
+    JSON.stringify({
+      hash,
+      savedAt: Date.now()
+    })
+  )
+}
+
+function pendingTeamRouteHash() {
+  const raw = localStorage.getItem(CACHE_KEYS.pendingTeamRoute)
+  if (!raw) return null
+
+  try {
+    const parsed = JSON.parse(raw)
+    const age = Date.now() - Number(parsed?.savedAt || 0)
+    const hash = String(parsed?.hash || '')
+
+    if (
+      !/^#team-\d+-node-\d+$/.test(hash) ||
+      !Number.isFinite(age) ||
+      age > 24 * 60 * 60 * 1000
+    ) {
+      localStorage.removeItem(CACHE_KEYS.pendingTeamRoute)
+      return null
+    }
+
+    return hash
+  } catch {
+    localStorage.removeItem(CACHE_KEYS.pendingTeamRoute)
+    return null
+  }
+}
+
+function restorePendingTeamRouteIfNeeded() {
+  if (!currentUser) return false
+  if (teamNodeRouteFromLocation()) return false
+  if (window.location.pathname !== HOME_PATH) return false
+
+  const hash = pendingTeamRouteHash()
+  if (!hash) return false
+
+  window.history.replaceState(
+    { atlasRoute: 'pending-team-node' },
+    '',
+    `${HOME_PATH}${hash}`
+  )
+
+  return true
+}
+
 function setHeadContent(selector, value) {
   const element = document.querySelector(selector)
   if (element) element.setAttribute('content', value)
@@ -860,7 +942,9 @@ function replaceRouteState(path, state) {
 }
 
 function pushRouteState(path, state) {
-  if (window.location.pathname === path) {
+  const currentRoute = `${window.location.pathname}${window.location.hash}`
+
+  if (currentRoute === path) {
     replaceRouteState(path, state)
     return
   }
@@ -914,7 +998,75 @@ function clearFiltersForDeepLink() {
   if (searchInput) searchInput.value = ''
 }
 
-function applyRouteFromLocation({ canonicalize = true } = {}) {
+async function applyRouteFromLocation({ canonicalize = true } = {}) {
+  restorePendingTeamRouteIfNeeded()
+
+  const teamRoute = teamNodeRouteFromLocation()
+
+  if (teamRoute) {
+    rememberPendingTeamRoute(window.location.hash)
+
+    if (!currentUser) {
+      detailOpen = false
+      activePublicSection = 'explore'
+      syncActiveNodeCollection({ forceReset: true })
+      setAccountPanel(true)
+      updateDocumentSeo(null)
+      return null
+    }
+
+    const targetTeam = teamRecords.find(
+      (team) => Number(team.id) === Number(teamRoute.teamId)
+    )
+
+    const targetMembership = membershipForTeam(teamRoute.teamId)
+    const canOpenTargetTeam = Boolean(
+      targetTeam && (targetMembership || canEdit)
+    )
+
+    if (!canOpenTargetTeam) {
+      localStorage.removeItem(CACHE_KEYS.pendingTeamRoute)
+      detailOpen = false
+      setHomeRoute({ push: false })
+      alert('Nu ai acces la Team Atlas-ul din acest link.')
+      return null
+    }
+
+    activeTeamId = Number(teamRoute.teamId)
+    localStorage.setItem(CACHE_KEYS.activeTeam, String(activeTeamId))
+
+    activePublicSection = 'team'
+    localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+
+    await loadActiveTeamAtlasNodes({ forceReset: true })
+    syncActiveNodeCollection()
+
+    const node = teamNodes.find(
+      (candidate) => Number(candidate.id) === Number(teamRoute.nodeId)
+    )
+
+    if (!node) {
+      localStorage.removeItem(CACHE_KEYS.pendingTeamRoute)
+      detailOpen = false
+      renderAll()
+      alert('Nodul Team Atlas din acest link nu mai este disponibil.')
+      return null
+    }
+
+    activateDepartmentForNode(node, { persist: false })
+    clearFiltersForDeepLink()
+    selectedId = node.id
+    clearEdgeSelection()
+    detailOpen = true
+    localStorage.removeItem(CACHE_KEYS.pendingTeamRoute)
+
+    if (canonicalize) {
+      setNodeRoute(node, { push: false })
+    }
+
+    return node
+  }
+
   const nodeId = routeNodeIdFromLocation()
 
   if (nodeId == null) {
@@ -923,7 +1075,13 @@ function applyRouteFromLocation({ canonicalize = true } = {}) {
     return null
   }
 
-  const node = findNode(nodeId)
+  activePublicSection = 'explore'
+  localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+  syncActiveNodeCollection({ forceReset: true })
+
+  const node = publicNodes.find(
+    (candidate) => Number(candidate.id) === Number(nodeId)
+  )
 
   if (!node) {
     detailOpen = false
@@ -2772,7 +2930,10 @@ function syncActiveNodeCollection({ forceReset = false } = {}) {
     selectedEdgePointIndex = null
     detailOpen = false
     relationMode = { active: false, sourceId: null }
-    setHomeRoute({ push: false })
+
+    if (!teamNodeRouteFromLocation()) {
+      setHomeRoute({ push: false })
+    }
   } else if (
     selectedId != null &&
     !nodes.some((node) => Number(node.id) === Number(selectedId))
@@ -6289,6 +6450,36 @@ function codeLanguageOptions(selectedLanguage) {
   ).join('')
 }
 
+function teamNodeShareUrl(node) {
+  if (!node?.isTeamNode) return null
+  return `${SITE_ORIGIN}${nodeRoutePath(node)}`
+}
+
+async function copyTeamNodeLink(node, button = null) {
+  const url = teamNodeShareUrl(node)
+  if (!url) return
+
+  try {
+    await copyTextToClipboard(url)
+
+    if (button) {
+      const previousText = button.textContent
+      const previousTitle = button.title
+
+      button.textContent = '✓'
+      button.title = 'Link privat copiat'
+
+      window.setTimeout(() => {
+        if (!button.isConnected) return
+        button.textContent = previousText
+        button.title = previousTitle
+      }, 1400)
+    }
+  } catch {
+    window.prompt('Copiază link-ul privat Team Atlas:', url)
+  }
+}
+
 async function copyTextToClipboard(text) {
   const value = String(text || '')
 
@@ -7152,7 +7343,7 @@ async function loadAtlasWithUi() {
         return true
       }
 
-      const routedNode = applyRouteFromLocation({ canonicalize: true })
+      const routedNode = await applyRouteFromLocation({ canonicalize: true })
       renderAll()
       hideAtlasStatus()
 
@@ -11739,6 +11930,7 @@ function renderDetailPanel() {
           <button class="icon-btn" id="detailFilesBtn" aria-label="Fișiere">📎</button>
           <button class="icon-btn" id="detailImportTeamBtn" aria-label="Copy to Team Atlas" title="Copy to Team Atlas">⇢</button>
           <button class="icon-btn" id="detailPublicSourceBtn" aria-label="Open public source" title="Open public source">↗</button>
+          <button class="icon-btn" id="detailCopyTeamLinkBtn" aria-label="Copy private Team Atlas link" title="Copy private Team Atlas link">🔗</button>
           <button class="icon-btn" id="detailAddRelationBtn" aria-label="Add relation">＋</button>
           <button class="icon-btn" id="detailEditBtn" aria-label="Edit">✎</button>
           <button class="icon-btn" id="detailDeleteBtn" aria-label="Delete">🗑</button>
@@ -11806,6 +11998,7 @@ function renderDetailPanel() {
   const detailFilesBtn = document.getElementById('detailFilesBtn')
   const detailImportTeamBtn = document.getElementById('detailImportTeamBtn')
   const detailPublicSourceBtn = document.getElementById('detailPublicSourceBtn')
+  const detailCopyTeamLinkBtn = document.getElementById('detailCopyTeamLinkBtn')
   const detailAddRelationBtn = document.getElementById('detailAddRelationBtn')
   const detailEditBtn = document.getElementById('detailEditBtn')
   const detailDeleteBtn = document.getElementById('detailDeleteBtn')
@@ -11816,6 +12009,7 @@ function renderDetailPanel() {
   detailFilesBtn.hidden = !attachmentActions
   detailImportTeamBtn.hidden = !canImportPublicNodeToTeam(node)
   detailPublicSourceBtn.hidden = !(node.isTeamNode && node.sourcePublicNodeId)
+  detailCopyTeamLinkBtn.hidden = !node.isTeamNode
   detailAddRelationBtn.hidden = !nodeEditorActions
   detailEditBtn.hidden = !nodeEditorActions
   detailDeleteBtn.hidden = !nodeEditorActions
@@ -11825,6 +12019,7 @@ function renderDetailPanel() {
   detailFilesBtn.disabled = !attachmentActions
   detailImportTeamBtn.disabled = !canImportPublicNodeToTeam(node)
   detailPublicSourceBtn.disabled = !(node.isTeamNode && node.sourcePublicNodeId)
+  detailCopyTeamLinkBtn.disabled = !node.isTeamNode
   detailAddRelationBtn.disabled = !nodeEditorActions
   detailEditBtn.disabled = !nodeEditorActions
   detailDeleteBtn.disabled = !nodeEditorActions
@@ -11835,6 +12030,9 @@ function renderDetailPanel() {
   detailImportTeamBtn.addEventListener('click', () => openTeamImport(node.id))
   detailPublicSourceBtn.addEventListener('click', () =>
     openPublicSourceFromTeamNode(node)
+  )
+  detailCopyTeamLinkBtn.addEventListener('click', () =>
+    copyTeamNodeLink(node, detailCopyTeamLinkBtn)
   )
   detailAddRelationBtn.addEventListener('click', () => activateRelationMode(node.id))
   detailEditBtn.addEventListener('click', () => openEdit(node.id))
@@ -13659,10 +13857,10 @@ window.addEventListener('keydown', (event) => {
   if (!introDismissed) dismissIntro()
 })
 
-window.addEventListener('popstate', () => {
-  if (nodes.length === 0 || isAtlasLoading) return
+window.addEventListener('popstate', async () => {
+  if (isAtlasLoading) return
 
-  const routedNode = applyRouteFromLocation({ canonicalize: true })
+  const routedNode = await applyRouteFromLocation({ canonicalize: true })
   renderAll()
 
   if (routedNode) {
@@ -13761,6 +13959,11 @@ supabase.auth.onAuthStateChange((event, session) => {
       localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
     }
 
+    if (teamNodeRouteFromLocation()) {
+      rememberPendingTeamRoute(window.location.hash)
+      setAccountPanel(true)
+    }
+
     updateAuthUI()
     renderAll()
     return
@@ -13775,8 +13978,17 @@ supabase.auth.onAuthStateChange((event, session) => {
       await loadRoadmapProgress()
       await loadTeamContext()
 
+      const routedNode = await applyRouteFromLocation({
+        canonicalize: true
+      })
+
       updateAuthUI()
       renderAll()
+
+      if (routedNode) {
+        requestAnimationFrame(() => centerOnNode(routedNode))
+      }
+
       await refreshHistoryButtons()
 
       if (nodes.length === 0 && !isAtlasLoading) {
