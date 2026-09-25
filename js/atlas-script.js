@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v86 · DOCUMENTATION HEALTH')
+console.log('ATLAS SCRIPT LOADED v87 · REVISIONS + PUBLIC INDEX')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -45,7 +45,9 @@ const CACHE_KEYS = {
   recentDocs: 'ftc_atlas_recent_docs_v1',
   localBookmarks: 'ftc_atlas_local_bookmarks_v1',
   qualityLens: 'ftc_atlas_quality_lens_v1',
-  healthStaleDays: 'ftc_atlas_health_stale_days_v1'
+  healthStaleDays: 'ftc_atlas_health_stale_days_v1',
+  publicIndexSort: 'ftc_atlas_public_index_sort_v1',
+  publicIndexGroup: 'ftc_atlas_public_index_group_v1'
 }
 
 const initialTeamInviteToken = new URLSearchParams(window.location.search).get('teamInvite')
@@ -340,6 +342,7 @@ let activeTeamId = null
 
 const PUBLIC_SECTIONS = new Set([
   'explore',
+  'index',
   'roadmaps',
   'resources',
   'announcements',
@@ -385,6 +388,23 @@ let healthStaleDays = [90, 180, 365].includes(
 )
   ? Number(localStorage.getItem(CACHE_KEYS.healthStaleDays))
   : 180
+
+let publicIndexSort = ['az', 'updated'].includes(
+  localStorage.getItem(CACHE_KEYS.publicIndexSort)
+)
+  ? localStorage.getItem(CACHE_KEYS.publicIndexSort)
+  : 'az'
+
+let publicIndexGroup = ['category', 'flat'].includes(
+  localStorage.getItem(CACHE_KEYS.publicIndexGroup)
+)
+  ? localStorage.getItem(CACHE_KEYS.publicIndexGroup)
+  : 'category'
+
+let revisionHistoryTarget = null
+let revisionHistoryRows = []
+let revisionHistorySelectedId = null
+let revisionHistoryBusy = false
 let teamSetupMutationBusy = false
 let teamImportSourceNodeId = null
 let teamImportMutationBusy = false
@@ -573,6 +593,28 @@ const closeDocumentationLibraryFooterBtn = document.getElementById(
 const clearRecentDocsBtn = document.getElementById('clearRecentDocsBtn')
 const documentationLibraryBody = document.getElementById(
   'documentationLibraryBody'
+)
+
+const revisionHistoryBackdrop = document.getElementById(
+  'revisionHistoryBackdrop'
+)
+const revisionHistoryTitle = document.getElementById(
+  'revisionHistoryTitle'
+)
+const closeRevisionHistoryBtn = document.getElementById(
+  'closeRevisionHistoryBtn'
+)
+const closeRevisionHistoryFooterBtn = document.getElementById(
+  'closeRevisionHistoryFooterBtn'
+)
+const revisionHistorySummary = document.getElementById(
+  'revisionHistorySummary'
+)
+const revisionHistoryList = document.getElementById(
+  'revisionHistoryList'
+)
+const revisionHistoryPreview = document.getElementById(
+  'revisionHistoryPreview'
 )
 
 const documentationHealthBtn = document.getElementById(
@@ -6089,6 +6131,250 @@ async function saveTeamSetup() {
   }
 }
 
+
+function publicDocumentationIndexNodes() {
+  const items = getVisibleNodes()
+    .filter((node) => !node.isTeamNode)
+
+  return [...items].sort((a, b) => {
+    if (publicIndexSort === 'updated') {
+      const bTime = new Date(
+        b.updatedAt || b.createdAt || 0
+      ).getTime()
+
+      const aTime = new Date(
+        a.updatedAt || a.createdAt || 0
+      ).getTime()
+
+      if (bTime !== aTime) return bTime - aTime
+    }
+
+    return String(a.title || '').localeCompare(
+      String(b.title || ''),
+      'ro',
+      { sensitivity: 'base' }
+    )
+  })
+}
+
+function publicIndexCard(node) {
+  const difficulty = nodeDifficultyName(node)
+  const tags = nodeTagNames(node)
+  const sourceCount = (node.references || []).length
+  const codeCount = (node.codeSnippets || []).length
+  const fileCount = (node.files || []).length
+  const relationCount = (node.links || []).length
+  const reviewLabel = documentReviewLabel(node)
+  const saved = isNodeBookmarked(node)
+
+  return `
+    <article class="team-index-card">
+      <div class="team-index-card-main">
+        <button
+          class="team-index-node-btn"
+          type="button"
+          data-public-index-node="${Number(node.id)}"
+        >
+          ${escapeHtmlText(node.title)}
+        </button>
+
+        <button
+          class="public-index-saved ${saved ? 'active' : ''}"
+          type="button"
+          data-public-index-save="${Number(node.id)}"
+          title="${saved ? 'Remove from saved' : 'Save document'}"
+          aria-label="${saved ? 'Remove from saved' : 'Save document'}"
+        >
+          ${saved ? '★' : '☆'}
+        </button>
+      </div>
+
+      <div class="team-index-meta">
+        <span class="team-index-pill">
+          ${escapeHtmlText(difficulty)}
+        </span>
+
+        ${tags
+          .slice(0, 4)
+          .map(
+            (tag) => `
+              <span class="team-index-pill">
+                ${escapeHtmlText(tag)}
+              </span>
+            `
+          )
+          .join('')}
+
+        ${
+          tags.length > 4
+            ? `<span class="team-index-pill">+${tags.length - 4}</span>`
+            : ''
+        }
+      </div>
+
+      <div class="team-index-stats">
+        <span>↗ ${sourceCount}</span>
+        <span>&lt;/&gt; ${codeCount}</span>
+        <span>📎 ${fileCount}</span>
+        <span>→ ${relationCount}</span>
+      </div>
+
+      <div class="team-index-card-foot">
+        ${escapeHtmlText(reviewLabel)}
+        ${
+          node.updatedAt
+            ? ` · Updated ${escapeHtmlText(
+                formatPublicDate(node.updatedAt)
+              )}`
+            : ''
+        }
+      </div>
+    </article>
+  `
+}
+
+function renderPublicDocumentationIndex() {
+  const items = publicDocumentationIndexNodes()
+
+  const controls = `
+    <div class="public-index-controls">
+      <div class="field">
+        <label for="publicIndexGroupInput">Group</label>
+        <select
+          id="publicIndexGroupInput"
+          data-public-index-group
+        >
+          <option value="category" ${
+            publicIndexGroup === 'category' ? 'selected' : ''
+          }>Category</option>
+          <option value="flat" ${
+            publicIndexGroup === 'flat' ? 'selected' : ''
+          }>Flat list</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="publicIndexSortInput">Sort</label>
+        <select
+          id="publicIndexSortInput"
+          data-public-index-sort
+        >
+          <option value="az" ${
+            publicIndexSort === 'az' ? 'selected' : ''
+          }>A–Z</option>
+          <option value="updated" ${
+            publicIndexSort === 'updated' ? 'selected' : ''
+          }>Recently updated</option>
+        </select>
+      </div>
+    </div>
+  `
+
+  if (items.length === 0) {
+    return `
+      ${controls}
+
+      <article class="public-hub-card wide">
+        <span class="public-hub-card-label">Documentation index</span>
+        <h3>Niciun document nu corespunde filtrelor curente.</h3>
+        <p>
+          Indexul folosește același Department, Search, Categories,
+          Difficulty și Tags ca harta.
+        </p>
+      </article>
+    `
+  }
+
+  if (publicIndexGroup === 'flat') {
+    return `
+      ${controls}
+
+      <section class="team-index-group">
+        <div class="team-index-group-head">
+          <h2>All documents</h2>
+          <span>
+            ${items.length} ${
+              items.length === 1 ? 'document' : 'documents'
+            }
+          </span>
+        </div>
+
+        <div class="team-index-grid">
+          ${items.map(publicIndexCard).join('')}
+        </div>
+      </section>
+    `
+  }
+
+  const groups = new Map()
+
+  for (const node of items) {
+    const category = getCategoryById(node.categoryId)
+    const key = category?.id ?? 'none'
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        category,
+        nodes: []
+      })
+    }
+
+    groups.get(key).nodes.push(node)
+  }
+
+  const orderedGroups = [...groups.values()].sort(
+    (a, b) => {
+      const orderDifference =
+        Number(a.category?.sort_order || 0) -
+        Number(b.category?.sort_order || 0)
+
+      if (orderDifference !== 0) {
+        return orderDifference
+      }
+
+      return String(
+        a.category?.name || 'Fără categorie'
+      ).localeCompare(
+        String(
+          b.category?.name || 'Fără categorie'
+        ),
+        'ro',
+        { sensitivity: 'base' }
+      )
+    }
+  )
+
+  return `
+    ${controls}
+
+    ${orderedGroups
+      .map(({ category, nodes: groupNodes }) => {
+        const categoryName =
+          category?.name || 'Fără categorie'
+
+        return `
+          <section class="team-index-group">
+            <div class="team-index-group-head">
+              <h2>${escapeHtmlText(categoryName)}</h2>
+              <span>
+                ${groupNodes.length} ${
+                  groupNodes.length === 1
+                    ? 'document'
+                    : 'documents'
+                }
+              </span>
+            </div>
+
+            <div class="team-index-grid">
+              ${groupNodes.map(publicIndexCard).join('')}
+            </div>
+          </section>
+        `
+      })
+      .join('')}
+  `
+}
+
 function teamDocumentationIndexNodes() {
   return getVisibleNodes()
     .filter((node) => node.isTeamNode)
@@ -6295,6 +6581,7 @@ function openTeamIndexNode(nodeId) {
 function publicSectionLabel(section) {
   const labels = {
     explore: 'Explore',
+    index: 'Index',
     roadmaps: 'Roadmaps',
     resources: 'Resources',
     announcements: 'Announcements',
@@ -6309,6 +6596,7 @@ function publicSectionLabel(section) {
 function publicSectionEyebrow(section) {
   const labels = {
     explore: 'Explorează Atlasul',
+    index: 'Indexul documentației',
     roadmaps: 'Parcursuri recomandate',
     resources: 'Resurse utile',
     announcements: 'Anunțuri universale',
@@ -6362,6 +6650,7 @@ function renderPublicShell() {
   if (!appRoot || !publicSectionTabs || !publicHubPanel) return
 
   const isExplore = activePublicSection === 'explore'
+  const isPublicIndex = activePublicSection === 'index'
   const isTeamAtlas = activePublicSection === 'team'
   const isTeamIndex = activePublicSection === 'team-index'
   const isTeamRoadmaps =
@@ -6394,6 +6683,40 @@ function renderPublicShell() {
   }
 
   publicHubPanel.classList.add('open')
+
+  if (isPublicIndex) {
+    const visibleItems = publicDocumentationIndexNodes()
+
+    publicHubPanel.innerHTML = `
+      <div class="public-hub-inner">
+        <p class="public-hub-kicker">
+          Documentation Index · ${escapeHtml(departmentName)}
+        </p>
+
+        <h1 class="public-hub-title">
+          Toată documentația publică într-o vedere rapidă, fără să depinzi de hartă.
+        </h1>
+
+        <p class="public-hub-description">
+          Indexul este o vedere alternativă peste aceleași noduri Public Atlas.
+          Search-ul și filtrele curente se aplică automat, iar orice rezultat
+          deschide documentul original în Explore.
+        </p>
+
+        <div class="team-index-summary">
+          <span class="public-hub-chip">${escapeHtml(departmentName)}</span>
+          <span class="public-hub-chip">${visibleItems.length} documents</span>
+          <span class="public-hub-chip">Public</span>
+          <span class="public-hub-chip">
+            ${publicIndexSort === 'updated' ? 'Recently updated' : 'A–Z'}
+          </span>
+        </div>
+
+        ${renderPublicDocumentationIndex()}
+      </div>
+    `
+    return
+  }
 
   if (isTeamIndex) {
     const team = currentTeamRecord()
@@ -8779,7 +9102,8 @@ function isAnyModalOpen() {
     documentationFinderBackdrop?.classList.contains('open') ||
     documentationLibraryBackdrop?.classList.contains('open') ||
     documentationMetaBackdrop?.classList.contains('open') ||
-    documentationHealthBackdrop?.classList.contains('open')
+    documentationHealthBackdrop?.classList.contains('open') ||
+    revisionHistoryBackdrop?.classList.contains('open')
   )
 }
 
@@ -11436,6 +11760,19 @@ function updateAuthUI() {
     closeDocumentationHealth()
   }
 
+  if (isRevisionHistoryOpen()) {
+    const revisionNode =
+      currentRevisionHistoryNode()
+
+    if (!canOpenRevisionHistory(revisionNode)) {
+      revisionHistoryBackdrop.classList.remove('open')
+      revisionHistoryTarget = null
+      revisionHistoryRows = []
+      revisionHistorySelectedId = null
+      revisionHistoryBusy = false
+    }
+  }
+
   if (isDocumentationMetaOpen()) {
     const metadataNode =
       currentDocumentationMetaNode()
@@ -14014,6 +14351,693 @@ async function moveCodeItem(codeId, direction) {
 // Full-screen node documentation and editor modals
 
 
+
+function isRevisionHistoryOpen() {
+  return Boolean(
+    revisionHistoryBackdrop?.classList.contains('open')
+  )
+}
+
+function currentRevisionHistoryNode() {
+  if (!revisionHistoryTarget) return null
+
+  if (revisionHistoryTarget.nodeScope === 'team') {
+    return (
+      teamNodes.find(
+        (node) =>
+          Number(node.teamId) ===
+            Number(revisionHistoryTarget.teamId) &&
+          Number(node.id) ===
+            Number(revisionHistoryTarget.nodeId)
+      ) || null
+    )
+  }
+
+  return (
+    publicNodes.find(
+      (node) =>
+        Number(node.id) ===
+        Number(revisionHistoryTarget.nodeId)
+    ) || null
+  )
+}
+
+function canOpenRevisionHistory(node) {
+  return Boolean(
+    node &&
+    editorMode &&
+    canEditNode(node)
+  )
+}
+
+function normalizeRevisionRow(row) {
+  return {
+    id: Number(row.id),
+    revisionNumber: Number(row.revision_number || 0),
+    nodeScope: row.node_scope || 'public',
+    publicNodeId:
+      row.public_node_id == null
+        ? null
+        : Number(row.public_node_id),
+    teamId:
+      row.team_id == null
+        ? null
+        : Number(row.team_id),
+    teamNodeId:
+      row.team_node_id == null
+        ? null
+        : Number(row.team_node_id),
+    snapshot: row.snapshot || {},
+    changeKind: row.change_kind || 'checkpoint',
+    restoredFromRevisionId:
+      row.restored_from_revision_id == null
+        ? null
+        : Number(row.restored_from_revision_id),
+    actorEmail: row.actor_email || '',
+    createdAt: row.created_at || null
+  }
+}
+
+function revisionSnapshotModel(snapshot = {}) {
+  return {
+    title: String(snapshot.title || 'Untitled Node'),
+    categoryId:
+      snapshot.team_category_id ??
+      snapshot.category_id ??
+      null,
+    difficultyId:
+      snapshot.team_difficulty_id ??
+      snapshot.difficulty_id ??
+      null,
+    tagIds: Array.isArray(snapshot.team_tag_ids)
+      ? snapshot.team_tag_ids.map(Number)
+      : Array.isArray(snapshot.tag_ids)
+        ? snapshot.tag_ids.map(Number)
+        : [],
+    departmentId:
+      snapshot.department_id == null
+        ? null
+        : Number(snapshot.department_id),
+    departmentIds: Array.isArray(snapshot.department_ids)
+      ? snapshot.department_ids.map(Number)
+      : [],
+    content: String(snapshot.content || ''),
+    contentFormat:
+      snapshot.content_format === 'plain'
+        ? 'plain'
+        : 'html'
+  }
+}
+
+function currentNodeRevisionModel(node) {
+  return {
+    title: node?.title || 'Untitled Node',
+    categoryId: node?.categoryId ?? null,
+    difficultyId: node?.difficultyId ?? null,
+    tagIds: (node?.tagIds || []).map(Number),
+    departmentId:
+      node?.departmentId == null
+        ? null
+        : Number(node.departmentId),
+    departmentIds: nodeDepartmentIds(node).map(Number),
+    content: node?.content || '',
+    contentFormat:
+      node?.contentFormat === 'plain'
+        ? 'plain'
+        : 'html'
+  }
+}
+
+function canonicalRevisionArray(values) {
+  return [...(values || [])]
+    .map(Number)
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b)
+}
+
+function revisionChangedFields(newerSnapshot, olderSnapshot) {
+  if (!olderSnapshot) return ['baseline']
+
+  const newer = revisionSnapshotModel(newerSnapshot)
+  const older = revisionSnapshotModel(olderSnapshot)
+
+  const fields = []
+
+  if (newer.title !== older.title) {
+    fields.push('title')
+  }
+
+  if (
+    Number(newer.categoryId) !==
+    Number(older.categoryId)
+  ) {
+    fields.push('category')
+  }
+
+  if (
+    Number(newer.difficultyId) !==
+    Number(older.difficultyId)
+  ) {
+    fields.push('difficulty')
+  }
+
+  if (
+    JSON.stringify(canonicalRevisionArray(newer.tagIds)) !==
+    JSON.stringify(canonicalRevisionArray(older.tagIds))
+  ) {
+    fields.push('tags')
+  }
+
+  if (
+    Number(newer.departmentId) !==
+      Number(older.departmentId) ||
+    JSON.stringify(
+      canonicalRevisionArray(newer.departmentIds)
+    ) !==
+      JSON.stringify(
+        canonicalRevisionArray(older.departmentIds)
+      )
+  ) {
+    fields.push('department')
+  }
+
+  if (
+    newer.content !== older.content ||
+    newer.contentFormat !== older.contentFormat
+  ) {
+    fields.push('content')
+  }
+
+  return fields.length > 0
+    ? fields
+    : ['checkpoint']
+}
+
+function revisionActorLabel(row) {
+  if (row.actorEmail) return row.actorEmail
+
+  if (row.changeKind === 'baseline') {
+    return 'Migration baseline'
+  }
+
+  return 'Atlas editor'
+}
+
+function revisionKindLabel(row) {
+  if (row.changeKind === 'restore') {
+    return row.restoredFromRevisionId
+      ? `Restore from #${row.restoredFromRevisionId}`
+      : 'Restore'
+  }
+
+  if (row.changeKind === 'baseline') {
+    return 'Baseline'
+  }
+
+  return 'Saved'
+}
+
+function revisionModelTaxonomy(model) {
+  const category = getCategoryById(model.categoryId)
+  const difficulty = getDifficultyById(model.difficultyId)
+
+  const tags = model.tagIds
+    .map((id) => getTagById(id)?.name || `Tag #${id}`)
+    .filter(Boolean)
+
+  return {
+    category:
+      category?.name ||
+      (model.categoryId == null
+        ? 'Fără categorie'
+        : `Category #${model.categoryId}`),
+    difficulty:
+      difficulty?.name ||
+      (model.difficultyId == null
+        ? 'Nespecificată'
+        : `Difficulty #${model.difficultyId}`),
+    tags
+  }
+}
+
+function revisionModelDepartments(model) {
+  const ids =
+    model.departmentIds.length > 0
+      ? model.departmentIds
+      : model.departmentId != null
+        ? [model.departmentId]
+        : []
+
+  return ids
+    .map((id) => getDepartmentById(id)?.name || `Department #${id}`)
+    .filter(Boolean)
+}
+
+function renderRevisionContent(model) {
+  if (model.contentFormat === 'html') {
+    return `
+      <div class="doc-text rich">
+        ${sanitizeRichHtml(model.content)}
+      </div>
+    `
+  }
+
+  return `
+    <div class="doc-text">
+      ${escapeHtmlText(model.content).replace(/\n/g, '<br>')}
+    </div>
+  `
+}
+
+function revisionCompareCard(label, model) {
+  const taxonomy = revisionModelTaxonomy(model)
+  const departments = revisionModelDepartments(model)
+
+  return `
+    <div class="revision-compare-card">
+      <strong>${escapeHtmlText(label)}</strong>
+
+      <div class="revision-compare-title">
+        ${escapeHtmlText(model.title)}
+      </div>
+
+      <div class="revision-compare-meta">
+        ${escapeHtmlText(taxonomy.category)}
+        · ${escapeHtmlText(taxonomy.difficulty)}
+        ${
+          taxonomy.tags.length
+            ? ` · ${escapeHtmlText(taxonomy.tags.join(', '))}`
+            : ''
+        }
+        ${
+          departments.length
+            ? ` · ${escapeHtmlText(departments.join(', '))}`
+            : ''
+        }
+      </div>
+
+      <div class="revision-content-preview">
+        ${renderRevisionContent(model)}
+      </div>
+    </div>
+  `
+}
+
+function renderRevisionHistory() {
+  if (!isRevisionHistoryOpen()) return
+
+  const node = currentRevisionHistoryNode()
+
+  if (!node) {
+    revisionHistoryTitle.textContent = 'Version history'
+    revisionHistorySummary.textContent =
+      'Documentul nu mai este disponibil.'
+    revisionHistoryList.innerHTML = ''
+    revisionHistoryPreview.innerHTML = `
+      <div class="revision-history-empty">
+        Documentul nu mai este disponibil.
+      </div>
+    `
+    return
+  }
+
+  revisionHistoryTitle.textContent =
+    `Version history · ${node.title}`
+
+  revisionHistorySummary.innerHTML = `
+    <strong>${revisionHistoryRows.length}</strong>
+    ${
+      revisionHistoryRows.length === 1
+        ? 'saved version'
+        : 'saved versions'
+    }
+    · newest first
+  `
+
+  if (revisionHistoryRows.length === 0) {
+    revisionHistoryList.innerHTML = `
+      <div class="revision-history-empty">
+        Nu există încă versiuni salvate pentru acest document.
+      </div>
+    `
+
+    revisionHistoryPreview.innerHTML = `
+      <div class="revision-history-empty">
+        Prima versiune va fi creată automat la următorul checkpoint.
+      </div>
+    `
+    return
+  }
+
+  revisionHistoryList.innerHTML = revisionHistoryRows
+    .map((row, index) => {
+      const older =
+        revisionHistoryRows[index + 1]?.snapshot || null
+
+      const changed = revisionChangedFields(
+        row.snapshot,
+        older
+      )
+
+      return `
+        <button
+          class="revision-history-item ${
+            Number(row.id) ===
+            Number(revisionHistorySelectedId)
+              ? 'active'
+              : ''
+          }"
+          type="button"
+          data-revision-select="${Number(row.id)}"
+        >
+          <div class="revision-history-item-head">
+            <strong>v${Number(row.revisionNumber)}</strong>
+            <span>
+              ${escapeHtmlText(
+                row.createdAt
+                  ? formatPublicDate(row.createdAt)
+                  : '—'
+              )}
+            </span>
+          </div>
+
+          <div class="revision-history-item-meta">
+            ${escapeHtmlText(revisionKindLabel(row))}
+            · ${escapeHtmlText(revisionActorLabel(row))}
+          </div>
+
+          <div class="revision-history-changes">
+            ${changed
+              .map(
+                (field) => `
+                  <span class="revision-history-change">
+                    ${escapeHtmlText(field)}
+                  </span>
+                `
+              )
+              .join('')}
+          </div>
+        </button>
+      `
+    })
+    .join('')
+
+  const selected =
+    revisionHistoryRows.find(
+      (row) =>
+        Number(row.id) ===
+        Number(revisionHistorySelectedId)
+    ) || revisionHistoryRows[0]
+
+  revisionHistorySelectedId = Number(selected.id)
+
+  const selectedModel =
+    revisionSnapshotModel(selected.snapshot)
+
+  const currentModel =
+    currentNodeRevisionModel(node)
+
+  const currentChanged = revisionChangedFields(
+    {
+      title: currentModel.title,
+      category_id: node.isTeamNode
+        ? null
+        : currentModel.categoryId,
+      difficulty_id: node.isTeamNode
+        ? null
+        : currentModel.difficultyId,
+      tag_ids: node.isTeamNode
+        ? []
+        : currentModel.tagIds,
+      department_ids: node.isTeamNode
+        ? []
+        : currentModel.departmentIds,
+      department_id: node.isTeamNode
+        ? currentModel.departmentId
+        : null,
+      team_category_id: node.isTeamNode
+        ? currentModel.categoryId
+        : null,
+      team_difficulty_id: node.isTeamNode
+        ? currentModel.difficultyId
+        : null,
+      team_tag_ids: node.isTeamNode
+        ? currentModel.tagIds
+        : [],
+      content: currentModel.content,
+      content_format: currentModel.contentFormat
+    },
+    selected.snapshot
+  ).filter((field) => field !== 'checkpoint')
+
+  revisionHistoryPreview.innerHTML = `
+    <div class="revision-preview-head">
+      <div>
+        <h4>v${Number(selected.revisionNumber)} · ${escapeHtmlText(
+          revisionKindLabel(selected)
+        )}</h4>
+
+        <p>
+          ${escapeHtmlText(revisionActorLabel(selected))}
+          ${
+            selected.createdAt
+              ? ` · ${escapeHtmlText(
+                  new Date(selected.createdAt).toLocaleString()
+                )}`
+              : ''
+          }
+        </p>
+      </div>
+
+      <div class="revision-preview-actions">
+        <button
+          class="btn"
+          type="button"
+          data-revision-restore="${Number(selected.id)}"
+          ${revisionHistoryBusy ? 'disabled' : ''}
+        >
+          Restore this version
+        </button>
+      </div>
+    </div>
+
+    <div class="count-strip" style="margin-bottom:10px;">
+      ${
+        currentChanged.length > 0
+          ? `Current differs in: ${escapeHtmlText(
+              currentChanged.join(', ')
+            )}`
+          : 'Current document matches this saved version.'
+      }
+    </div>
+
+    <div class="revision-compare-grid">
+      ${revisionCompareCard(
+        `Saved v${selected.revisionNumber}`,
+        selectedModel
+      )}
+
+      ${revisionCompareCard(
+        'Current',
+        currentModel
+      )}
+    </div>
+  `
+}
+
+async function loadRevisionHistory() {
+  const node = currentRevisionHistoryNode()
+
+  if (!node) {
+    revisionHistoryRows = []
+    renderRevisionHistory()
+    return
+  }
+
+  let query = supabase
+    .from('atlas_document_revisions')
+    .select(
+      'id, revision_number, node_scope, public_node_id, team_id, team_node_id, snapshot, change_kind, restored_from_revision_id, actor_email, created_at'
+    )
+    .eq('project_id', PROJECT_ID)
+    .eq(
+      'node_scope',
+      node.isTeamNode ? 'team' : 'public'
+    )
+    .order('revision_number', {
+      ascending: false
+    })
+    .limit(120)
+
+  if (node.isTeamNode) {
+    query = query
+      .eq('team_id', Number(node.teamId))
+      .eq('team_node_id', Number(node.id))
+  } else {
+    query = query.eq(
+      'public_node_id',
+      Number(node.id)
+    )
+  }
+
+  const { data, error } = await query
+
+  if (error) throw error
+
+  revisionHistoryRows =
+    (data || []).map(normalizeRevisionRow)
+
+  if (
+    !revisionHistoryRows.some(
+      (row) =>
+        Number(row.id) ===
+        Number(revisionHistorySelectedId)
+    )
+  ) {
+    revisionHistorySelectedId =
+      revisionHistoryRows[0]?.id ?? null
+  }
+
+  renderRevisionHistory()
+}
+
+async function openRevisionHistory(
+  nodeId = selectedId
+) {
+  const node = findNode(nodeId)
+
+  if (!canOpenRevisionHistory(node)) {
+    alert(
+      'Version history este disponibil în Editor Mode pentru documentele pe care le poți edita.'
+    )
+    return
+  }
+
+  revisionHistoryTarget = {
+    nodeScope: node.isTeamNode
+      ? 'team'
+      : 'public',
+    teamId: node.isTeamNode
+      ? Number(node.teamId)
+      : null,
+    nodeId: Number(node.id)
+  }
+
+  revisionHistoryRows = []
+  revisionHistorySelectedId = null
+  revisionHistoryBusy = false
+
+  revisionHistoryBackdrop.classList.add('open')
+
+  revisionHistoryTitle.textContent =
+    `Version history · ${node.title}`
+
+  revisionHistorySummary.textContent =
+    'Se încarcă versiunile...'
+
+  revisionHistoryList.innerHTML = ''
+  revisionHistoryPreview.innerHTML = `
+    <div class="revision-history-empty">
+      Se încarcă...
+    </div>
+  `
+
+  try {
+    await loadRevisionHistory()
+  } catch (error) {
+    console.error('Revision history load failed:', error)
+
+    revisionHistorySummary.textContent =
+      error?.message ||
+      'Version history nu a putut fi încărcat.'
+
+    revisionHistoryPreview.innerHTML = `
+      <div class="revision-history-empty">
+        ${escapeHtmlText(
+          error?.message ||
+            'Version history nu a putut fi încărcat.'
+        )}
+      </div>
+    `
+  }
+}
+
+function closeRevisionHistory() {
+  if (revisionHistoryBusy) return
+
+  revisionHistoryBackdrop?.classList.remove('open')
+  revisionHistoryTarget = null
+  revisionHistoryRows = []
+  revisionHistorySelectedId = null
+}
+
+async function restoreRevision(revisionId) {
+  if (revisionHistoryBusy) return
+
+  const node = currentRevisionHistoryNode()
+
+  if (!node) {
+    throw new Error(
+      'Documentul nu mai este disponibil.'
+    )
+  }
+
+  const row = revisionHistoryRows.find(
+    (item) =>
+      Number(item.id) === Number(revisionId)
+  )
+
+  if (!row) {
+    throw new Error(
+      'Versiunea selectată nu mai este disponibilă.'
+    )
+  }
+
+  if (
+    !confirm(
+      `Restaurezi ${node.title} la v${row.revisionNumber}? Versiunea curentă rămâne în history.`
+    )
+  ) {
+    return
+  }
+
+  revisionHistoryBusy = true
+  renderRevisionHistory()
+
+  try {
+    const { error } = await supabase.rpc(
+      'atlas_document_revision_restore',
+      {
+        p_project_id: PROJECT_ID,
+        p_revision_id: Number(revisionId)
+      }
+    )
+
+    if (error) throw error
+
+    if (node.isTeamNode) {
+      await loadActiveTeamAtlasNodes()
+    } else {
+      await fetchAllData()
+    }
+
+    syncActiveNodeCollection({
+      forceReset: false
+    })
+
+    selectedId = Number(node.id)
+    detailOpen = true
+
+    renderAll()
+
+    revisionHistorySelectedId = null
+    await loadRevisionHistory()
+  } finally {
+    revisionHistoryBusy = false
+    renderRevisionHistory()
+  }
+}
+
 const DOCUMENT_HEALTH_ISSUES = {
   not_reviewed: {
     label: 'Not reviewed',
@@ -15724,6 +16748,7 @@ function renderDetailPanel() {
             title="${isNodeBookmarked(node) ? 'Remove from saved' : 'Save document'}"
           >${isNodeBookmarked(node) ? '★' : '☆'}</button>
           <button class="icon-btn" id="detailMetaBtn" aria-label="Sources & review" title="Sources & review">◎</button>
+          <button class="icon-btn" id="detailHistoryBtn" aria-label="Version history" title="Version history">◷</button>
           <button class="icon-btn" id="detailImportTeamBtn" aria-label="Copy to Team Atlas" title="Copy to Team Atlas">⇢</button>
           <button class="icon-btn" id="detailPublicSourceBtn" aria-label="Open public source" title="Open public source">↗</button>
           <button class="icon-btn" id="detailCopyTeamLinkBtn" aria-label="Copy private Team Atlas link" title="Copy private Team Atlas link">🔗</button>
@@ -15826,6 +16851,7 @@ function renderDetailPanel() {
   const detailFilesBtn = document.getElementById('detailFilesBtn')
   const detailBookmarkBtn = document.getElementById('detailBookmarkBtn')
   const detailMetaBtn = document.getElementById('detailMetaBtn')
+  const detailHistoryBtn = document.getElementById('detailHistoryBtn')
   const detailImportTeamBtn = document.getElementById('detailImportTeamBtn')
   const detailPublicSourceBtn = document.getElementById('detailPublicSourceBtn')
   const detailCopyTeamLinkBtn = document.getElementById('detailCopyTeamLinkBtn')
@@ -15838,6 +16864,7 @@ function renderDetailPanel() {
   detailMediaBtn.hidden = !attachmentActions
   detailFilesBtn.hidden = !attachmentActions
   detailMetaBtn.hidden = !nodeEditorActions
+  detailHistoryBtn.hidden = !nodeEditorActions
   detailImportTeamBtn.hidden = !canImportPublicNodeToTeam(node)
   detailPublicSourceBtn.hidden = !(node.isTeamNode && node.sourcePublicNodeId)
   detailCopyTeamLinkBtn.hidden = !node.isTeamNode
@@ -15849,6 +16876,7 @@ function renderDetailPanel() {
   detailMediaBtn.disabled = !attachmentActions
   detailFilesBtn.disabled = !attachmentActions
   detailMetaBtn.disabled = !nodeEditorActions
+  detailHistoryBtn.disabled = !nodeEditorActions
   detailImportTeamBtn.disabled = !canImportPublicNodeToTeam(node)
   detailPublicSourceBtn.disabled = !(node.isTeamNode && node.sourcePublicNodeId)
   detailCopyTeamLinkBtn.disabled = !node.isTeamNode
@@ -15868,6 +16896,16 @@ function renderDetailPanel() {
 
   detailMetaBtn.addEventListener('click', () => {
     openDocumentationMetaManager(node.id)
+  })
+
+  detailHistoryBtn.addEventListener('click', () => {
+    openRevisionHistory(node.id).catch((error) => {
+      console.error('Open revision history failed:', error)
+      alert(
+        error?.message ||
+          'Version history nu a putut fi deschis.'
+      )
+    })
   })
 
   detailImportTeamBtn.addEventListener('click', () => openTeamImport(node.id))
@@ -17125,6 +18163,62 @@ teamAtlasSelect?.addEventListener('change', () => {
   })
 })
 
+closeRevisionHistoryBtn?.addEventListener(
+  'click',
+  closeRevisionHistory
+)
+
+closeRevisionHistoryFooterBtn?.addEventListener(
+  'click',
+  closeRevisionHistory
+)
+
+revisionHistoryBackdrop?.addEventListener(
+  'click',
+  (event) => {
+    if (event.target === revisionHistoryBackdrop) {
+      closeRevisionHistory()
+    }
+  }
+)
+
+revisionHistoryList?.addEventListener(
+  'click',
+  (event) => {
+    const button = event.target.closest?.(
+      '[data-revision-select]'
+    )
+
+    if (!button) return
+
+    revisionHistorySelectedId =
+      Number(button.dataset.revisionSelect)
+
+    renderRevisionHistory()
+  }
+)
+
+revisionHistoryPreview?.addEventListener(
+  'click',
+  (event) => {
+    const button = event.target.closest?.(
+      '[data-revision-restore]'
+    )
+
+    if (!button) return
+
+    restoreRevision(
+      Number(button.dataset.revisionRestore)
+    ).catch((error) => {
+      console.error('Revision restore failed:', error)
+      alert(
+        error?.message ||
+          'Versiunea nu a putut fi restaurată.'
+      )
+    })
+  }
+)
+
 documentationHealthBtn?.addEventListener(
   'click',
   openDocumentationHealth
@@ -17724,6 +18818,41 @@ deletePublicContentBtn?.addEventListener('click', () => {
 })
 
 publicHubPanel?.addEventListener('click', (event) => {
+  const publicIndexNodeTrigger = event.target.closest?.(
+    '[data-public-index-node]'
+  )
+
+  if (publicIndexNodeTrigger) {
+    openNodeFromPublicContent(
+      Number(publicIndexNodeTrigger.dataset.publicIndexNode)
+    )
+    return
+  }
+
+  const publicIndexSaveTrigger = event.target.closest?.(
+    '[data-public-index-save]'
+  )
+
+  if (publicIndexSaveTrigger) {
+    const node = publicNodes.find(
+      (candidate) =>
+        Number(candidate.id) ===
+        Number(publicIndexSaveTrigger.dataset.publicIndexSave)
+    )
+
+    if (node) {
+      toggleNodeBookmark(node).catch((error) => {
+        console.error('Index bookmark update failed:', error)
+        alert(
+          error?.message ||
+            'Bookmark-ul nu a putut fi actualizat.'
+        )
+      })
+    }
+
+    return
+  }
+
   const teamIndexNodeTrigger = event.target.closest?.(
     '[data-team-index-node]'
   )
@@ -17854,6 +18983,45 @@ publicHubPanel?.addEventListener('click', (event) => {
   const nodeButton = event.target.closest?.('[data-public-node-id]')
   if (nodeButton) {
     openNodeFromPublicContent(Number(nodeButton.dataset.publicNodeId))
+  }
+})
+
+publicHubPanel?.addEventListener('change', (event) => {
+  const groupSelect = event.target.closest?.(
+    '[data-public-index-group]'
+  )
+
+  if (groupSelect) {
+    publicIndexGroup =
+      groupSelect.value === 'flat'
+        ? 'flat'
+        : 'category'
+
+    localStorage.setItem(
+      CACHE_KEYS.publicIndexGroup,
+      publicIndexGroup
+    )
+
+    renderPublicShell()
+    return
+  }
+
+  const sortSelect = event.target.closest?.(
+    '[data-public-index-sort]'
+  )
+
+  if (sortSelect) {
+    publicIndexSort =
+      sortSelect.value === 'updated'
+        ? 'updated'
+        : 'az'
+
+    localStorage.setItem(
+      CACHE_KEYS.publicIndexSort,
+      publicIndexSort
+    )
+
+    renderPublicShell()
   }
 })
 
@@ -18170,7 +19338,9 @@ window.addEventListener('keydown', (event) => {
 
   if (event.key === 'Escape') {
     if (!introDismissed) dismissIntro()
-    else if (documentationHealthBackdrop?.classList.contains('open')) {
+    else if (revisionHistoryBackdrop?.classList.contains('open')) {
+      closeRevisionHistory()
+    } else if (documentationHealthBackdrop?.classList.contains('open')) {
       closeDocumentationHealth()
     } else if (documentationMetaBackdrop?.classList.contains('open')) {
       closeDocumentationMetaManager()
@@ -18401,6 +19571,10 @@ window.atlasDebug = {
   openDocumentationMeta: () =>
     openDocumentationMetaManager(selectedId),
   openDocumentationHealth,
+  openRevisionHistory: () =>
+    openRevisionHistory(selectedId),
+  openPublicIndex: () =>
+    selectPublicSection('index'),
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,

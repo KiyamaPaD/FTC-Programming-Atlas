@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v86 · Full English UI + documentation health and quality lens
+// v87 · Full English UI + document revisions and public index
 //
 // Source language: Romanian
 // Secondary language: English
@@ -443,6 +443,26 @@ const UI_EN = new Map(Object.entries({
     'Sign in to save Team Atlas documents.',
   'Loghează-te pentru a deschide documentația Team Atlas.':
     'Sign in to open Team Atlas documentation.',
+  'Version history':
+    'Version history',
+  'Restore this version':
+    'Restore this version',
+  'Indexul documentației':
+    'Documentation index',
+  'Documentation Index':
+    'Documentation Index',
+  'Recently updated':
+    'Recently updated',
+  'Flat list':
+    'Flat list',
+  'All documents':
+    'All documents',
+  'Version history este disponibil în Editor Mode pentru documentele pe care le poți edita.':
+    'Version history is available in Editor Mode for documents you can edit.',
+  'Version history nu a putut fi deschis.':
+    'Version history could not be opened.',
+  'Versiunea nu a putut fi restaurată.':
+    'The version could not be restored.',
   'Documentation Health':
     'Documentation Health',
   'Needs attention':
