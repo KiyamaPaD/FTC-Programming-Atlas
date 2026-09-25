@@ -3920,6 +3920,229 @@
     line-height: 1.55;
   }
 
+
+  .documentation-finder-modal {
+    width: min(900px, 100%);
+    max-height: min(840px, calc(100vh - 42px));
+    display: flex;
+    flex-direction: column;
+  }
+
+  .documentation-finder-body {
+    min-height: 0;
+    overflow: hidden;
+    padding: 14px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .documentation-finder-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 190px;
+    gap: 10px;
+  }
+
+  .documentation-finder-input {
+    width: 100%;
+    padding: 12px 13px;
+    border: 1px solid rgba(177, 76, 255, 0.18);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.025);
+    color: #f0ebf2;
+    font: inherit;
+    outline: none;
+  }
+
+  .documentation-finder-input:focus {
+    border-color: rgba(177, 76, 255, 0.48);
+    box-shadow: 0 0 0 3px rgba(177, 76, 255, 0.07);
+  }
+
+  .documentation-finder-results {
+    min-height: 180px;
+    max-height: 58vh;
+    overflow: auto;
+    display: grid;
+    gap: 8px;
+    padding-right: 3px;
+  }
+
+  .documentation-finder-result {
+    width: 100%;
+    padding: 12px 13px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.012);
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .documentation-finder-result:hover,
+  .documentation-finder-result.active {
+    border-color: rgba(177, 76, 255, 0.3);
+    background: rgba(177, 76, 255, 0.055);
+  }
+
+  .documentation-finder-result-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .documentation-finder-result-title {
+    min-width: 0;
+    color: #f0ebf2;
+    font-size: 0.84rem;
+    font-weight: 730;
+  }
+
+  .documentation-finder-result-scope {
+    flex: 0 0 auto;
+    padding: 4px 7px;
+    border: 1px solid rgba(177, 76, 255, 0.12);
+    border-radius: 999px;
+    color: #b89ac9;
+    font-size: 0.6rem;
+  }
+
+  .documentation-finder-result-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 7px;
+    color: #817b87;
+    font-size: 0.64rem;
+  }
+
+  .documentation-finder-result-excerpt {
+    margin-top: 7px;
+    color: #706a75;
+    font-size: 0.66rem;
+    line-height: 1.5;
+  }
+
+  .documentation-finder-empty {
+    padding: 28px 16px;
+    border: 1px dashed rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    color: #79737e;
+    text-align: center;
+    font-size: 0.72rem;
+    line-height: 1.55;
+  }
+
+  .documentation-finder-hint {
+    color: #69636f;
+    font-size: 0.64rem;
+  }
+
+  .documentation-library-modal {
+    width: min(880px, 100%);
+    max-height: min(840px, calc(100vh - 42px));
+    display: flex;
+    flex-direction: column;
+  }
+
+  .documentation-library-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 14px 18px 20px;
+  }
+
+  .documentation-library-section + .documentation-library-section {
+    margin-top: 22px;
+  }
+
+  .documentation-library-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .documentation-library-head strong {
+    color: #eee9f0;
+    font-size: 0.86rem;
+  }
+
+  .documentation-library-head span {
+    color: #746e79;
+    font-size: 0.64rem;
+  }
+
+  .documentation-library-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .documentation-library-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 11px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.012);
+  }
+
+  .documentation-library-open {
+    min-width: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .documentation-library-open strong {
+    display: block;
+    overflow: hidden;
+    color: #eee9f0;
+    font-size: 0.78rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .documentation-library-open span {
+    display: block;
+    margin-top: 4px;
+    color: #77717d;
+    font-size: 0.62rem;
+  }
+
+  .documentation-library-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .documentation-library-note {
+    margin-bottom: 12px;
+    padding: 10px 11px;
+    border: 1px solid rgba(177, 76, 255, 0.09);
+    border-radius: 11px;
+    background: rgba(177, 76, 255, 0.02);
+    color: #837c88;
+    font-size: 0.66rem;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 680px) {
+    .documentation-finder-controls {
+      grid-template-columns: 1fr;
+    }
+
+    .documentation-finder-results {
+      max-height: 55vh;
+    }
+  }
+
+
   .team-import-modal {
     width: min(760px, 100%);
     max-height: min(820px, calc(100vh - 44px));
@@ -5569,6 +5792,15 @@
 
           <input id="searchInput" class="search-input" placeholder="Caută topic, categorie, dificultate, etichetă sau text..." />
 
+          <div class="btn-row">
+            <button class="btn" id="quickFinderBtn" type="button">
+              ⌕ Quick Find · Ctrl K
+            </button>
+            <button class="btn" id="savedDocsBtn" type="button">
+              ☆ Saved
+            </button>
+          </div>
+
           <div class="taxonomy-filters" id="taxonomyFilters">
             <div class="filter-row">
               <select class="filter-select" id="categoryFilter" aria-label="Filtrează după categorie">
@@ -6258,6 +6490,64 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="documentationFinderBackdrop">
+    <div class="modal documentation-finder-modal">
+      <div class="modal-head">
+        <div>
+          <h3>Quick Find</h3>
+          <p>Caută instant în documentația publică și în Team Atlas-ul activ.</p>
+        </div>
+        <button class="icon-btn" id="closeDocumentationFinderBtn" type="button" aria-label="Close">✕</button>
+      </div>
+
+      <div class="documentation-finder-body">
+        <div class="documentation-finder-controls">
+          <input
+            class="documentation-finder-input"
+            id="documentationFinderInput"
+            placeholder="Ex: PedroPathing tuning, PID, AprilTag..."
+            autocomplete="off"
+          />
+
+          <select class="filter-select" id="documentationFinderScope">
+            <option value="all">Public + Team Atlas</option>
+            <option value="public">Doar Public Atlas</option>
+            <option value="team">Doar Team Atlas</option>
+          </select>
+        </div>
+
+        <div class="count-strip" id="documentationFinderSummary">
+          Scrie ceva pentru a căuta.
+        </div>
+
+        <div class="documentation-finder-results" id="documentationFinderResults"></div>
+
+        <div class="documentation-finder-hint">
+          ↑ ↓ navigare · Enter deschide · Esc închide · Ctrl/Cmd + K deschide Quick Find
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="documentationLibraryBackdrop">
+    <div class="modal documentation-library-modal">
+      <div class="modal-head">
+        <div>
+          <h3>Saved & Recent</h3>
+          <p>Documentele pe care vrei să le găsești din nou rapid.</p>
+        </div>
+        <button class="icon-btn" id="closeDocumentationLibraryBtn" type="button" aria-label="Close">✕</button>
+      </div>
+
+      <div class="documentation-library-body" id="documentationLibraryBody"></div>
+
+      <div class="modal-foot">
+        <button class="btn" id="clearRecentDocsBtn" type="button">Clear recent</button>
+        <button class="btn primary" id="closeDocumentationLibraryFooterBtn" type="button">Închide</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="teamImportBackdrop">
     <div class="modal team-import-modal">
       <div class="modal-head">
@@ -6723,6 +7013,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=83"></script>
+  <script type="module" src="/js/atlas-script.js?v=84"></script>
 </body>
 </html>

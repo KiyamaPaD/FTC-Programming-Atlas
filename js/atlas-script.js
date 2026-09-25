@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v83 · TEAM ATLAS ROADMAPS')
+console.log('ATLAS SCRIPT LOADED v84 · DOCUMENTATION DISCOVERY')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -41,7 +41,9 @@ const CACHE_KEYS = {
   publicSection: 'ftc_atlas_public_section_v1',
   activeTeam: 'ftc_atlas_active_team_v1',
   pendingTeamInvite: 'ftc_atlas_pending_team_invite_v1',
-  pendingTeamRoute: 'ftc_atlas_pending_team_route_v1'
+  pendingTeamRoute: 'ftc_atlas_pending_team_route_v1',
+  recentDocs: 'ftc_atlas_recent_docs_v1',
+  localBookmarks: 'ftc_atlas_local_bookmarks_v1'
 }
 
 const initialTeamInviteToken = new URLSearchParams(window.location.search).get('teamInvite')
@@ -360,6 +362,11 @@ let roadmapManagerMutationBusy = false
 let roadmapManagerScope = 'public'
 let roadmapProgressMutationKeys = new Set()
 let teamRoadmapProgressMutationKeys = new Set()
+
+let bookmarkRows = []
+let bookmarkKeys = new Set()
+let finderResultsCache = []
+let finderSelectedIndex = 0
 let teamSetupMutationBusy = false
 let teamImportSourceNodeId = null
 let teamImportMutationBusy = false
@@ -513,6 +520,42 @@ const authOtpInput = document.getElementById('authOtpInput')
 const verifyOtpBtn = document.getElementById('verifyOtpBtn')
 const loginBtn = document.getElementById('loginBtn')
 const logoutBtn = document.getElementById('logoutBtn')
+
+const quickFinderBtn = document.getElementById('quickFinderBtn')
+const savedDocsBtn = document.getElementById('savedDocsBtn')
+
+const documentationFinderBackdrop = document.getElementById(
+  'documentationFinderBackdrop'
+)
+const closeDocumentationFinderBtn = document.getElementById(
+  'closeDocumentationFinderBtn'
+)
+const documentationFinderInput = document.getElementById(
+  'documentationFinderInput'
+)
+const documentationFinderScope = document.getElementById(
+  'documentationFinderScope'
+)
+const documentationFinderSummary = document.getElementById(
+  'documentationFinderSummary'
+)
+const documentationFinderResults = document.getElementById(
+  'documentationFinderResults'
+)
+
+const documentationLibraryBackdrop = document.getElementById(
+  'documentationLibraryBackdrop'
+)
+const closeDocumentationLibraryBtn = document.getElementById(
+  'closeDocumentationLibraryBtn'
+)
+const closeDocumentationLibraryFooterBtn = document.getElementById(
+  'closeDocumentationLibraryFooterBtn'
+)
+const clearRecentDocsBtn = document.getElementById('clearRecentDocsBtn')
+const documentationLibraryBody = document.getElementById(
+  'documentationLibraryBody'
+)
 
 function isNativeAtlasApp() {
   try {
@@ -964,6 +1007,8 @@ function pushRouteState(path, state) {
 
 function setNodeRoute(node, { push = true } = {}) {
   if (!node) return
+
+  rememberRecentNode(node)
 
   const path = nodeRoutePath(node)
 
@@ -7350,6 +7395,876 @@ function codeLanguageLabel(language) {
   return CODE_LANGUAGES.find(([value]) => value === normalized)?.[1] || normalized
 }
 
+
+function bookmarkKeyForNode(node) {
+  if (!node) return ''
+
+  return node.isTeamNode
+    ? `team:${Number(node.teamId)}:${Number(node.id)}`
+    : `public:${Number(node.id)}`
+}
+
+function bookmarkKeyForRow(row) {
+  if (!row) return ''
+
+  return row.nodeScope === 'team'
+    ? `team:${Number(row.teamId)}:${Number(row.teamNodeId)}`
+    : `public:${Number(row.publicNodeId)}`
+}
+
+function isNodeBookmarked(node) {
+  return bookmarkKeys.has(bookmarkKeyForNode(node))
+}
+
+function readLocalBookmarkRows() {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(CACHE_KEYS.localBookmarks) || '[]'
+    )
+
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
+      .filter(
+        (row) =>
+          row &&
+          row.nodeScope === 'public' &&
+          Number.isFinite(Number(row.publicNodeId))
+      )
+      .slice(0, 80)
+      .map((row) => ({
+        id: null,
+        nodeScope: 'public',
+        publicNodeId: Number(row.publicNodeId),
+        teamId: null,
+        teamNodeId: null,
+        titleSnapshot: String(row.titleSnapshot || 'Public document'),
+        createdAt: row.createdAt || new Date().toISOString(),
+        isLocal: true
+      }))
+  } catch {
+    return []
+  }
+}
+
+function writeLocalBookmarkRows(rows) {
+  const serializable = (rows || [])
+    .filter((row) => row.nodeScope === 'public')
+    .slice(0, 80)
+    .map((row) => ({
+      nodeScope: 'public',
+      publicNodeId: Number(row.publicNodeId),
+      titleSnapshot: String(row.titleSnapshot || 'Public document'),
+      createdAt: row.createdAt || new Date().toISOString()
+    }))
+
+  localStorage.setItem(
+    CACHE_KEYS.localBookmarks,
+    JSON.stringify(serializable)
+  )
+}
+
+function normalizeBookmarkRow(row) {
+  return {
+    id: row.id == null ? null : Number(row.id),
+    nodeScope: row.node_scope || row.nodeScope || 'public',
+    publicNodeId:
+      row.public_node_id == null && row.publicNodeId == null
+        ? null
+        : Number(row.public_node_id ?? row.publicNodeId),
+    teamId:
+      row.team_id == null && row.teamId == null
+        ? null
+        : Number(row.team_id ?? row.teamId),
+    teamNodeId:
+      row.team_node_id == null && row.teamNodeId == null
+        ? null
+        : Number(row.team_node_id ?? row.teamNodeId),
+    titleSnapshot:
+      row.title_snapshot || row.titleSnapshot || 'Document',
+    createdAt:
+      row.created_at || row.createdAt || new Date().toISOString(),
+    isLocal: Boolean(row.isLocal)
+  }
+}
+
+function rebuildBookmarkKeySet() {
+  bookmarkKeys = new Set(
+    bookmarkRows
+      .map(bookmarkKeyForRow)
+      .filter(Boolean)
+  )
+
+  if (savedDocsBtn) {
+    savedDocsBtn.textContent =
+      bookmarkRows.length > 0
+        ? `★ Saved · ${bookmarkRows.length}`
+        : '☆ Saved'
+  }
+}
+
+async function syncLocalBookmarksToAccount(localRows) {
+  if (!currentUser || !Array.isArray(localRows) || localRows.length === 0) {
+    return
+  }
+
+  for (const row of localRows) {
+    try {
+      await supabase.rpc('atlas_bookmark_save', {
+        p_project_id: PROJECT_ID,
+        p_node_scope: 'public',
+        p_public_node_id: Number(row.publicNodeId),
+        p_team_id: null,
+        p_team_node_id: null,
+        p_title_snapshot: row.titleSnapshot || 'Public document'
+      })
+    } catch (error) {
+      console.warn('Local bookmark sync skipped:', error)
+    }
+  }
+
+  localStorage.removeItem(CACHE_KEYS.localBookmarks)
+}
+
+async function loadBookmarks() {
+  const localRows = readLocalBookmarkRows()
+
+  if (!currentUser) {
+    bookmarkRows = localRows
+    rebuildBookmarkKeySet()
+
+    if (isDocumentationLibraryOpen()) {
+      renderDocumentationLibrary()
+    }
+
+    return
+  }
+
+  if (localRows.length > 0) {
+    await syncLocalBookmarksToAccount(localRows)
+  }
+
+  const { data, error } = await supabase
+    .from('atlas_user_bookmarks')
+    .select(
+      'id, node_scope, public_node_id, team_id, team_node_id, title_snapshot, created_at'
+    )
+    .eq('project_id', PROJECT_ID)
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Bookmark load failed:', error)
+    bookmarkRows = []
+    rebuildBookmarkKeySet()
+    return
+  }
+
+  bookmarkRows = (data || []).map(normalizeBookmarkRow)
+  rebuildBookmarkKeySet()
+
+  if (isDocumentationLibraryOpen()) {
+    renderDocumentationLibrary()
+  }
+}
+
+async function toggleNodeBookmark(node) {
+  if (!node) return
+
+  const key = bookmarkKeyForNode(node)
+  const currentlySaved = bookmarkKeys.has(key)
+
+  if (!currentUser) {
+    if (node.isTeamNode) {
+      alert('Loghează-te pentru a salva documente Team Atlas.')
+      setAccountPanel(true)
+      return
+    }
+
+    let localRows = readLocalBookmarkRows()
+
+    if (currentlySaved) {
+      localRows = localRows.filter(
+        (row) => bookmarkKeyForRow(row) !== key
+      )
+    } else {
+      localRows.unshift({
+        id: null,
+        nodeScope: 'public',
+        publicNodeId: Number(node.id),
+        teamId: null,
+        teamNodeId: null,
+        titleSnapshot: node.title,
+        createdAt: new Date().toISOString(),
+        isLocal: true
+      })
+    }
+
+    writeLocalBookmarkRows(localRows)
+    bookmarkRows = readLocalBookmarkRows()
+    rebuildBookmarkKeySet()
+    renderAll()
+
+    if (isDocumentationLibraryOpen()) {
+      renderDocumentationLibrary()
+    }
+
+    return
+  }
+
+  const params = {
+    p_project_id: PROJECT_ID,
+    p_node_scope: node.isTeamNode ? 'team' : 'public',
+    p_public_node_id: node.isTeamNode ? null : Number(node.id),
+    p_team_id: node.isTeamNode ? Number(node.teamId) : null,
+    p_team_node_id: node.isTeamNode ? Number(node.id) : null,
+    p_title_snapshot: node.title
+  }
+
+  const rpcName = currentlySaved
+    ? 'atlas_bookmark_remove'
+    : 'atlas_bookmark_save'
+
+  const { error } = await supabase.rpc(rpcName, params)
+
+  if (error) throw error
+
+  await loadBookmarks()
+  renderAll()
+}
+
+function recentDocs() {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(CACHE_KEYS.recentDocs) || '[]'
+    )
+
+    if (!Array.isArray(parsed)) return []
+
+    return parsed
+      .filter((item) => {
+        if (!item) return false
+
+        if (item.nodeScope === 'team') {
+          return (
+            Number.isFinite(Number(item.teamId)) &&
+            Number.isFinite(Number(item.nodeId))
+          )
+        }
+
+        return Number.isFinite(Number(item.nodeId))
+      })
+      .slice(0, 30)
+  } catch {
+    return []
+  }
+}
+
+function writeRecentDocs(items) {
+  localStorage.setItem(
+    CACHE_KEYS.recentDocs,
+    JSON.stringify((items || []).slice(0, 30))
+  )
+}
+
+function rememberRecentNode(node) {
+  if (!node) return
+
+  const item = {
+    nodeScope: node.isTeamNode ? 'team' : 'public',
+    teamId: node.isTeamNode ? Number(node.teamId) : null,
+    nodeId: Number(node.id),
+    title: node.title,
+    departmentId:
+      node.departmentId == null
+        ? null
+        : Number(node.departmentId),
+    visitedAt: new Date().toISOString()
+  }
+
+  const key = node.isTeamNode
+    ? `team:${item.teamId}:${item.nodeId}`
+    : `public:${item.nodeId}`
+
+  const next = [
+    item,
+    ...recentDocs().filter((existing) => {
+      const existingKey =
+        existing.nodeScope === 'team'
+          ? `team:${Number(existing.teamId)}:${Number(existing.nodeId)}`
+          : `public:${Number(existing.nodeId)}`
+
+      return existingKey !== key
+    })
+  ].slice(0, 30)
+
+  writeRecentDocs(next)
+
+  if (isDocumentationLibraryOpen()) {
+    renderDocumentationLibrary()
+  }
+}
+
+function documentSearchText(node) {
+  if (!node) return ''
+
+  return [
+    node.title,
+    nodeContentPlainText(node),
+    nodeCategoryName(node),
+    nodeDifficultyName(node),
+    ...nodeDepartmentNames(node),
+    ...nodeTagNames(node),
+    ...(node.media || []).flatMap((media) => [
+      media.title || '',
+      media.caption || ''
+    ]),
+    ...(node.files || []).flatMap((file) => [
+      file.title || '',
+      file.description || '',
+      file.originalName || '',
+      file.relativePath || '',
+      file.mimeType || ''
+    ]),
+    ...(node.codeSnippets || []).flatMap((snippet) => [
+      snippet.title || '',
+      snippet.description || '',
+      snippet.language || '',
+      snippet.code || ''
+    ])
+  ]
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function finderCandidateNodes() {
+  const items = publicNodes.map((node) => ({
+    node,
+    scope: 'public',
+    teamName: null
+  }))
+
+  if (currentUser && activeTeamId != null) {
+    const teamName = currentTeamRecord()?.name || 'Team Atlas'
+
+    items.push(
+      ...teamNodes.map((node) => ({
+        node,
+        scope: 'team',
+        teamName
+      }))
+    )
+  }
+
+  return items
+}
+
+function finderScore(candidate, query) {
+  const node = candidate.node
+  const q = String(query || '').trim().toLowerCase()
+
+  if (!q) return 0
+
+  const terms = q.split(/\s+/).filter(Boolean)
+  const title = String(node.title || '').toLowerCase()
+  const taxonomy = [
+    nodeCategoryName(node),
+    nodeDifficultyName(node),
+    ...nodeDepartmentNames(node),
+    ...nodeTagNames(node)
+  ]
+    .join(' ')
+    .toLowerCase()
+
+  const full = documentSearchText(node).toLowerCase()
+
+  if (!terms.every((term) => full.includes(term))) {
+    return -1
+  }
+
+  let score = 0
+
+  if (title === q) score += 180
+  if (title.startsWith(q)) score += 120
+  if (title.includes(q)) score += 80
+
+  for (const term of terms) {
+    if (title.startsWith(term)) score += 35
+    else if (title.includes(term)) score += 24
+
+    if (taxonomy.includes(term)) score += 14
+    if (full.includes(term)) score += 4
+  }
+
+  if (candidate.scope === 'public') score += 1
+
+  return score
+}
+
+function finderExcerpt(node, query) {
+  const text = documentSearchText(node)
+  if (!text) return 'Documentație fără preview text.'
+
+  const q = String(query || '').trim().toLowerCase()
+  const lower = text.toLowerCase()
+  const index = q ? lower.indexOf(q) : -1
+
+  const start = index >= 0
+    ? Math.max(0, index - 90)
+    : 0
+
+  const excerpt = text.slice(start, start + 240).trim()
+
+  return `${start > 0 ? '…' : ''}${excerpt}${
+    start + 240 < text.length ? '…' : ''
+  }`
+}
+
+function renderDocumentationFinder() {
+  if (!isDocumentationFinderOpen()) return
+
+  const query = documentationFinderInput.value.trim()
+  const scope = documentationFinderScope.value
+
+  if (!query) {
+    finderResultsCache = []
+    finderSelectedIndex = 0
+    documentationFinderSummary.textContent =
+      'Scrie ceva pentru a căuta în titluri, conținut, tag-uri, fișiere și code snippets.'
+
+    documentationFinderResults.innerHTML = `
+      <div class="documentation-finder-empty">
+        Quick Find caută mai adânc decât lista vizibilă de pe hartă și poate
+        găsi text din documentație, code snippets, media și fișiere.
+      </div>
+    `
+    return
+  }
+
+  finderResultsCache = finderCandidateNodes()
+    .filter((candidate) => scope === 'all' || candidate.scope === scope)
+    .map((candidate) => ({
+      ...candidate,
+      score: finderScore(candidate, query)
+    }))
+    .filter((candidate) => candidate.score >= 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score
+
+      return String(a.node.title).localeCompare(
+        String(b.node.title),
+        'ro',
+        { sensitivity: 'base' }
+      )
+    })
+    .slice(0, 40)
+
+  if (finderSelectedIndex >= finderResultsCache.length) {
+    finderSelectedIndex = Math.max(0, finderResultsCache.length - 1)
+  }
+
+  documentationFinderSummary.textContent =
+    finderResultsCache.length === 1
+      ? '1 rezultat'
+      : `${finderResultsCache.length} rezultate`
+
+  if (finderResultsCache.length === 0) {
+    documentationFinderResults.innerHTML = `
+      <div class="documentation-finder-empty">
+        N-am găsit nimic pentru „${escapeHtmlText(query)}”.
+      </div>
+    `
+    return
+  }
+
+  documentationFinderResults.innerHTML = finderResultsCache
+    .map((candidate, index) => {
+      const node = candidate.node
+      const scopeLabel =
+        candidate.scope === 'team'
+          ? candidate.teamName || 'Team Atlas'
+          : 'Public Atlas'
+
+      return `
+        <button
+          class="documentation-finder-result ${
+            index === finderSelectedIndex ? 'active' : ''
+          }"
+          type="button"
+          data-finder-result="${index}"
+        >
+          <div class="documentation-finder-result-head">
+            <span class="documentation-finder-result-title">
+              ${escapeHtmlText(node.title)}
+            </span>
+
+            <span class="documentation-finder-result-scope">
+              ${escapeHtmlText(scopeLabel)}
+            </span>
+          </div>
+
+          <div class="documentation-finder-result-meta">
+            <span>${escapeHtmlText(nodeCategoryName(node))}</span>
+            <span>·</span>
+            <span>${escapeHtmlText(nodeDifficultyName(node))}</span>
+            ${
+              nodeDepartmentNames(node).length
+                ? `<span>·</span><span>${escapeHtmlText(
+                    nodeDepartmentNames(node)[0]
+                  )}</span>`
+                : ''
+            }
+          </div>
+
+          <div class="documentation-finder-result-excerpt">
+            ${escapeHtmlText(finderExcerpt(node, query))}
+          </div>
+        </button>
+      `
+    })
+    .join('')
+
+  documentationFinderResults
+    .querySelector(`[data-finder-result="${finderSelectedIndex}"]`)
+    ?.scrollIntoView({ block: 'nearest' })
+}
+
+function isDocumentationFinderOpen() {
+  return Boolean(
+    documentationFinderBackdrop?.classList.contains('open')
+  )
+}
+
+function openDocumentationFinder() {
+  if (isAnyModalOpen() && !isDocumentationFinderOpen()) return
+
+  documentationFinderBackdrop.classList.add('open')
+  finderSelectedIndex = 0
+
+  if (
+    documentationFinderScope.value === 'team' &&
+    (!currentUser || activeTeamId == null)
+  ) {
+    documentationFinderScope.value = 'all'
+  }
+
+  renderDocumentationFinder()
+
+  requestAnimationFrame(() => {
+    documentationFinderInput.focus()
+    documentationFinderInput.select()
+  })
+}
+
+function closeDocumentationFinder() {
+  documentationFinderBackdrop?.classList.remove('open')
+  finderResultsCache = []
+  finderSelectedIndex = 0
+}
+
+function isDocumentationLibraryOpen() {
+  return Boolean(
+    documentationLibraryBackdrop?.classList.contains('open')
+  )
+}
+
+function bookmarkScopeLabel(row) {
+  if (row.nodeScope === 'team') {
+    const team = teamRecords.find(
+      (item) => Number(item.id) === Number(row.teamId)
+    )
+
+    return team?.teamNumber
+      ? `${team.name} #${team.teamNumber}`
+      : team?.name || 'Team Atlas'
+  }
+
+  return row.isLocal
+    ? 'Public Atlas · local'
+    : 'Public Atlas'
+}
+
+function formatRecentTimestamp(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  return date.toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  })
+}
+
+function renderDocumentationLibrary() {
+  if (!isDocumentationLibraryOpen()) return
+
+  const saved = [...bookmarkRows].sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() -
+      new Date(a.createdAt).getTime()
+  )
+
+  const recent = recentDocs()
+
+  const authNote = currentUser
+    ? 'Saved se sincronizează prin contul tău. Recent rămâne local pe acest device.'
+    : 'Fără login, bookmark-urile Public Atlas și istoricul Recent rămân doar în acest browser. După login, bookmark-urile publice locale se sincronizează automat.'
+
+  const savedHtml = saved.length
+    ? saved
+        .map(
+          (row, index) => `
+            <div class="documentation-library-item">
+              <button
+                class="documentation-library-open"
+                type="button"
+                data-library-bookmark-open="${index}"
+              >
+                <strong>${escapeHtmlText(row.titleSnapshot)}</strong>
+                <span>
+                  ${escapeHtmlText(bookmarkScopeLabel(row))}
+                  · saved ${escapeHtmlText(
+                    formatRecentTimestamp(row.createdAt)
+                  )}
+                </span>
+              </button>
+
+              <div class="documentation-library-actions">
+                <button
+                  class="taxonomy-mini-btn danger"
+                  type="button"
+                  data-library-bookmark-remove="${index}"
+                  aria-label="Remove bookmark"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          `
+        )
+        .join('')
+    : `
+        <div class="documentation-finder-empty">
+          N-ai salvat încă documente. Folosește ☆ din pagina unui nod.
+        </div>
+      `
+
+  const recentHtml = recent.length
+    ? recent
+        .map(
+          (item, index) => `
+            <div class="documentation-library-item">
+              <button
+                class="documentation-library-open"
+                type="button"
+                data-library-recent-open="${index}"
+              >
+                <strong>${escapeHtmlText(item.title || 'Document')}</strong>
+                <span>
+                  ${
+                    item.nodeScope === 'team'
+                      ? `Team Atlas · ${escapeHtmlText(
+                          teamRecords.find(
+                            (team) =>
+                              Number(team.id) === Number(item.teamId)
+                          )?.name || 'private'
+                        )}`
+                      : 'Public Atlas'
+                  }
+                  · ${escapeHtmlText(
+                    formatRecentTimestamp(item.visitedAt)
+                  )}
+                </span>
+              </button>
+            </div>
+          `
+        )
+        .join('')
+    : `
+        <div class="documentation-finder-empty">
+          Recent se completează automat când deschizi documentație.
+        </div>
+      `
+
+  documentationLibraryBody.innerHTML = `
+    <div class="documentation-library-note">
+      ${escapeHtmlText(authNote)}
+    </div>
+
+    <section class="documentation-library-section">
+      <div class="documentation-library-head">
+        <strong>Saved</strong>
+        <span>${saved.length} documents</span>
+      </div>
+
+      <div class="documentation-library-list">
+        ${savedHtml}
+      </div>
+    </section>
+
+    <section class="documentation-library-section">
+      <div class="documentation-library-head">
+        <strong>Recent</strong>
+        <span>${recent.length} documents</span>
+      </div>
+
+      <div class="documentation-library-list">
+        ${recentHtml}
+      </div>
+    </section>
+  `
+
+  clearRecentDocsBtn.disabled = recent.length === 0
+}
+
+function openDocumentationLibrary() {
+  documentationLibraryBackdrop.classList.add('open')
+  renderDocumentationLibrary()
+}
+
+function closeDocumentationLibrary() {
+  documentationLibraryBackdrop?.classList.remove('open')
+}
+
+async function removeBookmarkRow(row) {
+  if (!row) return
+
+  if (!currentUser || row.isLocal) {
+    const key = bookmarkKeyForRow(row)
+    const next = readLocalBookmarkRows().filter(
+      (item) => bookmarkKeyForRow(item) !== key
+    )
+
+    writeLocalBookmarkRows(next)
+    bookmarkRows = readLocalBookmarkRows()
+    rebuildBookmarkKeySet()
+    renderDocumentationLibrary()
+    renderAll()
+    return
+  }
+
+  const { error } = await supabase.rpc('atlas_bookmark_remove', {
+    p_project_id: PROJECT_ID,
+    p_node_scope: row.nodeScope,
+    p_public_node_id:
+      row.nodeScope === 'public'
+        ? Number(row.publicNodeId)
+        : null,
+    p_team_id:
+      row.nodeScope === 'team'
+        ? Number(row.teamId)
+        : null,
+    p_team_node_id:
+      row.nodeScope === 'team'
+        ? Number(row.teamNodeId)
+        : null,
+    p_title_snapshot: row.titleSnapshot || ''
+  })
+
+  if (error) throw error
+
+  await loadBookmarks()
+  renderDocumentationLibrary()
+  renderAll()
+}
+
+async function openDocumentationReference(reference) {
+  if (!reference) return false
+
+  if (reference.nodeScope === 'public') {
+    const node = publicNodes.find(
+      (candidate) =>
+        Number(candidate.id) === Number(reference.nodeId)
+    )
+
+    if (!node) {
+      alert('Documentul public nu mai este disponibil.')
+      return false
+    }
+
+    activePublicSection = 'explore'
+    localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+
+    syncActiveNodeCollection({ forceReset: true })
+    activateDepartmentForNode(node, { persist: true })
+    clearFiltersForDeepLink()
+
+    selectedId = node.id
+    clearEdgeSelection()
+    detailOpen = true
+
+    renderAll()
+    setNodeRoute(node, { push: true })
+
+    requestAnimationFrame(() => centerOnNode(node))
+    return true
+  }
+
+  if (!currentUser) {
+    alert('Loghează-te pentru a deschide documentația Team Atlas.')
+    setAccountPanel(true)
+    return false
+  }
+
+  const teamId = Number(reference.teamId)
+
+  const team = teamRecords.find(
+    (candidate) => Number(candidate.id) === teamId
+  )
+
+  if (!team || (!membershipForTeam(teamId) && !canEdit)) {
+    alert('Nu mai ai acces la Team Atlas-ul acestui document.')
+    return false
+  }
+
+  activeTeamId = teamId
+  localStorage.setItem(CACHE_KEYS.activeTeam, String(activeTeamId))
+
+  activePublicSection = 'team'
+  localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+
+  await loadActiveTeamAtlasNodes({ forceReset: true })
+
+  const node = teamNodes.find(
+    (candidate) =>
+      Number(candidate.id) === Number(reference.nodeId)
+  )
+
+  if (!node) {
+    alert('Documentul Team Atlas nu mai este disponibil.')
+    return false
+  }
+
+  activateDepartmentForNode(node, { persist: true })
+  clearFiltersForDeepLink()
+
+  selectedId = node.id
+  clearEdgeSelection()
+  detailOpen = true
+
+  renderAll()
+  setNodeRoute(node, { push: true })
+
+  requestAnimationFrame(() => centerOnNode(node))
+  return true
+}
+
+async function openFinderResult(index = finderSelectedIndex) {
+  const result = finderResultsCache[Number(index)]
+  if (!result) return
+
+  closeDocumentationFinder()
+
+  await openDocumentationReference({
+    nodeScope: result.scope,
+    teamId:
+      result.scope === 'team'
+        ? Number(result.node.teamId)
+        : null,
+    nodeId: Number(result.node.id)
+  })
+}
+
 function codeLanguageOptions(selectedLanguage) {
   const selected = String(selectedLanguage || 'java').toLowerCase()
 
@@ -7666,7 +8581,9 @@ function isAnyModalOpen() {
     teamSetupBackdrop?.classList.contains('open') ||
     teamMembersBackdrop?.classList.contains('open') ||
     teamOnboardingBackdrop?.classList.contains('open') ||
-    teamImportBackdrop?.classList.contains('open')
+    teamImportBackdrop?.classList.contains('open') ||
+    documentationFinderBackdrop?.classList.contains('open') ||
+    documentationLibraryBackdrop?.classList.contains('open')
   )
 }
 
@@ -10386,6 +11303,7 @@ async function refreshSession() {
   await refreshEditorAccess()
   await loadRoadmapProgress()
   await loadTeamContext()
+  await loadBookmarks()
 
   updateAuthUI()
   maybeOpenPendingTeamInvite()
@@ -12841,6 +13759,12 @@ function renderDetailPanel() {
           <button class="icon-btn" id="detailCodeBtn" aria-label="Nod cod">&lt;/&gt;</button>
           <button class="icon-btn" id="detailMediaBtn" aria-label="Media">▣</button>
           <button class="icon-btn" id="detailFilesBtn" aria-label="Fișiere">📎</button>
+          <button
+            class="icon-btn"
+            id="detailBookmarkBtn"
+            aria-label="${isNodeBookmarked(node) ? 'Remove from saved' : 'Save document'}"
+            title="${isNodeBookmarked(node) ? 'Remove from saved' : 'Save document'}"
+          >${isNodeBookmarked(node) ? '★' : '☆'}</button>
           <button class="icon-btn" id="detailImportTeamBtn" aria-label="Copy to Team Atlas" title="Copy to Team Atlas">⇢</button>
           <button class="icon-btn" id="detailPublicSourceBtn" aria-label="Open public source" title="Open public source">↗</button>
           <button class="icon-btn" id="detailCopyTeamLinkBtn" aria-label="Copy private Team Atlas link" title="Copy private Team Atlas link">🔗</button>
@@ -12909,6 +13833,7 @@ function renderDetailPanel() {
   const detailCodeBtn = document.getElementById('detailCodeBtn')
   const detailMediaBtn = document.getElementById('detailMediaBtn')
   const detailFilesBtn = document.getElementById('detailFilesBtn')
+  const detailBookmarkBtn = document.getElementById('detailBookmarkBtn')
   const detailImportTeamBtn = document.getElementById('detailImportTeamBtn')
   const detailPublicSourceBtn = document.getElementById('detailPublicSourceBtn')
   const detailCopyTeamLinkBtn = document.getElementById('detailCopyTeamLinkBtn')
@@ -12940,6 +13865,12 @@ function renderDetailPanel() {
   detailCodeBtn.addEventListener('click', () => openCodeManager(node.id))
   detailMediaBtn.addEventListener('click', () => openMediaManager(node.id))
   detailFilesBtn.addEventListener('click', () => openFileManager(node.id))
+  detailBookmarkBtn.addEventListener('click', () => {
+    toggleNodeBookmark(node).catch((error) => {
+      console.error('Bookmark update failed:', error)
+      alert(error?.message || 'Bookmark-ul nu a putut fi actualizat.')
+    })
+  })
   detailImportTeamBtn.addEventListener('click', () => openTeamImport(node.id))
   detailPublicSourceBtn.addEventListener('click', () =>
     openPublicSourceFromTeamNode(node)
@@ -14170,6 +15101,176 @@ teamAtlasSelect?.addEventListener('change', () => {
   })
 })
 
+quickFinderBtn?.addEventListener('click', openDocumentationFinder)
+savedDocsBtn?.addEventListener('click', openDocumentationLibrary)
+
+closeDocumentationFinderBtn?.addEventListener(
+  'click',
+  closeDocumentationFinder
+)
+
+documentationFinderBackdrop?.addEventListener('click', (event) => {
+  if (event.target === documentationFinderBackdrop) {
+    closeDocumentationFinder()
+  }
+})
+
+documentationFinderInput?.addEventListener('input', () => {
+  finderSelectedIndex = 0
+  renderDocumentationFinder()
+})
+
+documentationFinderScope?.addEventListener('change', () => {
+  finderSelectedIndex = 0
+  renderDocumentationFinder()
+})
+
+documentationFinderInput?.addEventListener('keydown', (event) => {
+  if (event.key === 'ArrowDown') {
+    event.preventDefault()
+
+    if (finderResultsCache.length > 0) {
+      finderSelectedIndex =
+        (finderSelectedIndex + 1) %
+        finderResultsCache.length
+
+      renderDocumentationFinder()
+    }
+
+    return
+  }
+
+  if (event.key === 'ArrowUp') {
+    event.preventDefault()
+
+    if (finderResultsCache.length > 0) {
+      finderSelectedIndex =
+        (finderSelectedIndex - 1 + finderResultsCache.length) %
+        finderResultsCache.length
+
+      renderDocumentationFinder()
+    }
+
+    return
+  }
+
+  if (event.key === 'Enter') {
+    event.preventDefault()
+
+    openFinderResult().catch((error) => {
+      console.error('Quick Find open failed:', error)
+      alert(error?.message || 'Documentul nu a putut fi deschis.')
+    })
+  }
+})
+
+documentationFinderResults?.addEventListener('click', (event) => {
+  const button = event.target.closest?.('[data-finder-result]')
+  if (!button) return
+
+  openFinderResult(Number(button.dataset.finderResult)).catch((error) => {
+    console.error('Quick Find open failed:', error)
+    alert(error?.message || 'Documentul nu a putut fi deschis.')
+  })
+})
+
+closeDocumentationLibraryBtn?.addEventListener(
+  'click',
+  closeDocumentationLibrary
+)
+
+closeDocumentationLibraryFooterBtn?.addEventListener(
+  'click',
+  closeDocumentationLibrary
+)
+
+documentationLibraryBackdrop?.addEventListener('click', (event) => {
+  if (event.target === documentationLibraryBackdrop) {
+    closeDocumentationLibrary()
+  }
+})
+
+clearRecentDocsBtn?.addEventListener('click', () => {
+  localStorage.removeItem(CACHE_KEYS.recentDocs)
+  renderDocumentationLibrary()
+})
+
+documentationLibraryBody?.addEventListener('click', (event) => {
+  const bookmarkOpen = event.target.closest?.(
+    '[data-library-bookmark-open]'
+  )
+
+  if (bookmarkOpen) {
+    const row =
+      [...bookmarkRows].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime()
+      )[Number(bookmarkOpen.dataset.libraryBookmarkOpen)]
+
+    if (!row) return
+
+    closeDocumentationLibrary()
+
+    openDocumentationReference({
+      nodeScope: row.nodeScope,
+      teamId: row.teamId,
+      nodeId:
+        row.nodeScope === 'team'
+          ? row.teamNodeId
+          : row.publicNodeId
+    }).catch((error) => {
+      console.error('Saved document open failed:', error)
+      alert(error?.message || 'Documentul nu a putut fi deschis.')
+    })
+
+    return
+  }
+
+  const bookmarkRemove = event.target.closest?.(
+    '[data-library-bookmark-remove]'
+  )
+
+  if (bookmarkRemove) {
+    const row =
+      [...bookmarkRows].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() -
+          new Date(a.createdAt).getTime()
+      )[Number(bookmarkRemove.dataset.libraryBookmarkRemove)]
+
+    removeBookmarkRow(row).catch((error) => {
+      console.error('Bookmark remove failed:', error)
+      alert(error?.message || 'Bookmark-ul nu a putut fi șters.')
+    })
+
+    return
+  }
+
+  const recentOpen = event.target.closest?.(
+    '[data-library-recent-open]'
+  )
+
+  if (recentOpen) {
+    const row = recentDocs()[
+      Number(recentOpen.dataset.libraryRecentOpen)
+    ]
+
+    if (!row) return
+
+    closeDocumentationLibrary()
+
+    openDocumentationReference({
+      nodeScope: row.nodeScope,
+      teamId: row.teamId,
+      nodeId: row.nodeId
+    }).catch((error) => {
+      console.error('Recent document open failed:', error)
+      alert(error?.message || 'Documentul nu a putut fi deschis.')
+    })
+  }
+})
+
 teamImportTeamInput?.addEventListener('change', () => {
   const sourceNode = publicNodes.find(
     (node) => Number(node.id) === Number(teamImportSourceNodeId)
@@ -14708,6 +15809,17 @@ window.addEventListener('keydown', (event) => {
     !isTyping &&
     !isAnyModalOpen() &&
     (event.ctrlKey || event.metaKey) &&
+    event.key.toLowerCase() === 'k'
+  ) {
+    event.preventDefault()
+    openDocumentationFinder()
+    return
+  }
+
+  if (
+    !isTyping &&
+    !isAnyModalOpen() &&
+    (event.ctrlKey || event.metaKey) &&
     event.key.toLowerCase() === 'z' &&
     !event.shiftKey
   ) {
@@ -14821,7 +15933,11 @@ window.addEventListener('keydown', (event) => {
 
   if (event.key === 'Escape') {
     if (!introDismissed) dismissIntro()
-    else if (teamImportBackdrop?.classList.contains('open')) {
+    else if (documentationFinderBackdrop?.classList.contains('open')) {
+      closeDocumentationFinder()
+    } else if (documentationLibraryBackdrop?.classList.contains('open')) {
+      closeDocumentationLibrary()
+    } else if (teamImportBackdrop?.classList.contains('open')) {
       closeTeamImport()
     } else if (teamOnboardingBackdrop?.classList.contains('open')) {
       closeTeamOnboarding()
@@ -14923,7 +16039,8 @@ supabase.auth.onAuthStateChange((event, session) => {
     updateAuthUI()
     Promise.all([
       loadRoadmapProgress(),
-      loadTeamContext()
+      loadTeamContext(),
+      loadBookmarks()
     ])
       .then(() => renderAll())
       .catch((error) => {
@@ -14941,6 +16058,8 @@ supabase.auth.onAuthStateChange((event, session) => {
     }
 
     roadmapProgress = new Set()
+    bookmarkRows = readLocalBookmarkRows()
+    rebuildBookmarkKeySet()
     teamMemberships = []
     teamRecords = []
     teamMembers = []
@@ -14983,6 +16102,7 @@ supabase.auth.onAuthStateChange((event, session) => {
       await refreshEditorAccess()
       await loadRoadmapProgress()
       await loadTeamContext()
+      await loadBookmarks()
 
       const routedNode = await applyRouteFromLocation({
         canonicalize: true
@@ -15035,6 +16155,8 @@ window.atlasDebug = {
   openTeamMembersManager,
   openTeamOnboarding,
   openTeamIndex: () => selectPublicSection('team-index'),
+  openQuickFind: openDocumentationFinder,
+  openSavedDocs: openDocumentationLibrary,
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,

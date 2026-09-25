@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v83 · Full English UI + Team Atlas private roadmaps
+// v84 · Full English UI + documentation discovery and saved library
 //
 // Source language: Romanian
 // Secondary language: English
@@ -419,6 +419,30 @@ const UI_EN = new Map(Object.entries({
     'The public node no longer exists.',
   'Nodul public sursă nu mai este disponibil.':
     'The source public node is no longer available.',
+  'Quick Find':
+    'Quick Find',
+  'Saved & Recent':
+    'Saved & Recent',
+  'Clear recent':
+    'Clear recent',
+  'Save document':
+    'Save document',
+  'Remove from saved':
+    'Remove from saved',
+  'Bookmark-ul nu a putut fi actualizat.':
+    'The bookmark could not be updated.',
+  'Bookmark-ul nu a putut fi șters.':
+    'The bookmark could not be removed.',
+  'Documentul public nu mai este disponibil.':
+    'The public document is no longer available.',
+  'Documentul Team Atlas nu mai este disponibil.':
+    'The Team Atlas document is no longer available.',
+  'Nu mai ai acces la Team Atlas-ul acestui document.':
+    'You no longer have access to this document\'s Team Atlas.',
+  'Loghează-te pentru a salva documente Team Atlas.':
+    'Sign in to save Team Atlas documents.',
+  'Loghează-te pentru a deschide documentația Team Atlas.':
+    'Sign in to open Team Atlas documentation.',
   'Copy private Team Atlas link':
     'Copy private Team Atlas link',
   'Link privat copiat':
