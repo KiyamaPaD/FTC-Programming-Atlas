@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v79 · TEAM ATLAS TAXONOMY')
+console.log('ATLAS SCRIPT LOADED v80 · PUBLIC TO TEAM IMPORT')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -339,6 +339,8 @@ let roadmapManagerDraftSteps = []
 let roadmapManagerMutationBusy = false
 let roadmapProgressMutationKeys = new Set()
 let teamSetupMutationBusy = false
+let teamImportSourceNodeId = null
+let teamImportMutationBusy = false
 let teamSetupCreateMode = false
 let teamMembersMutationBusy = false
 let teamMemberEditingId = null
@@ -410,6 +412,18 @@ const teamAtlasContextMeta = document.getElementById('teamAtlasContextMeta')
 const teamAtlasTaxonomyBtn = document.getElementById('teamAtlasTaxonomyBtn')
 const teamAtlasSettingsBtn = document.getElementById('teamAtlasSettingsBtn')
 const teamAtlasMembersBtn = document.getElementById('teamAtlasMembersBtn')
+
+const teamImportBackdrop = document.getElementById('teamImportBackdrop')
+const closeTeamImportBtn = document.getElementById('closeTeamImportBtn')
+const cancelTeamImportBtn = document.getElementById('cancelTeamImportBtn')
+const confirmTeamImportBtn = document.getElementById('confirmTeamImportBtn')
+const teamImportSource = document.getElementById('teamImportSource')
+const teamImportTeamInput = document.getElementById('teamImportTeamInput')
+const teamImportDepartmentInput = document.getElementById('teamImportDepartmentInput')
+const teamImportTitleInput = document.getElementById('teamImportTitleInput')
+const teamImportCodeInput = document.getElementById('teamImportCodeInput')
+const teamImportStatus = document.getElementById('teamImportStatus')
+
 const mapSurface = document.getElementById('mapSurface')
 const world = document.getElementById('world')
 const nodeLayer = document.getElementById('nodeLayer')
@@ -3090,7 +3104,12 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     files: filesByNode.get(Number(row.id)) || [],
     codeSnippets: codeByNode.get(Number(row.id)) || [],
     createdAt: row.created_at || null,
-    updatedAt: row.updated_at || null
+    updatedAt: row.updated_at || null,
+    sourcePublicNodeId:
+      row.source_public_node_id == null
+        ? null
+        : Number(row.source_public_node_id),
+    sourceImportedAt: row.source_imported_at || null
   }))
 
   syncActiveNodeCollection({ forceReset })
@@ -3143,6 +3162,73 @@ function membershipDepartmentIds(membershipId) {
   return teamMemberDepartments
     .filter((row) => Number(row.membershipId) === Number(membershipId))
     .map((row) => Number(row.departmentId))
+}
+
+function membershipForTeam(teamId) {
+  if (!currentUser) return null
+
+  return (
+    teamMemberships.find(
+      (membership) =>
+        membership.userId === currentUser.id &&
+        membership.status === 'active' &&
+        Number(membership.teamId) === Number(teamId)
+    ) || null
+  )
+}
+
+function editableDepartmentIdsForTeam(teamId) {
+  const enabled = teamEnabledDepartments
+    .filter((row) => Number(row.teamId) === Number(teamId))
+    .map((row) => Number(row.departmentId))
+
+  if (canEdit) return enabled
+
+  const membership = membershipForTeam(teamId)
+  if (!membership) return []
+
+  if (membership.role === 'team_leader' || membership.role === 'mentor') {
+    return enabled
+  }
+
+  if (membership.role === 'department_coordinator') {
+    const assigned = new Set(membershipDepartmentIds(membership.id))
+    return enabled.filter((id) => assigned.has(Number(id)))
+  }
+
+  return []
+}
+
+function importableTeamRecords() {
+  if (!currentUser) return []
+
+  return teamRecords
+    .filter((team) => {
+      if (canEdit) return true
+
+      const membership = membershipForTeam(team.id)
+      return Boolean(
+        membership &&
+          ['team_leader', 'mentor', 'department_coordinator'].includes(
+            membership.role
+          )
+      )
+    })
+    .filter((team) => editableDepartmentIdsForTeam(team.id).length > 0)
+    .sort((a, b) =>
+      String(a.name).localeCompare(String(b.name), 'ro', {
+        sensitivity: 'base'
+      })
+    )
+}
+
+function canImportPublicNodeToTeam(node) {
+  return Boolean(
+    node &&
+      !node.isTeamNode &&
+      currentUser &&
+      importableTeamRecords().length > 0
+  )
 }
 
 function currentTeamDepartmentIds() {
@@ -4514,6 +4600,257 @@ async function revokeTeamInvite(inviteId) {
   } finally {
     setTeamMembersBusy(false)
   }
+}
+
+// Public -> Team Atlas import
+function isTeamImportOpen() {
+  return Boolean(teamImportBackdrop?.classList.contains('open'))
+}
+
+function setTeamImportBusy(nextValue, status = '') {
+  teamImportMutationBusy = Boolean(nextValue)
+  teamImportTeamInput.disabled = teamImportMutationBusy
+  teamImportDepartmentInput.disabled = teamImportMutationBusy
+  teamImportTitleInput.disabled = teamImportMutationBusy
+  teamImportCodeInput.disabled = teamImportMutationBusy
+  confirmTeamImportBtn.disabled = teamImportMutationBusy
+  cancelTeamImportBtn.disabled = teamImportMutationBusy
+  closeTeamImportBtn.disabled = teamImportMutationBusy
+
+  if (status) teamImportStatus.textContent = status
+}
+
+function renderTeamImportDepartmentOptions(preferredDepartmentId = null) {
+  const teamId = Number(teamImportTeamInput.value)
+  const allowedIds = new Set(editableDepartmentIdsForTeam(teamId))
+
+  const items = departments
+    .filter(
+      (department) =>
+        department.is_active !== false &&
+        allowedIds.has(Number(department.id))
+    )
+    .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+
+  teamImportDepartmentInput.innerHTML = items
+    .map(
+      (department) => `
+        <option value="${Number(department.id)}">
+          ${escapeHtmlText(department.short_name || department.name)}
+        </option>
+      `
+    )
+    .join('')
+
+  const preferred = Number(preferredDepartmentId)
+
+  if (
+    Number.isFinite(preferred) &&
+    items.some((department) => Number(department.id) === preferred)
+  ) {
+    teamImportDepartmentInput.value = String(preferred)
+  }
+
+  confirmTeamImportBtn.disabled =
+    teamImportMutationBusy || items.length === 0
+}
+
+function renderTeamImportTargetOptions(sourceNode) {
+  const teams = importableTeamRecords()
+
+  teamImportTeamInput.innerHTML = teams
+    .map((team) => {
+      const label = team.teamNumber
+        ? `${team.name} #${team.teamNumber}`
+        : team.name
+
+      return `<option value="${Number(team.id)}">${escapeHtmlText(label)}</option>`
+    })
+    .join('')
+
+  if (teams.some((team) => Number(team.id) === Number(activeTeamId))) {
+    teamImportTeamInput.value = String(activeTeamId)
+  }
+
+  const allowed = editableDepartmentIdsForTeam(
+    Number(teamImportTeamInput.value)
+  )
+
+  const preferredDepartment = (sourceNode?.departmentIds || []).find((id) =>
+    allowed.includes(Number(id))
+  )
+
+  renderTeamImportDepartmentOptions(preferredDepartment)
+}
+
+function openTeamImport(sourceNodeId) {
+  const sourceNode = publicNodes.find(
+    (node) => Number(node.id) === Number(sourceNodeId)
+  )
+
+  if (!sourceNode || sourceNode.isTeamNode) {
+    alert('Poți copia în Team Atlas doar un nod din Atlasul public.')
+    return
+  }
+
+  if (!currentUser) {
+    setAccountPanel(true)
+    return
+  }
+
+  if (importableTeamRecords().length === 0) {
+    alert(
+      'Nu ai momentan o echipă/departament în care poți crea documentație.'
+    )
+    return
+  }
+
+  teamImportSourceNodeId = Number(sourceNode.id)
+  teamImportTitleInput.value = sourceNode.title
+  teamImportCodeInput.checked = true
+
+  teamImportSource.innerHTML = `
+    <strong>${escapeHtmlText(sourceNode.title)}</strong>
+    ${escapeHtmlText(nodeCategoryName(sourceNode))} ·
+    ${escapeHtmlText(nodeDifficultyName(sourceNode))} ·
+    ${(sourceNode.codeSnippets || []).length} code snippets
+  `
+
+  renderTeamImportTargetOptions(sourceNode)
+  teamImportStatus.textContent =
+    'Titlul și conținutul pot fi adaptate imediat după copiere.'
+
+  teamImportBackdrop.classList.add('open')
+
+  requestAnimationFrame(() => {
+    teamImportTitleInput.focus()
+    teamImportTitleInput.select()
+  })
+}
+
+function closeTeamImport() {
+  if (teamImportMutationBusy) return
+  teamImportBackdrop.classList.remove('open')
+  teamImportSourceNodeId = null
+}
+
+async function openImportedTeamNode(teamId, nodeId) {
+  activeTeamId = Number(teamId)
+  localStorage.setItem(CACHE_KEYS.activeTeam, String(activeTeamId))
+
+  activePublicSection = 'team'
+  localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+
+  await loadActiveTeamAtlasNodes({ forceReset: true })
+
+  const importedNode = teamNodes.find(
+    (node) => Number(node.id) === Number(nodeId)
+  )
+
+  if (!importedNode) {
+    renderAll()
+    requestAnimationFrame(fitView)
+    return
+  }
+
+  nodes = teamNodes
+  selectedId = importedNode.id
+  clearEdgeSelection()
+  detailOpen = true
+  activateDepartmentForNode(importedNode, { persist: true })
+
+  renderAll()
+  setNodeRoute(importedNode, { push: true })
+  requestAnimationFrame(() => centerOnNode(importedNode))
+}
+
+async function importPublicNodeToTeam() {
+  if (teamImportMutationBusy) return
+
+  const sourceNode = publicNodes.find(
+    (node) => Number(node.id) === Number(teamImportSourceNodeId)
+  )
+
+  if (!sourceNode) throw new Error('Nodul public nu mai există.')
+
+  const teamId = Number(teamImportTeamInput.value)
+  const departmentId = Number(teamImportDepartmentInput.value)
+  const title = teamImportTitleInput.value.trim()
+
+  if (!teamId || !departmentId) {
+    throw new Error('Alege echipa și departamentul.')
+  }
+
+  if (!editableDepartmentIdsForTeam(teamId).includes(departmentId)) {
+    throw new Error('Nu ai drept de editare în departamentul ales.')
+  }
+
+  if (!title) throw new Error('Titlul nodului nu poate fi gol.')
+
+  setTeamImportBusy(true, 'Se copiază nodul în Team Atlas...')
+
+  try {
+    const { data, error } = await supabase.rpc(
+      'atlas_team_import_public_node',
+      {
+        p_project_id: PROJECT_ID,
+        p_team_id: teamId,
+        p_source_node_id: Number(sourceNode.id),
+        p_department_id: departmentId,
+        p_title: title,
+        p_copy_code: teamImportCodeInput.checked
+      }
+    )
+
+    if (error) throw error
+    if (!data?.ok || !data?.node?.id) {
+      throw new Error('Importul nu a returnat un nod valid.')
+    }
+
+    const importedId = Number(data.node.id)
+    const codeCount = Number(data.code_count || 0)
+
+    teamImportStatus.textContent =
+      `Copiat cu succes · ${codeCount} code snippets.`
+
+    teamImportMutationBusy = false
+    teamImportBackdrop.classList.remove('open')
+    teamImportSourceNodeId = null
+
+    await openImportedTeamNode(teamId, importedId)
+  } catch (error) {
+    setTeamImportBusy(false, error?.message || 'Importul a eșuat.')
+    throw error
+  }
+}
+
+function openPublicSourceFromTeamNode(node) {
+  const sourceId = Number(node?.sourcePublicNodeId)
+  if (!sourceId) return
+
+  const sourceNode = publicNodes.find(
+    (candidate) => Number(candidate.id) === sourceId
+  )
+
+  if (!sourceNode) {
+    alert('Nodul public sursă nu mai este disponibil.')
+    return
+  }
+
+  activePublicSection = 'explore'
+  localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+
+  syncActiveNodeCollection({ forceReset: true })
+  activateDepartmentForNode(sourceNode, { persist: true })
+  clearFiltersForDeepLink()
+
+  selectedId = sourceNode.id
+  clearEdgeSelection()
+  detailOpen = true
+
+  renderAll()
+  setNodeRoute(sourceNode, { push: true })
+  requestAnimationFrame(() => centerOnNode(sourceNode))
 }
 
 function canManageCurrentTeam() {
@@ -6227,7 +6564,8 @@ function isAnyModalOpen() {
     roadmapManagerBackdrop?.classList.contains('open') ||
     teamSetupBackdrop?.classList.contains('open') ||
     teamMembersBackdrop?.classList.contains('open') ||
-    teamOnboardingBackdrop?.classList.contains('open')
+    teamOnboardingBackdrop?.classList.contains('open') ||
+    teamImportBackdrop?.classList.contains('open')
   )
 }
 
@@ -8520,7 +8858,7 @@ function startKeyboardNodeMovement(key) {
 
   const node = selectedNode()
 
-  if (!node) return false
+  if (!node || !canEditNode(node)) return false
 
   const normalizedKey = String(key || '').toLowerCase()
 
@@ -8566,7 +8904,7 @@ async function nudgeSelectedNode(dx, dy) {
 
   const node = selectedNode()
 
-  if (!node) return
+  if (!node || !canEditNode(node)) return
 
   const { width, height } = nodeSize(node)
 
@@ -8611,7 +8949,7 @@ async function resizeSelectedNode(deltaWidth, deltaHeight) {
   if (!canEditCurrentAtlas() || !editorMode || selectedEdge) return
 
   const node = selectedNode()
-  if (!node) return
+  if (!node || !canEditNode(node)) return
 
   const originalWidth = node.width
   const originalHeight = node.height
@@ -8659,7 +8997,7 @@ async function resetSelectedNodeSize() {
   if (!canEditCurrentAtlas() || !editorMode || selectedEdge) return
 
   const node = selectedNode()
-  if (!node) return
+  if (!node || !canEditNode(node)) return
 
   const originalWidth = node.width
   const originalHeight = node.height
@@ -11399,6 +11737,8 @@ function renderDetailPanel() {
           <button class="icon-btn" id="detailCodeBtn" aria-label="Nod cod">&lt;/&gt;</button>
           <button class="icon-btn" id="detailMediaBtn" aria-label="Media">▣</button>
           <button class="icon-btn" id="detailFilesBtn" aria-label="Fișiere">📎</button>
+          <button class="icon-btn" id="detailImportTeamBtn" aria-label="Copy to Team Atlas" title="Copy to Team Atlas">⇢</button>
+          <button class="icon-btn" id="detailPublicSourceBtn" aria-label="Open public source" title="Open public source">↗</button>
           <button class="icon-btn" id="detailAddRelationBtn" aria-label="Add relation">＋</button>
           <button class="icon-btn" id="detailEditBtn" aria-label="Edit">✎</button>
           <button class="icon-btn" id="detailDeleteBtn" aria-label="Delete">🗑</button>
@@ -11422,6 +11762,16 @@ function renderDetailPanel() {
             }
           </div>
         </div>
+        ${
+          node.isTeamNode && node.sourcePublicNodeId
+            ? `
+              <div class="fact-box">
+                <strong>Sursă</strong>
+                <span>Copiat din Public Atlas · #${Number(node.sourcePublicNodeId)}</span>
+              </div>
+            `
+            : ''
+        }
         <div class="relation-card">
           <div class="relation-card-label">relații</div>
           <div class="relations-list">${relations}</div>
@@ -11454,6 +11804,8 @@ function renderDetailPanel() {
   const detailCodeBtn = document.getElementById('detailCodeBtn')
   const detailMediaBtn = document.getElementById('detailMediaBtn')
   const detailFilesBtn = document.getElementById('detailFilesBtn')
+  const detailImportTeamBtn = document.getElementById('detailImportTeamBtn')
+  const detailPublicSourceBtn = document.getElementById('detailPublicSourceBtn')
   const detailAddRelationBtn = document.getElementById('detailAddRelationBtn')
   const detailEditBtn = document.getElementById('detailEditBtn')
   const detailDeleteBtn = document.getElementById('detailDeleteBtn')
@@ -11462,6 +11814,8 @@ function renderDetailPanel() {
   detailCodeBtn.hidden = !nodeEditorActions
   detailMediaBtn.hidden = !attachmentActions
   detailFilesBtn.hidden = !attachmentActions
+  detailImportTeamBtn.hidden = !canImportPublicNodeToTeam(node)
+  detailPublicSourceBtn.hidden = !(node.isTeamNode && node.sourcePublicNodeId)
   detailAddRelationBtn.hidden = !nodeEditorActions
   detailEditBtn.hidden = !nodeEditorActions
   detailDeleteBtn.hidden = !nodeEditorActions
@@ -11469,6 +11823,8 @@ function renderDetailPanel() {
   detailCodeBtn.disabled = !nodeEditorActions
   detailMediaBtn.disabled = !attachmentActions
   detailFilesBtn.disabled = !attachmentActions
+  detailImportTeamBtn.disabled = !canImportPublicNodeToTeam(node)
+  detailPublicSourceBtn.disabled = !(node.isTeamNode && node.sourcePublicNodeId)
   detailAddRelationBtn.disabled = !nodeEditorActions
   detailEditBtn.disabled = !nodeEditorActions
   detailDeleteBtn.disabled = !nodeEditorActions
@@ -11476,6 +11832,10 @@ function renderDetailPanel() {
   detailCodeBtn.addEventListener('click', () => openCodeManager(node.id))
   detailMediaBtn.addEventListener('click', () => openMediaManager(node.id))
   detailFilesBtn.addEventListener('click', () => openFileManager(node.id))
+  detailImportTeamBtn.addEventListener('click', () => openTeamImport(node.id))
+  detailPublicSourceBtn.addEventListener('click', () =>
+    openPublicSourceFromTeamNode(node)
+  )
   detailAddRelationBtn.addEventListener('click', () => activateRelationMode(node.id))
   detailEditBtn.addEventListener('click', () => openEdit(node.id))
   detailDeleteBtn.addEventListener('click', () => {
@@ -11520,6 +11880,8 @@ function renderDetailPanel() {
   detailPanel.querySelectorAll('[data-open-node-files]').forEach((button) => {
     button.addEventListener('click', () => openFileManager(node.id))
   })
+
+  const hideEditorActions = !nodeEditorActions
 
   detailPanel.querySelectorAll('[data-rel-edit]').forEach((button) => {
     button.disabled = hideEditorActions
@@ -12686,13 +13048,41 @@ taxonomyReplaceBackdrop.addEventListener('click', (event) => {
 fitSelectionBtn.addEventListener('click', fitCurrentSelection)
 
 teamSpaceEntry?.addEventListener('click', () => {
-  if (!currentTeamMembership()) return
+  if (!currentTeamRecord()) return
+  if (!currentTeamMembership() && !canEdit) return
   selectPublicSection('team')
 })
 
 teamAtlasSelect?.addEventListener('change', () => {
   selectActiveTeam(Number(teamAtlasSelect.value)).catch((error) => {
     console.error('Switch Team Atlas failed:', error)
+  })
+})
+
+teamImportTeamInput?.addEventListener('change', () => {
+  const sourceNode = publicNodes.find(
+    (node) => Number(node.id) === Number(teamImportSourceNodeId)
+  )
+  const allowed = editableDepartmentIdsForTeam(
+    Number(teamImportTeamInput.value)
+  )
+  const preferredDepartment = (sourceNode?.departmentIds || []).find((id) =>
+    allowed.includes(Number(id))
+  )
+  renderTeamImportDepartmentOptions(preferredDepartment)
+})
+
+closeTeamImportBtn?.addEventListener('click', closeTeamImport)
+cancelTeamImportBtn?.addEventListener('click', closeTeamImport)
+
+teamImportBackdrop?.addEventListener('click', (event) => {
+  if (event.target === teamImportBackdrop) closeTeamImport()
+})
+
+confirmTeamImportBtn?.addEventListener('click', () => {
+  importPublicNodeToTeam().catch((error) => {
+    console.error('Public -> Team Atlas import failed:', error)
+    alert(error?.message || 'Importul în Team Atlas a eșuat.')
   })
 })
 
@@ -13231,7 +13621,9 @@ window.addEventListener('keydown', (event) => {
 
   if (event.key === 'Escape') {
     if (!introDismissed) dismissIntro()
-    else if (teamOnboardingBackdrop?.classList.contains('open')) {
+    else if (teamImportBackdrop?.classList.contains('open')) {
+      closeTeamImport()
+    } else if (teamOnboardingBackdrop?.classList.contains('open')) {
       closeTeamOnboarding()
     } else if (teamMembersBackdrop?.classList.contains('open')) {
       closeTeamMembersManager()
@@ -13358,6 +13750,11 @@ supabase.auth.onAuthStateChange((event, session) => {
     teamManagerInvites = []
     teamNodes = []
     activeTeamId = null
+    teamImportSourceNodeId = null
+
+    if (teamImportBackdrop?.classList.contains('open')) {
+      teamImportBackdrop.classList.remove('open')
+    }
 
     if (activePublicSection === 'team') {
       activePublicSection = 'explore'

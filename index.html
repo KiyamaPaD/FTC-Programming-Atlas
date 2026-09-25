@@ -3920,6 +3920,62 @@
     line-height: 1.55;
   }
 
+  .team-import-modal {
+    width: min(760px, 100%);
+    max-height: min(820px, calc(100vh - 44px));
+    display: flex;
+    flex-direction: column;
+  }
+
+  .team-import-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 16px 18px 18px;
+  }
+
+  .team-import-source {
+    margin-bottom: 14px;
+    padding: 12px;
+    border: 1px solid rgba(177, 76, 255, 0.13);
+    border-radius: 13px;
+    background: rgba(177, 76, 255, 0.025);
+    color: #9994a0;
+    font-size: 0.72rem;
+    line-height: 1.55;
+  }
+
+  .team-import-source strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #eee8f0;
+    font-size: 0.82rem;
+  }
+
+  .team-import-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 10px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.014);
+    color: #aaa5b0;
+    font-size: 0.72rem;
+    line-height: 1.5;
+  }
+
+  .team-import-toggle input {
+    width: auto;
+    margin-top: 2px;
+  }
+
+  .team-import-note {
+    margin-top: 12px;
+    color: #817c86;
+    font-size: 0.68rem;
+    line-height: 1.55;
+  }
+
   .team-setup-modal {
     width: min(820px, 100%);
     max-height: min(820px, calc(100vh - 44px));
@@ -6059,6 +6115,59 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="teamImportBackdrop">
+    <div class="modal team-import-modal">
+      <div class="modal-head">
+        <div>
+          <h3>Copy to Team Atlas</h3>
+          <p>Folosește un nod public ca bază pentru documentația internă a echipei.</p>
+        </div>
+        <button class="icon-btn" id="closeTeamImportBtn" type="button" aria-label="Close">✕</button>
+      </div>
+
+      <div class="team-import-body">
+        <div class="team-import-source" id="teamImportSource">Selectează un nod public.</div>
+
+        <div class="field-grid">
+          <div class="field">
+            <label for="teamImportTeamInput">Echipă</label>
+            <select id="teamImportTeamInput"></select>
+          </div>
+          <div class="field">
+            <label for="teamImportDepartmentInput">Departament</label>
+            <select id="teamImportDepartmentInput"></select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="teamImportTitleInput">Titlu în Team Atlas</label>
+          <input id="teamImportTitleInput" maxlength="220" />
+        </div>
+
+        <label class="team-import-toggle">
+          <input id="teamImportCodeInput" type="checkbox" checked />
+          <span>
+            <strong>Copiază și code snippets</strong><br />
+            Exemplele de cod sunt duplicate și devin independente de nodul public.
+          </span>
+        </label>
+
+        <div class="team-import-note">
+          Documentația rich-text și taxonomia sunt adaptate automat la Team Atlas. Media și fișierele publice nu sunt duplicate în această fază.
+        </div>
+
+        <div class="count-strip" id="teamImportStatus">
+          Alege echipa și departamentul în care vrei să creezi copia.
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" id="cancelTeamImportBtn" type="button">Anulează</button>
+        <button class="btn primary" id="confirmTeamImportBtn" type="button">Copiază în Team Atlas</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop team-setup-backdrop" id="teamSetupBackdrop">
     <div class="modal team-setup-modal">
       <div class="modal-head">
@@ -6471,6 +6580,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=79"></script>
+  <script type="module" src="/js/atlas-script.js?v=80"></script>
 </body>
 </html>

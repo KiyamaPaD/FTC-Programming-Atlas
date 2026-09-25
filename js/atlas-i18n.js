@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v79 · Full English UI + Team Atlas custom taxonomy
+// v80 · Full English UI + Public to Team Atlas import
 //
 // Source language: Romanian
 // Secondary language: English
@@ -387,6 +387,38 @@ const UI_EN = new Map(Object.entries({
     'Only a Team Leader, Mentor or Platform Admin can edit Team Atlas taxonomy.',
   'Doar editorii aprobați pot modifica taxonomia Atlasului public.':
     'Only approved editors can edit public Atlas taxonomy.',
+  'Copy to Team Atlas':
+    'Copy to Team Atlas',
+  'Folosește un nod public ca bază pentru documentația internă a echipei.':
+    'Use a public node as the starting point for your team documentation.',
+  'Echipă':
+    'Team',
+  'Departament':
+    'Department',
+  'Titlu în Team Atlas':
+    'Title in Team Atlas',
+  'Copiază și code snippets':
+    'Copy code snippets too',
+  'Copiază în Team Atlas':
+    'Copy to Team Atlas',
+  'Open public source':
+    'Open public source',
+  'Copiat din Public Atlas':
+    'Copied from Public Atlas',
+  'Sursă':
+    'Source',
+  'Poți copia în Team Atlas doar un nod din Atlasul public.':
+    'Only a public Atlas node can be copied to Team Atlas.',
+  'Nu ai momentan o echipă/departament în care poți crea documentație.':
+    'You currently have no team/department where you can create documentation.',
+  'Alege echipa și departamentul.':
+    'Choose the team and department.',
+  'Nu ai drept de editare în departamentul ales.':
+    'You do not have edit permission in the selected department.',
+  'Nodul public nu mai există.':
+    'The public node no longer exists.',
+  'Nodul public sursă nu mai este disponibil.':
+    'The source public node is no longer available.',
   'Creat de':
     'Created by',
   'navigare, editare și relații':
