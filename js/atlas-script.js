@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v78 · TEAM ATLAS ATTACHMENTS')
+console.log('ATLAS SCRIPT LOADED v79 · TEAM ATLAS TAXONOMY')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -291,6 +291,15 @@ let searchQuery = ''
 let categories = []
 let difficulties = []
 let taxonomyTags = []
+
+let publicCategories = []
+let publicDifficulties = []
+let publicTaxonomyTags = []
+
+let teamCategories = []
+let teamDifficulties = []
+let teamTaxonomyTags = []
+
 let departments = []
 let activeDepartmentId = null
 let announcements = []
@@ -398,6 +407,7 @@ const teamSpaceEntryRole = document.getElementById('teamSpaceEntryRole')
 const teamAtlasContext = document.getElementById('teamAtlasContext')
 const teamAtlasSelect = document.getElementById('teamAtlasSelect')
 const teamAtlasContextMeta = document.getElementById('teamAtlasContextMeta')
+const teamAtlasTaxonomyBtn = document.getElementById('teamAtlasTaxonomyBtn')
 const teamAtlasSettingsBtn = document.getElementById('teamAtlasSettingsBtn')
 const teamAtlasMembersBtn = document.getElementById('teamAtlasMembersBtn')
 const mapSurface = document.getElementById('mapSurface')
@@ -2672,6 +2682,40 @@ function canEditCurrentAtlas() {
   return isTeamAtlasMode() ? canEditTeamAtlas() : canEdit
 }
 
+function canManageTeamTaxonomy() {
+  if (!currentUser || !activeTeamId) return false
+  if (canEdit) return true
+
+  const membership = currentTeamMembership()
+
+  return Boolean(
+    membership &&
+      (membership.role === 'team_leader' || membership.role === 'mentor')
+  )
+}
+
+function canManageCurrentTaxonomy() {
+  return isTeamAtlasMode() ? canManageTeamTaxonomy() : canEdit
+}
+
+function requireTaxonomyAuth() {
+  if (!canManageCurrentTaxonomy()) {
+    alert(
+      isTeamAtlasMode()
+        ? 'Doar Team Leader, Mentor sau Platform Admin poate modifica taxonomia Team Atlas.'
+        : 'Doar editorii aprobați pot modifica taxonomia Atlasului public.'
+    )
+    return false
+  }
+
+  if (!editorMode) {
+    alert('Activează mai întâi Editor Mode.')
+    return false
+  }
+
+  return true
+}
+
 function canEditNode(node) {
   if (!node) return false
 
@@ -2700,6 +2744,13 @@ function syncActiveNodeCollection({ forceReset = false } = {}) {
 
   activeNodeScope = nextScope
   nodes = nextScope === 'team' ? teamNodes : publicNodes
+  categories = nextScope === 'team' ? teamCategories : publicCategories
+  difficulties =
+    nextScope === 'team' ? teamDifficulties : publicDifficulties
+  taxonomyTags =
+    nextScope === 'team' ? teamTaxonomyTags : publicTaxonomyTags
+
+  normalizeTaxonomyState()
 
   if (scopeChanged || forceReset) {
     selectedId = nodes[0]?.id ?? null
@@ -2785,6 +2836,9 @@ function populateTeamNodeDepartmentSelect(selectedId = null) {
 
 async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   teamNodes = []
+  teamCategories = []
+  teamDifficulties = []
+  teamTaxonomyTags = []
 
   if (!currentUser || activeTeamId == null) {
     syncActiveNodeCollection({ forceReset })
@@ -2796,7 +2850,10 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     edgesResult,
     codeResult,
     mediaResult,
-    filesResult
+    filesResult,
+    teamCategoriesResult,
+    teamDifficultiesResult,
+    teamTagsResult
   ] = await Promise.all([
     supabase
       .from('atlas_team_nodes')
@@ -2835,7 +2892,31 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
       .order('sort_order', { ascending: true })
-      .order('id', { ascending: true })
+      .order('id', { ascending: true }),
+
+    supabase
+      .from('atlas_team_categories')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', Number(activeTeamId))
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true }),
+
+    supabase
+      .from('atlas_team_difficulties')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', Number(activeTeamId))
+      .order('rank', { ascending: true })
+      .order('name', { ascending: true }),
+
+    supabase
+      .from('atlas_team_tags')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', Number(activeTeamId))
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true })
   ])
 
   if (nodesResult.error) throw nodesResult.error
@@ -2843,6 +2924,13 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   if (codeResult.error) throw codeResult.error
   if (mediaResult.error) throw mediaResult.error
   if (filesResult.error) throw filesResult.error
+  if (teamCategoriesResult.error) throw teamCategoriesResult.error
+  if (teamDifficultiesResult.error) throw teamDifficultiesResult.error
+  if (teamTagsResult.error) throw teamTagsResult.error
+
+  teamCategories = teamCategoriesResult.data || []
+  teamDifficulties = teamDifficultiesResult.data || []
+  teamTaxonomyTags = teamTagsResult.data || []
 
   const edgesBySource = new Map()
 
@@ -2978,14 +3066,19 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     isTeamNode: true,
     title: row.title || '',
     legacyTag: row.tag || '',
-    categoryId: row.category_id == null ? null : Number(row.category_id),
+    categoryId:
+      row.team_category_id == null ? null : Number(row.team_category_id),
     difficultyId:
-      row.difficulty_id == null ? null : Number(row.difficulty_id),
+      row.team_difficulty_id == null
+        ? null
+        : Number(row.team_difficulty_id),
     departmentId:
       row.department_id == null ? null : Number(row.department_id),
     departmentIds:
       row.department_id == null ? [] : [Number(row.department_id)],
-    tagIds: Array.isArray(row.tag_ids) ? row.tag_ids.map(Number) : [],
+    tagIds: Array.isArray(row.team_tag_ids)
+      ? row.team_tag_ids.map(Number)
+      : [],
     x: Number(row.x),
     y: Number(row.y),
     width: row.width == null ? null : Number(row.width),
@@ -3121,6 +3214,9 @@ async function loadTeamContext({ rerender = false } = {}) {
   teamEnabledDepartments = []
   teamInvites = []
   teamNodes = []
+  teamCategories = []
+  teamDifficulties = []
+  teamTaxonomyTags = []
 
   if (!currentUser) {
     activeTeamId = null
@@ -3384,6 +3480,8 @@ function renderTeamNavigation() {
     · documentație privată a echipei
   `
 
+  teamAtlasTaxonomyBtn.hidden = !canManageTeamTaxonomy()
+  teamAtlasTaxonomyBtn.disabled = !editorMode || isAtlasLoading
   teamAtlasSettingsBtn.hidden = !canManageCurrentTeam()
   teamAtlasMembersBtn.hidden = !canManageTeamMembers()
 }
@@ -6171,11 +6269,15 @@ function renderTaxonomyManager() {
     0
   )
 
+  const taxonomyScopeLabel = isTeamAtlasMode()
+    ? `Team Atlas · ${currentTeamRecord()?.name || 'Team'}`
+    : 'Public Atlas'
+
   taxonomyManagerSummary.innerHTML = `
     <strong>${items.length} ${escapeHtml(meta.plural)}</strong>
     · ${activeCount} active
     · ${totalUsage} utilizări în noduri.
-    Poți edita, dezactiva, reordona sau șterge în siguranță.
+    <br>${escapeHtml(taxonomyScopeLabel)} · poți edita, dezactiva, reordona sau șterge în siguranță.
   `
 
   if (items.length === 0) {
@@ -6305,7 +6407,7 @@ function renderTaxonomyManager() {
 }
 
 function openTaxonomyManager(kind = taxonomyManagerKind) {
-  if (!requireAuth()) return
+  if (!requireTaxonomyAuth()) return
 
   taxonomyManagerKind = ['category', 'difficulty', 'tag'].includes(kind) ? kind : 'category'
 
@@ -6320,7 +6422,7 @@ function closeTaxonomyManager() {
 }
 
 function openTaxonomyItemEditor(itemId = null) {
-  if (!requireAuth()) return
+  if (!requireTaxonomyAuth()) return
 
   const meta = taxonomyKindMeta()
 
@@ -6383,8 +6485,19 @@ function closeTaxonomyReplaceDialog() {
   taxonomyDeleteDraft = null
 }
 
+async function refreshAfterTaxonomyMutation() {
+  if (isTeamAtlasMode()) {
+    await loadActiveTeamAtlasNodes()
+  } else {
+    await fetchAllData()
+  }
+
+  renderAll()
+  renderTaxonomyManager()
+}
+
 async function saveTaxonomyItem() {
-  if (!requireAuth() || !taxonomyItemDraft) return
+  if (!requireTaxonomyAuth() || !taxonomyItemDraft) return
   if (taxonomyMutationBusy) return
 
   const name = taxonomyNameInput.value.trim()
@@ -6430,15 +6543,14 @@ async function saveTaxonomyItem() {
     }
 
     closeTaxonomyItemEditor()
-    await fetchAllData()
-    renderTaxonomyManager()
+    await refreshAfterTaxonomyMutation()
   } finally {
     setTaxonomyMutationBusy(false)
   }
 }
 
 async function toggleTaxonomyItemActive(itemId) {
-  if (!requireAuth() || taxonomyMutationBusy) return
+  if (!requireTaxonomyAuth() || taxonomyMutationBusy) return
 
   const item = taxonomyItems().find((current) => Number(current.id) === Number(itemId))
 
@@ -6456,15 +6568,14 @@ async function toggleTaxonomyItemActive(itemId) {
       isActive: item.is_active === false
     })
 
-    await fetchAllData()
-    renderTaxonomyManager()
+    await refreshAfterTaxonomyMutation()
   } finally {
     setTaxonomyMutationBusy(false)
   }
 }
 
 async function moveTaxonomyItem(itemId, direction) {
-  if (!requireAuth() || taxonomyMutationBusy) return
+  if (!requireTaxonomyAuth() || taxonomyMutationBusy) return
 
   const items = [...taxonomyItems()].sort((a, b) => {
     const difference = taxonomyItemOrder(a) - taxonomyItemOrder(b)
@@ -6494,15 +6605,14 @@ async function moveTaxonomyItem(itemId, direction) {
   try {
     await reorderTaxonomyItemsRemote(taxonomyManagerKind, payload)
 
-    await fetchAllData()
-    renderTaxonomyManager()
+    await refreshAfterTaxonomyMutation()
   } finally {
     setTaxonomyMutationBusy(false)
   }
 }
 
 async function requestTaxonomyDelete() {
-  if (!requireAuth() || !taxonomyItemDraft) return
+  if (!requireTaxonomyAuth() || !taxonomyItemDraft) return
   if (taxonomyItemDraft.id == null || taxonomyMutationBusy) return
 
   const item = taxonomyItems(taxonomyItemDraft.kind).find(
@@ -6539,8 +6649,7 @@ async function requestTaxonomyDelete() {
     }
 
     closeTaxonomyItemEditor()
-    await fetchAllData()
-    renderTaxonomyManager()
+    await refreshAfterTaxonomyMutation()
   } finally {
     setTaxonomyMutationBusy(false)
   }
@@ -6588,7 +6697,7 @@ function openTaxonomyReplaceDialog(draft) {
 }
 
 async function confirmTaxonomyReplacementDelete() {
-  if (!requireAuth() || !taxonomyDeleteDraft) return
+  if (!requireTaxonomyAuth() || !taxonomyDeleteDraft) return
   if (taxonomyMutationBusy) return
 
   const replacementId = Number(taxonomyReplacementSelect.value)
@@ -6609,8 +6718,7 @@ async function confirmTaxonomyReplacementDelete() {
 
     closeTaxonomyReplaceDialog()
     closeTaxonomyItemEditor()
-    await fetchAllData()
-    renderTaxonomyManager()
+    await refreshAfterTaxonomyMutation()
   } finally {
     setTaxonomyMutationBusy(false)
   }
@@ -7124,10 +7232,12 @@ async function fetchAllData() {
     if (result.error) throw result.error
   }
 
-  categories = categoriesResult.data || []
-  difficulties = difficultiesResult.data || []
-  taxonomyTags = tagsResult.data || []
+  publicCategories = categoriesResult.data || []
+  publicDifficulties = difficultiesResult.data || []
+  publicTaxonomyTags = tagsResult.data || []
   departments = departmentsResult.data || []
+
+  syncActiveNodeCollection()
   tutorialContent = tutorialResult.data?.content || DEFAULT_TUTORIAL_CONTENT
 
   const roadmapStepsByRoadmap = new Map()
@@ -7868,6 +7978,20 @@ async function reorderCodeRemote(nodeId, items) {
 }
 
 async function createTaxonomyItemRemote(kind, item) {
+  if (isTeamAtlasMode()) {
+    const { data, error } = await supabase.rpc('atlas_team_taxonomy_create', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(activeTeamId),
+      p_kind: kind,
+      p_name: item.name,
+      p_description: item.description || '',
+      p_order: Number(item.order) || 0
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Elementul taxonomiei Team Atlas')
+  }
+
   const { data, error } = await supabase.rpc('atlas_taxonomy_create', {
     p_project_id: PROJECT_ID,
     p_kind: kind,
@@ -7882,6 +8006,22 @@ async function createTaxonomyItemRemote(kind, item) {
 }
 
 async function updateTaxonomyItemRemote(kind, itemId, item) {
+  if (isTeamAtlasMode()) {
+    const { data, error } = await supabase.rpc('atlas_team_taxonomy_update', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(activeTeamId),
+      p_kind: kind,
+      p_id: Number(itemId),
+      p_name: item.name,
+      p_description: item.description || '',
+      p_order: Number(item.order) || 0,
+      p_is_active: item.isActive !== false
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Elementul taxonomiei Team Atlas')
+  }
+
   const { data, error } = await supabase.rpc('atlas_taxonomy_update', {
     p_project_id: PROJECT_ID,
     p_kind: kind,
@@ -7898,6 +8038,18 @@ async function updateTaxonomyItemRemote(kind, itemId, item) {
 }
 
 async function deleteTaxonomyItemRemote(kind, itemId) {
+  if (isTeamAtlasMode()) {
+    const { data, error } = await supabase.rpc('atlas_team_taxonomy_delete', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(activeTeamId),
+      p_kind: kind,
+      p_id: Number(itemId)
+    })
+
+    if (error) throw error
+    return data
+  }
+
   const { data, error } = await supabase.rpc('atlas_taxonomy_delete', {
     p_project_id: PROJECT_ID,
     p_kind: kind,
@@ -7910,11 +8062,21 @@ async function deleteTaxonomyItemRemote(kind, itemId) {
 }
 
 async function reorderTaxonomyItemsRemote(kind, items) {
-  const { data, error } = await supabase.rpc('atlas_taxonomy_reorder', {
+  const rpcName = isTeamAtlasMode()
+    ? 'atlas_team_taxonomy_reorder'
+    : 'atlas_taxonomy_reorder'
+
+  const params = {
     p_project_id: PROJECT_ID,
     p_kind: kind,
     p_items: items
-  })
+  }
+
+  if (isTeamAtlasMode()) {
+    params.p_team_id = Number(activeTeamId)
+  }
+
+  const { data, error } = await supabase.rpc(rpcName, params)
 
   if (error) throw error
 
@@ -7925,13 +8087,27 @@ async function reorderTaxonomyItemsRemote(kind, items) {
   return data
 }
 
-async function replaceAndDeleteTaxonomyItemRemote(kind, itemId, replacementId) {
-  const { data, error } = await supabase.rpc('atlas_taxonomy_replace_and_delete', {
+async function replaceAndDeleteTaxonomyItemRemote(
+  kind,
+  itemId,
+  replacementId
+) {
+  const rpcName = isTeamAtlasMode()
+    ? 'atlas_team_taxonomy_replace_and_delete'
+    : 'atlas_taxonomy_replace_and_delete'
+
+  const params = {
     p_project_id: PROJECT_ID,
     p_kind: kind,
     p_id: Number(itemId),
     p_replacement_id: Number(replacementId)
-  })
+  }
+
+  if (isTeamAtlasMode()) {
+    params.p_team_id = Number(activeTeamId)
+  }
+
+  const { data, error } = await supabase.rpc(rpcName, params)
 
   if (error) throw error
 
@@ -8596,7 +8772,10 @@ function updateAuthUI() {
     ? 'Se salvează poziția...'
     : 'Salvează poziția · F'
 
-  if (!publicAdminEditorActive && isTaxonomyManagerOpen()) {
+  if (
+    isTaxonomyManagerOpen() &&
+    (!editorMode || !canManageCurrentTaxonomy())
+  ) {
     closeTaxonomyManager()
   }
 
@@ -11719,11 +11898,17 @@ async function saveNode() {
         title: inserted.title,
         legacyTag: inserted.tag,
         categoryId:
-          inserted.category_id == null ? categoryId : Number(inserted.category_id),
+          isTeamAtlasMode()
+            ? Number(inserted.team_category_id ?? categoryId)
+            : inserted.category_id == null
+              ? categoryId
+              : Number(inserted.category_id),
         difficultyId:
-          inserted.difficulty_id == null
-            ? difficultyId
-            : Number(inserted.difficulty_id),
+          isTeamAtlasMode()
+            ? Number(inserted.team_difficulty_id ?? difficultyId)
+            : inserted.difficulty_id == null
+              ? difficultyId
+              : Number(inserted.difficulty_id),
         departmentId:
           isTeamAtlasMode()
             ? Number(inserted.department_id ?? departmentId)
@@ -11774,10 +11959,26 @@ async function saveNode() {
 
       node.title = updated.title
       node.legacyTag = updated.tag
-      node.categoryId = updated.category_id == null ? categoryId : Number(updated.category_id)
-      node.difficultyId =
-        updated.difficulty_id == null ? difficultyId : Number(updated.difficulty_id)
-      node.tagIds = tagIds
+
+      if (node.isTeamNode) {
+        node.categoryId = Number(updated.team_category_id ?? categoryId)
+        node.difficultyId = Number(
+          updated.team_difficulty_id ?? difficultyId
+        )
+        node.tagIds = Array.isArray(updated.team_tag_ids)
+          ? updated.team_tag_ids.map(Number)
+          : tagIds
+      } else {
+        node.categoryId =
+          updated.category_id == null
+            ? categoryId
+            : Number(updated.category_id)
+        node.difficultyId =
+          updated.difficulty_id == null
+            ? difficultyId
+            : Number(updated.difficulty_id)
+        node.tagIds = tagIds
+      }
 
       if (node.isTeamNode) {
         node.departmentId = Number(updated.department_id ?? departmentId)
@@ -12493,6 +12694,10 @@ teamAtlasSelect?.addEventListener('change', () => {
   selectActiveTeam(Number(teamAtlasSelect.value)).catch((error) => {
     console.error('Switch Team Atlas failed:', error)
   })
+})
+
+teamAtlasTaxonomyBtn?.addEventListener('click', () => {
+  openTaxonomyManager('category')
 })
 
 teamAtlasSettingsBtn?.addEventListener('click', () => {

@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v78 · Full English UI + Team Atlas attachments
+// v79 · Full English UI + Team Atlas custom taxonomy
 //
 // Source language: Romanian
 // Secondary language: English
@@ -381,6 +381,12 @@ const UI_EN = new Map(Object.entries({
     'Your role does not allow editing media in this node.',
   'Rolul tău nu permite editarea fișierelor din acest nod.':
     'Your role does not allow editing files in this node.',
+  'Taxonomy':
+    'Taxonomy',
+  'Doar Team Leader, Mentor sau Platform Admin poate modifica taxonomia Team Atlas.':
+    'Only a Team Leader, Mentor or Platform Admin can edit Team Atlas taxonomy.',
+  'Doar editorii aprobați pot modifica taxonomia Atlasului public.':
+    'Only approved editors can edit public Atlas taxonomy.',
   'Creat de':
     'Created by',
   'navigare, editare și relații':
