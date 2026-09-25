@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v81 · Full English UI + Team Atlas private deep links
+// v82 · Full English UI + Team Atlas documentation index
 //
 // Source language: Romanian
 // Secondary language: English
@@ -429,6 +429,22 @@ const UI_EN = new Map(Object.entries({
     'You do not have access to the Team Atlas in this link.',
   'Nodul Team Atlas din acest link nu mai este disponibil.':
     'The Team Atlas node in this link is no longer available.',
+  'Team Index':
+    'Team Index',
+  'Indexul documentației echipei':
+    'Team documentation index',
+  'Index':
+    'Index',
+  'Atlas map':
+    'Atlas map',
+  'Team documentation index':
+    'Team documentation index',
+  'Fără categorie':
+    'Uncategorized',
+  'Private team scope':
+    'Private team scope',
+  'Copy private Team Atlas link':
+    'Copy private Team Atlas link',
   'Creat de':
     'Created by',
   'navigare, editare și relații':

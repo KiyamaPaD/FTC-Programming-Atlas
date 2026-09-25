@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v81 · TEAM ATLAS DEEP LINKS')
+console.log('ATLAS SCRIPT LOADED v82 · TEAM DOCUMENTATION INDEX')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -336,7 +336,8 @@ const PUBLIC_SECTIONS = new Set([
   'roadmaps',
   'resources',
   'announcements',
-  'team'
+  'team',
+  'team-index'
 ])
 
 let activePublicSection = PUBLIC_SECTIONS.has(
@@ -424,6 +425,7 @@ const teamSpaceEntryRole = document.getElementById('teamSpaceEntryRole')
 const teamAtlasContext = document.getElementById('teamAtlasContext')
 const teamAtlasSelect = document.getElementById('teamAtlasSelect')
 const teamAtlasContextMeta = document.getElementById('teamAtlasContextMeta')
+const teamAtlasIndexBtn = document.getElementById('teamAtlasIndexBtn')
 const teamAtlasTaxonomyBtn = document.getElementById('teamAtlasTaxonomyBtn')
 const teamAtlasSettingsBtn = document.getElementById('teamAtlasSettingsBtn')
 const teamAtlasMembersBtn = document.getElementById('teamAtlasMembersBtn')
@@ -2827,7 +2829,11 @@ async function deleteRoadmap() {
 
 
 function isTeamAtlasMode() {
-  return activePublicSection === 'team' && activeTeamId != null
+  return (
+    (activePublicSection === 'team' ||
+      activePublicSection === 'team-index') &&
+    activeTeamId != null
+  )
 }
 
 function teamAtlasRoleCanEdit(role) {
@@ -3675,7 +3681,9 @@ function renderTeamNavigation() {
   teamSpaceEntry.hidden = !visible
   teamSpaceEntry.classList.toggle(
     'active',
-    visible && activePublicSection === 'team'
+    visible &&
+      (activePublicSection === 'team' ||
+        activePublicSection === 'team-index')
   )
 
   if (!visible) {
@@ -3691,7 +3699,10 @@ function renderTeamNavigation() {
 
   if (!teamAtlasContext) return
 
-  const inTeamAtlas = activePublicSection === 'team'
+  const inTeamAtlas =
+    activePublicSection === 'team' ||
+    activePublicSection === 'team-index'
+
   teamAtlasContext.hidden = !inTeamAtlas
 
   if (!inTeamAtlas) return
@@ -3726,6 +3737,18 @@ function renderTeamNavigation() {
     <span class="team-atlas-banner">${escapeHtmlText(roleLabel)}</span>
     · documentație privată a echipei
   `
+
+  teamAtlasIndexBtn.textContent =
+    activePublicSection === 'team-index'
+      ? 'Atlas map'
+      : 'Index'
+
+  teamAtlasIndexBtn.classList.toggle(
+    'primary',
+    activePublicSection === 'team-index'
+  )
+
+  teamAtlasIndexBtn.disabled = isAtlasLoading
 
   teamAtlasTaxonomyBtn.hidden = !canManageTeamTaxonomy()
   teamAtlasTaxonomyBtn.disabled = !editorMode || isAtlasLoading
@@ -5249,13 +5272,217 @@ async function saveTeamSetup() {
   }
 }
 
+function teamDocumentationIndexNodes() {
+  return getVisibleNodes()
+    .filter((node) => node.isTeamNode)
+    .sort((a, b) => {
+      const categoryA = getCategoryById(a.categoryId)
+      const categoryB = getCategoryById(b.categoryId)
+
+      const categoryOrder =
+        Number(categoryA?.sort_order || 0) -
+        Number(categoryB?.sort_order || 0)
+
+      if (categoryOrder !== 0) return categoryOrder
+
+      const categoryNameOrder = String(
+        categoryA?.name || ''
+      ).localeCompare(
+        String(categoryB?.name || ''),
+        'ro',
+        { sensitivity: 'base' }
+      )
+
+      if (categoryNameOrder !== 0) return categoryNameOrder
+
+      return String(a.title || '').localeCompare(
+        String(b.title || ''),
+        'ro',
+        { sensitivity: 'base' }
+      )
+    })
+}
+
+function renderTeamDocumentationIndex() {
+  const items = teamDocumentationIndexNodes()
+
+  if (items.length === 0) {
+    return `
+      <article class="public-hub-card wide">
+        <span class="public-hub-card-label">Team documentation index</span>
+        <h3>Niciun nod nu corespunde filtrelor curente.</h3>
+        <p>
+          Indexul folosește același departament, Search, Categories,
+          Difficulty și Tags ca harta Team Atlas.
+        </p>
+        <div class="public-hub-empty">
+          Curăță filtrele sau revino la hartă pentru a continua explorarea.
+        </div>
+      </article>
+    `
+  }
+
+  const groups = new Map()
+
+  for (const node of items) {
+    const category = getCategoryById(node.categoryId)
+    const key = category?.id ?? 'none'
+
+    if (!groups.has(key)) {
+      groups.set(key, {
+        category,
+        nodes: []
+      })
+    }
+
+    groups.get(key).nodes.push(node)
+  }
+
+  return [...groups.values()]
+    .map(({ category, nodes: groupNodes }) => {
+      const categoryName =
+        category?.name || 'Fără categorie'
+
+      return `
+        <section class="team-index-group">
+          <div class="team-index-group-head">
+            <h2>${escapeHtmlText(categoryName)}</h2>
+            <span>
+              ${groupNodes.length} ${
+                groupNodes.length === 1 ? 'document' : 'documents'
+              }
+            </span>
+          </div>
+
+          <div class="team-index-grid">
+            ${groupNodes
+              .map((node) => {
+                const difficulty = nodeDifficultyName(node)
+                const tags = nodeTagNames(node)
+                const codeCount = (node.codeSnippets || []).length
+                const mediaCount = (node.media || []).length
+                const fileCount = (node.files || []).length
+                const relationCount = (node.links || []).length
+
+                return `
+                  <article class="team-index-card">
+                    <div class="team-index-card-main">
+                      <button
+                        class="team-index-node-btn"
+                        type="button"
+                        data-team-index-node="${Number(node.id)}"
+                      >
+                        ${escapeHtmlText(node.title)}
+                      </button>
+
+                      <button
+                        class="team-index-copy-btn"
+                        type="button"
+                        data-team-index-copy="${Number(node.id)}"
+                        title="Copy private Team Atlas link"
+                        aria-label="Copy private Team Atlas link"
+                      >
+                        🔗
+                      </button>
+                    </div>
+
+                    <div class="team-index-meta">
+                      <span class="team-index-pill">
+                        ${escapeHtmlText(difficulty)}
+                      </span>
+
+                      ${tags
+                        .slice(0, 4)
+                        .map(
+                          (tag) => `
+                            <span class="team-index-pill">
+                              ${escapeHtmlText(tag)}
+                            </span>
+                          `
+                        )
+                        .join('')}
+
+                      ${
+                        tags.length > 4
+                          ? `<span class="team-index-pill">+${tags.length - 4}</span>`
+                          : ''
+                      }
+
+                      ${
+                        node.sourcePublicNodeId
+                          ? `
+                            <span class="team-index-pill source">
+                              Public source #${Number(
+                                node.sourcePublicNodeId
+                              )}
+                            </span>
+                          `
+                          : ''
+                      }
+                    </div>
+
+                    <div class="team-index-stats">
+                      <span>&lt;/&gt; ${codeCount}</span>
+                      <span>▣ ${mediaCount}</span>
+                      <span>📎 ${fileCount}</span>
+                      <span>→ ${relationCount}</span>
+                    </div>
+
+                    <div class="team-index-card-foot">
+                      ${
+                        node.updatedAt
+                          ? `Updated ${escapeHtmlText(
+                              formatPublicDate(node.updatedAt)
+                            )}`
+                          : 'Team Atlas document'
+                      }
+                    </div>
+                  </article>
+                `
+              })
+              .join('')}
+          </div>
+        </section>
+      `
+    })
+    .join('')
+}
+
+function openTeamIndexNode(nodeId) {
+  const node = teamNodes.find(
+    (candidate) => Number(candidate.id) === Number(nodeId)
+  )
+
+  if (!node) return
+
+  activePublicSection = 'team'
+  localStorage.setItem(
+    CACHE_KEYS.publicSection,
+    activePublicSection
+  )
+
+  syncActiveNodeCollection({ forceReset: true })
+  activateDepartmentForNode(node, { persist: true })
+  clearFiltersForDeepLink()
+
+  selectedId = node.id
+  clearEdgeSelection()
+  detailOpen = true
+
+  renderAll()
+  setNodeRoute(node, { push: true })
+
+  requestAnimationFrame(() => centerOnNode(node))
+}
+
 function publicSectionLabel(section) {
   const labels = {
     explore: 'Explore',
     roadmaps: 'Roadmaps',
     resources: 'Resources',
     announcements: 'Announcements',
-    team: 'Team Atlas'
+    team: 'Team Atlas',
+    'team-index': 'Team Index'
   }
 
   return labels[section] || 'Explore'
@@ -5267,7 +5494,8 @@ function publicSectionEyebrow(section) {
     roadmaps: 'Parcursuri recomandate',
     resources: 'Resurse utile',
     announcements: 'Anunțuri universale',
-    team: 'Documentația echipei'
+    team: 'Documentația echipei',
+    'team-index': 'Indexul documentației echipei'
   }
 
   return labels[section] || labels.explore
@@ -5276,7 +5504,10 @@ function publicSectionEyebrow(section) {
 function selectPublicSection(section) {
   if (!PUBLIC_SECTIONS.has(section)) return
 
-  if (section === 'team' && !currentTeamRecord()) {
+  if (
+    (section === 'team' || section === 'team-index') &&
+    !currentTeamRecord()
+  ) {
     setAccountPanel(true)
     return
   }
@@ -5309,6 +5540,7 @@ function renderPublicShell() {
 
   const isExplore = activePublicSection === 'explore'
   const isTeamAtlas = activePublicSection === 'team'
+  const isTeamIndex = activePublicSection === 'team-index'
   const isMapSection = isExplore || isTeamAtlas
   const isGlobal = activePublicSection === 'announcements'
   const department = getDepartmentById(activeDepartmentId)
@@ -5337,6 +5569,45 @@ function renderPublicShell() {
   }
 
   publicHubPanel.classList.add('open')
+
+  if (isTeamIndex) {
+    const team = currentTeamRecord()
+    const teamName = team?.teamNumber
+      ? `${team.name} #${team.teamNumber}`
+      : team?.name || 'Team Atlas'
+
+    const visibleItems = teamDocumentationIndexNodes()
+
+    publicHubPanel.innerHTML = `
+      <div class="public-hub-inner">
+        <p class="public-hub-kicker">
+          Team Index · ${escapeHtml(teamName)} · ${escapeHtml(
+            departmentName
+          )}
+        </p>
+
+        <h1 class="public-hub-title">
+          Găsește rapid documentația echipei fără să navighezi manual prin hartă.
+        </h1>
+
+        <p class="public-hub-description">
+          Indexul este o vedere alternativă peste exact aceleași noduri Team Atlas.
+          Search-ul și filtrele curente se aplică automat, iar fiecare rezultat
+          deschide nodul original din hartă.
+        </p>
+
+        <div class="team-index-summary">
+          <span class="public-hub-chip">${escapeHtml(teamName)}</span>
+          <span class="public-hub-chip">${escapeHtml(departmentName)}</span>
+          <span class="public-hub-chip">${visibleItems.length} documents</span>
+          <span class="public-hub-chip">Private team scope</span>
+        </div>
+
+        ${renderTeamDocumentationIndex()}
+      </div>
+    `
+    return
+  }
 
   if (activePublicSection === 'roadmaps') {
     publicHubPanel.innerHTML = `
@@ -13284,6 +13555,14 @@ confirmTeamImportBtn?.addEventListener('click', () => {
   })
 })
 
+teamAtlasIndexBtn?.addEventListener('click', () => {
+  selectPublicSection(
+    activePublicSection === 'team-index'
+      ? 'team'
+      : 'team-index'
+  )
+})
+
 teamAtlasTaxonomyBtn?.addEventListener('click', () => {
   openTaxonomyManager('category')
 })
@@ -13446,6 +13725,35 @@ deletePublicContentBtn?.addEventListener('click', () => {
 })
 
 publicHubPanel?.addEventListener('click', (event) => {
+  const teamIndexNodeTrigger = event.target.closest?.(
+    '[data-team-index-node]'
+  )
+
+  if (teamIndexNodeTrigger) {
+    openTeamIndexNode(
+      Number(teamIndexNodeTrigger.dataset.teamIndexNode)
+    )
+    return
+  }
+
+  const teamIndexCopyTrigger = event.target.closest?.(
+    '[data-team-index-copy]'
+  )
+
+  if (teamIndexCopyTrigger) {
+    const node = teamNodes.find(
+      (candidate) =>
+        Number(candidate.id) ===
+        Number(teamIndexCopyTrigger.dataset.teamIndexCopy)
+    )
+
+    if (node) {
+      copyTeamNodeLink(node, teamIndexCopyTrigger)
+    }
+
+    return
+  }
+
   const teamMembersTrigger = event.target.closest?.('[data-open-team-members]')
   if (teamMembersTrigger) {
     openTeamMembersManager().catch((error) => {
@@ -14028,6 +14336,7 @@ window.atlasDebug = {
   openTeamSetup,
   openTeamMembersManager,
   openTeamOnboarding,
+  openTeamIndex: () => selectPublicSection('team-index'),
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,

@@ -3976,6 +3976,147 @@
     line-height: 1.55;
   }
 
+
+  .team-index-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 14px 0 18px;
+  }
+
+  .team-index-group {
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.012);
+  }
+
+  .team-index-group:first-child {
+    margin-top: 0;
+  }
+
+  .team-index-group-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .team-index-group-head h2 {
+    margin: 0;
+    color: #f0ebf2;
+    font-size: 1rem;
+    font-weight: 720;
+  }
+
+  .team-index-group-head span {
+    color: #77727d;
+    font-size: 0.68rem;
+  }
+
+  .team-index-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .team-index-card {
+    min-width: 0;
+    padding: 13px;
+    border: 1px solid rgba(177, 76, 255, 0.09);
+    border-radius: 13px;
+    background: rgba(177, 76, 255, 0.018);
+  }
+
+  .team-index-card-main {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .team-index-node-btn {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #eee9f0;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 720;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .team-index-node-btn:hover {
+    color: #cf9cff;
+  }
+
+  .team-index-copy-btn {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.018);
+    color: #aaa4ae;
+    cursor: pointer;
+  }
+
+  .team-index-copy-btn:hover {
+    border-color: rgba(177, 76, 255, 0.22);
+    color: #e9d9f7;
+  }
+
+  .team-index-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 9px;
+  }
+
+  .team-index-pill {
+    padding: 4px 7px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.014);
+    color: #8f8994;
+    font-size: 0.62rem;
+    line-height: 1.2;
+  }
+
+  .team-index-pill.source {
+    border-color: rgba(177, 76, 255, 0.14);
+    color: #b89ac9;
+  }
+
+  .team-index-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    margin-top: 10px;
+    color: #76717b;
+    font-size: 0.64rem;
+  }
+
+  .team-index-card-foot {
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px solid rgba(255, 255, 255, 0.045);
+    color: #69646e;
+    font-size: 0.62rem;
+  }
+
+  @media (max-width: 860px) {
+    .team-index-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+
   .team-setup-modal {
     width: min(820px, 100%);
     max-height: min(820px, calc(100vh - 44px));
@@ -5343,6 +5484,7 @@
         </div>
         <div class="team-atlas-context-meta" id="teamAtlasContextMeta"></div>
         <div class="team-atlas-context-actions">
+          <button class="btn" id="teamAtlasIndexBtn" type="button">Index</button>
           <button class="btn" id="teamAtlasTaxonomyBtn" type="button" hidden>Taxonomy</button>
           <button class="btn" id="teamAtlasSettingsBtn" type="button" hidden>Team settings</button>
           <button class="btn" id="teamAtlasMembersBtn" type="button" hidden>Members</button>
@@ -6580,6 +6722,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=81"></script>
+  <script type="module" src="/js/atlas-script.js?v=82"></script>
 </body>
 </html>
