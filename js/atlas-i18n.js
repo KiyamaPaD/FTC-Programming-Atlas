@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v77 · Full English UI + Team Atlas code parity
+// v78 · Full English UI + Team Atlas attachments
 //
 // Source language: Romanian
 // Secondary language: English
@@ -377,6 +377,10 @@ const UI_EN = new Map(Object.entries({
     'You do not have permission to connect these two nodes.',
   'Nu ai permisiunea de a edita această relație.':
     'You do not have permission to edit this relationship.',
+  'Rolul tău nu permite editarea media din acest nod.':
+    'Your role does not allow editing media in this node.',
+  'Rolul tău nu permite editarea fișierelor din acest nod.':
+    'Your role does not allow editing files in this node.',
   'Creat de':
     'Created by',
   'navigare, editare și relații':

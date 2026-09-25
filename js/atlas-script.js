@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v77 · TEAM ATLAS CODE PARITY')
+console.log('ATLAS SCRIPT LOADED v78 · TEAM ATLAS ATTACHMENTS')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -13,6 +13,9 @@ const HOME_DESCRIPTION =
   'Interactive FTC programming guide for FTC SDK, Pedro Pathing, Road Runner, FTCLib, control loops, vision, autonomous programming, and debugging.'
 const MEDIA_BUCKET = 'atlas-media'
 const FILE_BUCKET = 'atlas-files'
+const TEAM_MEDIA_BUCKET = 'atlas-team-media'
+const TEAM_FILE_BUCKET = 'atlas-team-files'
+const TEAM_SIGNED_URL_TTL_SECONDS = 6 * 60 * 60
 const MAX_MEDIA_FILE_SIZE = 50 * 1024 * 1024
 const MAX_NODE_FILE_SIZE = 100 * 1024 * 1024
 const MAX_NODE_FILE_BATCH_COUNT = 250
@@ -2788,7 +2791,13 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     return
   }
 
-  const [nodesResult, edgesResult, codeResult] = await Promise.all([
+  const [
+    nodesResult,
+    edgesResult,
+    codeResult,
+    mediaResult,
+    filesResult
+  ] = await Promise.all([
     supabase
       .from('atlas_team_nodes')
       .select('*')
@@ -2810,12 +2819,30 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
       .order('sort_order', { ascending: true })
+      .order('id', { ascending: true }),
+
+    supabase
+      .from('atlas_team_node_media')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', Number(activeTeamId))
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true }),
+
+    supabase
+      .from('atlas_team_node_files')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', Number(activeTeamId))
+      .order('sort_order', { ascending: true })
       .order('id', { ascending: true })
   ])
 
   if (nodesResult.error) throw nodesResult.error
   if (edgesResult.error) throw edgesResult.error
   if (codeResult.error) throw codeResult.error
+  if (mediaResult.error) throw mediaResult.error
+  if (filesResult.error) throw filesResult.error
 
   const edgesBySource = new Map()
 
@@ -2836,6 +2863,90 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
       )
     })
   }
+
+  const mediaByNode = new Map()
+
+  for (const row of mediaResult.data || []) {
+    const nodeId = Number(row.node_id)
+
+    if (!mediaByNode.has(nodeId)) {
+      mediaByNode.set(nodeId, [])
+    }
+
+    mediaByNode.get(nodeId).push({
+      id: Number(row.id),
+      nodeId,
+      teamId: Number(row.team_id),
+      isTeamMedia: true,
+      mediaType: row.media_type || 'image',
+      storagePath: row.storage_path || null,
+      externalUrl: row.external_url || null,
+      mimeType: row.mime_type || '',
+      fileSize: Number(row.file_size || 0),
+      title: row.title || '',
+      caption: row.caption || '',
+      sortOrder: Number(row.sort_order || 0),
+      signedUrl: null,
+      createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null
+    })
+  }
+
+  const filesByNode = new Map()
+
+  for (const row of filesResult.data || []) {
+    const nodeId = Number(row.node_id)
+
+    if (!filesByNode.has(nodeId)) {
+      filesByNode.set(nodeId, [])
+    }
+
+    filesByNode.get(nodeId).push({
+      id: Number(row.id),
+      nodeId,
+      teamId: Number(row.team_id),
+      isTeamFile: true,
+      storagePath: row.storage_path || '',
+      originalName: row.original_name || 'fișier',
+      relativePath: row.relative_path || '',
+      mimeType: row.mime_type || '',
+      fileSize: Number(row.file_size || 0),
+      title: row.title || '',
+      description: row.description || '',
+      sortOrder: Number(row.sort_order || 0),
+      signedUrl: null,
+      createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null
+    })
+  }
+
+  const signTasks = []
+
+  for (const items of mediaByNode.values()) {
+    for (const item of items) {
+      if (!item.storagePath) continue
+
+      signTasks.push(
+        createTeamSignedUrl(TEAM_MEDIA_BUCKET, item.storagePath).then((url) => {
+          item.signedUrl = url
+        })
+      )
+    }
+  }
+
+  for (const items of filesByNode.values()) {
+    for (const item of items) {
+      if (!item.storagePath) continue
+
+      signTasks.push(
+        createTeamSignedUrl(TEAM_FILE_BUCKET, item.storagePath).then((url) => {
+          item.signedUrl = url
+        })
+      )
+    }
+  }
+
+  await Promise.all(signTasks)
 
   const codeByNode = new Map()
 
@@ -2882,8 +2993,8 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     content: row.content || '',
     contentFormat: row.content_format || 'html',
     links: edgesBySource.get(Number(row.id)) || [],
-    media: [],
-    files: [],
+    media: mediaByNode.get(Number(row.id)) || [],
+    files: filesByNode.get(Number(row.id)) || [],
     codeSnippets: codeByNode.get(Number(row.id)) || [],
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null
@@ -4578,6 +4689,14 @@ function selectPublicSection(section) {
     closeCodeManager()
   }
 
+  if (isMediaManagerOpen()) {
+    closeMediaManager()
+  }
+
+  if (isFileManagerOpen()) {
+    closeFileManager()
+  }
+
   activePublicSection = section
   localStorage.setItem(CACHE_KEYS.publicSection, section)
 
@@ -5376,8 +5495,16 @@ function getYoutubeEmbedUrl(value) {
 }
 
 function mediaPublicUrl(media) {
+  if (media?.signedUrl) {
+    return media.signedUrl
+  }
+
   if (media?.storagePath) {
-    const { data } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(media.storagePath)
+    if (media.isTeamMedia) return null
+
+    const { data } = supabase.storage
+      .from(MEDIA_BUCKET)
+      .getPublicUrl(media.storagePath)
 
     return data?.publicUrl || null
   }
@@ -5470,7 +5597,7 @@ function renderNodeMediaGallery(node) {
   const mediaItems = Array.isArray(node.media) ? node.media : []
 
   if (mediaItems.length === 0) {
-    if (!canEdit || !editorMode || isTeamAtlasMode()) return ''
+    if (!canEditNode(node) || !editorMode) return ''
 
     return `
       <section class="node-media-section empty">
@@ -5494,7 +5621,7 @@ function renderNodeMediaGallery(node) {
           <h3>Screenshoturi și videoclipuri</h3>
         </div>
         ${
-          canEdit && editorMode && !isTeamAtlasMode()
+          canEditNode(node) && editorMode
             ? '<button class="btn" type="button" data-open-node-media>Administrează</button>'
             : ''
         }
@@ -5530,7 +5657,13 @@ function renderNodeMediaGallery(node) {
 // General file presentation helpers
 function filePublicUrl(file) {
   if (!file?.storagePath) return null
-  const { data } = supabase.storage.from(FILE_BUCKET).getPublicUrl(file.storagePath)
+  if (file.signedUrl) return file.signedUrl
+  if (file.isTeamFile) return null
+
+  const { data } = supabase.storage
+    .from(FILE_BUCKET)
+    .getPublicUrl(file.storagePath)
+
   return data?.publicUrl || null
 }
 
@@ -5573,7 +5706,49 @@ function storagePathForNodeFile(nodeId, file, relativePath, batchId) {
     .map((part) => sanitizeStoragePathSegment(part))
     .join('/')
   const safeName = sanitizeStorageFilename(file?.name || 'file')
-  return [PROJECT_ID, Number(nodeId), batchId, safeFolder, safeName].filter(Boolean).join('/')
+  return [PROJECT_ID, Number(nodeId), batchId, safeFolder, safeName]
+    .filter(Boolean)
+    .join('/')
+}
+
+function storagePathForTeamNodeFile(node, file, relativePath, batchId) {
+  const safeFolder = String(relativePath || '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter(Boolean)
+    .map((part) => sanitizeStoragePathSegment(part))
+    .join('/')
+  const safeName = sanitizeStorageFilename(file?.name || 'file')
+
+  return [
+    PROJECT_ID,
+    Number(node.teamId || activeTeamId),
+    Number(node.id),
+    batchId,
+    safeFolder,
+    safeName
+  ]
+    .filter(Boolean)
+    .join('/')
+}
+
+async function createTeamSignedUrl(bucket, storagePath) {
+  if (!storagePath) return null
+
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(storagePath, TEAM_SIGNED_URL_TTL_SECONDS)
+
+  if (error) {
+    console.warn('Team attachment signed URL failed:', {
+      bucket,
+      storagePath,
+      error
+    })
+    return null
+  }
+
+  return data?.signedUrl || null
 }
 
 function groupNodeFilesByFolder(files) {
@@ -5590,7 +5765,7 @@ function renderNodeFiles(node) {
   const files = Array.isArray(node.files) ? node.files : []
 
   if (files.length === 0) {
-    if (!canEdit || !editorMode || isTeamAtlasMode()) return ''
+    if (!canEditNode(node) || !editorMode) return ''
 
     return `
       <section class="node-files-section empty">
@@ -5644,7 +5819,7 @@ function renderNodeFiles(node) {
           <span>fișiere</span>
           <h3>Fișiere și foldere · ${files.length}</h3>
         </div>
-        ${canEdit && editorMode && !isTeamAtlasMode() ? '<button class="btn" type="button" data-open-node-files>Administrează</button>' : ''}
+        ${canEditNode(node) && editorMode ? '<button class="btn" type="button" data-open-node-files>Administrează</button>' : ''}
       </div>
       ${groupsHtml}
     </section>
@@ -7317,6 +7492,27 @@ async function deleteNodeRemote(nodeId) {
 }
 
 async function createMediaRemote(item) {
+  const node = findNode(item.nodeId) || currentMediaNode()
+
+  if (node?.isTeamNode) {
+    const { data, error } = await supabase.rpc('atlas_team_media_create', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_node_id: Number(item.nodeId),
+      p_media_type: item.mediaType,
+      p_storage_path: item.storagePath || null,
+      p_external_url: item.externalUrl || null,
+      p_mime_type: item.mimeType || '',
+      p_file_size: Number(item.fileSize || 0),
+      p_title: item.title || '',
+      p_caption: item.caption || '',
+      p_sort_order: Number(item.sortOrder || 0)
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Elementul media al echipei')
+  }
+
   const { data, error } = await supabase.rpc('atlas_media_create', {
     p_project_id: PROJECT_ID,
     p_node_id: Number(item.nodeId),
@@ -7335,6 +7531,22 @@ async function createMediaRemote(item) {
 }
 
 async function updateMediaRemote(item) {
+  const node = findNode(item.nodeId) || currentMediaNode()
+
+  if (node?.isTeamNode) {
+    const { data, error } = await supabase.rpc('atlas_team_media_update', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_media_id: Number(item.id),
+      p_title: item.title || '',
+      p_caption: item.caption || '',
+      p_sort_order: Number(item.sortOrder || 0)
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Elementul media al echipei')
+  }
+
   const { data, error } = await supabase.rpc('atlas_media_update', {
     p_project_id: PROJECT_ID,
     p_media_id: Number(item.id),
@@ -7348,6 +7560,23 @@ async function updateMediaRemote(item) {
 }
 
 async function deleteMediaRemote(mediaId) {
+  const node = currentMediaNode()
+
+  if (node?.isTeamNode) {
+    const { data, error } = await supabase.rpc('atlas_team_media_delete', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_media_id: Number(mediaId)
+    })
+
+    if (error) throw error
+    if (!data?.ok) {
+      throw new Error('Elementul media al echipei nu a fost șters.')
+    }
+
+    return data
+  }
+
   const { data, error } = await supabase.rpc('atlas_media_delete', {
     p_project_id: PROJECT_ID,
     p_media_id: Number(mediaId)
@@ -7359,6 +7588,24 @@ async function deleteMediaRemote(mediaId) {
 }
 
 async function reorderMediaRemote(nodeId, items) {
+  const node = findNode(nodeId) || currentMediaNode()
+
+  if (node?.isTeamNode) {
+    const { data, error } = await supabase.rpc('atlas_team_media_reorder', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_node_id: Number(nodeId),
+      p_items: items
+    })
+
+    if (error) throw error
+    if (!data?.ok) {
+      throw new Error('Ordinea media a echipei nu a fost salvată.')
+    }
+
+    return data
+  }
+
   const { data, error } = await supabase.rpc('atlas_media_reorder', {
     p_project_id: PROJECT_ID,
     p_node_id: Number(nodeId),
@@ -7371,6 +7618,27 @@ async function reorderMediaRemote(nodeId, items) {
 }
 
 async function createFileRemote(item) {
+  const node = findNode(item.nodeId) || currentFileNode()
+
+  if (node?.isTeamNode) {
+    const { data, error } = await supabase.rpc('atlas_team_file_create', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_node_id: Number(item.nodeId),
+      p_storage_path: item.storagePath,
+      p_original_name: item.originalName,
+      p_relative_path: item.relativePath || '',
+      p_mime_type: item.mimeType || '',
+      p_file_size: Number(item.fileSize || 0),
+      p_title: item.title || '',
+      p_description: item.description || '',
+      p_sort_order: Number(item.sortOrder || 0)
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Fișierul echipei')
+  }
+
   const { data, error } = await supabase.rpc('atlas_file_create', {
     p_project_id: PROJECT_ID,
     p_node_id: Number(item.nodeId),
@@ -7389,6 +7657,22 @@ async function createFileRemote(item) {
 }
 
 async function updateFileRemote(item) {
+  const node = findNode(item.nodeId) || currentFileNode()
+
+  if (node?.isTeamNode) {
+    const { data, error } = await supabase.rpc('atlas_team_file_update', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_file_id: Number(item.id),
+      p_title: item.title || '',
+      p_description: item.description || '',
+      p_sort_order: Number(item.sortOrder || 0)
+    })
+
+    if (error) throw error
+    return normalizeRpcRow(data, 'Fișierul echipei')
+  }
+
   const { data, error } = await supabase.rpc('atlas_file_update', {
     p_project_id: PROJECT_ID,
     p_file_id: Number(item.id),
@@ -7402,6 +7686,23 @@ async function updateFileRemote(item) {
 }
 
 async function deleteFileRemote(fileId) {
+  const node = currentFileNode()
+
+  if (node?.isTeamNode) {
+    const { data, error } = await supabase.rpc('atlas_team_file_delete', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_file_id: Number(fileId)
+    })
+
+    if (error) throw error
+    if (!data?.ok) {
+      throw new Error('Fișierul echipei nu a fost șters.')
+    }
+
+    return data
+  }
+
   const { data, error } = await supabase.rpc('atlas_file_delete', {
     p_project_id: PROJECT_ID,
     p_file_id: Number(fileId)
@@ -7413,6 +7714,24 @@ async function deleteFileRemote(fileId) {
 }
 
 async function reorderFilesRemote(nodeId, items) {
+  const node = findNode(nodeId) || currentFileNode()
+
+  if (node?.isTeamNode) {
+    const { data, error } = await supabase.rpc('atlas_team_file_reorder', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(node.teamId || activeTeamId),
+      p_node_id: Number(nodeId),
+      p_items: items
+    })
+
+    if (error) throw error
+    if (!data?.ok) {
+      throw new Error('Ordinea fișierelor echipei nu a fost salvată.')
+    }
+
+    return data
+  }
+
   const { data, error } = await supabase.rpc('atlas_file_reorder', {
     p_project_id: PROJECT_ID,
     p_node_id: Number(nodeId),
@@ -8260,9 +8579,9 @@ function updateAuthUI() {
   }
 
   mediaManagerBtn.disabled =
-    editorBlocked || !hasSelectedNode || isTeamAtlasMode()
+    editorBlocked || !hasSelectedNode || !selectedNodeEditable
   fileManagerBtn.disabled =
-    editorBlocked || !hasSelectedNode || isTeamAtlasMode()
+    editorBlocked || !hasSelectedNode || !selectedNodeEditable
   codeManagerBtn.disabled =
     editorBlocked || !hasSelectedNode || !selectedNodeEditable
 
@@ -8281,12 +8600,20 @@ function updateAuthUI() {
     closeTaxonomyManager()
   }
 
-  if ((!publicAdminEditorActive || isTeamAtlasMode()) && isMediaManagerOpen()) {
-    closeMediaManager()
+  if (isMediaManagerOpen()) {
+    const mediaNode = currentMediaNode()
+
+    if (!editorMode || !mediaNode || !canEditNode(mediaNode)) {
+      closeMediaManager()
+    }
   }
 
-  if ((!publicAdminEditorActive || isTeamAtlasMode()) && isFileManagerOpen()) {
-    closeFileManager()
+  if (isFileManagerOpen()) {
+    const fileNode = currentFileNode()
+
+    if (!editorMode || !fileNode || !canEditNode(fileNode)) {
+      closeFileManager()
+    }
   }
 
   if (isCodeManagerOpen()) {
@@ -9614,6 +9941,11 @@ function openMediaManager(nodeId = selectedId) {
     return
   }
 
+  if (!canEditNode(node)) {
+    alert('Rolul tău nu permite editarea media din acest nod.')
+    return
+  }
+
   mediaManagerNodeId = Number(node.id)
   resetMediaCreateForms()
   mediaManagerBackdrop.classList.add('open')
@@ -9729,10 +10061,16 @@ function renderMediaManager() {
 
 async function refreshAfterMediaMutation() {
   const nodeId = mediaManagerNodeId
+  const nodeWasTeamNode = Boolean(currentMediaNode()?.isTeamNode)
   const body = mediaManagerBackdrop.querySelector('.media-manager-body')
   const previousScrollTop = body?.scrollTop || 0
 
-  await fetchAllData()
+  if (nodeWasTeamNode) {
+    await loadActiveTeamAtlasNodes()
+  } else {
+    await fetchAllData()
+  }
+
   mediaManagerNodeId = nodeId
 
   if (isMediaManagerOpen()) {
@@ -9773,7 +10111,10 @@ async function uploadSelectedMedia() {
   }
 
   const safeName = sanitizeStorageFilename(file.name)
-  const storagePath = `${PROJECT_ID}/${node.id}/${Date.now()}-${safeName}`
+  const storageBucket = node.isTeamNode ? TEAM_MEDIA_BUCKET : MEDIA_BUCKET
+  const storagePath = node.isTeamNode
+    ? `${PROJECT_ID}/${Number(node.teamId || activeTeamId)}/${node.id}/${Date.now()}-${safeName}`
+    : `${PROJECT_ID}/${node.id}/${Date.now()}-${safeName}`
   const nextOrder =
     (node.media || []).reduce((max, item) => Math.max(max, Number(item.sortOrder || 0)), 0) + 10
 
@@ -9783,7 +10124,7 @@ async function uploadSelectedMedia() {
 
   try {
     const { error: uploadError } = await supabase.storage
-      .from(MEDIA_BUCKET)
+      .from(storageBucket)
       .upload(storagePath, file, {
         cacheControl: '3600',
         upsert: false,
@@ -9810,7 +10151,7 @@ async function uploadSelectedMedia() {
   } catch (error) {
     if (uploaded) {
       await supabase.storage
-        .from(MEDIA_BUCKET)
+        .from(storageBucket)
         .remove([storagePath])
         .catch(() => {})
     }
@@ -9900,8 +10241,12 @@ async function deleteMediaItem(mediaId) {
     await deleteMediaRemote(media.id)
 
     if (media.storagePath) {
+      const storageBucket = node.isTeamNode
+        ? TEAM_MEDIA_BUCKET
+        : MEDIA_BUCKET
+
       const { error: storageError } = await supabase.storage
-        .from(MEDIA_BUCKET)
+        .from(storageBucket)
         .remove([media.storagePath])
 
       if (storageError) {
@@ -9987,6 +10332,11 @@ function openFileManager(nodeId = selectedId) {
   const node = findNode(nodeId)
   if (!node) {
     alert('Selectează mai întâi un nod.')
+    return
+  }
+
+  if (!canEditNode(node)) {
+    alert('Rolul tău nu permite editarea fișierelor din acest nod.')
     return
   }
 
@@ -10111,10 +10461,16 @@ function renderFileManager() {
 
 async function refreshAfterFileMutation() {
   const nodeId = fileManagerNodeId
+  const nodeWasTeamNode = Boolean(currentFileNode()?.isTeamNode)
   const body = fileManagerBackdrop.querySelector('.file-manager-body')
   const previousScrollTop = body?.scrollTop || 0
 
-  await fetchAllData()
+  if (nodeWasTeamNode) {
+    await loadActiveTeamAtlasNodes()
+  } else {
+    await fetchAllData()
+  }
+
   fileManagerNodeId = nodeId
 
   if (isFileManagerOpen()) {
@@ -10163,13 +10519,20 @@ async function uploadNodeFileBatch(fileList, preserveFolders) {
   try {
     for (let index = 0; index < batch.length; index += 1) {
       const file = batch[index]
-      const relativePath = preserveFolders ? folderPathFromBrowserFile(file) : ''
-      const storagePath = storagePathForNodeFile(node.id, file, relativePath, batchId)
+      const relativePath = preserveFolders
+        ? folderPathFromBrowserFile(file)
+        : ''
+      const storageBucket = node.isTeamNode ? TEAM_FILE_BUCKET : FILE_BUCKET
+      const storagePath = node.isTeamNode
+        ? storagePathForTeamNodeFile(node, file, relativePath, batchId)
+        : storagePathForNodeFile(node.id, file, relativePath, batchId)
       const contentType = file.type || 'application/octet-stream'
 
       fileManagerStatus.textContent = `Se încarcă ${index + 1}/${batch.length}: ${file.name}`
 
-      const { error: uploadError } = await supabase.storage.from(FILE_BUCKET).upload(storagePath, file, {
+      const { error: uploadError } = await supabase.storage
+        .from(storageBucket)
+        .upload(storagePath, file, {
         cacheControl: '3600',
         upsert: false,
         contentType
@@ -10203,7 +10566,12 @@ async function uploadNodeFileBatch(fileList, preserveFolders) {
     }
 
     if (uploadedPaths.length > 0) {
-      await supabase.storage.from(FILE_BUCKET).remove(uploadedPaths).catch(() => {})
+      const cleanupBucket = node.isTeamNode ? TEAM_FILE_BUCKET : FILE_BUCKET
+
+      await supabase.storage
+        .from(cleanupBucket)
+        .remove(uploadedPaths)
+        .catch(() => {})
     }
     throw error
   } finally {
@@ -10247,8 +10615,17 @@ async function deleteNodeFile(fileId) {
     await deleteFileRemote(file.id)
 
     if (file.storagePath) {
-      const { error: storageError } = await supabase.storage.from(FILE_BUCKET).remove([file.storagePath])
-      if (storageError) console.warn('File storage cleanup failed:', storageError)
+      const storageBucket = node.isTeamNode
+        ? TEAM_FILE_BUCKET
+        : FILE_BUCKET
+
+      const { error: storageError } = await supabase.storage
+        .from(storageBucket)
+        .remove([file.storagePath])
+
+      if (storageError) {
+        console.warn('File storage cleanup failed:', storageError)
+      }
     }
 
     fileManagerStatus.textContent = 'Fișier șters.'
@@ -10890,8 +11267,7 @@ function renderDetailPanel() {
   detailPanel.classList.add('open')
   emptyPanel.style.display = 'none'
   const nodeEditorActions = canEditNode(node) && editorMode
-  const publicAttachmentActions =
-    canEdit && editorMode && !node.isTeamNode
+  const attachmentActions = nodeEditorActions
 
   editBtn.disabled = !nodeEditorActions
   deleteBtn.disabled = !nodeEditorActions
@@ -10905,15 +11281,15 @@ function renderDetailPanel() {
   const detailCloseBtn = document.getElementById('detailCloseBtn')
 
   detailCodeBtn.hidden = !nodeEditorActions
-  detailMediaBtn.hidden = !publicAttachmentActions
-  detailFilesBtn.hidden = !publicAttachmentActions
+  detailMediaBtn.hidden = !attachmentActions
+  detailFilesBtn.hidden = !attachmentActions
   detailAddRelationBtn.hidden = !nodeEditorActions
   detailEditBtn.hidden = !nodeEditorActions
   detailDeleteBtn.hidden = !nodeEditorActions
 
   detailCodeBtn.disabled = !nodeEditorActions
-  detailMediaBtn.disabled = !publicAttachmentActions
-  detailFilesBtn.disabled = !publicAttachmentActions
+  detailMediaBtn.disabled = !attachmentActions
+  detailFilesBtn.disabled = !attachmentActions
   detailAddRelationBtn.disabled = !nodeEditorActions
   detailEditBtn.disabled = !nodeEditorActions
   detailDeleteBtn.disabled = !nodeEditorActions
@@ -11535,8 +11911,12 @@ async function deleteSelected() {
     const storedFilePaths = (node.files || []).map((file) => file.storagePath).filter(Boolean)
 
     if (storedPaths.length > 0) {
+      const mediaBucket = node.isTeamNode
+        ? TEAM_MEDIA_BUCKET
+        : MEDIA_BUCKET
+
       const { error: storageCleanupError } = await supabase.storage
-        .from(MEDIA_BUCKET)
+        .from(mediaBucket)
         .remove(storedPaths)
 
       if (storageCleanupError) {
@@ -11545,8 +11925,12 @@ async function deleteSelected() {
     }
 
     if (storedFilePaths.length > 0) {
+      const fileBucket = node.isTeamNode
+        ? TEAM_FILE_BUCKET
+        : FILE_BUCKET
+
       const { error: fileStorageCleanupError } = await supabase.storage
-        .from(FILE_BUCKET)
+        .from(fileBucket)
         .remove(storedFilePaths)
 
       if (fileStorageCleanupError) {
