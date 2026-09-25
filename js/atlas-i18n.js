@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v84 · Full English UI + documentation discovery and saved library
+// v85 · Full English UI + sources, review state and reader navigation
 //
 // Source language: Romanian
 // Secondary language: English
@@ -443,6 +443,46 @@ const UI_EN = new Map(Object.entries({
     'Sign in to save Team Atlas documents.',
   'Loghează-te pentru a deschide documentația Team Atlas.':
     'Sign in to open Team Atlas documentation.',
+  'Sources & review':
+    'Sources & review',
+  'Review state':
+    'Review state',
+  'Reviewed':
+    'Reviewed',
+  'Needs review':
+    'Needs review',
+  'Not reviewed':
+    'Not reviewed',
+  'Clear state':
+    'Clear state',
+  'Save review':
+    'Save review',
+  'Sources & references':
+    'Sources & references',
+  'New reference':
+    'New reference',
+  'Save reference':
+    'Save reference',
+  'Primary source':
+    'Primary source',
+  'Referenced by':
+    'Referenced by',
+  'Related docs':
+    'Related docs',
+  'Outline':
+    'Outline',
+  'Last edit':
+    'Last edit',
+  'Nu ai drept de editare pentru metadata acestui document.':
+    'You do not have permission to edit this document metadata.',
+  'Sursa nu a putut fi salvată.':
+    'The source could not be saved.',
+  'Sursa nu a putut fi ștearsă.':
+    'The source could not be deleted.',
+  'Review state nu a putut fi salvat.':
+    'The review state could not be saved.',
+  'Review state nu a putut fi șters.':
+    'The review state could not be cleared.',
   'Copy private Team Atlas link':
     'Copy private Team Atlas link',
   'Link privat copiat':

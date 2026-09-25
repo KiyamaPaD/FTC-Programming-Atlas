@@ -3921,6 +3921,268 @@
   }
 
 
+
+  .documentation-meta-modal {
+    width: min(920px, 100%);
+    max-height: min(880px, calc(100vh - 40px));
+    display: flex;
+    flex-direction: column;
+  }
+
+  .documentation-meta-body {
+    min-height: 0;
+    overflow: auto;
+    padding: 16px 18px 20px;
+  }
+
+  .documentation-meta-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.28fr);
+    gap: 14px;
+    align-items: start;
+  }
+
+  .documentation-meta-card {
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.012);
+  }
+
+  .documentation-meta-card + .documentation-meta-card {
+    margin-top: 12px;
+  }
+
+  .documentation-meta-card h4 {
+    margin: 0 0 4px;
+    color: #eee8f0;
+    font-size: 0.84rem;
+  }
+
+  .documentation-meta-card > p {
+    margin: 0 0 12px;
+    color: #77717c;
+    font-size: 0.66rem;
+    line-height: 1.5;
+  }
+
+  .documentation-reference-list {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 13px;
+  }
+
+  .documentation-reference-manager-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 11px;
+    border: 1px solid rgba(177, 76, 255, 0.08);
+    border-radius: 11px;
+    background: rgba(177, 76, 255, 0.018);
+  }
+
+  .documentation-reference-manager-item strong {
+    display: block;
+    overflow: hidden;
+    color: #eee8f0;
+    font-size: 0.74rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .documentation-reference-manager-item span {
+    display: block;
+    margin-top: 3px;
+    color: #726c77;
+    font-size: 0.61rem;
+  }
+
+  .documentation-reference-manager-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .document-review-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+    color: #aaa4ae;
+    font-size: 0.62rem;
+  }
+
+  .document-review-chip.reviewed {
+    border-color: rgba(104, 213, 157, 0.16);
+    color: #a8d9bd;
+  }
+
+  .document-review-chip.needs-review {
+    border-color: rgba(255, 183, 76, 0.18);
+    color: #d8bd91;
+  }
+
+  .detail-outline-card {
+    display: grid;
+    gap: 7px;
+  }
+
+  .detail-outline-list {
+    display: grid;
+    gap: 3px;
+  }
+
+  .detail-outline-link {
+    width: 100%;
+    padding: 5px 7px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #89838e;
+    font: inherit;
+    font-size: 0.64rem;
+    line-height: 1.35;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .detail-outline-link:hover {
+    background: rgba(177, 76, 255, 0.055);
+    color: #ceb0df;
+  }
+
+  .detail-outline-link.level-3 {
+    padding-left: 17px;
+  }
+
+  .detail-outline-link.level-4 {
+    padding-left: 27px;
+  }
+
+  .document-reference-reader-list {
+    display: grid;
+    gap: 9px;
+    margin-top: 10px;
+  }
+
+  .document-reference-reader-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: start;
+    padding: 11px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.012);
+  }
+
+  .document-reference-reader-item a {
+    color: #e9dcf2;
+    font-size: 0.76rem;
+    font-weight: 690;
+    text-decoration: none;
+  }
+
+  .document-reference-reader-item a:hover {
+    color: #cf9cff;
+  }
+
+  .document-reference-reader-item p {
+    margin: 5px 0 0;
+    color: #78727d;
+    font-size: 0.64rem;
+    line-height: 1.5;
+  }
+
+  .document-reference-reader-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 6px;
+  }
+
+  .document-reference-badge {
+    padding: 3px 6px;
+    border: 1px solid rgba(177, 76, 255, 0.09);
+    border-radius: 999px;
+    color: #9d8ba8;
+    font-size: 0.56rem;
+  }
+
+  .document-reference-badge.primary {
+    border-color: rgba(177, 76, 255, 0.22);
+    color: #cf9cff;
+  }
+
+  .document-reference-external {
+    color: #766e7d;
+    font-size: 0.72rem;
+  }
+
+  .document-connections-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+  }
+
+  .document-connection-group {
+    min-width: 0;
+    padding: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.045);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.01);
+  }
+
+  .document-connection-group > strong {
+    display: block;
+    margin-bottom: 8px;
+    color: #918b96;
+    font-size: 0.63rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .document-connection-list {
+    display: grid;
+    gap: 5px;
+  }
+
+  .document-connection-btn {
+    width: 100%;
+    padding: 7px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.012);
+    color: #aaa4ae;
+    font: inherit;
+    font-size: 0.65rem;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .document-connection-btn:hover {
+    border-color: rgba(177, 76, 255, 0.18);
+    color: #e8d9f0;
+  }
+
+  .documentation-meta-inline-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+  }
+
+  @media (max-width: 820px) {
+    .documentation-meta-grid,
+    .document-connections-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+
   .documentation-finder-modal {
     width: min(900px, 100%);
     max-height: min(840px, calc(100vh - 42px));
@@ -6490,6 +6752,118 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="documentationMetaBackdrop">
+    <div class="modal documentation-meta-modal">
+      <div class="modal-head">
+        <div>
+          <h3 id="documentationMetaTitle">Sources & review</h3>
+          <p>Menține documentația verificabilă și ușor de întreținut.</p>
+        </div>
+        <button class="icon-btn" id="closeDocumentationMetaBtn" type="button" aria-label="Close">✕</button>
+      </div>
+
+      <div class="documentation-meta-body">
+        <div class="documentation-meta-grid">
+          <div>
+            <section class="documentation-meta-card">
+              <h4>Review state</h4>
+              <p>Review-ul este metadata de documentație, nu task sau deadline.</p>
+
+              <div class="field">
+                <label for="documentationReviewStatusInput">Status</label>
+                <select id="documentationReviewStatusInput">
+                  <option value="reviewed">Reviewed</option>
+                  <option value="needs_review">Needs review</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label for="documentationReviewNoteInput">Review note</label>
+                <textarea id="documentationReviewNoteInput" rows="4" maxlength="500" placeholder="Ex: verificat pentru SDK 11.x / necesită reverificare după update de sezon"></textarea>
+              </div>
+
+              <div class="count-strip" id="documentationReviewSummary">
+                Fără review state.
+              </div>
+
+              <div class="modal-foot" style="padding:12px 0 0;border:0;">
+                <button class="btn" id="clearDocumentationReviewBtn" type="button">Clear state</button>
+                <button class="btn primary" id="saveDocumentationReviewBtn" type="button">Save review</button>
+              </div>
+            </section>
+          </div>
+
+          <div>
+            <section class="documentation-meta-card">
+              <h4>Sources & references</h4>
+              <p>Link-uri oficiale, documentații, repository-uri sau alte surse relevante pentru nod.</p>
+
+              <div class="documentation-reference-list" id="documentationReferenceList"></div>
+
+              <div class="field-grid">
+                <div class="field">
+                  <label for="documentationReferenceTitleInput">Titlu</label>
+                  <input id="documentationReferenceTitleInput" maxlength="180" placeholder="FTC Docs · Game Manual 0 · Pedro docs..." />
+                </div>
+
+                <div class="field">
+                  <label for="documentationReferenceTypeInput">Tip</label>
+                  <select id="documentationReferenceTypeInput">
+                    <option value="official">Official</option>
+                    <option value="docs">Documentation</option>
+                    <option value="repo">Repository</option>
+                    <option value="article">Article</option>
+                    <option value="video">Video</option>
+                    <option value="community">Community</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="documentationReferenceUrlInput">URL</label>
+                <input id="documentationReferenceUrlInput" type="url" maxlength="1200" placeholder="https://..." />
+              </div>
+
+              <div class="field">
+                <label for="documentationReferenceNoteInput">Notă</label>
+                <textarea id="documentationReferenceNoteInput" rows="3" maxlength="1200" placeholder="Ce confirmă sursa / de ce este relevantă?"></textarea>
+              </div>
+
+              <div class="field-grid">
+                <div class="field">
+                  <label for="documentationReferenceOrderInput">Ordine</label>
+                  <input id="documentationReferenceOrderInput" type="number" value="0" step="1" />
+                </div>
+
+                <div class="field">
+                  <label>Flags</label>
+                  <label style="display:flex;gap:8px;align-items:center;">
+                    <input id="documentationReferencePrimaryInput" type="checkbox" />
+                    Primary source
+                  </label>
+                </div>
+              </div>
+
+              <div class="count-strip" id="documentationReferenceStatus">
+                Adaugă o sursă nouă sau editează una existentă.
+              </div>
+
+              <div class="modal-foot" style="padding:12px 0 0;border:0;">
+                <button class="btn" id="resetDocumentationReferenceBtn" type="button">New reference</button>
+                <button class="btn primary" id="saveDocumentationReferenceBtn" type="button">Save reference</button>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn primary" id="closeDocumentationMetaFooterBtn" type="button">Închide</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="documentationFinderBackdrop">
     <div class="modal documentation-finder-modal">
       <div class="modal-head">
@@ -7013,6 +7387,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=84"></script>
+  <script type="module" src="/js/atlas-script.js?v=85"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v84 · DOCUMENTATION DISCOVERY')
+console.log('ATLAS SCRIPT LOADED v85 · DOCUMENTATION QUALITY')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -367,6 +367,10 @@ let bookmarkRows = []
 let bookmarkKeys = new Set()
 let finderResultsCache = []
 let finderSelectedIndex = 0
+
+let documentationMetaTarget = null
+let documentationReferenceEditingId = null
+let documentationMetaMutationBusy = false
 let teamSetupMutationBusy = false
 let teamImportSourceNodeId = null
 let teamImportMutationBusy = false
@@ -555,6 +559,66 @@ const closeDocumentationLibraryFooterBtn = document.getElementById(
 const clearRecentDocsBtn = document.getElementById('clearRecentDocsBtn')
 const documentationLibraryBody = document.getElementById(
   'documentationLibraryBody'
+)
+
+const documentationMetaBackdrop = document.getElementById(
+  'documentationMetaBackdrop'
+)
+const documentationMetaTitle = document.getElementById(
+  'documentationMetaTitle'
+)
+const closeDocumentationMetaBtn = document.getElementById(
+  'closeDocumentationMetaBtn'
+)
+const closeDocumentationMetaFooterBtn = document.getElementById(
+  'closeDocumentationMetaFooterBtn'
+)
+
+const documentationReviewStatusInput = document.getElementById(
+  'documentationReviewStatusInput'
+)
+const documentationReviewNoteInput = document.getElementById(
+  'documentationReviewNoteInput'
+)
+const documentationReviewSummary = document.getElementById(
+  'documentationReviewSummary'
+)
+const clearDocumentationReviewBtn = document.getElementById(
+  'clearDocumentationReviewBtn'
+)
+const saveDocumentationReviewBtn = document.getElementById(
+  'saveDocumentationReviewBtn'
+)
+
+const documentationReferenceList = document.getElementById(
+  'documentationReferenceList'
+)
+const documentationReferenceTitleInput = document.getElementById(
+  'documentationReferenceTitleInput'
+)
+const documentationReferenceTypeInput = document.getElementById(
+  'documentationReferenceTypeInput'
+)
+const documentationReferenceUrlInput = document.getElementById(
+  'documentationReferenceUrlInput'
+)
+const documentationReferenceNoteInput = document.getElementById(
+  'documentationReferenceNoteInput'
+)
+const documentationReferenceOrderInput = document.getElementById(
+  'documentationReferenceOrderInput'
+)
+const documentationReferencePrimaryInput = document.getElementById(
+  'documentationReferencePrimaryInput'
+)
+const documentationReferenceStatus = document.getElementById(
+  'documentationReferenceStatus'
+)
+const resetDocumentationReferenceBtn = document.getElementById(
+  'resetDocumentationReferenceBtn'
+)
+const saveDocumentationReferenceBtn = document.getElementById(
+  'saveDocumentationReferenceBtn'
 )
 
 function isNativeAtlasApp() {
@@ -3585,7 +3649,9 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     teamTagsResult,
     teamRoadmapsResult,
     teamRoadmapStepsResult,
-    teamRoadmapProgressResult
+    teamRoadmapProgressResult,
+    teamReferencesResult,
+    teamReviewStateResult
   ] = await Promise.all([
     supabase
       .from('atlas_team_nodes')
@@ -3671,7 +3737,25 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
       .select('roadmap_id, node_id')
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
-      .eq('user_id', currentUser.id)
+      .eq('user_id', currentUser.id),
+
+    supabase
+      .from('atlas_document_references')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('node_scope', 'team')
+      .eq('team_id', Number(activeTeamId))
+      .order('team_node_id', { ascending: true })
+      .order('is_primary', { ascending: false })
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true }),
+
+    supabase
+      .from('atlas_document_review_state')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('node_scope', 'team')
+      .eq('team_id', Number(activeTeamId))
   ])
 
   if (nodesResult.error) throw nodesResult.error
@@ -3685,6 +3769,8 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   if (teamRoadmapsResult.error) throw teamRoadmapsResult.error
   if (teamRoadmapStepsResult.error) throw teamRoadmapStepsResult.error
   if (teamRoadmapProgressResult.error) throw teamRoadmapProgressResult.error
+  if (teamReferencesResult.error) throw teamReferencesResult.error
+  if (teamReviewStateResult.error) throw teamReviewStateResult.error
 
   teamCategories = teamCategoriesResult.data || []
   teamDifficulties = teamDifficultiesResult.data || []
@@ -3856,6 +3942,45 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     })
   }
 
+  const referencesByTeamNode = new Map()
+
+  for (const row of teamReferencesResult.data || []) {
+    const nodeId = Number(row.team_node_id)
+
+    if (!referencesByTeamNode.has(nodeId)) {
+      referencesByTeamNode.set(nodeId, [])
+    }
+
+    referencesByTeamNode.get(nodeId).push({
+      id: Number(row.id),
+      nodeScope: 'team',
+      publicNodeId: null,
+      teamId: Number(row.team_id),
+      teamNodeId: nodeId,
+      title: row.title || '',
+      url: row.url || '',
+      sourceType: row.source_type || 'other',
+      note: row.note || '',
+      isPrimary: row.is_primary === true,
+      sortOrder: Number(row.sort_order || 0),
+      createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null
+    })
+  }
+
+  const reviewByTeamNode = new Map()
+
+  for (const row of teamReviewStateResult.data || []) {
+    reviewByTeamNode.set(Number(row.team_node_id), {
+      id: Number(row.id),
+      nodeScope: 'team',
+      status: row.review_status || 'needs_review',
+      lastReviewedAt: row.last_reviewed_at || null,
+      reviewNote: row.review_note || '',
+      updatedAt: row.updated_at || null
+    })
+  }
+
   teamNodes = (nodesResult.data || []).map((row) => ({
     id: Number(row.id),
     teamId: Number(row.team_id),
@@ -3885,6 +4010,8 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     media: mediaByNode.get(Number(row.id)) || [],
     files: filesByNode.get(Number(row.id)) || [],
     codeSnippets: codeByNode.get(Number(row.id)) || [],
+    references: referencesByTeamNode.get(Number(row.id)) || [],
+    reviewState: reviewByTeamNode.get(Number(row.id)) || null,
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null,
     sourcePublicNodeId:
@@ -6611,6 +6738,12 @@ function matchesSearch(node) {
       snippet.description || '',
       snippet.language || '',
       snippet.code || ''
+    ]),
+    ...(node.references || []).flatMap((reference) => [
+      reference.title || '',
+      reference.url || '',
+      reference.sourceType || '',
+      reference.note || ''
     ])
   ]
     .join(' ')
@@ -7731,6 +7864,12 @@ function documentSearchText(node) {
       snippet.description || '',
       snippet.language || '',
       snippet.code || ''
+    ]),
+    ...(node.references || []).flatMap((reference) => [
+      reference.title || '',
+      reference.url || '',
+      reference.sourceType || '',
+      reference.note || ''
     ])
   ]
     .join(' ')
@@ -8583,7 +8722,8 @@ function isAnyModalOpen() {
     teamOnboardingBackdrop?.classList.contains('open') ||
     teamImportBackdrop?.classList.contains('open') ||
     documentationFinderBackdrop?.classList.contains('open') ||
-    documentationLibraryBackdrop?.classList.contains('open')
+    documentationLibraryBackdrop?.classList.contains('open') ||
+    documentationMetaBackdrop?.classList.contains('open')
   )
 }
 
@@ -9451,6 +9591,8 @@ async function fetchAllData() {
     mediaResult,
     filesResult,
     codeResult,
+    referencesResult,
+    reviewStateResult,
     tutorialResult
   ] = await Promise.all([
     supabase
@@ -9560,6 +9702,22 @@ async function fetchAllData() {
       .order('id', { ascending: true }),
 
     supabase
+      .from('atlas_document_references')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('node_scope', 'public')
+      .order('public_node_id', { ascending: true })
+      .order('is_primary', { ascending: false })
+      .order('sort_order', { ascending: true })
+      .order('id', { ascending: true }),
+
+    supabase
+      .from('atlas_document_review_state')
+      .select('*')
+      .eq('project_id', PROJECT_ID)
+      .eq('node_scope', 'public'),
+
+    supabase
       .from('atlas_project_tutorials')
       .select('content')
       .eq('project_id', PROJECT_ID)
@@ -9583,6 +9741,8 @@ async function fetchAllData() {
     mediaResult,
     filesResult,
     codeResult,
+    referencesResult,
+    reviewStateResult,
     tutorialResult
   ]) {
     if (result.error) throw result.error
@@ -9776,6 +9936,45 @@ async function fetchAllData() {
     })
   }
 
+  const referencesByPublicNode = new Map()
+
+  for (const row of referencesResult.data || []) {
+    const nodeId = Number(row.public_node_id)
+
+    if (!referencesByPublicNode.has(nodeId)) {
+      referencesByPublicNode.set(nodeId, [])
+    }
+
+    referencesByPublicNode.get(nodeId).push({
+      id: Number(row.id),
+      nodeScope: 'public',
+      publicNodeId: nodeId,
+      teamId: null,
+      teamNodeId: null,
+      title: row.title || '',
+      url: row.url || '',
+      sourceType: row.source_type || 'other',
+      note: row.note || '',
+      isPrimary: row.is_primary === true,
+      sortOrder: Number(row.sort_order || 0),
+      createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null
+    })
+  }
+
+  const reviewByPublicNode = new Map()
+
+  for (const row of reviewStateResult.data || []) {
+    reviewByPublicNode.set(Number(row.public_node_id), {
+      id: Number(row.id),
+      nodeScope: 'public',
+      status: row.review_status || 'needs_review',
+      lastReviewedAt: row.last_reviewed_at || null,
+      reviewNote: row.review_note || '',
+      updatedAt: row.updated_at || null
+    })
+  }
+
   publicNodes = nodesData.map((node) => ({
     id: Number(node.id),
     isTeamNode: false,
@@ -9795,7 +9994,11 @@ async function fetchAllData() {
     links: edgesBySource.get(Number(node.id)) || [],
     media: mediaByNode.get(Number(node.id)) || [],
     files: filesByNode.get(Number(node.id)) || [],
-    codeSnippets: codeByNode.get(Number(node.id)) || []
+    codeSnippets: codeByNode.get(Number(node.id)) || [],
+    references: referencesByPublicNode.get(Number(node.id)) || [],
+    reviewState: reviewByPublicNode.get(Number(node.id)) || null,
+    createdAt: node.created_at || null,
+    updatedAt: node.updated_at || null
   }))
 
   syncActiveNodeCollection()
@@ -11168,6 +11371,24 @@ function updateAuthUI() {
     !canManageRoadmapScope(roadmapManagerScope)
   ) {
     closeRoadmapManager()
+  }
+
+  if (isDocumentationMetaOpen()) {
+    const metadataNode =
+      currentDocumentationMetaNode()
+
+    if (
+      !metadataNode ||
+      !editorMode ||
+      !canEditNode(metadataNode)
+    ) {
+      documentationMetaBackdrop.classList.remove(
+        'open'
+      )
+      documentationMetaTarget = null
+      documentationReferenceEditingId = null
+      documentationMetaMutationBusy = false
+    }
   }
 
   if (isTeamSetupOpen() && !canManageCurrentTeam() && !publicAdminEditorActive) {
@@ -13707,6 +13928,978 @@ async function moveCodeItem(codeId, direction) {
 }
 
 // Full-screen node documentation and editor modals
+
+function referenceTypeLabel(value) {
+  const labels = {
+    official: 'Official',
+    docs: 'Documentation',
+    repo: 'Repository',
+    article: 'Article',
+    video: 'Video',
+    community: 'Community',
+    other: 'Other'
+  }
+
+  return labels[value] || 'Other'
+}
+
+function documentReviewLabel(node) {
+  const state = node?.reviewState
+  if (!state) return 'Not reviewed'
+
+  if (state.status === 'needs_review') {
+    return state.lastReviewedAt
+      ? `Needs review · last checked ${formatPublicDate(
+          state.lastReviewedAt
+        )}`
+      : 'Needs review'
+  }
+
+  return state.lastReviewedAt
+    ? `Reviewed ${formatPublicDate(state.lastReviewedAt)}`
+    : 'Reviewed'
+}
+
+function renderDocumentReviewFact(node) {
+  const state = node?.reviewState
+
+  if (!state && !(editorMode && canEditNode(node))) {
+    return ''
+  }
+
+  const statusClass =
+    state?.status === 'reviewed'
+      ? 'reviewed'
+      : state?.status === 'needs_review'
+        ? 'needs-review'
+        : ''
+
+  return `
+    <div class="fact-box">
+      <strong>Review</strong>
+      <span class="document-review-chip ${statusClass}">
+        ${escapeHtmlText(documentReviewLabel(node))}
+      </span>
+      ${
+        state?.reviewNote
+          ? `<span>${escapeHtmlText(state.reviewNote)}</span>`
+          : ''
+      }
+    </div>
+  `
+}
+
+function renderDocumentReferences(node) {
+  const items = Array.isArray(node?.references)
+    ? node.references
+    : []
+
+  const editable = Boolean(
+    editorMode && canEditNode(node)
+  )
+
+  if (items.length === 0 && !editable) return ''
+
+  return `
+    <div class="info-card">
+      <div class="info-card-label">sources & references</div>
+
+      ${
+        items.length
+          ? `
+            <div class="document-reference-reader-list">
+              ${items
+                .map(
+                  (reference) => `
+                    <div class="document-reference-reader-item">
+                      <div>
+                        <a
+                          href="${escapeHtmlText(reference.url)}"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          ${escapeHtmlText(reference.title)}
+                        </a>
+
+                        <div class="document-reference-reader-meta">
+                          <span class="document-reference-badge">
+                            ${escapeHtmlText(
+                              referenceTypeLabel(reference.sourceType)
+                            )}
+                          </span>
+
+                          ${
+                            reference.isPrimary
+                              ? '<span class="document-reference-badge primary">Primary</span>'
+                              : ''
+                          }
+                        </div>
+
+                        ${
+                          reference.note
+                            ? `<p>${escapeHtmlText(reference.note)}</p>`
+                            : ''
+                        }
+                      </div>
+
+                      <span class="document-reference-external">↗</span>
+                    </div>
+                  `
+                )
+                .join('')}
+            </div>
+          `
+          : `
+            <div class="public-content-manager-empty">
+              Nicio sursă adăugată încă.
+            </div>
+          `
+      }
+
+      ${
+        editable
+          ? `
+            <div class="documentation-meta-inline-actions">
+              <button
+                class="btn"
+                type="button"
+                data-open-documentation-meta
+              >
+                Manage sources & review
+              </button>
+            </div>
+          `
+          : ''
+      }
+    </div>
+  `
+}
+
+function inboundDocumentRelations(node) {
+  if (!node) return []
+
+  return nodes
+    .flatMap((source) =>
+      (source.links || [])
+        .filter(
+          (link) =>
+            Number(link.targetId) === Number(node.id)
+        )
+        .map((link) => ({
+          source,
+          label: link.label || 'relation'
+        }))
+    )
+    .filter(
+      (item) =>
+        Number(item.source.id) !== Number(node.id)
+    )
+}
+
+function relatedDocumentationNodes(node, limit = 6) {
+  if (!node) return []
+
+  const inboundIds = new Set(
+    inboundDocumentRelations(node).map((item) =>
+      Number(item.source.id)
+    )
+  )
+
+  const outgoingIds = new Set(
+    (node.links || []).map((link) =>
+      Number(link.targetId)
+    )
+  )
+
+  const nodeTags = new Set(
+    (node.tagIds || []).map(Number)
+  )
+
+  const nodeDepartments = new Set(
+    nodeDepartmentIds(node).map(Number)
+  )
+
+  return nodes
+    .filter(
+      (candidate) =>
+        Number(candidate.id) !== Number(node.id)
+    )
+    .map((candidate) => {
+      let score = 0
+
+      if (
+        outgoingIds.has(Number(candidate.id)) ||
+        inboundIds.has(Number(candidate.id))
+      ) {
+        score += 24
+      }
+
+      if (
+        node.categoryId != null &&
+        Number(candidate.categoryId) ===
+          Number(node.categoryId)
+      ) {
+        score += 8
+      }
+
+      for (const tagId of candidate.tagIds || []) {
+        if (nodeTags.has(Number(tagId))) score += 4
+      }
+
+      if (
+        nodeDepartmentIds(candidate).some(
+          (departmentId) =>
+            nodeDepartments.has(Number(departmentId))
+        )
+      ) {
+        score += 2
+      }
+
+      return { node: candidate, score }
+    })
+    .filter((item) => item.score > 0)
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score
+      }
+
+      return String(a.node.title).localeCompare(
+        String(b.node.title),
+        'ro',
+        { sensitivity: 'base' }
+      )
+    })
+    .slice(0, limit)
+    .map((item) => item.node)
+}
+
+function renderDocumentConnections(node) {
+  const inbound = inboundDocumentRelations(node).slice(0, 6)
+  const related = relatedDocumentationNodes(node, 6)
+
+  if (
+    inbound.length === 0 &&
+    related.length === 0
+  ) {
+    return ''
+  }
+
+  return `
+    <div class="info-card">
+      <div class="info-card-label">documentation connections</div>
+
+      <div class="document-connections-grid">
+        <div class="document-connection-group">
+          <strong>Referenced by</strong>
+
+          <div class="document-connection-list">
+            ${
+              inbound.length
+                ? inbound
+                    .map(
+                      ({ source, label }) => `
+                        <button
+                          class="document-connection-btn"
+                          type="button"
+                          data-open-connected-node="${Number(
+                            source.id
+                          )}"
+                        >
+                          ${escapeHtmlText(source.title)}
+                          · ${escapeHtmlText(label)}
+                        </button>
+                      `
+                    )
+                    .join('')
+                : '<span>Fără backlinks.</span>'
+            }
+          </div>
+        </div>
+
+        <div class="document-connection-group">
+          <strong>Related docs</strong>
+
+          <div class="document-connection-list">
+            ${
+              related.length
+                ? related
+                    .map(
+                      (relatedNode) => `
+                        <button
+                          class="document-connection-btn"
+                          type="button"
+                          data-open-connected-node="${Number(
+                            relatedNode.id
+                          )}"
+                        >
+                          ${escapeHtmlText(relatedNode.title)}
+                        </button>
+                      `
+                    )
+                    .join('')
+                : '<span>Nicio sugestie încă.</span>'
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+function openConnectedDocumentationNode(nodeId) {
+  const node = findNode(nodeId)
+  if (!node) return
+
+  activateDepartmentForNode(node, { persist: true })
+  clearFiltersForDeepLink()
+
+  selectedId = node.id
+  clearEdgeSelection()
+  detailOpen = true
+
+  renderAll()
+  setNodeRoute(node, { push: true })
+
+  requestAnimationFrame(() => centerOnNode(node))
+}
+
+function hydrateDetailDocumentationOutline() {
+  const card = document.getElementById(
+    'detailOutlineCard'
+  )
+
+  const list = document.getElementById(
+    'detailOutlineList'
+  )
+
+  const content = detailPanel.querySelector(
+    '.doc-text.rich'
+  )
+
+  if (!card || !list || !content) return
+
+  const headings = [
+    ...content.querySelectorAll('h2, h3, h4')
+  ]
+
+  if (headings.length < 2) {
+    card.hidden = true
+    list.innerHTML = ''
+    return
+  }
+
+  headings.forEach((heading, index) => {
+    heading.id = `atlas-doc-heading-${index + 1}`
+  })
+
+  list.innerHTML = headings
+    .map(
+      (heading, index) => `
+        <button
+          class="detail-outline-link level-${heading.tagName.slice(1)}"
+          type="button"
+          data-outline-target="atlas-doc-heading-${index + 1}"
+        >
+          ${escapeHtmlText(
+            String(heading.textContent || '').trim() ||
+              `Section ${index + 1}`
+          )}
+        </button>
+      `
+    )
+    .join('')
+
+  card.hidden = false
+
+  list
+    .querySelectorAll('[data-outline-target]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        document
+          .getElementById(
+            button.dataset.outlineTarget
+          )
+          ?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          })
+      })
+    })
+}
+
+function isDocumentationMetaOpen() {
+  return Boolean(
+    documentationMetaBackdrop?.classList.contains(
+      'open'
+    )
+  )
+}
+
+function currentDocumentationMetaNode() {
+  if (!documentationMetaTarget) return null
+
+  if (
+    documentationMetaTarget.nodeScope === 'team'
+  ) {
+    return (
+      teamNodes.find(
+        (node) =>
+          Number(node.teamId) ===
+            Number(documentationMetaTarget.teamId) &&
+          Number(node.id) ===
+            Number(documentationMetaTarget.nodeId)
+      ) || null
+    )
+  }
+
+  return (
+    publicNodes.find(
+      (node) =>
+        Number(node.id) ===
+        Number(documentationMetaTarget.nodeId)
+    ) || null
+  )
+}
+
+function setDocumentationMetaBusy(
+  nextValue,
+  status = ''
+) {
+  documentationMetaMutationBusy =
+    Boolean(nextValue)
+
+  for (const element of [
+    documentationReviewStatusInput,
+    documentationReviewNoteInput,
+    clearDocumentationReviewBtn,
+    saveDocumentationReviewBtn,
+    documentationReferenceTitleInput,
+    documentationReferenceTypeInput,
+    documentationReferenceUrlInput,
+    documentationReferenceNoteInput,
+    documentationReferenceOrderInput,
+    documentationReferencePrimaryInput,
+    resetDocumentationReferenceBtn,
+    saveDocumentationReferenceBtn,
+    closeDocumentationMetaBtn,
+    closeDocumentationMetaFooterBtn
+  ]) {
+    if (element && 'disabled' in element) {
+      element.disabled =
+        documentationMetaMutationBusy
+    }
+  }
+
+  documentationReferenceList
+    ?.querySelectorAll('button')
+    .forEach((button) => {
+      button.disabled =
+        documentationMetaMutationBusy
+    })
+
+  if (clearDocumentationReviewBtn) {
+    clearDocumentationReviewBtn.disabled =
+      documentationMetaMutationBusy ||
+      !currentDocumentationMetaNode()?.reviewState
+  }
+
+  if (status) {
+    documentationReferenceStatus.textContent =
+      status
+  }
+}
+
+function resetDocumentationReferenceEditor() {
+  documentationReferenceEditingId = null
+  documentationReferenceTitleInput.value = ''
+  documentationReferenceTypeInput.value = 'official'
+  documentationReferenceUrlInput.value = ''
+  documentationReferenceNoteInput.value = ''
+  documentationReferenceOrderInput.value = '0'
+  documentationReferencePrimaryInput.checked = false
+
+  documentationReferenceStatus.textContent =
+    'Adaugă o sursă nouă sau editează una existentă.'
+}
+
+function editDocumentationReference(referenceId) {
+  const node = currentDocumentationMetaNode()
+
+  const reference = (node?.references || []).find(
+    (item) =>
+      Number(item.id) === Number(referenceId)
+  )
+
+  if (!reference) return
+
+  documentationReferenceEditingId =
+    Number(reference.id)
+
+  documentationReferenceTitleInput.value =
+    reference.title || ''
+
+  documentationReferenceTypeInput.value =
+    reference.sourceType || 'other'
+
+  documentationReferenceUrlInput.value =
+    reference.url || ''
+
+  documentationReferenceNoteInput.value =
+    reference.note || ''
+
+  documentationReferenceOrderInput.value =
+    String(Number(reference.sortOrder || 0))
+
+  documentationReferencePrimaryInput.checked =
+    reference.isPrimary === true
+
+  documentationReferenceStatus.textContent =
+    'Sursa este încărcată pentru editare.'
+}
+
+function renderDocumentationMetaManager() {
+  if (!isDocumentationMetaOpen()) return
+
+  const node = currentDocumentationMetaNode()
+
+  if (!node) {
+    documentationMetaTitle.textContent =
+      'Sources & review'
+
+    documentationReferenceList.innerHTML =
+      '<div class="documentation-finder-empty">Documentul nu mai este disponibil.</div>'
+
+    return
+  }
+
+  documentationMetaTitle.textContent =
+    `Sources & review · ${node.title}`
+
+  const review = node.reviewState
+
+  documentationReviewStatusInput.value =
+    review?.status === 'needs_review'
+      ? 'needs_review'
+      : 'reviewed'
+
+  documentationReviewNoteInput.value =
+    review?.reviewNote || ''
+
+  documentationReviewSummary.innerHTML = review
+    ? `
+      <strong>${escapeHtmlText(
+        documentReviewLabel(node)
+      )}</strong>
+      ${
+        review.updatedAt
+          ? ` · metadata updated ${escapeHtmlText(
+              formatPublicDate(review.updatedAt)
+            )}`
+          : ''
+      }
+    `
+    : '<strong>Not reviewed</strong> · nu există încă review metadata.'
+
+  clearDocumentationReviewBtn.disabled =
+    documentationMetaMutationBusy || !review
+
+  const references = [
+    ...(node.references || [])
+  ].sort((a, b) => {
+    if (a.isPrimary !== b.isPrimary) {
+      return a.isPrimary ? -1 : 1
+    }
+
+    const orderDifference =
+      Number(a.sortOrder || 0) -
+      Number(b.sortOrder || 0)
+
+    if (orderDifference !== 0) {
+      return orderDifference
+    }
+
+    return Number(a.id) - Number(b.id)
+  })
+
+  documentationReferenceList.innerHTML =
+    references.length
+      ? references
+          .map(
+            (reference) => `
+              <div class="documentation-reference-manager-item">
+                <div>
+                  <strong>${escapeHtmlText(
+                    reference.title
+                  )}</strong>
+                  <span>
+                    ${escapeHtmlText(
+                      referenceTypeLabel(
+                        reference.sourceType
+                      )
+                    )}
+                    ${
+                      reference.isPrimary
+                        ? ' · Primary'
+                        : ''
+                    }
+                    · order ${Number(
+                      reference.sortOrder || 0
+                    )}
+                  </span>
+                </div>
+
+                <div class="documentation-reference-manager-actions">
+                  <button
+                    class="taxonomy-mini-btn"
+                    type="button"
+                    data-doc-ref-edit="${Number(
+                      reference.id
+                    )}"
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    class="taxonomy-mini-btn danger"
+                    type="button"
+                    data-doc-ref-delete="${Number(
+                      reference.id
+                    )}"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            `
+          )
+          .join('')
+      : `
+          <div class="documentation-finder-empty">
+            Nicio sursă adăugată încă.
+          </div>
+        `
+
+  documentationReferenceList
+    .querySelectorAll('[data-doc-ref-edit]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        editDocumentationReference(
+          Number(button.dataset.docRefEdit)
+        )
+      })
+    })
+
+  documentationReferenceList
+    .querySelectorAll('[data-doc-ref-delete]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        deleteDocumentationReference(
+          Number(button.dataset.docRefDelete)
+        ).catch((error) => {
+          console.error(
+            'Reference delete failed:',
+            error
+          )
+
+          alert(
+            error?.message ||
+              'Sursa nu a putut fi ștearsă.'
+          )
+        })
+      })
+    })
+
+  setDocumentationMetaBusy(
+    documentationMetaMutationBusy
+  )
+}
+
+async function refreshDocumentationMetaTarget() {
+  const target = documentationMetaTarget
+  if (!target) return
+
+  if (target.nodeScope === 'team') {
+    await loadActiveTeamAtlasNodes()
+  } else {
+    await fetchAllData()
+  }
+
+  renderDocumentationMetaManager()
+  renderAll()
+}
+
+function openDocumentationMetaManager(
+  nodeId = selectedId
+) {
+  const node = findNode(nodeId)
+
+  if (
+    !node ||
+    !editorMode ||
+    !canEditNode(node)
+  ) {
+    alert(
+      'Nu ai drept de editare pentru metadata acestui document.'
+    )
+    return
+  }
+
+  documentationMetaTarget = {
+    nodeScope: node.isTeamNode
+      ? 'team'
+      : 'public',
+    teamId: node.isTeamNode
+      ? Number(node.teamId)
+      : null,
+    nodeId: Number(node.id)
+  }
+
+  resetDocumentationReferenceEditor()
+  documentationMetaBackdrop.classList.add('open')
+  renderDocumentationMetaManager()
+}
+
+function closeDocumentationMetaManager() {
+  if (documentationMetaMutationBusy) return
+
+  documentationMetaBackdrop?.classList.remove(
+    'open'
+  )
+
+  documentationMetaTarget = null
+  documentationReferenceEditingId = null
+}
+
+function documentTargetRpcParams(node) {
+  return {
+    p_project_id: PROJECT_ID,
+    p_node_scope: node.isTeamNode
+      ? 'team'
+      : 'public',
+    p_public_node_id: node.isTeamNode
+      ? null
+      : Number(node.id),
+    p_team_id: node.isTeamNode
+      ? Number(node.teamId)
+      : null,
+    p_team_node_id: node.isTeamNode
+      ? Number(node.id)
+      : null
+  }
+}
+
+async function saveDocumentationReview() {
+  if (documentationMetaMutationBusy) return
+
+  const node = currentDocumentationMetaNode()
+
+  if (!node) {
+    throw new Error(
+      'Documentul nu mai este disponibil.'
+    )
+  }
+
+  setDocumentationMetaBusy(
+    true,
+    'Se salvează review state...'
+  )
+
+  try {
+    const { error } = await supabase.rpc(
+      'atlas_document_review_set',
+      {
+        ...documentTargetRpcParams(node),
+        p_review_status:
+          documentationReviewStatusInput.value,
+        p_review_note:
+          documentationReviewNoteInput.value.trim()
+      }
+    )
+
+    if (error) throw error
+
+    await refreshDocumentationMetaTarget()
+
+    documentationReferenceStatus.textContent =
+      'Review state salvat.'
+  } finally {
+    setDocumentationMetaBusy(false)
+  }
+}
+
+async function clearDocumentationReview() {
+  if (documentationMetaMutationBusy) return
+
+  const node = currentDocumentationMetaNode()
+
+  if (!node) {
+    throw new Error(
+      'Documentul nu mai este disponibil.'
+    )
+  }
+
+  setDocumentationMetaBusy(
+    true,
+    'Se șterge review state...'
+  )
+
+  try {
+    const { error } = await supabase.rpc(
+      'atlas_document_review_clear',
+      documentTargetRpcParams(node)
+    )
+
+    if (error) throw error
+
+    await refreshDocumentationMetaTarget()
+
+    documentationReferenceStatus.textContent =
+      'Review state șters.'
+  } finally {
+    setDocumentationMetaBusy(false)
+  }
+}
+
+async function saveDocumentationReference() {
+  if (documentationMetaMutationBusy) return
+
+  const node = currentDocumentationMetaNode()
+
+  if (!node) {
+    throw new Error(
+      'Documentul nu mai este disponibil.'
+    )
+  }
+
+  const title =
+    documentationReferenceTitleInput.value.trim()
+
+  const url = normalizeHttpUrl(
+    documentationReferenceUrlInput.value.trim()
+  )
+
+  if (title.length < 2) {
+    throw new Error(
+      'Titlul sursei trebuie să aibă cel puțin 2 caractere.'
+    )
+  }
+
+  if (!url) {
+    throw new Error(
+      'URL-ul sursei trebuie să fie http:// sau https:// valid.'
+    )
+  }
+
+  const params = {
+    ...documentTargetRpcParams(node),
+    p_title: title,
+    p_url: url,
+    p_source_type:
+      documentationReferenceTypeInput.value,
+    p_note:
+      documentationReferenceNoteInput.value.trim(),
+    p_is_primary:
+      documentationReferencePrimaryInput.checked,
+    p_sort_order: Number(
+      documentationReferenceOrderInput.value || 0
+    )
+  }
+
+  const rpcName =
+    documentationReferenceEditingId == null
+      ? 'atlas_document_reference_create'
+      : 'atlas_document_reference_update'
+
+  if (documentationReferenceEditingId != null) {
+    params.p_reference_id =
+      Number(documentationReferenceEditingId)
+  }
+
+  setDocumentationMetaBusy(
+    true,
+    'Se salvează sursa...'
+  )
+
+  try {
+    const { error } = await supabase.rpc(
+      rpcName,
+      params
+    )
+
+    if (error) throw error
+
+    resetDocumentationReferenceEditor()
+    await refreshDocumentationMetaTarget()
+
+    documentationReferenceStatus.textContent =
+      'Sursa a fost salvată.'
+  } finally {
+    setDocumentationMetaBusy(false)
+  }
+}
+
+async function deleteDocumentationReference(
+  referenceId
+) {
+  if (documentationMetaMutationBusy) return
+
+  const node = currentDocumentationMetaNode()
+
+  if (!node) {
+    throw new Error(
+      'Documentul nu mai este disponibil.'
+    )
+  }
+
+  const reference = (node.references || []).find(
+    (item) =>
+      Number(item.id) === Number(referenceId)
+  )
+
+  if (!reference) {
+    throw new Error('Sursa nu mai există.')
+  }
+
+  if (
+    !confirm(
+      `Sigur vrei să ștergi sursa „${reference.title}”?`
+    )
+  ) {
+    return
+  }
+
+  setDocumentationMetaBusy(
+    true,
+    'Se șterge sursa...'
+  )
+
+  try {
+    const { error } = await supabase.rpc(
+      'atlas_document_reference_delete',
+      {
+        p_project_id: PROJECT_ID,
+        p_reference_id: Number(referenceId)
+      }
+    )
+
+    if (error) throw error
+
+    if (
+      Number(documentationReferenceEditingId) ===
+      Number(referenceId)
+    ) {
+      resetDocumentationReferenceEditor()
+    }
+
+    await refreshDocumentationMetaTarget()
+
+    documentationReferenceStatus.textContent =
+      'Sursa a fost ștearsă.'
+  } finally {
+    setDocumentationMetaBusy(false)
+  }
+}
+
 function renderDetailPanel() {
   const node = selectedNode()
 
@@ -13765,6 +14958,7 @@ function renderDetailPanel() {
             aria-label="${isNodeBookmarked(node) ? 'Remove from saved' : 'Save document'}"
             title="${isNodeBookmarked(node) ? 'Remove from saved' : 'Save document'}"
           >${isNodeBookmarked(node) ? '★' : '☆'}</button>
+          <button class="icon-btn" id="detailMetaBtn" aria-label="Sources & review" title="Sources & review">◎</button>
           <button class="icon-btn" id="detailImportTeamBtn" aria-label="Copy to Team Atlas" title="Copy to Team Atlas">⇢</button>
           <button class="icon-btn" id="detailPublicSourceBtn" aria-label="Open public source" title="Open public source">↗</button>
           <button class="icon-btn" id="detailCopyTeamLinkBtn" aria-label="Copy private Team Atlas link" title="Copy private Team Atlas link">🔗</button>
@@ -13801,6 +14995,34 @@ function renderDetailPanel() {
             `
             : ''
         }
+
+        ${renderDocumentReviewFact(node)}
+
+        ${
+          node.updatedAt
+            ? `
+              <div class="fact-box">
+                <strong>Last edit</strong>
+                <span>${escapeHtmlText(
+                  formatPublicDate(node.updatedAt)
+                )}</span>
+              </div>
+            `
+            : ''
+        }
+
+        <div
+          class="fact-box detail-outline-card"
+          id="detailOutlineCard"
+          hidden
+        >
+          <strong>Outline</strong>
+          <div
+            class="detail-outline-list"
+            id="detailOutlineList"
+          ></div>
+        </div>
+
         <div class="relation-card">
           <div class="relation-card-label">relații</div>
           <div class="relations-list">${relations}</div>
@@ -13812,6 +15034,10 @@ function renderDetailPanel() {
           <div class="info-card-label">documentație</div>
           ${renderNodeDocumentation(node)}
         </div>
+
+        ${renderDocumentReferences(node)}
+
+        ${renderDocumentConnections(node)}
 
         ${renderNodeCodeSnippets(node)}
 
@@ -13834,6 +15060,7 @@ function renderDetailPanel() {
   const detailMediaBtn = document.getElementById('detailMediaBtn')
   const detailFilesBtn = document.getElementById('detailFilesBtn')
   const detailBookmarkBtn = document.getElementById('detailBookmarkBtn')
+  const detailMetaBtn = document.getElementById('detailMetaBtn')
   const detailImportTeamBtn = document.getElementById('detailImportTeamBtn')
   const detailPublicSourceBtn = document.getElementById('detailPublicSourceBtn')
   const detailCopyTeamLinkBtn = document.getElementById('detailCopyTeamLinkBtn')
@@ -13845,6 +15072,7 @@ function renderDetailPanel() {
   detailCodeBtn.hidden = !nodeEditorActions
   detailMediaBtn.hidden = !attachmentActions
   detailFilesBtn.hidden = !attachmentActions
+  detailMetaBtn.hidden = !nodeEditorActions
   detailImportTeamBtn.hidden = !canImportPublicNodeToTeam(node)
   detailPublicSourceBtn.hidden = !(node.isTeamNode && node.sourcePublicNodeId)
   detailCopyTeamLinkBtn.hidden = !node.isTeamNode
@@ -13855,6 +15083,7 @@ function renderDetailPanel() {
   detailCodeBtn.disabled = !nodeEditorActions
   detailMediaBtn.disabled = !attachmentActions
   detailFilesBtn.disabled = !attachmentActions
+  detailMetaBtn.disabled = !nodeEditorActions
   detailImportTeamBtn.disabled = !canImportPublicNodeToTeam(node)
   detailPublicSourceBtn.disabled = !(node.isTeamNode && node.sourcePublicNodeId)
   detailCopyTeamLinkBtn.disabled = !node.isTeamNode
@@ -13871,6 +15100,11 @@ function renderDetailPanel() {
       alert(error?.message || 'Bookmark-ul nu a putut fi actualizat.')
     })
   })
+
+  detailMetaBtn.addEventListener('click', () => {
+    openDocumentationMetaManager(node.id)
+  })
+
   detailImportTeamBtn.addEventListener('click', () => openTeamImport(node.id))
   detailPublicSourceBtn.addEventListener('click', () =>
     openPublicSourceFromTeamNode(node)
@@ -13922,6 +15156,26 @@ function renderDetailPanel() {
   detailPanel.querySelectorAll('[data-open-node-files]').forEach((button) => {
     button.addEventListener('click', () => openFileManager(node.id))
   })
+
+  detailPanel
+    .querySelectorAll('[data-open-documentation-meta]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        openDocumentationMetaManager(node.id)
+      })
+    })
+
+  detailPanel
+    .querySelectorAll('[data-open-connected-node]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        openConnectedDocumentationNode(
+          Number(button.dataset.openConnectedNode)
+        )
+      })
+    })
+
+  hydrateDetailDocumentationOutline()
 
   const hideEditorActions = !nodeEditorActions
 
@@ -15101,6 +16355,88 @@ teamAtlasSelect?.addEventListener('change', () => {
   })
 })
 
+closeDocumentationMetaBtn?.addEventListener(
+  'click',
+  closeDocumentationMetaManager
+)
+
+closeDocumentationMetaFooterBtn?.addEventListener(
+  'click',
+  closeDocumentationMetaManager
+)
+
+documentationMetaBackdrop?.addEventListener(
+  'click',
+  (event) => {
+    if (event.target === documentationMetaBackdrop) {
+      closeDocumentationMetaManager()
+    }
+  }
+)
+
+resetDocumentationReferenceBtn?.addEventListener(
+  'click',
+  () => {
+    if (documentationMetaMutationBusy) return
+    resetDocumentationReferenceEditor()
+  }
+)
+
+saveDocumentationReferenceBtn?.addEventListener(
+  'click',
+  () => {
+    saveDocumentationReference().catch((error) => {
+      console.error(
+        'Reference save failed:',
+        error
+      )
+
+      documentationReferenceStatus.textContent =
+        error?.message ||
+        'Sursa nu a putut fi salvată.'
+
+      alert(
+        error?.message ||
+          'Sursa nu a putut fi salvată.'
+      )
+    })
+  }
+)
+
+saveDocumentationReviewBtn?.addEventListener(
+  'click',
+  () => {
+    saveDocumentationReview().catch((error) => {
+      console.error(
+        'Review save failed:',
+        error
+      )
+
+      alert(
+        error?.message ||
+          'Review state nu a putut fi salvat.'
+      )
+    })
+  }
+)
+
+clearDocumentationReviewBtn?.addEventListener(
+  'click',
+  () => {
+    clearDocumentationReview().catch((error) => {
+      console.error(
+        'Review clear failed:',
+        error
+      )
+
+      alert(
+        error?.message ||
+          'Review state nu a putut fi șters.'
+      )
+    })
+  }
+)
+
 quickFinderBtn?.addEventListener('click', openDocumentationFinder)
 savedDocsBtn?.addEventListener('click', openDocumentationLibrary)
 
@@ -15933,7 +17269,9 @@ window.addEventListener('keydown', (event) => {
 
   if (event.key === 'Escape') {
     if (!introDismissed) dismissIntro()
-    else if (documentationFinderBackdrop?.classList.contains('open')) {
+    else if (documentationMetaBackdrop?.classList.contains('open')) {
+      closeDocumentationMetaManager()
+    } else if (documentationFinderBackdrop?.classList.contains('open')) {
       closeDocumentationFinder()
     } else if (documentationLibraryBackdrop?.classList.contains('open')) {
       closeDocumentationLibrary()
@@ -16157,6 +17495,8 @@ window.atlasDebug = {
   openTeamIndex: () => selectPublicSection('team-index'),
   openQuickFind: openDocumentationFinder,
   openSavedDocs: openDocumentationLibrary,
+  openDocumentationMeta: () =>
+    openDocumentationMetaManager(selectedId),
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,
