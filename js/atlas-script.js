@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v92 · COMPACT PANELS + ADMIN UX REWORK')
+console.log('ATLAS SCRIPT LOADED v93 · DOCUMENTATION UX + RICH EDITOR REWORK')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -7625,9 +7625,16 @@ function initRichTextEditor() {
     richBlockSelect.value = 'p'
   })
 
-  richFontSizeSelect.addEventListener('change', () => {
+  richFontSizeSelect?.addEventListener('change', () => {
     runRichCommand('fontSize', richFontSizeSelect.value)
     richFontSizeSelect.value = '3'
+  })
+
+  richEditorToolbar.querySelectorAll('[data-rich-block]').forEach((button) => {
+    button.addEventListener('click', () => {
+      runRichCommand('formatBlock', button.dataset.richBlock)
+      button.closest('.rich-editor-more')?.removeAttribute('open')
+    })
   })
 
   richLinkBtn.addEventListener('mousedown', (event) => event.preventDefault())
@@ -7836,62 +7843,40 @@ function renderMediaPreview(media, compact = false) {
 
 function renderNodeMediaGallery(node) {
   const mediaItems = Array.isArray(node.media) ? node.media : []
+  const editable = canEditNode(node) && editorMode
 
-  if (mediaItems.length === 0) {
-    if (!canEditNode(node) || !editorMode || !layoutEditMode) return ''
-
-    return `
-      <section class="node-media-section empty">
-        <div class="node-media-heading">
-          <div>
-            <span>media</span>
-            <h3>Screenshoturi și videoclipuri</h3>
-          </div>
-          <button class="btn" type="button" data-open-node-media>Adaugă media</button>
-        </div>
-        <p>Acest nod nu are încă imagini sau videoclipuri.</p>
-      </section>
-    `
-  }
+  if (mediaItems.length === 0 && !editable) return ''
 
   return `
-    <section class="node-media-section">
-      <div class="node-media-heading">
-        <div>
-          <span>media</span>
-          <h3>Screenshoturi și videoclipuri</h3>
-        </div>
+    <details class="document-disclosure" data-document-section="media">
+      <summary>
+        <span>Media</span>
+        <span class="document-disclosure-count">${mediaItems.length}</span>
+      </summary>
+      <div class="document-disclosure-body">
         ${
-          canEditNode(node) && editorMode
-            ? '<button class="btn" type="button" data-open-node-media>Administrează</button>'
-            : ''
-        }
-      </div>
-
-      <div class="media-gallery">
-        ${mediaItems
-          .map(
-            (media) => `
-          <article class="media-card">
-            <div class="media-preview">
-              ${renderMediaPreview(media)}
-            </div>
-            ${
-              media.title || media.caption
-                ? `
-              <div class="media-card-copy">
-                ${media.title ? `<strong>${escapeHtml(media.title)}</strong>` : ''}
-                ${media.caption ? `<p>${escapeHtml(media.caption)}</p>` : ''}
+          mediaItems.length
+            ? `
+              ${editable ? '<div class="node-media-heading"><span></span><button class="btn" type="button" data-open-node-media>Administrează</button></div>' : ''}
+              <div class="media-gallery">
+                ${mediaItems
+                  .map((media) => `
+                    <article class="media-card">
+                      <div class="media-preview">${renderMediaPreview(media)}</div>
+                      ${
+                        media.title || media.caption
+                          ? `<div class="media-card-copy">${media.title ? `<strong>${escapeHtml(media.title)}</strong>` : ''}${media.caption ? `<p>${escapeHtml(media.caption)}</p>` : ''}</div>`
+                          : ''
+                      }
+                    </article>
+                  `)
+                  .join('')}
               </div>
             `
-                : ''
-            }
-          </article>
-        `
-          )
-          .join('')}
+            : `<div class="document-disclosure-empty"><span>Nicio media.</span><button class="btn" type="button" data-open-node-media>Adaugă media</button></div>`
+        }
       </div>
-    </section>
+    </details>
   `
 }
 
@@ -8004,23 +7989,9 @@ function groupNodeFilesByFolder(files) {
 
 function renderNodeFiles(node) {
   const files = Array.isArray(node.files) ? node.files : []
+  const editable = canEditNode(node) && editorMode
 
-  if (files.length === 0) {
-    if (!canEditNode(node) || !editorMode) return ''
-
-    return `
-      <section class="node-files-section empty">
-        <div class="node-files-heading">
-          <div>
-            <span>fișiere</span>
-            <h3>Fișiere și foldere</h3>
-          </div>
-          <button class="btn" type="button" data-open-node-files>Adaugă fișiere</button>
-        </div>
-        <p>Poți atașa arhive, PDF-uri, proiecte, configurații, surse și foldere întregi.</p>
-      </section>
-    `
-  }
+  if (files.length === 0 && !editable) return ''
 
   const groups = groupNodeFilesByFolder(files)
   const groupsHtml = [...groups.entries()]
@@ -8039,11 +8010,7 @@ function renderNodeFiles(node) {
                     <span>${escapeHtml(file.originalName)} · ${escapeHtml(humanFileSize(file.fileSize))}</span>
                     ${file.description ? `<p>${escapeHtml(file.description)}</p>` : ''}
                   </div>
-                  ${
-                    url
-                      ? `<a class="btn file-download-btn" href="${escapeHtml(url)}" download="${escapeHtml(file.originalName)}" target="_blank" rel="noopener noreferrer">Descarcă</a>`
-                      : '<span class="file-download-btn">Indisponibil</span>'
-                  }
+                  ${url ? `<a class="btn file-download-btn" href="${escapeHtml(url)}" download="${escapeHtml(file.originalName)}" target="_blank" rel="noopener noreferrer">Descarcă</a>` : '<span class="file-download-btn">Indisponibil</span>'}
                 </article>
               `
             })
@@ -8054,16 +8021,16 @@ function renderNodeFiles(node) {
     .join('')
 
   return `
-    <section class="node-files-section">
-      <div class="node-files-heading">
-        <div>
-          <span>fișiere</span>
-          <h3>Fișiere și foldere · ${files.length}</h3>
-        </div>
-        ${canEditNode(node) && editorMode ? '<button class="btn" type="button" data-open-node-files>Administrează</button>' : ''}
+    <details class="document-disclosure" data-document-section="files">
+      <summary><span>Fișiere</span><span class="document-disclosure-count">${files.length}</span></summary>
+      <div class="document-disclosure-body">
+        ${
+          files.length
+            ? `${editable ? '<div class="node-files-heading"><span></span><button class="btn" type="button" data-open-node-files>Administrează</button></div>' : ''}${groupsHtml}`
+            : `<div class="document-disclosure-empty"><span>Niciun fișier.</span><button class="btn" type="button" data-open-node-files>Adaugă fișiere</button></div>`
+        }
       </div>
-      ${groupsHtml}
-    </section>
+    </details>
   `
 }
 
@@ -9027,74 +8994,40 @@ async function copyTextToClipboard(text) {
 
 function renderNodeCodeSnippets(node) {
   const snippets = Array.isArray(node.codeSnippets) ? node.codeSnippets : []
+  const editable = canEditNode(node) && editorMode
 
-  if (snippets.length === 0) {
-    if (!canEditNode(node) || !editorMode) return ''
-
-    return `
-      <section class="node-code-section empty">
-        <div class="node-code-heading">
-          <div>
-            <span>nod cod</span>
-            <h3>Snippet-uri de cod</h3>
-          </div>
-          <button class="btn" type="button" data-open-node-code>Adaugă cod</button>
-        </div>
-        <p>Acest nod nu are încă exemple de cod.</p>
-      </section>
-    `
-  }
+  if (snippets.length === 0 && !editable) return ''
 
   return `
-    <section class="node-code-section">
-      <div class="node-code-heading">
-        <div>
-          <span>nod cod</span>
-          <h3>Snippet-uri de cod</h3>
-        </div>
+    <details class="document-disclosure" data-document-section="code">
+      <summary><span>Cod</span><span class="document-disclosure-count">${snippets.length}</span></summary>
+      <div class="document-disclosure-body">
         ${
-          canEditNode(node) && editorMode
-            ? '<button class="btn" type="button" data-open-node-code>Administrează</button>'
-            : ''
+          snippets.length
+            ? `
+              ${editable ? '<div class="node-code-heading"><span></span><button class="btn" type="button" data-open-node-code>Administrează</button></div>' : ''}
+              <div class="code-snippet-list">
+                ${snippets
+                  .map((snippet) => `
+                    <article class="code-snippet-card">
+                      <div class="code-snippet-header">
+                        <div class="code-snippet-title-wrap">
+                          <span class="code-language-badge">${escapeHtml(codeLanguageLabel(snippet.language))}</span>
+                          ${snippet.title ? `<h4 class="code-snippet-title">${escapeHtml(snippet.title)}</h4>` : ''}
+                        </div>
+                        <button class="btn code-copy-btn" type="button" data-copy-code-id="${snippet.id}">Copiază</button>
+                      </div>
+                      ${snippet.description ? `<p class="code-snippet-description">${escapeHtml(snippet.description)}</p>` : ''}
+                      <div class="code-block-shell"><pre tabindex="0"><code>${escapeHtmlText(snippet.code)}</code></pre></div>
+                    </article>
+                  `)
+                  .join('')}
+              </div>
+            `
+            : `<div class="document-disclosure-empty"><span>Niciun snippet.</span><button class="btn" type="button" data-open-node-code>Adaugă cod</button></div>`
         }
       </div>
-
-      <div class="code-snippet-list">
-        ${snippets
-          .map(
-            (snippet) => `
-          <article class="code-snippet-card">
-            <div class="code-snippet-header">
-              <div class="code-snippet-title-wrap">
-                <span class="code-language-badge">${escapeHtml(codeLanguageLabel(snippet.language))}</span>
-                ${
-                  snippet.title
-                    ? `<h4 class="code-snippet-title">${escapeHtml(snippet.title)}</h4>`
-                    : ''
-                }
-              </div>
-              <button
-                class="btn code-copy-btn"
-                type="button"
-                data-copy-code-id="${snippet.id}"
-              >Copiază</button>
-            </div>
-
-            ${
-              snippet.description
-                ? `<p class="code-snippet-description">${escapeHtml(snippet.description)}</p>`
-                : ''
-            }
-
-            <div class="code-block-shell">
-              <pre tabindex="0"><code>${escapeHtmlText(snippet.code)}</code></pre>
-            </div>
-          </article>
-        `
-          )
-          .join('')}
-      </div>
-    </section>
+    </details>
   `
 }
 
@@ -16756,77 +16689,46 @@ function renderDocumentReferences(node) {
   if (items.length === 0 && !editable) return ''
 
   return `
-    <div class="info-card">
-      <div class="info-card-label">sources & references</div>
-
-      ${
-        items.length
-          ? `
-            <div class="document-reference-reader-list">
-              ${items
-                .map(
-                  (reference) => `
-                    <div class="document-reference-reader-item">
-                      <div>
-                        <a
-                          href="${escapeHtmlText(reference.url)}"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          ${escapeHtmlText(reference.title)}
-                        </a>
-
-                        <div class="document-reference-reader-meta">
-                          <span class="document-reference-badge">
-                            ${escapeHtmlText(
-                              referenceTypeLabel(reference.sourceType)
-                            )}
-                          </span>
-
-                          ${
-                            reference.isPrimary
-                              ? '<span class="document-reference-badge primary">Primary</span>'
-                              : ''
-                          }
+    <details class="document-disclosure" data-document-section="sources">
+      <summary>
+        <span>Surse și referințe</span>
+        <span class="document-disclosure-count">${items.length}</span>
+      </summary>
+      <div class="document-disclosure-body">
+        ${
+          items.length
+            ? `
+              <div class="document-reference-reader-list">
+                ${items
+                  .map(
+                    (reference) => `
+                      <div class="document-reference-reader-item">
+                        <div>
+                          <a href="${escapeHtmlText(reference.url)}" target="_blank" rel="noopener noreferrer">
+                            ${escapeHtmlText(reference.title)}
+                          </a>
+                          <div class="document-reference-reader-meta">
+                            <span class="document-reference-badge">${escapeHtmlText(referenceTypeLabel(reference.sourceType))}</span>
+                            ${reference.isPrimary ? '<span class="document-reference-badge primary">Primary</span>' : ''}
+                          </div>
+                          ${reference.note ? `<p>${escapeHtmlText(reference.note)}</p>` : ''}
                         </div>
-
-                        ${
-                          reference.note
-                            ? `<p>${escapeHtmlText(reference.note)}</p>`
-                            : ''
-                        }
+                        <span class="document-reference-external">↗</span>
                       </div>
-
-                      <span class="document-reference-external">↗</span>
-                    </div>
-                  `
-                )
-                .join('')}
-            </div>
-          `
-          : `
-            <div class="public-content-manager-empty">
-              Nicio sursă adăugată încă.
-            </div>
-          `
-      }
-
-      ${
-        editable
-          ? `
-            <div class="documentation-meta-inline-actions">
-              <button
-                class="btn"
-                type="button"
-                data-open-documentation-meta
-              >
-                Manage sources & review
-              </button>
-            </div>
-          `
-          : ''
-      }
-    </div>
+                    `
+                  )
+                  .join('')}
+              </div>
+            `
+            : '<div class="document-disclosure-empty"><span>Nicio sursă.</span></div>'
+        }
+        ${
+          editable
+            ? `<div class="documentation-meta-inline-actions"><button class="btn" type="button" data-open-documentation-meta>Administrează</button></div>`
+            : ''
+        }
+      </div>
+    </details>
   `
 }
 
@@ -16931,73 +16833,35 @@ function relatedDocumentationNodes(node, limit = 6) {
 function renderDocumentConnections(node) {
   const inbound = inboundDocumentRelations(node).slice(0, 6)
   const related = relatedDocumentationNodes(node, 6)
+  const count = inbound.length + related.length
 
-  if (
-    inbound.length === 0 &&
-    related.length === 0
-  ) {
-    return ''
-  }
+  if (count === 0) return ''
 
   return `
-    <div class="info-card">
-      <div class="info-card-label">documentation connections</div>
-
-      <div class="document-connections-grid">
-        <div class="document-connection-group">
-          <strong>Referenced by</strong>
-
-          <div class="document-connection-list">
-            ${
-              inbound.length
-                ? inbound
-                    .map(
-                      ({ source, label }) => `
-                        <button
-                          class="document-connection-btn"
-                          type="button"
-                          data-open-connected-node="${Number(
-                            source.id
-                          )}"
-                        >
-                          ${escapeHtmlText(source.title)}
-                          · ${escapeHtmlText(label)}
-                        </button>
-                      `
-                    )
-                    .join('')
-                : '<span>Fără backlinks.</span>'
-            }
-          </div>
-        </div>
-
-        <div class="document-connection-group">
-          <strong>Related docs</strong>
-
-          <div class="document-connection-list">
-            ${
-              related.length
-                ? related
-                    .map(
-                      (relatedNode) => `
-                        <button
-                          class="document-connection-btn"
-                          type="button"
-                          data-open-connected-node="${Number(
-                            relatedNode.id
-                          )}"
-                        >
-                          ${escapeHtmlText(relatedNode.title)}
-                        </button>
-                      `
-                    )
-                    .join('')
-                : '<span>Nicio sugestie încă.</span>'
-            }
-          </div>
+    <details class="document-disclosure" data-document-section="connections">
+      <summary>
+        <span>Conexiuni</span>
+        <span class="document-disclosure-count">${count}</span>
+      </summary>
+      <div class="document-disclosure-body">
+        <div class="document-connections-grid">
+          ${
+            inbound.length
+              ? `<div class="document-connection-group"><strong>Referenced by</strong><div class="document-connection-list">${inbound
+                  .map(({ source, label }) => `<button class="document-connection-btn" type="button" data-open-connected-node="${Number(source.id)}">${escapeHtmlText(source.title)} · ${escapeHtmlText(label)}</button>`)
+                  .join('')}</div></div>`
+              : ''
+          }
+          ${
+            related.length
+              ? `<div class="document-connection-group"><strong>Related docs</strong><div class="document-connection-list">${related
+                  .map((relatedNode) => `<button class="document-connection-btn" type="button" data-open-connected-node="${Number(relatedNode.id)}">${escapeHtmlText(relatedNode.title)}</button>`)
+                  .join('')}</div></div>`
+              : ''
+          }
         </div>
       </div>
-    </div>
+    </details>
   `
 }
 
@@ -17669,28 +17533,32 @@ function renderDetailPanel() {
   const categoryName = nodeCategoryName(node)
   const difficultyName = nodeDifficultyName(node)
   const tagNames = nodeTagNames(node)
+  const nodeEditorActions = canEditNode(node) && editorMode
+
+  const validRelations = (node.links || [])
+    .map((link, index) => ({
+      link,
+      index,
+      target: findNode(link.targetId)
+    }))
+    .filter((item) => item.target)
 
   const relations =
-    node.links
-      .map((link, index) => {
-        const target = findNode(link.targetId)
-        if (!target) return ''
-
-        return `
-      <div class="relation-item" data-relation-source="${node.id}" data-relation-target="${target.id}">
-        <div>
-          <strong>${escapeHtml(target.title)}</strong>
-          <span>${escapeHtml(link.label || 'relație')}</span>
+    validRelations
+      .map(({ link, index, target }) => `
+        <div class="relation-item" data-relation-source="${node.id}" data-relation-target="${target.id}">
+          <div>
+            <strong>${escapeHtml(target.title)}</strong>
+            <span>${escapeHtml(link.label || 'relație')}</span>
+          </div>
+          <div class="relation-actions">
+            <button class="icon-btn" data-rel-edit="${index}" aria-label="Edit relation">✎</button>
+            <button class="icon-btn" data-rel-remove="${index}" aria-label="Remove relation">✕</button>
+          </div>
         </div>
-        <div class="relation-actions">
-          <button class="icon-btn" data-rel-edit="${index}" aria-label="Edit relation">✎</button>
-          <button class="icon-btn" data-rel-remove="${index}" aria-label="Remove relation">✕</button>
-        </div>
-      </div>
-    `
-      })
+      `)
       .join('') ||
-    '<div class="relation-item"><div><strong>Nicio relație încă</strong><span>Poți adăuga una din Editor Mode.</span></div></div>'
+    '<div class="relation-item"><div><strong>Nicio relație.</strong></div></div>'
 
   detailPanel.innerHTML = `
     <div class="detail-top">
@@ -17701,96 +17569,85 @@ function renderDetailPanel() {
             <span class="pill difficulty-pill">${escapeHtml(difficultyName)}</span>
           </div>
           <h2 class="detail-title">${escapeHtml(node.title)}</h2>
-          <div class="detail-sub">Documentația ocupă tot ecranul. Închide cu X pentru a reveni la hartă.</div>
         </div>
-        <div class="icon-actions">
-          <button class="icon-btn" id="detailCodeBtn" aria-label="Nod cod">&lt;/&gt;</button>
-          <button class="icon-btn" id="detailMediaBtn" aria-label="Media">▣</button>
-          <button class="icon-btn" id="detailFilesBtn" aria-label="Fișiere">📎</button>
+
+        <div class="detail-toolbar">
           <button
             class="icon-btn"
             id="detailBookmarkBtn"
             aria-label="${isNodeBookmarked(node) ? 'Remove from saved' : 'Save document'}"
             title="${isNodeBookmarked(node) ? 'Remove from saved' : 'Save document'}"
           >${isNodeBookmarked(node) ? '★' : '☆'}</button>
-          <button class="icon-btn" id="detailMetaBtn" aria-label="Sources & review" title="Sources & review">◎</button>
-          <button class="icon-btn" id="detailHistoryBtn" aria-label="Version history" title="Version history">◷</button>
-          <button class="icon-btn" id="detailImportTeamBtn" aria-label="Copy to Team Atlas" title="Copy to Team Atlas">⇢</button>
-          <button class="icon-btn" id="detailCompareSourceBtn" aria-label="Compare public source" title="Compare public source">⇄</button>
-          <button class="icon-btn" id="detailPublicSourceBtn" aria-label="Open public source" title="Open public source">↗</button>
-          <button class="icon-btn" id="detailCopyTeamLinkBtn" aria-label="Copy private Team Atlas link" title="Copy private Team Atlas link">🔗</button>
-          <button class="icon-btn" id="detailAddRelationBtn" aria-label="Add relation">＋</button>
-          <button class="icon-btn" id="detailEditBtn" aria-label="Edit">✎</button>
-          <button class="icon-btn" id="detailDeleteBtn" aria-label="Delete">🗑</button>
+
+          <button class="icon-btn" id="detailEditBtn" aria-label="Edit" title="Edit">✎</button>
+
+          <details class="detail-action-menu" id="detailMoreMenu">
+            <summary aria-label="Mai mult" title="Mai mult">•••</summary>
+            <div class="detail-action-menu-list">
+              <button class="btn" id="detailHistoryBtn" type="button">Istoric versiuni</button>
+              <button class="btn" id="detailImportTeamBtn" type="button">Importă în Team Atlas</button>
+              <button class="btn" id="detailCompareSourceBtn" type="button">Compară sursa publică</button>
+              <button class="btn" id="detailPublicSourceBtn" type="button">Deschide sursa publică</button>
+              <button class="btn" id="detailCopyTeamLinkBtn" type="button">Copiază link-ul privat</button>
+              <button class="btn danger" id="detailDeleteBtn" type="button">Șterge nodul</button>
+            </div>
+          </details>
+
+          <button class="icon-btn" id="detailCloseBtn" aria-label="Close">✕</button>
         </div>
-        <button class="icon-btn" id="detailCloseBtn" aria-label="Close">✕</button>
       </div>
     </div>
+
     <div class="detail-content">
-      <div class="quick-facts">
-        <div class="fact-box"><strong>Categorie</strong><span>${escapeHtml(categoryName)}</span></div>
-        <div class="fact-box"><strong>Dificultate</strong><span>${escapeHtml(difficultyName)}</span></div>
-        <div class="fact-box">
-          <strong>Etichete</strong>
-          <div class="detail-tags">
-            ${
-              tagNames.length
-                ? tagNames
-                    .map((name) => `<span class="mini-tag">${escapeHtml(name)}</span>`)
-                    .join('')
-                : '<span>Fără etichete</span>'
-            }
-          </div>
-        </div>
-        ${sourceSyncFact(node)}
-
-        ${renderDocumentReviewFact(node)}
-
-        ${
-          node.updatedAt
-            ? `
-              <div class="fact-box">
-                <strong>Last edit</strong>
-                <span>${escapeHtmlText(
-                  formatPublicDate(node.updatedAt)
-                )}</span>
-              </div>
-            `
-            : ''
-        }
-
-        <div
-          class="fact-box detail-outline-card"
-          id="detailOutlineCard"
-          hidden
-        >
-          <strong>Outline</strong>
-          <div
-            class="detail-outline-list"
-            id="detailOutlineList"
-          ></div>
-        </div>
-
-        <div class="relation-card">
-          <div class="relation-card-label">relații</div>
-          <div class="relations-list">${relations}</div>
-        </div>
-      </div>
-
       <div class="detail-main-column">
-        <div class="info-card">
-          <div class="info-card-label">documentație</div>
+        <div class="info-card detail-document-card">
           ${renderNodeDocumentation(node)}
         </div>
 
+        <details class="document-disclosure" data-document-section="details">
+          <summary>
+            <span>Detalii</span>
+            <span class="document-disclosure-count">${tagNames.length} etichete · ${validRelations.length} relații</span>
+          </summary>
+          <div class="document-disclosure-body">
+            <div class="detail-overview-grid">
+              ${
+                tagNames.length
+                  ? `<div class="fact-box"><strong>Etichete</strong><div class="detail-tags">${tagNames
+                      .map((name) => `<span class="mini-tag">${escapeHtml(name)}</span>`)
+                      .join('')}</div></div>`
+                  : ''
+              }
+
+              ${sourceSyncFact(node)}
+              ${renderDocumentReviewFact(node)}
+
+              ${
+                node.updatedAt
+                  ? `<div class="fact-box"><strong>Last edit</strong><span>${escapeHtmlText(formatPublicDate(node.updatedAt))}</span></div>`
+                  : ''
+              }
+
+              <div class="fact-box detail-outline-card" id="detailOutlineCard" hidden>
+                <strong>Outline</strong>
+                <div class="detail-outline-list" id="detailOutlineList"></div>
+              </div>
+
+              <div class="relation-card">
+                <div class="detail-relations-head">
+                  <div class="relation-card-label">Relații</div>
+                  <button class="btn" id="detailAddRelationBtn" type="button">+ Relație</button>
+                </div>
+                <div class="relations-list">${relations}</div>
+              </div>
+            </div>
+          </div>
+        </details>
+
         ${renderDocumentReferences(node)}
-
         ${renderDocumentConnections(node)}
-
         ${renderNodeCodeSnippets(node)}
-
         ${renderNodeMediaGallery(node)}
-
         ${renderNodeFiles(node)}
       </div>
     </div>
@@ -17798,17 +17655,11 @@ function renderDetailPanel() {
 
   detailPanel.classList.add('open')
   emptyPanel.style.display = 'none'
-  const nodeEditorActions = canEditNode(node) && editorMode
-  const attachmentActions = nodeEditorActions
 
   editBtn.disabled = !nodeEditorActions
   deleteBtn.disabled = !nodeEditorActions
 
-  const detailCodeBtn = document.getElementById('detailCodeBtn')
-  const detailMediaBtn = document.getElementById('detailMediaBtn')
-  const detailFilesBtn = document.getElementById('detailFilesBtn')
   const detailBookmarkBtn = document.getElementById('detailBookmarkBtn')
-  const detailMetaBtn = document.getElementById('detailMetaBtn')
   const detailHistoryBtn = document.getElementById('detailHistoryBtn')
   const detailImportTeamBtn = document.getElementById('detailImportTeamBtn')
   const detailCompareSourceBtn = document.getElementById('detailCompareSourceBtn')
@@ -17818,11 +17669,8 @@ function renderDetailPanel() {
   const detailEditBtn = document.getElementById('detailEditBtn')
   const detailDeleteBtn = document.getElementById('detailDeleteBtn')
   const detailCloseBtn = document.getElementById('detailCloseBtn')
+  const detailMoreMenu = document.getElementById('detailMoreMenu')
 
-  detailCodeBtn.hidden = !nodeEditorActions
-  detailMediaBtn.hidden = !attachmentActions
-  detailFilesBtn.hidden = !attachmentActions
-  detailMetaBtn.hidden = !nodeEditorActions
   detailHistoryBtn.hidden = !nodeEditorActions
   detailImportTeamBtn.hidden = !canImportPublicNodeToTeam(node)
   detailCompareSourceBtn.hidden = !(node.isTeamNode && node.sourcePublicNodeId)
@@ -17832,10 +17680,6 @@ function renderDetailPanel() {
   detailEditBtn.hidden = !nodeEditorActions
   detailDeleteBtn.hidden = !nodeEditorActions
 
-  detailCodeBtn.disabled = !nodeEditorActions
-  detailMediaBtn.disabled = !attachmentActions
-  detailFilesBtn.disabled = !attachmentActions
-  detailMetaBtn.disabled = !nodeEditorActions
   detailHistoryBtn.disabled = !nodeEditorActions
   detailImportTeamBtn.disabled = !canImportPublicNodeToTeam(node)
   detailCompareSourceBtn.disabled = !(node.isTeamNode && node.sourcePublicNodeId)
@@ -17845,9 +17689,16 @@ function renderDetailPanel() {
   detailEditBtn.disabled = !nodeEditorActions
   detailDeleteBtn.disabled = !nodeEditorActions
 
-  detailCodeBtn.addEventListener('click', () => openCodeManager(node.id))
-  detailMediaBtn.addEventListener('click', () => openMediaManager(node.id))
-  detailFilesBtn.addEventListener('click', () => openFileManager(node.id))
+  const advancedActions = [
+    detailHistoryBtn,
+    detailImportTeamBtn,
+    detailCompareSourceBtn,
+    detailPublicSourceBtn,
+    detailCopyTeamLinkBtn,
+    detailDeleteBtn
+  ]
+  detailMoreMenu.hidden = !advancedActions.some((button) => !button.hidden)
+
   detailBookmarkBtn.addEventListener('click', () => {
     toggleNodeBookmark(node).catch((error) => {
       console.error('Bookmark update failed:', error)
@@ -17855,33 +17706,33 @@ function renderDetailPanel() {
     })
   })
 
-  detailMetaBtn.addEventListener('click', () => {
-    openDocumentationMetaManager(node.id)
-  })
-
   detailHistoryBtn.addEventListener('click', () => {
+    detailMoreMenu.removeAttribute('open')
     openRevisionHistory(node.id).catch((error) => {
       console.error('Open revision history failed:', error)
-      alert(
-        error?.message ||
-          'Version history nu a putut fi deschis.'
-      )
+      alert(error?.message || 'Version history nu a putut fi deschis.')
     })
   })
 
-  detailImportTeamBtn.addEventListener('click', () => openTeamImport(node.id))
-  detailCompareSourceBtn.addEventListener('click', () =>
+  detailImportTeamBtn.addEventListener('click', () => {
+    detailMoreMenu.removeAttribute('open')
+    openTeamImport(node.id)
+  })
+  detailCompareSourceBtn.addEventListener('click', () => {
+    detailMoreMenu.removeAttribute('open')
     openSourceCompare(node.id)
-  )
-  detailPublicSourceBtn.addEventListener('click', () =>
+  })
+  detailPublicSourceBtn.addEventListener('click', () => {
+    detailMoreMenu.removeAttribute('open')
     openPublicSourceFromTeamNode(node)
-  )
+  })
   detailCopyTeamLinkBtn.addEventListener('click', () =>
     copyTeamNodeLink(node, detailCopyTeamLinkBtn)
   )
   detailAddRelationBtn.addEventListener('click', () => activateRelationMode(node.id))
   detailEditBtn.addEventListener('click', () => openEdit(node.id))
   detailDeleteBtn.addEventListener('click', () => {
+    detailMoreMenu.removeAttribute('open')
     deleteSelected().catch((error) => alert(error.message || 'Eroare la ștergere.'))
   })
   detailCloseBtn.addEventListener('click', () => {
@@ -18115,8 +17966,7 @@ function openCreate() {
 
   editingId = null
   modalTitle.textContent = 'Creează nod'
-  modalSubtitle.textContent =
-    'Alegi separat categoria, dificultatea și etichetele. Nodul este poziționat automat într-un loc liber.'
+  modalSubtitle.textContent = ''
   titleInput.value = 'New FTC Topic'
 
   const defaultCategoryId = categories.find((item) => item.is_active !== false)?.id || null
@@ -18154,8 +18004,7 @@ function openEdit(id) {
 
   editingId = id
   modalTitle.textContent = 'Editează nod'
-  modalSubtitle.textContent =
-    'Modifici categoria, dificultatea, etichetele și documentația într-un singur loc.'
+  modalSubtitle.textContent = ''
   titleInput.value = node.title
 
   populateNodeTaxonomyFields(node.categoryId, node.difficultyId)

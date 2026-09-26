@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=92" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=93" />
   <style>
     :root {
       --bg: #000000;
@@ -7648,6 +7648,315 @@
     }
   }
 
+
+
+  /* =======================================================================
+     v93 — documentation reader + rich editor simplification
+     ======================================================================= */
+  .detail-top {
+    padding: 18px 22px 14px;
+  }
+
+  .detail-meta {
+    align-items: center;
+  }
+
+  .detail-title {
+    margin-top: 8px;
+    font-size: clamp(1.45rem, 2.2vw, 1.9rem);
+  }
+
+  .detail-sub { display: none !important; }
+
+  .detail-content {
+    display: block;
+    padding: 20px 22px 42px;
+    overflow: auto;
+  }
+
+  .detail-main-column {
+    width: min(1040px, 100%);
+    margin: 0 auto;
+    display: grid;
+    gap: 10px;
+  }
+
+  .detail-document-card {
+    padding: clamp(18px, 3vw, 30px);
+    border-radius: 16px;
+  }
+
+  .detail-document-card .doc-text {
+    width: min(820px, 100%);
+    margin: 0 auto;
+    font-size: 1rem;
+    line-height: 1.78;
+  }
+
+  .detail-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-left: auto;
+  }
+
+  .detail-action-menu {
+    position: relative;
+  }
+
+  .detail-action-menu > summary {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(177,76,255,0.18);
+    border-radius: 11px;
+    background: rgba(255,255,255,0.03);
+    color: #eeeef3;
+    cursor: pointer;
+    list-style: none;
+    font-weight: 850;
+    letter-spacing: .08em;
+  }
+
+  .detail-action-menu > summary::-webkit-details-marker { display: none; }
+  .detail-action-menu[open] > summary,
+  .detail-action-menu > summary:hover {
+    background: rgba(177,76,255,0.1);
+    border-color: rgba(205,112,255,0.32);
+  }
+
+  .detail-action-menu-list {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 6;
+    width: min(230px, calc(100vw - 36px));
+    display: grid;
+    gap: 4px;
+    padding: 7px;
+    border: 1px solid rgba(177,76,255,0.16);
+    border-radius: 12px;
+    background: rgba(7,7,10,0.985);
+    box-shadow: 0 16px 44px rgba(0,0,0,.45);
+  }
+
+  .detail-action-menu-list .btn {
+    width: 100%;
+    justify-content: flex-start;
+    min-height: 36px;
+    padding: 7px 9px;
+    text-align: left;
+  }
+
+  .document-disclosure {
+    min-width: 0;
+    border: 1px solid rgba(255,255,255,0.055);
+    border-radius: 13px;
+    background: rgba(255,255,255,0.012);
+    overflow: clip;
+  }
+
+  .document-disclosure > summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    color: #cbc6cf;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    font-size: .76rem;
+    font-weight: 800;
+  }
+
+  .document-disclosure > summary::-webkit-details-marker { display: none; }
+  .document-disclosure > summary::after {
+    content: '›';
+    margin-left: auto;
+    color: #77717c;
+    font-size: 1rem;
+    transition: transform 140ms ease;
+  }
+
+  .document-disclosure[open] > summary::after { transform: rotate(90deg); }
+  .document-disclosure[open] > summary {
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    color: #fff;
+  }
+
+  .document-disclosure-count {
+    margin-left: 2px;
+    color: #77717d;
+    font-size: .64rem;
+    font-weight: 700;
+  }
+
+  .document-disclosure-body {
+    padding: 12px;
+  }
+
+  .detail-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .detail-overview-grid .fact-box,
+  .detail-overview-grid .relation-card {
+    padding: 10px;
+    border-radius: 10px;
+  }
+
+  .detail-overview-grid .relation-card {
+    grid-column: 1 / -1;
+  }
+
+  .detail-overview-grid .detail-outline-card {
+    grid-column: span 2;
+  }
+
+  .detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .detail-relations-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .detail-relations-head .relation-card-label { margin: 0; }
+  .detail-relations-head .btn { min-height: 32px; padding: 5px 8px; }
+
+  .node-code-section,
+  .node-media-section,
+  .node-files-section {
+    border: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  .node-code-heading,
+  .node-media-heading,
+  .node-files-heading {
+    margin-bottom: 10px;
+  }
+
+  .node-code-heading > div:first-child,
+  .node-media-heading > div:first-child,
+  .node-files-heading > div:first-child {
+    display: none;
+  }
+
+  .document-disclosure-empty {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: #85808a;
+    font-size: .72rem;
+  }
+
+  .rich-editor-toolbar {
+    flex-wrap: nowrap;
+    gap: 5px;
+    padding: 7px;
+    overflow: visible;
+  }
+
+  .rich-editor-toolbar button,
+  .rich-editor-toolbar select,
+  .rich-editor-more > summary {
+    min-height: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .rich-editor-toolbar select {
+    width: 72px;
+    padding: 4px 7px;
+  }
+
+  .rich-editor-toolbar button {
+    min-width: 32px;
+    padding: 4px 7px;
+  }
+
+  .rich-editor-divider { display: none; }
+
+  .rich-editor-more {
+    position: relative;
+    margin-left: auto;
+  }
+
+  .rich-editor-more > summary {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    border: 1px solid rgba(177,76,255,0.15);
+    background: rgba(255,255,255,0.035);
+    color: #eeeeF3;
+    cursor: pointer;
+    list-style: none;
+    font-size: .7rem;
+    font-weight: 760;
+  }
+
+  .rich-editor-more > summary::-webkit-details-marker { display: none; }
+
+  .rich-editor-more-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 4;
+    width: 158px;
+    display: grid;
+    gap: 4px;
+    padding: 6px;
+    border: 1px solid rgba(177,76,255,0.16);
+    border-radius: 10px;
+    background: rgba(8,8,11,.99);
+    box-shadow: 0 12px 32px rgba(0,0,0,.4);
+  }
+
+  .rich-editor-more-menu button {
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .rich-editor-hint {
+    margin-top: 5px;
+    font-size: .66rem;
+  }
+
+  #modalBackdrop .modal-head p:empty { display: none; }
+
+  @media (max-width: 760px) {
+    .detail-top { padding: 12px 13px 10px; }
+    .detail-content { padding: 12px 10px 32px; }
+    .detail-title { font-size: 1.3rem; }
+    .detail-meta { gap: 8px; }
+    .detail-toolbar { gap: 5px; }
+    .detail-toolbar .icon-btn,
+    .detail-action-menu > summary { width: 34px; height: 34px; }
+    .detail-overview-grid { grid-template-columns: 1fr; }
+    .detail-overview-grid .detail-outline-card,
+    .detail-overview-grid .relation-card { grid-column: auto; }
+    .detail-document-card { padding: 16px 13px; }
+    .rich-editor-toolbar { overflow-x: auto; overflow-y: visible; }
+    .rich-editor-toolbar select { flex: 0 0 68px; }
+    .rich-editor-more { flex: 0 0 auto; }
+  }
+
+  .documentation-meta-card > p { display: none !important; }
+
 </style>
 </head>
 <body>
@@ -8000,15 +8309,13 @@
         <div class="field team-node-department-field" id="teamNodeDepartmentField" hidden>
           <label for="teamNodeDepartmentInput">Departament în Team Atlas</label>
           <select id="teamNodeDepartmentInput"></select>
-          <div class="taxonomy-summary">
-            Coordinatorii pot edita doar nodurile din departamentele la care sunt asignați.
-          </div>
+
         </div>
 
         <div class="field" id="nodeTagsField">
           <label>Etichete</label>
           <div class="chip-list" id="nodeTagPicker"></div>
-          <div class="taxonomy-summary">Poți selecta oricâte etichete. Administrarea lor completă va fi în panoul Taxonomy Manager.</div>
+
         </div>
 
         <div class="field" id="nodeContentField">
@@ -8017,30 +8324,26 @@
           <div class="rich-editor-shell" id="richEditorShell">
             <div class="rich-editor-toolbar" id="richEditorToolbar" role="toolbar" aria-label="Formatare documentație">
               <select id="richBlockSelect" aria-label="Tip paragraf">
-                <option value="p">Normal</option>
-                <option value="h2">Titlu mare</option>
-                <option value="h3">Subtitlu</option>
-                <option value="h4">Titlu mic</option>
-                <option value="blockquote">Citat / notă</option>
+                <option value="p">Text</option>
+                <option value="h2">H2</option>
+                <option value="h3">H3</option>
               </select>
 
-              <span class="rich-editor-divider" aria-hidden="true"></span>
               <button type="button" data-rich-command="bold" aria-label="Bold"><strong>B</strong></button>
               <button type="button" data-rich-command="italic" aria-label="Italic"><em>I</em></button>
-              <button type="button" data-rich-command="underline" aria-label="Underline"><u>U</u></button>
-
-              <select id="richFontSizeSelect" aria-label="Mărime text">
-                <option value="3">Mărime normală</option>
-                <option value="2">Mic</option>
-                <option value="4">Mare</option>
-                <option value="5">Foarte mare</option>
-              </select>
-
-              <span class="rich-editor-divider" aria-hidden="true"></span>
-              <button type="button" data-rich-command="insertUnorderedList" aria-label="Listă cu buline">• Listă</button>
-              <button type="button" data-rich-command="insertOrderedList" aria-label="Listă numerotată">1. Listă</button>
+              <button type="button" data-rich-command="insertUnorderedList" aria-label="Listă cu buline">•</button>
+              <button type="button" data-rich-command="insertOrderedList" aria-label="Listă numerotată">1.</button>
               <button type="button" id="richLinkBtn" aria-label="Adaugă link">Link</button>
-              <button type="button" data-rich-command="removeFormat" aria-label="Șterge formatarea">Tx</button>
+
+              <details class="rich-editor-more">
+                <summary>Mai mult</summary>
+                <div class="rich-editor-more-menu">
+                  <button type="button" data-rich-block="h4">H4</button>
+                  <button type="button" data-rich-block="blockquote">Notă</button>
+                  <button type="button" data-rich-command="underline" aria-label="Underline"><u>U</u></button>
+                  <button type="button" data-rich-command="removeFormat" aria-label="Șterge formatarea">Curăță format</button>
+                </div>
+              </details>
             </div>
 
             <div
@@ -8052,7 +8355,7 @@
               data-placeholder="Scrie aici explicația completă..."
             ></div>
           </div>
-          <div class="rich-editor-hint" id="richEditorHint">Poți folosi Bold, Italic, Underline, titluri, dimensiuni de text, liste și linkuri. Paste-ul este sanitizat automat.</div>
+          <div class="rich-editor-hint" id="richEditorHint">Paste-ul este curățat automat.</div>
 
           <textarea id="contentInput" placeholder="Scrie aici explicația completă..."></textarea>
         </div>
@@ -8558,7 +8861,6 @@
       <div class="modal-head">
         <div>
           <h3 id="revisionHistoryTitle">Version history</h3>
-          <p>Saved documentation checkpoints. Layout changes are intentionally excluded.</p>
         </div>
         <button class="icon-btn" id="closeRevisionHistoryBtn" type="button" aria-label="Close">✕</button>
       </div>
@@ -8580,7 +8882,7 @@
         </div>
       </div>
 
-      <div class="modal-foot">
+      <div class="modal-foot modal-foot-close-only">
         <button class="btn primary" id="closeRevisionHistoryFooterBtn" type="button">Închide</button>
       </div>
     </div>
@@ -8759,7 +9061,7 @@
         </div>
       </div>
 
-      <div class="modal-foot">
+      <div class="modal-foot modal-foot-close-only">
         <button class="btn primary" id="closeDocumentationMetaFooterBtn" type="button">Închide</button>
       </div>
     </div>
@@ -9303,6 +9605,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=92"></script>
+  <script type="module" src="/js/atlas-script.js?v=93"></script>
 </body>
 </html>

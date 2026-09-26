@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const RELEASE = 92
+const RELEASE = 93
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const projectRoot = join(scriptDirectory, '..')
 
@@ -58,6 +58,16 @@ async function main() {
   assert(
     i18n.includes('applyDynamicEntityTranslations()'),
     'dynamic public-content translation runtime is missing'
+  )
+  assert(
+    index.includes('class="rich-editor-more"') &&
+      !index.includes('id="richFontSizeSelect"'),
+    'rich-text toolbar simplification is missing or stale'
+  )
+  assert(
+    appScript.includes('data-document-section="sources"') &&
+      appScript.includes('id="detailMoreMenu"'),
+    'documentation reader disclosure structure is missing'
   )
   assert(
     mobileBuilder.includes(`data-atlas-mobile="v${RELEASE}"`) &&

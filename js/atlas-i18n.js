@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v92 · Full English UI + compact panels/admin UX
+// v93 · Full English UI + documentation UX/rich editor simplification
 //
 // Source language: Romanian
 // Secondary language: English
@@ -30,6 +30,20 @@ const UI_EN = new Map(Object.entries({
   'Relații': 'Relations',
   'Administrare': 'Manage',
   'Ajutor': 'Help',
+  'Detalii': 'Details',
+  'Surse și referințe': 'Sources & references',
+  'Conexiuni': 'Connections',
+  'Mai mult': 'More',
+  'Notă': 'Note',
+  'Curăță format': 'Clear formatting',
+  'Text': 'Text',
+  'Salvează documentul': 'Save document',
+  'Istoric versiuni': 'Version history',
+  'Importă în Team Atlas': 'Copy to Team Atlas',
+  'Compară sursa publică': 'Compare public source',
+  'Deschide sursa publică': 'Open public source',
+  'Copiază link-ul privat': 'Copy private link',
+  'Adaugă relație': 'Add relation',
   'Invitații': 'Invitations',
   'Confidențialitate': 'Privacy',
   'Reset filtre': 'Reset filters',
@@ -1129,6 +1143,13 @@ function translateRuntimeText(value) {
     return `${count} ${pluralizeEnglish(count, 'tag', 'tags')}`
   }
 
+  match = text.match(/^(\d+)\s+(?:etichetă|etichete)\s*·\s*(\d+)\s+relații$/i)
+  if (match) {
+    const tags = Number(match[1])
+    const relations = Number(match[2])
+    return `${tags} ${pluralizeEnglish(tags, 'tag')} · ${relations} ${pluralizeEnglish(relations, 'relation')}`
+  }
+
   match = text.match(/^(\d+)\s+(nod|noduri)$/i)
   if (match) {
     const count = Number(match[1])
@@ -1426,6 +1447,9 @@ function installEnglishDialogTranslation() {
   ['Avansat', 'Advanced'],
   ['Atlas nu trimite email automat. Copiază link-ul invitației.', 'Atlas does not send email automatically. Copy the invite link.'],
   ['Ordine recomandată, fără unlock.', 'Recommended order, no unlock.'],
+  ['Nicio sursă.', 'No sources.'],
+  ['Nicio relație.', 'No relations.'],
+  ['Șterge nodul', 'Delete node'],
   ['Nicio media.', 'No media.'],
   ['Niciun fișier.', 'No files.'],
   ['Niciun snippet.', 'No snippets.'],
