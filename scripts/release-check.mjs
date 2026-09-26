@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const RELEASE = 93
+const RELEASE = 94
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const projectRoot = join(scriptDirectory, '..')
 
@@ -68,6 +68,23 @@ async function main() {
     appScript.includes('data-document-section="sources"') &&
       appScript.includes('id="detailMoreMenu"'),
     'documentation reader disclosure structure is missing'
+  )
+  assert(
+    index.includes('id="editorContextMeta"') &&
+      index.includes('id="editorNodeContext"') &&
+      index.includes('id="editorEdgeContext"') &&
+      index.includes('id="editorEdgeLayoutTools"'),
+    'contextual Editor Mode structure is missing'
+  )
+  assert(
+    !index.includes('data-ui-section="editor-node"') &&
+      !index.includes('data-ui-section="editor-edge"'),
+    'legacy always-visible editor tool groups are still present'
+  )
+  assert(
+    appScript.includes("editorToolsSection.hidden = !editorActive") &&
+      appScript.includes('function renderEditorContext()'),
+    'contextual editor runtime is missing or stale'
   )
   assert(
     mobileBuilder.includes(`data-atlas-mobile="v${RELEASE}"`) &&

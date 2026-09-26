@@ -1,6 +1,6 @@
-const I18N_SCRIPT = '/js/atlas-i18n.js?v=93'
+const I18N_SCRIPT = '/js/atlas-i18n.js?v=94'
 const I18N_COVERAGE_SCRIPT = '/js/atlas-i18n-v56.js?v=56'
-const MARKER = 'data-atlas-i18n="v93"'
+const MARKER = 'data-atlas-i18n="v94"'
 
 const HOME_TITLE =
   'FTC Programming Atlas | FTC Robotics Programming Guide'
@@ -174,7 +174,7 @@ export default async function handler(request, context) {
   headers.delete('content-length')
   headers.delete('content-encoding')
   headers.set('content-type', 'text/html; charset=utf-8')
-  headers.set('x-atlas-i18n', 'bilingual-v93-documentation-ux')
+  headers.set('x-atlas-i18n', 'bilingual-v94-contextual-editor')
 
   return new Response(html, {
     status: response.status,

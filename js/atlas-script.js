@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v93 · DOCUMENTATION UX + RICH EDITOR REWORK')
+console.log('ATLAS SCRIPT LOADED v94 · CONTEXTUAL EDITOR MODE + LAYOUT UX')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -547,6 +547,16 @@ const discardLayoutBtn = document.getElementById('discardLayoutBtn')
 const saveLayoutBtn = document.getElementById('saveLayoutBtn')
 
 const editorToolsSection = document.getElementById('editorToolsSection')
+const editorContextMeta = document.getElementById('editorContextMeta')
+const editorPrimaryActions = document.getElementById('editorPrimaryActions')
+const editorContextEmpty = document.getElementById('editorContextEmpty')
+const editorNodeContext = document.getElementById('editorNodeContext')
+const editorNodeContextTitle = document.getElementById('editorNodeContextTitle')
+const editorEdgeContext = document.getElementById('editorEdgeContext')
+const editorEdgeContextTitle = document.getElementById('editorEdgeContextTitle')
+const editorEdgeLayoutTools = document.getElementById('editorEdgeLayoutTools')
+const editorHistorySection = document.getElementById('editorHistorySection')
+const editorAdminSection = document.getElementById('editorAdminSection')
 
 const taxonomyManagerBtn = document.getElementById('taxonomyManagerBtn')
 const publicContentManagerBtn = document.getElementById('publicContentManagerBtn')
@@ -11623,7 +11633,7 @@ async function saveLayoutChanges({ quiet = false } = {}) {
 }
 
 function renderLayoutEditorState() {
-  if (!layoutEditorBar) return
+  if (!layoutEditorBar || !layoutEditModeBtn) return
 
   const mapSection =
     activePublicSection === 'explore' ||
@@ -11635,21 +11645,19 @@ function renderLayoutEditorState() {
     mapSection
   )
 
-  layoutEditorBar.hidden = !available
-
   if (!available) layoutEditMode = false
 
   const count = layoutChangeCount()
 
-  layoutEditorBar.classList.toggle('active', layoutEditMode)
-  layoutEditorModeLabel.textContent = layoutEditMode ? 'EDIT LAYOUT MODE' : 'VIEW MODE'
-  layoutEditorStatus.textContent = layoutEditMode
-    ? 'Drag · resize · arrows'
-    : 'Layout locked'
-
-  layoutEditModeBtn.textContent = layoutEditMode ? 'Exit layout edit' : 'Edit layout'
+  layoutEditModeBtn.hidden = !available
+  layoutEditModeBtn.textContent = layoutEditMode ? 'Exit layout' : 'Layout'
   layoutEditModeBtn.classList.toggle('primary', layoutEditMode)
   layoutEditModeBtn.disabled = !available || layoutSaveBusy
+
+  layoutEditorBar.hidden = !available || !layoutEditMode
+  layoutEditorBar.classList.toggle('active', layoutEditMode)
+  layoutEditorModeLabel.textContent = 'LAYOUT'
+  layoutEditorStatus.textContent = layoutEditMode ? 'Editare activă' : ''
 
   layoutUnsavedCount.textContent = `${count} changes`
   layoutUnsavedCount.classList.toggle('dirty', count > 0)
@@ -11657,12 +11665,21 @@ function renderLayoutEditorState() {
   discardLayoutBtn.disabled = layoutSaveBusy || count === 0
   saveLayoutBtn.disabled = layoutSaveBusy || count === 0
   saveLayoutBtn.textContent = layoutSaveBusy ? 'Saving...' : 'Save'
+
+  editorPrimaryActions?.classList.toggle('layout-active', layoutEditMode)
+  if (createBtn) createBtn.hidden = layoutEditMode
+  if (relationBtn) relationBtn.hidden = layoutEditMode
+  editorToolsSection?.classList.toggle('layout-context', layoutEditMode)
 }
 
 function setLayoutEditMode(nextValue) {
   const next = Boolean(nextValue)
 
   if (next && (!editorMode || !canEditCurrentAtlas())) return false
+
+  if (next && relationMode.active) {
+    relationMode = { active: false, sourceId: null }
+  }
 
   if (!next && hasUnsavedLayoutChanges()) {
     alert('Salvează sau folosește Discard înainte să ieși din Layout Edit Mode.')
@@ -12074,6 +12091,70 @@ async function resetSelectedNodeSize() {
 }
 
 
+function renderEditorContext() {
+  if (!editorToolsSection) return
+
+  const active = Boolean(editorMode && canEditCurrentAtlas())
+  const node = selectedNode()
+  const edgeInfo = selectedEdgeInfo()
+  const hasEdge = Boolean(selectedEdge && edgeInfo)
+  const hasNode = Boolean(node && !hasEdge && !relationMode.active)
+
+  if (editorContextMeta) {
+    editorContextMeta.textContent = relationMode.active
+      ? 'relation'
+      : layoutEditMode
+        ? 'layout'
+        : hasEdge
+          ? 'edge'
+          : hasNode
+            ? 'node'
+            : 'ready'
+  }
+
+  if (editorContextEmpty) {
+    editorContextEmpty.hidden = !active || hasNode || hasEdge || layoutEditMode
+    editorContextEmpty.textContent = relationMode.active
+      ? relationMode.sourceId
+        ? 'Alege destinația'
+        : 'Alege sursa'
+      : 'Nicio selecție'
+  }
+
+  if (editorNodeContext) {
+    editorNodeContext.hidden = !active || !hasNode || layoutEditMode
+  }
+
+  if (editorNodeContextTitle) {
+    editorNodeContextTitle.textContent = hasNode ? node.title : '—'
+  }
+
+  if (editorEdgeContext) {
+    editorEdgeContext.hidden = !active || !hasEdge
+  }
+
+  if (editorEdgeContextTitle) {
+    if (hasEdge) {
+      const target = findNode(edgeInfo.link.targetId)
+      editorEdgeContextTitle.textContent = `${edgeInfo.source.title} → ${target?.title || '—'}`
+    } else {
+      editorEdgeContextTitle.textContent = '—'
+    }
+  }
+
+  if (editorEdgeLayoutTools) {
+    editorEdgeLayoutTools.hidden = !active || !hasEdge || !layoutEditMode
+  }
+
+  if (editorHistorySection) {
+    editorHistorySection.hidden = !active || (!layoutEditMode && (!canEdit || isTeamAtlasMode()))
+  }
+
+  if (editorAdminSection) {
+    editorAdminSection.hidden = !(canEdit && editorMode && !isTeamAtlasMode())
+  }
+}
+
 // Authentication, permissions and Editor Mode
 function updateAuthUI() {
   renderTeamInvites()
@@ -12129,7 +12210,8 @@ function updateAuthUI() {
   editorModeBtn.textContent = editorMode ? 'Exit editor' : 'Editor mode'
   editorModeBtn.classList.toggle('active', editorMode && currentAtlasEditable)
 
-  editorToolsSection.hidden = !publicAdminEditorActive
+  editorToolsSection.hidden = !editorActive
+  renderEditorContext()
   taxonomyManagerBtn.disabled = !publicAdminEditorActive || isAtlasLoading
   publicContentManagerBtn.disabled = !publicAdminEditorActive || isAtlasLoading
   roadmapManagerBtn.disabled = !publicAdminEditorActive || isAtlasLoading
@@ -17835,6 +17917,7 @@ function renderAll() {
   renderModeStrip()
   renderHealthToolState()
   renderLayoutEditorState()
+  renderEditorContext()
   renderLinks()
   renderNodes()
   renderDetailPanel()
@@ -18852,6 +18935,12 @@ fileManagerBtn.addEventListener('click', () => {
 
 codeManagerBtn.addEventListener('click', () => {
   openCodeManager()
+})
+
+document.querySelectorAll('.editor-context-menu button').forEach((button) => {
+  button.addEventListener('click', () => {
+    button.closest('.editor-context-menu')?.removeAttribute('open')
+  })
 })
 
 closeCodeManagerBtn.addEventListener('click', closeCodeManager)

@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v93 · Full English UI + documentation UX/rich editor simplification
+// v94 · Full English UI + contextual Editor Mode/layout UX
 //
 // Source language: Romanian
 // Secondary language: English
@@ -29,6 +29,17 @@ const UI_EN = new Map(Object.entries({
   'Nod': 'Node',
   'Relații': 'Relations',
   'Administrare': 'Manage',
+  'Nicio selecție': 'No selection',
+  'Nod selectat': 'Selected node',
+  'Relație selectată': 'Selected relation',
+  'Istoric': 'History',
+  'Layout': 'Layout',
+  'Exit layout': 'Exit layout',
+  'Editare activă': 'Editing active',
+  'Alege sursa': 'Choose source',
+  'Alege destinația': 'Choose destination',
+  'Auto': 'Auto',
+  'Mai multe acțiuni': 'More actions',
   'Ajutor': 'Help',
   'Detalii': 'Details',
   'Surse și referințe': 'Sources & references',
