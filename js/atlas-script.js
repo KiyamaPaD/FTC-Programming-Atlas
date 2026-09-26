@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v89 · DESIGN SYSTEM + RELEASE HARDENING')
+console.log('ATLAS SCRIPT LOADED v90 · I18N + SECURITY/PERFORMANCE HARDENING')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -1741,7 +1741,7 @@ function renderAnnouncementCards() {
                     ${item.isImportant ? '<span class="public-content-badge important">Important</span>' : ''}
                   </div>
 
-                  <h2 class="public-content-card-title">${escapeHtmlText(item.title)}</h2>
+                  <h2 class="public-content-card-title" data-atlas-i18n-entity="announcement" data-atlas-i18n-id="${Number(item.id)}" data-atlas-i18n-field="title">${escapeHtmlText(item.title)}</h2>
                 </div>
 
                 <time class="public-content-card-date">${escapeHtmlText(
@@ -1751,13 +1751,13 @@ function renderAnnouncementCards() {
 
               ${
                 item.summary
-                  ? `<p class="public-content-card-summary">${escapeHtml(item.summary)}</p>`
+                  ? `<p class="public-content-card-summary" data-atlas-i18n-entity="announcement" data-atlas-i18n-id="${Number(item.id)}" data-atlas-i18n-field="summary">${escapeHtml(item.summary)}</p>`
                   : ''
               }
 
               ${
                 item.content
-                  ? `<p class="public-content-card-body">${escapeHtml(item.content)}</p>`
+                  ? `<p class="public-content-card-body" data-atlas-i18n-entity="announcement" data-atlas-i18n-id="${Number(item.id)}" data-atlas-i18n-field="content">${escapeHtml(item.content)}</p>`
                   : ''
               }
 
@@ -1847,7 +1847,7 @@ function renderResourceCards() {
                     }</span>
                   </div>
 
-                  <h2 class="public-content-card-title">${escapeHtmlText(item.title)}</h2>
+                  <h2 class="public-content-card-title" data-atlas-i18n-entity="resource" data-atlas-i18n-id="${Number(item.id)}" data-atlas-i18n-field="title">${escapeHtmlText(item.title)}</h2>
                 </div>
               </div>
 
@@ -1861,7 +1861,7 @@ function renderResourceCards() {
 
               ${
                 item.description
-                  ? `<p class="public-content-card-body">${escapeHtml(item.description)}</p>`
+                  ? `<p class="public-content-card-body" data-atlas-i18n-entity="resource" data-atlas-i18n-id="${Number(item.id)}" data-atlas-i18n-field="description">${escapeHtml(item.description)}</p>`
                   : ''
               }
 
@@ -2143,13 +2143,28 @@ function renderPublicContentManager() {
               <span>${escapeHtmlText(meta)}</span>
             </div>
 
-            <button
-              class="taxonomy-mini-btn"
-              type="button"
-              data-edit-public-content="${Number(item.id)}"
-            >
-              Editează
-            </button>
+            <div class="manager-item-actions">
+              <button
+                class="taxonomy-mini-btn"
+                type="button"
+                data-atlas-i18n-edit="${
+                  publicContentManagerKind === 'announcements'
+                    ? 'announcement'
+                    : 'resource'
+                }"
+                data-atlas-i18n-id="${Number(item.id)}"
+              >
+                EN
+              </button>
+
+              <button
+                class="taxonomy-mini-btn"
+                type="button"
+                data-edit-public-content="${Number(item.id)}"
+              >
+                Editează
+              </button>
+            </div>
           </article>
         `
       })
@@ -2817,10 +2832,10 @@ function renderRoadmapCards() {
                   <span class="roadmap-card-label">${escapeHtmlText(
                     department?.short_name || department?.name || 'Roadmap'
                   )}</span>
-                  <h2>${escapeHtmlText(roadmap.title)}</h2>
+                  <h2 data-atlas-i18n-entity="roadmap" data-atlas-i18n-id="${Number(roadmap.id)}" data-atlas-i18n-field="title">${escapeHtmlText(roadmap.title)}</h2>
                   ${
                     roadmap.description
-                      ? `<p class="roadmap-card-description">${escapeHtml(
+                      ? `<p class="roadmap-card-description" data-atlas-i18n-entity="roadmap" data-atlas-i18n-id="${Number(roadmap.id)}" data-atlas-i18n-field="description">${escapeHtml(
                           roadmap.description
                         )}</p>`
                       : ''
@@ -2878,7 +2893,7 @@ function renderRoadmapCards() {
 
                           ${
                             step.note
-                              ? `<p class="roadmap-step-note">${escapeHtml(step.note)}</p>`
+                              ? `<p class="roadmap-step-note" data-atlas-i18n-entity="roadmap" data-atlas-i18n-id="${Number(roadmap.id)}" data-atlas-i18n-field="step:${Number(step.nodeId)}:note">${escapeHtml(step.note)}</p>`
                               : ''
                           }
                         </div>
@@ -3349,13 +3364,30 @@ function renderRoadmapManager() {
               </span>
             </div>
 
-            <button
-              class="taxonomy-mini-btn"
-              type="button"
-              data-edit-roadmap="${Number(roadmap.id)}"
-            >
-              Editează
-            </button>
+            <div class="manager-item-actions">
+              ${
+                roadmapManagerScope === 'public'
+                  ? `
+                    <button
+                      class="taxonomy-mini-btn"
+                      type="button"
+                      data-atlas-i18n-edit="roadmap"
+                      data-atlas-i18n-id="${Number(roadmap.id)}"
+                    >
+                      EN
+                    </button>
+                  `
+                  : ''
+              }
+
+              <button
+                class="taxonomy-mini-btn"
+                type="button"
+                data-edit-roadmap="${Number(roadmap.id)}"
+              >
+                Editează
+              </button>
+            </div>
           </article>
         `
       })
@@ -10263,6 +10295,8 @@ async function fetchAllData() {
       .maybeSingle()
   ])
 
+  // Core graph/taxonomy datasets must succeed; auxiliary modules fail soft so
+  // a temporary issue in Roadmaps, Resources, media, etc. cannot blank the map.
   for (const result of [
     nodesResult,
     edgesResult,
@@ -10270,21 +10304,37 @@ async function fetchAllData() {
     difficultiesResult,
     tagsResult,
     departmentsResult,
-    roadmapsResult,
-    roadmapStepsResult,
-    announcementsResult,
-    resourcesResult,
-    resourceDepartmentsResult,
     nodeDepartmentsResult,
-    nodeTagsResult,
-    mediaResult,
-    filesResult,
-    codeResult,
-    referencesResult,
-    reviewStateResult,
-    tutorialResult
+    nodeTagsResult
   ]) {
     if (result.error) throw result.error
+  }
+
+  const optionalRows = (result, label) => {
+    if (result?.error) {
+      console.warn(`[Atlas] Optional dataset unavailable: ${label}`, result.error)
+      return []
+    }
+
+    return result?.data || []
+  }
+
+  const roadmapRows = optionalRows(roadmapsResult, 'roadmaps')
+  const roadmapStepRows = optionalRows(roadmapStepsResult, 'roadmap steps')
+  const announcementRows = optionalRows(announcementsResult, 'announcements')
+  const resourceRows = optionalRows(resourcesResult, 'resources')
+  const resourceDepartmentRows = optionalRows(
+    resourceDepartmentsResult,
+    'resource departments'
+  )
+  const mediaRows = optionalRows(mediaResult, 'node media')
+  const fileRows = optionalRows(filesResult, 'node files')
+  const codeRows = optionalRows(codeResult, 'code snippets')
+  const referenceRows = optionalRows(referencesResult, 'document references')
+  const reviewRows = optionalRows(reviewStateResult, 'document review state')
+
+  if (tutorialResult?.error) {
+    console.warn('[Atlas] Tutorial unavailable; using bundled fallback.', tutorialResult.error)
   }
 
   publicCategories = categoriesResult.data || []
@@ -10293,10 +10343,12 @@ async function fetchAllData() {
   departments = departmentsResult.data || []
 
   syncActiveNodeCollection()
-  tutorialContent = tutorialResult.data?.content || DEFAULT_TUTORIAL_CONTENT
+  tutorialContent = tutorialResult?.error
+    ? DEFAULT_TUTORIAL_CONTENT
+    : tutorialResult.data?.content || DEFAULT_TUTORIAL_CONTENT
 
   const roadmapStepsByRoadmap = new Map()
-  for (const row of roadmapStepsResult.data || []) {
+  for (const row of roadmapStepRows) {
     const roadmapId = Number(row.roadmap_id)
     if (!roadmapStepsByRoadmap.has(roadmapId)) {
       roadmapStepsByRoadmap.set(roadmapId, [])
@@ -10311,7 +10363,7 @@ async function fetchAllData() {
     })
   }
 
-  roadmaps = (roadmapsResult.data || []).map((row) => ({
+  roadmaps = roadmapRows.map((row) => ({
     id: Number(row.id),
     title: row.title || '',
     slug: row.slug || '',
@@ -10325,7 +10377,7 @@ async function fetchAllData() {
   }))
 
   const resourceDepartmentsByResource = new Map()
-  for (const row of resourceDepartmentsResult.data || []) {
+  for (const row of resourceDepartmentRows) {
     const resourceId = Number(row.resource_id)
     if (!resourceDepartmentsByResource.has(resourceId)) {
       resourceDepartmentsByResource.set(resourceId, [])
@@ -10334,7 +10386,7 @@ async function fetchAllData() {
     resourceDepartmentsByResource.get(resourceId).push(Number(row.department_id))
   }
 
-  announcements = (announcementsResult.data || []).map((row) => ({
+  announcements = announcementRows.map((row) => ({
     id: Number(row.id),
     title: row.title || '',
     summary: row.summary || '',
@@ -10350,7 +10402,7 @@ async function fetchAllData() {
     updatedAt: row.updated_at || null
   }))
 
-  resources = (resourcesResult.data || []).map((row) => ({
+  resources = resourceRows.map((row) => ({
     id: Number(row.id),
     title: row.title || '',
     description: row.description || '',
@@ -10373,9 +10425,9 @@ async function fetchAllData() {
   const edgesData = edgesResult.data || []
   const nodeDepartmentsData = nodeDepartmentsResult.data || []
   const nodeTagsData = nodeTagsResult.data || []
-  const mediaData = mediaResult.data || []
-  const filesData = filesResult.data || []
-  const codeData = codeResult.data || []
+  const mediaData = mediaRows
+  const filesData = fileRows
+  const codeData = codeRows
 
   if (nodesData.length === 0) {
     publicNodes = []
@@ -10477,7 +10529,7 @@ async function fetchAllData() {
 
   const referencesByPublicNode = new Map()
 
-  for (const row of referencesResult.data || []) {
+  for (const row of referenceRows) {
     const nodeId = Number(row.public_node_id)
 
     if (!referencesByPublicNode.has(nodeId)) {
@@ -10503,7 +10555,7 @@ async function fetchAllData() {
 
   const reviewByPublicNode = new Map()
 
-  for (const row of reviewStateResult.data || []) {
+  for (const row of reviewRows) {
     reviewByPublicNode.set(Number(row.public_node_id), {
       id: Number(row.id),
       nodeScope: 'public',

@@ -98,14 +98,30 @@ function createMainWindow() {
     }
   })
 
+  // Never create renderer-controlled child windows. Internal links stay in the
+  // hardened main window; normal web links are delegated to the OS browser.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isInternalUrl(url)) {
-      return { action: 'allow' }
+      mainWindow?.loadURL(url).catch(() => {})
+    } else {
+      openExternal(url)
     }
 
-    openExternal(url)
     return { action: 'deny' }
   })
+
+  mainWindow.webContents.on('will-attach-webview', (event) => {
+    event.preventDefault()
+  })
+
+  const rendererSession = mainWindow.webContents.session
+  rendererSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false)
+  })
+
+  if (typeof rendererSession.setPermissionCheckHandler === 'function') {
+    rendererSession.setPermissionCheckHandler(() => false)
+  }
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (isInternalUrl(url)) return

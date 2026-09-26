@@ -4,6 +4,7 @@
   "private": true,
   "description": "FTC Programming Atlas web and native mobile application",
   "scripts": {
+    "release:check": "node scripts/release-check.mjs && npm run mobile:build",
     "mobile:build": "node scripts/build-mobile-web.mjs",
     "mobile:doctor": "npx cap doctor",
     "mobile:sync": "npm run mobile:build && npx cap sync",

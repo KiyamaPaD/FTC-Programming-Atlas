@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v88 · Full English UI + source comparison and batch layout editor
+// v90 · Full English UI + dynamic public content translations
 //
 // Source language: Romanian
 // Secondary language: English
@@ -1412,6 +1412,77 @@ function installEnglishDialogTranslation() {
   ['Ce conține fișierul?', 'What does the file contain?']
 ].forEach(([source, target]) => ATTRIBUTE_EN.set(source, target))
 
+
+// v90 · final runtime strings introduced by the polish/hardening phases.
+;[
+  ['Ești offline. Poți consulta ce este deja încărcat, dar sincronizarea poate eșua.',
+    'You are offline. You can keep reading loaded content, but online sync may fail.'],
+  ['Conexiune restabilită.', 'Connection restored.'],
+  ['Conexiune indisponibilă. Modificările online pot eșua.',
+    'Connection unavailable. Online changes may fail.'],
+  ['Se încarcă datele editorului...', 'Loading editor data...'],
+  ['Se încarcă roadmaps...', 'Loading roadmaps...'],
+  ['Se încarcă versiunile...', 'Loading versions...'],
+  ['Version history nu a putut fi încărcat.', 'Version history could not be loaded.'],
+  ['Documentul nu mai este disponibil.', 'The document is no longer available.'],
+  ['Documentul nu a putut fi deschis.', 'The document could not be opened.'],
+  ['Eroare la salvare.', 'Save failed.'],
+  ['Eroare la upload.', 'Upload failed.'],
+  ['Eroare la undo.', 'Undo failed.'],
+  ['Eroare la redo.', 'Redo failed.'],
+  ['Eroare la upload-ul folderului.', 'Folder upload failed.'],
+  ['Baseline-ul nu a putut fi actualizat.', 'The source baseline could not be updated.'],
+  ['Sync-ul nu a putut fi finalizat.', 'Sync could not be completed.'],
+  ['Layout-ul nu a putut fi salvat.', 'The layout could not be saved.'],
+  ['Operația nu a putut fi salvată.', 'The operation could not be saved.'],
+  ['Progresul nu a putut fi salvat.', 'Progress could not be saved.'],
+  ['Roadmap-urile nu au putut fi încărcate.', 'Roadmaps could not be loaded.'],
+  ['Roadmap-ul nu a putut fi salvat.', 'The roadmap could not be saved.'],
+  ['Roadmap-ul nu a putut fi șters.', 'The roadmap could not be deleted.'],
+  ['Conținutul public nu a putut fi încărcat.', 'Public content could not be loaded.'],
+  ['Eroare la salvarea conținutului public.', 'Public content could not be saved.'],
+  ['Eroare la ștergerea conținutului public.', 'Public content could not be deleted.'],
+  ['Element încărcat pentru editare.', 'Item loaded for editing.'],
+  ['Titlul trebuie să aibă cel puțin 2 caractere.', 'The title must be at least 2 characters long.'],
+  ['Titlul trebuie să aibă cel puțin 3 caractere.', 'The title must be at least 3 characters long.'],
+  ['Alege un departament valid.', 'Choose a valid department.'],
+  ['Alege un nod pentru pasul nou.', 'Choose a node for the new step.'],
+  ['Acest nod există deja în roadmap.', 'This node is already in the roadmap.'],
+  ['Nu există încă roadmaps în acest scope.', 'There are no roadmaps in this scope yet.'],
+  ['Nu există membri.', 'There are no members.'],
+  ['Nu există invitații pending.', 'There are no pending invitations.'],
+  ['Se încarcă...', 'Loading...'],
+  ['Invitația nu a putut fi procesată.', 'The invitation could not be processed.'],
+  ['Invitația nu a putut fi revocată.', 'The invitation could not be revoked.'],
+  ['Onboarding-ul nu a putut fi salvat.', 'Onboarding could not be saved.'],
+  ['Team Space nu a putut fi salvat.', 'Team Space could not be saved.'],
+  ['Importul a eșuat.', 'Import failed.'],
+  ['Importul în Team Atlas a eșuat.', 'Import into Team Atlas failed.'],
+  ['Nodul nu a putut fi selectat.', 'The node could not be selected.'],
+  ['Nodul nou nu a putut fi deschis.', 'The new node could not be opened.'],
+  ['Editor Mode nu a putut fi schimbat.', 'Editor Mode could not be changed.'],
+  ['Eroare la login.', 'Sign-in failed.'],
+  ['Eroare la logout.', 'Sign-out failed.'],
+  ['Eroare la resetarea dimensiunii.', 'Size reset failed.'],
+  ['Eroare la redimensionare.', 'Resize failed.'],
+  ['Eroare la mutare.', 'Move failed.'],
+  ['Nodul s-ar suprapune peste alt nod.', 'The node would overlap another node.'],
+  ['Click deschide documentația · layout-ul nu se modifică.',
+    'Click opens documentation · the layout stays unchanged.'],
+  ['Drag mută · resize handles redimensionează · săgețile fac nudge · Ctrl/Cmd+Z/Y lucrează local.',
+    'Drag moves · resize handles resize · arrow keys nudge · Ctrl/Cmd+Z/Y work locally.'],
+  ['Există o poziție locală veche nesalvată.', 'There is an older unsaved local position.'],
+  ['Selectează cel puțin un câmp sau folosește Mark source reviewed.',
+    'Select at least one field or use Mark source reviewed.'],
+  ['Se actualizează baseline-ul...', 'Updating source baseline...'],
+  ['Se sincronizează câmpurile selectate...', 'Syncing selected fields...'],
+  ['Nu există încă versiuni salvate pentru acest document.',
+    'There are no saved versions for this document yet.'],
+  ['Prima versiune va fi creată automat la următorul checkpoint.',
+    'The first version will be created automatically at the next checkpoint.'],
+  ['Versiunea selectată nu mai este disponibilă.', 'The selected version is no longer available.']
+].forEach(([source, target]) => UI_EN.set(source, target))
+
 const CONTENT_SKIP_SELECTOR = [
   'script',
   'style',
@@ -2053,6 +2124,632 @@ function applyContextNodeTitleTranslations() {
   }
 }
 
+
+const DYNAMIC_TRANSLATION_CONFIG = {
+  announcement: {
+    table: 'atlas_announcements',
+    labelRo: 'Announcement public',
+    labelEn: 'Public announcement',
+    select: 'id,title,summary,content',
+    fields: [
+      { name: 'title', labelRo: 'Titlu', labelEn: 'Title', control: 'input', maxLength: 180 },
+      { name: 'summary', labelRo: 'Rezumat', labelEn: 'Summary', control: 'textarea', maxLength: 500 },
+      { name: 'content', labelRo: 'Conținut', labelEn: 'Content', control: 'textarea', maxLength: 12000 }
+    ]
+  },
+  resource: {
+    table: 'atlas_resources',
+    labelRo: 'Resursă publică',
+    labelEn: 'Public resource',
+    select: 'id,title,description',
+    fields: [
+      { name: 'title', labelRo: 'Titlu', labelEn: 'Title', control: 'input', maxLength: 180 },
+      { name: 'description', labelRo: 'Descriere', labelEn: 'Description', control: 'textarea', maxLength: 3000 }
+    ]
+  },
+  roadmap: {
+    table: 'atlas_roadmaps',
+    labelRo: 'Roadmap public',
+    labelEn: 'Public roadmap',
+    select: 'id,title,description',
+    fields: [
+      { name: 'title', labelRo: 'Titlu', labelEn: 'Title', control: 'input', maxLength: 180 },
+      { name: 'description', labelRo: 'Descriere', labelEn: 'Description', control: 'textarea', maxLength: 1500 }
+    ]
+  }
+}
+
+function applyDynamicEntityTranslations() {
+  if (language !== 'en' || !translationLoadFinished) return
+
+  document
+    .querySelectorAll(
+      '[data-atlas-i18n-entity][data-atlas-i18n-id][data-atlas-i18n-field]'
+    )
+    .forEach((element) => {
+      const entityType = element.dataset.atlasI18nEntity
+      const entityId = Number(element.dataset.atlasI18nId)
+      const fieldName = element.dataset.atlasI18nField
+
+      if (!entityType || !Number.isFinite(entityId) || !fieldName) return
+
+      const translation = getTranslation(
+        entityType,
+        entityId,
+        fieldName
+      )
+
+      if (!translation?.value) return
+
+      if (element.textContent !== translation.value) {
+        element.textContent = translation.value
+      }
+    })
+}
+
+function dynamicTranslationHeaders({ write = false } = {}) {
+  const headers = {
+    apikey: SUPABASE_KEY,
+    accept: 'application/json'
+  }
+
+  const accessToken = getAccessToken()
+
+  if (accessToken) {
+    headers.authorization = `Bearer ${accessToken}`
+  }
+
+  if (write) {
+    headers['content-type'] = 'application/json'
+  }
+
+  return headers
+}
+
+async function fetchDynamicTranslationSource(entityType, entityId) {
+  const config = DYNAMIC_TRANSLATION_CONFIG[entityType]
+
+  if (!config || !Number.isFinite(Number(entityId))) {
+    throw new Error(
+      language === 'en'
+        ? 'Unsupported translation target.'
+        : 'Ținta de traducere nu este suportată.'
+    )
+  }
+
+  const url = new URL(`${SUPABASE_URL}/rest/v1/${config.table}`)
+  url.searchParams.set('select', config.select)
+  url.searchParams.set('project_id', `eq.${PROJECT_ID}`)
+  url.searchParams.set('id', `eq.${Number(entityId)}`)
+  url.searchParams.set('limit', '1')
+
+  const response = await fetch(url, {
+    headers: dynamicTranslationHeaders()
+  })
+
+  if (!response.ok) {
+    throw new Error(
+      `Translation source lookup failed with HTTP ${response.status}`
+    )
+  }
+
+  const rows = await response.json()
+  const row = Array.isArray(rows) ? rows[0] || null : null
+
+  if (!row) {
+    throw new Error(
+      language === 'en'
+        ? 'The source item is no longer available.'
+        : 'Elementul-sursă nu mai este disponibil.'
+    )
+  }
+
+  const fields = config.fields.map((field) => ({
+    ...field,
+    sourceValue: String(row[field.name] || '')
+  }))
+
+  if (entityType === 'roadmap') {
+    const stepsUrl = new URL(
+      `${SUPABASE_URL}/rest/v1/atlas_roadmap_steps`
+    )
+    stepsUrl.searchParams.set(
+      'select',
+      'node_id,position,note'
+    )
+    stepsUrl.searchParams.set(
+      'project_id',
+      `eq.${PROJECT_ID}`
+    )
+    stepsUrl.searchParams.set(
+      'roadmap_id',
+      `eq.${Number(entityId)}`
+    )
+    stepsUrl.searchParams.set('order', 'position.asc')
+
+    const stepsResponse = await fetch(stepsUrl, {
+      headers: dynamicTranslationHeaders()
+    })
+
+    if (stepsResponse.ok) {
+      const steps = await stepsResponse.json()
+
+      ;(Array.isArray(steps) ? steps : [])
+        .filter((step) => String(step.note || '').trim())
+        .forEach((step) => {
+          fields.push({
+            name: `step:${Number(step.node_id)}:note`,
+            labelRo: `Notă pas ${String(
+              Number(step.position || 0)
+            ).padStart(2, '0')}`,
+            labelEn: `Step ${String(
+              Number(step.position || 0)
+            ).padStart(2, '0')} note`,
+            control: 'textarea',
+            maxLength: 280,
+            sourceValue: String(step.note || '')
+          })
+        })
+    } else {
+      console.warn(
+        '[Atlas i18n] Roadmap step notes could not be loaded.',
+        stepsResponse.status
+      )
+    }
+  }
+
+  return {
+    config,
+    row,
+    fields
+  }
+}
+
+async function saveDynamicEntityTranslations(
+  entityType,
+  entityId,
+  fieldValues
+) {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    throw new Error(
+      language === 'en'
+        ? 'Editor authentication is required.'
+        : 'Este necesară autentificarea de editor.'
+    )
+  }
+
+  const entries = Object.entries(fieldValues)
+  const now = new Date().toISOString()
+  const rowsToSave = entries
+    .filter(([, value]) => String(value || '').trim())
+    .map(([fieldName, value]) => ({
+      project_id: PROJECT_ID,
+      entity_type: entityType,
+      entity_id: Number(entityId),
+      field_name: fieldName,
+      language: SECONDARY_LANGUAGE,
+      value: String(value || '').trim(),
+      content_format: 'plain',
+      updated_at: now
+    }))
+
+  if (rowsToSave.length > 0) {
+    const url = new URL(
+      `${SUPABASE_URL}/rest/v1/atlas_translations`
+    )
+    url.searchParams.set(
+      'on_conflict',
+      'project_id,entity_type,entity_id,field_name,language'
+    )
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...dynamicTranslationHeaders({ write: true }),
+        authorization: `Bearer ${accessToken}`,
+        prefer:
+          'resolution=merge-duplicates,return=representation'
+      },
+      body: JSON.stringify(rowsToSave)
+    })
+
+    if (!response.ok) {
+      const body = await response.text()
+      throw new Error(
+        `Translation save failed with HTTP ${response.status}: ${body}`
+      )
+    }
+
+    const savedRows = await response.json()
+
+    ;(Array.isArray(savedRows) ? savedRows : rowsToSave).forEach(
+      (row) => {
+        translationMap.set(
+          translationKey(
+            row.entity_type,
+            row.entity_id,
+            row.field_name,
+            row.language
+          ),
+          row
+        )
+      }
+    )
+  }
+
+  const emptyFields = entries
+    .filter(([, value]) => !String(value || '').trim())
+    .map(([fieldName]) => fieldName)
+
+  for (const fieldName of emptyFields) {
+    const url = new URL(
+      `${SUPABASE_URL}/rest/v1/atlas_translations`
+    )
+
+    url.searchParams.set('project_id', `eq.${PROJECT_ID}`)
+    url.searchParams.set('entity_type', `eq.${entityType}`)
+    url.searchParams.set('entity_id', `eq.${Number(entityId)}`)
+    url.searchParams.set('language', `eq.${SECONDARY_LANGUAGE}`)
+    url.searchParams.set('field_name', `eq.${fieldName}`)
+
+    const response = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        ...dynamicTranslationHeaders(),
+        authorization: `Bearer ${accessToken}`,
+        prefer: 'return=minimal'
+      }
+    })
+
+    if (!response.ok) {
+      const body = await response.text()
+      throw new Error(
+        `Translation delete failed with HTTP ${response.status}: ${body}`
+      )
+    }
+
+    translationMap.delete(
+      translationKey(entityType, entityId, fieldName)
+    )
+  }
+}
+
+async function removeAllDynamicEntityTranslations(
+  entityType,
+  entityId
+) {
+  const accessToken = getAccessToken()
+
+  if (!accessToken) {
+    throw new Error(
+      language === 'en'
+        ? 'Editor authentication is required.'
+        : 'Este necesară autentificarea de editor.'
+    )
+  }
+
+  const url = new URL(
+    `${SUPABASE_URL}/rest/v1/atlas_translations`
+  )
+
+  url.searchParams.set('project_id', `eq.${PROJECT_ID}`)
+  url.searchParams.set('entity_type', `eq.${entityType}`)
+  url.searchParams.set('entity_id', `eq.${Number(entityId)}`)
+  url.searchParams.set('language', `eq.${SECONDARY_LANGUAGE}`)
+
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      ...dynamicTranslationHeaders(),
+      authorization: `Bearer ${accessToken}`,
+      prefer: 'return=minimal'
+    }
+  })
+
+  if (!response.ok) {
+    const body = await response.text()
+    throw new Error(
+      `Translation delete failed with HTTP ${response.status}: ${body}`
+    )
+  }
+
+  const prefix = `${entityType}:${Number(entityId)}:`
+  for (const key of [...translationMap.keys()]) {
+    if (key.startsWith(prefix)) {
+      translationMap.delete(key)
+    }
+  }
+}
+
+function dynamicTranslationFieldMarkup(
+  entityType,
+  entityId,
+  field
+) {
+  const translation = getTranslation(
+    entityType,
+    entityId,
+    field.name
+  )
+  const value = translation?.value || ''
+  const label =
+    language === 'en' ? field.labelEn : field.labelRo
+  const control =
+    field.control === 'input'
+      ? `
+        <input
+          data-atlas-i18n-dynamic-field="${escapeHtmlAttribute(field.name)}"
+          maxlength="${Number(field.maxLength || 1000)}"
+          value="${escapeHtmlAttribute(value)}"
+        />
+      `
+      : `
+        <textarea
+          data-atlas-i18n-dynamic-field="${escapeHtmlAttribute(field.name)}"
+          maxlength="${Number(field.maxLength || 10000)}"
+        >${escapeHtml(value)}</textarea>
+      `
+
+  return `
+    <div class="atlas-i18n-dynamic-field">
+      <section class="atlas-i18n-source">
+        <strong>RO · ${escapeHtml(label)}</strong>
+        <p>${escapeHtml(field.sourceValue || '')}</p>
+      </section>
+
+      <div class="field">
+        <label>EN · ${escapeHtml(label)}</label>
+        ${control}
+      </div>
+    </div>
+  `
+}
+
+async function openDynamicEntityTranslationManager(
+  entityType,
+  entityId
+) {
+  const config = DYNAMIC_TRANSLATION_CONFIG[entityType]
+
+  if (!config) return
+
+  closeTranslationManager()
+
+  let source
+
+  try {
+    source = await fetchDynamicTranslationSource(
+      entityType,
+      entityId
+    )
+  } catch (error) {
+    window.alert(error.message)
+    return
+  }
+
+  const backdrop = document.createElement('div')
+  backdrop.id = 'atlasI18nBackdrop'
+  backdrop.className =
+    'modal-backdrop atlas-i18n-backdrop open'
+
+  const entityLabel =
+    language === 'en'
+      ? config.labelEn
+      : config.labelRo
+
+  backdrop.innerHTML = `
+    <div
+      class="modal atlas-i18n-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="atlasI18nTitle"
+    >
+      <div class="modal-head">
+        <div>
+          <h3 id="atlasI18nTitle">${escapeHtml(entityLabel)} · RO → EN</h3>
+          <p>${
+            language === 'en'
+              ? 'Romanian remains the source. Empty English fields automatically fall back to Romanian.'
+              : 'Româna rămâne sursa. Câmpurile EN goale folosesc automat varianta în română.'
+          }</p>
+        </div>
+
+        <button
+          class="icon-btn"
+          type="button"
+          data-atlas-i18n-close
+          aria-label="${language === 'en' ? 'Close' : 'Închide'}"
+        >✕</button>
+      </div>
+
+      <div class="atlas-i18n-body">
+        <div class="atlas-i18n-dynamic-fields">
+          ${source.fields
+            .map((field) =>
+              dynamicTranslationFieldMarkup(
+                entityType,
+                Number(entityId),
+                field
+              )
+            )
+            .join('')}
+        </div>
+
+        <div
+          class="atlas-i18n-status"
+          id="atlasI18nStatus"
+          aria-live="polite"
+        ></div>
+      </div>
+
+      <div class="modal-foot">
+        <button
+          class="btn atlas-i18n-danger"
+          id="atlasI18nRemoveBtn"
+          type="button"
+        >${
+          language === 'en'
+            ? 'Remove English translations'
+            : 'Șterge traducerile EN'
+        }</button>
+
+        <button
+          class="btn"
+          type="button"
+          data-atlas-i18n-close
+        >${language === 'en' ? 'Cancel' : 'Renunță'}</button>
+
+        <button
+          class="btn primary"
+          id="atlasI18nSaveBtn"
+          type="button"
+        >${language === 'en' ? 'Save English' : 'Salvează EN'}</button>
+      </div>
+    </div>
+  `
+
+  document.body.appendChild(backdrop)
+
+  backdrop
+    .querySelectorAll('[data-atlas-i18n-close]')
+    .forEach((button) => {
+      button.addEventListener(
+        'click',
+        closeTranslationManager
+      )
+    })
+
+  const collectValues = (clear = false) => {
+    const values = {}
+
+    backdrop
+      .querySelectorAll('[data-atlas-i18n-dynamic-field]')
+      .forEach((field) => {
+        values[field.dataset.atlasI18nDynamicField] =
+          clear ? '' : field.value
+      })
+
+    return values
+  }
+
+  const saveButton = backdrop.querySelector(
+    '#atlasI18nSaveBtn'
+  )
+  const removeButton = backdrop.querySelector(
+    '#atlasI18nRemoveBtn'
+  )
+  const status = backdrop.querySelector(
+    '#atlasI18nStatus'
+  )
+
+  saveButton?.addEventListener('click', async () => {
+    saveButton.disabled = true
+    if (removeButton) removeButton.disabled = true
+    status.textContent =
+      language === 'en'
+        ? 'Saving translations...'
+        : 'Se salvează traducerile...'
+
+    try {
+      await saveDynamicEntityTranslations(
+        entityType,
+        Number(entityId),
+        collectValues()
+      )
+
+      translationLoadFinished = true
+      scheduleApply()
+
+      status.textContent =
+        language === 'en'
+          ? 'English translations saved.'
+          : 'Traducerile EN au fost salvate.'
+
+      window.setTimeout(
+        closeTranslationManager,
+        450
+      )
+    } catch (error) {
+      status.textContent = error.message
+    } finally {
+      saveButton.disabled = false
+      if (removeButton) removeButton.disabled = false
+    }
+  })
+
+  removeButton?.addEventListener('click', async () => {
+    const confirmed = window.confirm(
+      language === 'en'
+        ? 'Remove every English translation for this item?'
+        : 'Ștergi toate traducerile EN pentru acest element?'
+    )
+
+    if (!confirmed) return
+
+    removeButton.disabled = true
+    if (saveButton) saveButton.disabled = true
+
+    status.textContent =
+      language === 'en'
+        ? 'Removing translations...'
+        : 'Se șterg traducerile...'
+
+    try {
+      await removeAllDynamicEntityTranslations(
+        entityType,
+        Number(entityId)
+      )
+
+      scheduleApply()
+
+      status.textContent =
+        language === 'en'
+          ? 'English translations removed.'
+          : 'Traducerile EN au fost șterse.'
+
+      window.setTimeout(
+        closeTranslationManager,
+        450
+      )
+    } catch (error) {
+      status.textContent = error.message
+    } finally {
+      removeButton.disabled = false
+      if (saveButton) saveButton.disabled = false
+    }
+  })
+}
+
+function installDynamicTranslationEditor() {
+  if (window.__atlasDynamicTranslationEditorInstalled) return
+
+  window.__atlasDynamicTranslationEditorInstalled = true
+
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest(
+      '[data-atlas-i18n-edit][data-atlas-i18n-id]'
+    )
+
+    if (!button) return
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    openDynamicEntityTranslationManager(
+      button.dataset.atlasI18nEdit,
+      Number(button.dataset.atlasI18nId)
+    ).catch((error) => {
+      console.error(
+        '[Atlas i18n] Dynamic translation editor failed:',
+        error
+      )
+      window.alert(error.message)
+    })
+  })
+}
+
 function updateLanguageLinks() {
   if (language !== 'en') return
 
@@ -2076,6 +2773,7 @@ function scheduleApply() {
       applyNodeTranslations()
       applyEdgeTranslations()
       applyContextNodeTitleTranslations()
+      applyDynamicEntityTranslations()
       applyEnglishClientSeo()
     }
 
@@ -2267,6 +2965,26 @@ function injectStyles() {
       font-weight: 700;
     }
 
+    .atlas-i18n-dynamic-fields {
+      display: grid;
+      gap: 16px;
+    }
+
+    .atlas-i18n-dynamic-field {
+      display: grid;
+      gap: 10px;
+    }
+
+    .atlas-i18n-dynamic-field textarea {
+      width: 100%;
+      min-height: 96px;
+      resize: vertical;
+    }
+
+    .atlas-i18n-dynamic-field input {
+      width: 100%;
+    }
+
     .atlas-i18n-status {
       min-height: 22px;
       color: #d5a9ff;
@@ -2347,7 +3065,7 @@ async function loadTranslations() {
   } catch (error) {
     console.warn(
       '[Atlas i18n] Translations are unavailable. ' +
-      'Run local-sql/15_bilingual_translations.sql first.',
+      'Run the bilingual foundation (15) and v90 dynamic-content migration (33) first.',
       error
     )
   } finally {
@@ -3350,6 +4068,7 @@ function init() {
   document.documentElement.dataset.atlasLanguage = language
 
   installEnglishDialogTranslation()
+  installDynamicTranslationEditor()
   injectStyles()
   injectLanguageSwitcher()
   injectTranslationManagerButton()
