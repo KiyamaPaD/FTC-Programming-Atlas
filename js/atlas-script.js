@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v88 · SOURCE COMPARE + LAYOUT EDITOR')
+console.log('ATLAS SCRIPT LOADED v89 · DESIGN SYSTEM + RELEASE HARDENING')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -833,6 +833,8 @@ const atlasStatusTitle = document.getElementById('atlasStatusTitle')
 const atlasStatusMessage = document.getElementById('atlasStatusMessage')
 
 const retryLoadBtn = document.getElementById('retryLoadBtn')
+
+const networkStatusPill = document.getElementById('networkStatusPill')
 
 const mediaManagerBackdrop = document.getElementById('mediaManagerBackdrop')
 
@@ -2195,8 +2197,7 @@ async function openPublicContentManager(kind = null) {
 
   publicContentManagerBackdrop.classList.add('open')
   publicContentManagerSummary.textContent = 'Se încarcă datele editorului...'
-  publicContentManagerList.innerHTML =
-    '<div class="public-content-manager-empty">Se încarcă...</div>'
+  publicContentManagerList.innerHTML = inlineStateMarkup('Se încarcă datele editorului...')
 
   try {
     // Refresh here so an editor who just logged in via OTP also sees drafts
@@ -2206,8 +2207,10 @@ async function openPublicContentManager(kind = null) {
     renderPublicContentManager()
   } catch (error) {
     console.error('Public content manager refresh failed:', error)
-    publicContentManagerSummary.textContent =
+    const message =
       error?.message || 'Conținutul public nu a putut fi încărcat.'
+    publicContentManagerSummary.textContent = message
+    publicContentManagerList.innerHTML = inlineStateMarkup(message, 'error')
   }
 }
 
@@ -3377,8 +3380,7 @@ async function openRoadmapManager(scope = 'public') {
 
   roadmapManagerBackdrop.classList.add('open')
   roadmapManagerSummary.textContent = 'Se încarcă roadmaps...'
-  roadmapManagerList.innerHTML =
-    '<div class="public-content-manager-empty">Se încarcă...</div>'
+  roadmapManagerList.innerHTML = inlineStateMarkup('Se încarcă roadmaps...')
 
   try {
     await refreshRoadmapManagerData()
@@ -3386,8 +3388,10 @@ async function openRoadmapManager(scope = 'public') {
     renderRoadmapManager()
   } catch (error) {
     console.error('Roadmap manager refresh failed:', error)
-    roadmapManagerSummary.textContent =
+    const message =
       error?.message || 'Roadmap-urile nu au putut fi încărcate.'
+    roadmapManagerSummary.textContent = message
+    roadmapManagerList.innerHTML = inlineStateMarkup(message, 'error')
   }
 }
 
@@ -9690,6 +9694,61 @@ async function confirmTaxonomyReplacementDelete() {
   }
 }
 
+// v89 shared loading/error state UI
+function inlineStateMarkup(message, kind = 'loading') {
+  const safeMessage = escapeHtmlText(message || '')
+
+  if (kind === 'error') {
+    return `
+      <div class="atlas-inline-state is-error" role="alert">
+        <span>${safeMessage}</span>
+      </div>
+    `
+  }
+
+  return `
+    <div class="atlas-inline-state is-loading" role="status" aria-live="polite">
+      <span class="atlas-inline-spinner" aria-hidden="true"></span>
+      <span>${safeMessage}</span>
+    </div>
+  `
+}
+
+let networkStatusHideTimer = null
+
+function renderNetworkStatus(isOnline, { announceRecovery = true } = {}) {
+  if (!networkStatusPill) return
+
+  if (networkStatusHideTimer) {
+    clearTimeout(networkStatusHideTimer)
+    networkStatusHideTimer = null
+  }
+
+  if (!isOnline) {
+    networkStatusPill.hidden = false
+    networkStatusPill.classList.remove('online')
+    networkStatusPill.textContent =
+      'Ești offline. Poți consulta ce este deja încărcat, dar sincronizarea poate eșua.'
+    return
+  }
+
+  if (!announceRecovery) {
+    networkStatusPill.hidden = true
+    networkStatusPill.classList.remove('online')
+    return
+  }
+
+  networkStatusPill.hidden = false
+  networkStatusPill.classList.add('online')
+  networkStatusPill.textContent = 'Conexiune restabilită.'
+
+  networkStatusHideTimer = window.setTimeout(() => {
+    networkStatusPill.hidden = true
+    networkStatusPill.classList.remove('online')
+    networkStatusHideTimer = null
+  }, 2200)
+}
+
 // Atlas loading and empty-state UI
 function showAtlasLoading(
   message = 'Pregătim nodurile, documentația și relațiile dintre concepte.'
@@ -9697,6 +9756,8 @@ function showAtlasLoading(
   isAtlasLoading = true
 
   atlasStatusOverlay.classList.remove('hidden', 'error', 'empty')
+  atlasStatusOverlay.setAttribute('role', 'status')
+  atlasStatusOverlay.setAttribute('aria-busy', 'true')
 
   atlasLoader.hidden = false
   retryLoadBtn.hidden = true
@@ -9716,6 +9777,8 @@ function showAtlasLoadError(error) {
   atlasStatusOverlay.classList.remove('hidden', 'empty')
 
   atlasStatusOverlay.classList.add('error')
+  atlasStatusOverlay.setAttribute('role', 'alert')
+  atlasStatusOverlay.setAttribute('aria-busy', 'false')
 
   atlasLoader.hidden = true
   retryLoadBtn.hidden = false
@@ -9725,9 +9788,11 @@ function showAtlasLoadError(error) {
 
   atlasStatusTitle.textContent = 'Atlasul nu a putut fi încărcat'
 
-  atlasStatusMessage.textContent = error?.message
-    ? `Supabase a răspuns cu eroarea: ${error.message}`
-    : 'Verifică internetul și încearcă din nou.'
+  atlasStatusMessage.textContent = !navigator.onLine
+    ? 'Dispozitivul pare offline. Reconectează-te la internet și încearcă din nou.'
+    : error?.message
+      ? `Nu am putut sincroniza datele. Detaliu: ${error.message}`
+      : 'Verifică internetul și încearcă din nou.'
 
   updateAuthUI()
 }
@@ -9738,6 +9803,8 @@ function showEmptyAtlasState() {
   atlasStatusOverlay.classList.remove('hidden', 'error')
 
   atlasStatusOverlay.classList.add('empty')
+  atlasStatusOverlay.setAttribute('role', 'status')
+  atlasStatusOverlay.setAttribute('aria-busy', 'false')
 
   atlasLoader.hidden = true
   retryLoadBtn.hidden = false
@@ -9759,6 +9826,8 @@ function hideAtlasStatus() {
 
   atlasStatusOverlay.classList.add('hidden')
   atlasStatusOverlay.classList.remove('error', 'empty')
+  atlasStatusOverlay.setAttribute('role', 'status')
+  atlasStatusOverlay.setAttribute('aria-busy', 'false')
 
   updateAuthUI()
 }
@@ -15756,11 +15825,8 @@ async function openRevisionHistory(
     'Se încarcă versiunile...'
 
   revisionHistoryList.innerHTML = ''
-  revisionHistoryPreview.innerHTML = `
-    <div class="revision-history-empty">
-      Se încarcă...
-    </div>
-  `
+  revisionHistoryPreview.innerHTML =
+    inlineStateMarkup('Se încarcă versiunile...')
 
   try {
     await loadRevisionHistory()
@@ -15771,14 +15837,10 @@ async function openRevisionHistory(
       error?.message ||
       'Version history nu a putut fi încărcat.'
 
-    revisionHistoryPreview.innerHTML = `
-      <div class="revision-history-empty">
-        ${escapeHtmlText(
-          error?.message ||
-            'Version history nu a putut fi încărcat.'
-        )}
-      </div>
-    `
+    revisionHistoryPreview.innerHTML = inlineStateMarkup(
+      error?.message || 'Version history nu a putut fi încărcat.',
+      'error'
+    )
   }
 }
 
@@ -20044,6 +20106,16 @@ retryLoadBtn.addEventListener('click', () => {
     console.error('Retry load failed:', error)
   })
 })
+
+window.addEventListener('offline', () => {
+  renderNetworkStatus(false)
+})
+
+window.addEventListener('online', () => {
+  renderNetworkStatus(true)
+})
+
+renderNetworkStatus(navigator.onLine, { announceRecovery: false })
 
 // Keyboard shortcuts and global lifecycle events
 async function runHistoryActionWithUnsavedGuard(action) {
