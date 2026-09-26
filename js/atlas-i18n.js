@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v87 · Full English UI + document revisions and public index
+// v88 · Full English UI + source comparison and batch layout editor
 //
 // Source language: Romanian
 // Secondary language: English
@@ -443,6 +443,46 @@ const UI_EN = new Map(Object.entries({
     'Sign in to save Team Atlas documents.',
   'Loghează-te pentru a deschide documentația Team Atlas.':
     'Sign in to open Team Atlas documentation.',
+  'Compare public source':
+    'Compare public source',
+  'Open public source':
+    'Open public source',
+  'Mark source reviewed':
+    'Mark source reviewed',
+  'Sync selected':
+    'Sync selected',
+  'Apply public':
+    'Apply public',
+  'Public changed':
+    'Public changed',
+  'Team customized':
+    'Team customized',
+  'Conflict / both changed':
+    'Conflict / both changed',
+  'Source baseline current':
+    'Source baseline current',
+  'Public source unavailable':
+    'Public source unavailable',
+  'Edit layout':
+    'Edit layout',
+  'Exit layout edit':
+    'Exit layout edit',
+  'Save layout':
+    'Save layout',
+  'Discard':
+    'Discard',
+  'Unsaved changes':
+    'Unsaved changes',
+  'VIEW MODE':
+    'VIEW MODE',
+  'EDIT LAYOUT MODE':
+    'EDIT LAYOUT MODE',
+  'Ai modificări de layout nesalvate. Folosește Save layout sau Discard înainte să schimbi secțiunea.':
+    'You have unsaved layout changes. Use Save layout or Discard before changing sections.',
+  'Salvează sau folosește Discard înainte să ieși din Layout Edit Mode.':
+    'Save or use Discard before leaving Layout Edit Mode.',
+  'Nu ai drept de sync pentru acest document.':
+    'You do not have permission to sync this document.',
   'Version history':
     'Version history',
   'Restore this version':

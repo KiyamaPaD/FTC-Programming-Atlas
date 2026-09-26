@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v87 · REVISIONS + PUBLIC INDEX')
+console.log('ATLAS SCRIPT LOADED v88 · SOURCE COMPARE + LAYOUT EDITOR')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -84,8 +84,8 @@ const NODE_MAX_WIDTH = 720
 const NODE_MAX_HEIGHT = 520
 const MAX_EDGE_CONTROL_POINTS = 12
 
-// Accelerated keyboard movement for the selected node.
-// Movement stays local while keys are held and is persisted once on release.
+// Legacy keyboard movement constants kept for compatibility.
+// v88 uses explicit Layout Edit Mode with arrow-key nudging instead of WASD.
 const WASD_TAP_STEP = 12
 const WASD_INITIAL_SPEED = 160
 const WASD_ACCELERATION_DELAY_MS = 180
@@ -405,6 +405,16 @@ let revisionHistoryTarget = null
 let revisionHistoryRows = []
 let revisionHistorySelectedId = null
 let revisionHistoryBusy = false
+
+let sourceCompareNodeId = null
+let sourceCompareBusy = false
+
+let layoutEditMode = false
+let layoutSaveBusy = false
+let layoutNodeDrafts = new Map()
+let layoutEdgeDrafts = new Map()
+let layoutUndoStack = []
+let layoutRedoStack = []
 let teamSetupMutationBusy = false
 let teamImportSourceNodeId = null
 let teamImportMutationBusy = false
@@ -525,6 +535,14 @@ const tutorialBtn = document.getElementById('tutorialBtn')
 const editorModeBtn = document.getElementById('editorModeBtn')
 const savePositionBtn = document.getElementById('savePositionBtn')
 
+const layoutEditorBar = document.getElementById('layoutEditorBar')
+const layoutEditorModeLabel = document.getElementById('layoutEditorModeLabel')
+const layoutEditorStatus = document.getElementById('layoutEditorStatus')
+const layoutEditModeBtn = document.getElementById('layoutEditModeBtn')
+const layoutUnsavedCount = document.getElementById('layoutUnsavedCount')
+const discardLayoutBtn = document.getElementById('discardLayoutBtn')
+const saveLayoutBtn = document.getElementById('saveLayoutBtn')
+
 const editorToolsSection = document.getElementById('editorToolsSection')
 
 const taxonomyManagerBtn = document.getElementById('taxonomyManagerBtn')
@@ -593,6 +611,37 @@ const closeDocumentationLibraryFooterBtn = document.getElementById(
 const clearRecentDocsBtn = document.getElementById('clearRecentDocsBtn')
 const documentationLibraryBody = document.getElementById(
   'documentationLibraryBody'
+)
+
+const sourceCompareBackdrop = document.getElementById(
+  'sourceCompareBackdrop'
+)
+const sourceCompareTitle = document.getElementById(
+  'sourceCompareTitle'
+)
+const closeSourceCompareBtn = document.getElementById(
+  'closeSourceCompareBtn'
+)
+const closeSourceCompareFooterBtn = document.getElementById(
+  'closeSourceCompareFooterBtn'
+)
+const sourceCompareSummary = document.getElementById(
+  'sourceCompareSummary'
+)
+const sourceCompareTable = document.getElementById(
+  'sourceCompareTable'
+)
+const sourceCompareStatus = document.getElementById(
+  'sourceCompareStatus'
+)
+const sourceCompareOpenPublicBtn = document.getElementById(
+  'sourceCompareOpenPublicBtn'
+)
+const sourceCompareMarkBtn = document.getElementById(
+  'sourceCompareMarkBtn'
+)
+const sourceCompareSyncBtn = document.getElementById(
+  'sourceCompareSyncBtn'
 )
 
 const revisionHistoryBackdrop = document.getElementById(
@@ -1436,7 +1485,7 @@ function handleNodeTap(nodeId) {
     // dblclick event because renderAll() rebuilds the node DOM after selection.
     const tappedNode = findNode(numericNodeId)
 
-    if (canEditNode(tappedNode) && editorMode) {
+    if (canEditNode(tappedNode) && editorMode && layoutEditMode) {
       const now = performance.now()
       const isDoubleClick =
         Number(editorNodeClickState.nodeId) === numericNodeId &&
@@ -4115,7 +4164,12 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
       row.source_public_node_id == null
         ? null
         : Number(row.source_public_node_id),
-    sourceImportedAt: row.source_imported_at || null
+    sourceImportedAt: row.source_imported_at || null,
+    sourceSnapshot:
+      row.source_snapshot && typeof row.source_snapshot === 'object'
+        ? row.source_snapshot
+        : null,
+    sourceSyncedAt: row.source_synced_at || null
   }))
 
   syncActiveNodeCollection({ forceReset })
@@ -4280,6 +4334,22 @@ function normalizeActiveTeam() {
 }
 
 async function selectActiveTeam(teamId) {
+  if (
+    Number(teamId) !== Number(activeTeamId) &&
+    hasUnsavedLayoutChanges()
+  ) {
+    if (!(await confirmUnsavedPositionBeforeLeaving())) {
+      if (teamAtlasSelect) {
+        teamAtlasSelect.value = String(activeTeamId)
+      }
+      return
+    }
+  }
+
+  layoutEditMode = false
+  layoutUndoStack = []
+  layoutRedoStack = []
+
   const membership = ownActiveTeamMemberships().find(
     (item) => Number(item.teamId) === Number(teamId)
   )
@@ -6612,6 +6682,25 @@ function selectPublicSection(section) {
   if (!PUBLIC_SECTIONS.has(section)) return
 
   if (
+    section !== activePublicSection &&
+    hasUnsavedLayoutChanges()
+  ) {
+    alert(
+      'Ai modificări de layout nesalvate. Folosește Save layout sau Discard înainte să schimbi secțiunea.'
+    )
+    return
+  }
+
+  if (
+    section !== activePublicSection &&
+    layoutEditMode
+  ) {
+    layoutEditMode = false
+    layoutUndoStack = []
+    layoutRedoStack = []
+  }
+
+  if (
     (
       section === 'team' ||
       section === 'team-index' ||
@@ -7659,7 +7748,7 @@ function renderNodeMediaGallery(node) {
   const mediaItems = Array.isArray(node.media) ? node.media : []
 
   if (mediaItems.length === 0) {
-    if (!canEditNode(node) || !editorMode) return ''
+    if (!canEditNode(node) || !editorMode || !layoutEditMode) return ''
 
     return `
       <section class="node-media-section empty">
@@ -9103,7 +9192,8 @@ function isAnyModalOpen() {
     documentationLibraryBackdrop?.classList.contains('open') ||
     documentationMetaBackdrop?.classList.contains('open') ||
     documentationHealthBackdrop?.classList.contains('open') ||
-    revisionHistoryBackdrop?.classList.contains('open')
+    revisionHistoryBackdrop?.classList.contains('open') ||
+    sourceCompareBackdrop?.classList.contains('open')
   )
 }
 
@@ -11195,6 +11285,301 @@ async function updateNodeGeometryRemote(node) {
   return normalizeRpcRow(data, 'Geometria nodului')
 }
 
+// Layout editing -------------------------------------------------------------
+
+function layoutNodeGeometry(node) {
+  return {
+    x: Number(node?.x || 0),
+    y: Number(node?.y || 0),
+    width: node?.width == null ? null : Number(node.width),
+    height: node?.height == null ? null : Number(node.height)
+  }
+}
+
+function layoutGeometryEqual(a, b) {
+  return (
+    Number(a?.x) === Number(b?.x) &&
+    Number(a?.y) === Number(b?.y) &&
+    (a?.width == null ? null : Number(a.width)) ===
+      (b?.width == null ? null : Number(b.width)) &&
+    (a?.height == null ? null : Number(a.height)) ===
+      (b?.height == null ? null : Number(b.height))
+  )
+}
+
+function layoutEdgeKey(sourceId, targetId) {
+  return `${Number(sourceId)}:${Number(targetId)}`
+}
+
+function layoutPointsEqual(a, b) {
+  return JSON.stringify(normalizeEdgeControlPoints(a)) ===
+    JSON.stringify(normalizeEdgeControlPoints(b))
+}
+
+function hasUnsavedLayoutChanges() {
+  return layoutNodeDrafts.size > 0 || layoutEdgeDrafts.size > 0
+}
+
+function layoutChangeCount() {
+  return layoutNodeDrafts.size + layoutEdgeDrafts.size
+}
+
+function queueLayoutNodeDraft(node, before) {
+  if (!node) return
+  const key = Number(node.id)
+
+  if (!layoutNodeDrafts.has(key)) {
+    layoutNodeDrafts.set(key, { original: { ...before } })
+  }
+
+  const entry = layoutNodeDrafts.get(key)
+
+  if (layoutGeometryEqual(layoutNodeGeometry(node), entry.original)) {
+    layoutNodeDrafts.delete(key)
+  }
+
+  renderLayoutEditorState()
+}
+
+function queueLayoutEdgeDraft(sourceId, targetId, beforePoints) {
+  const key = layoutEdgeKey(sourceId, targetId)
+  const info = getEdgeInfo(sourceId, targetId)
+  if (!info) return
+
+  if (!layoutEdgeDrafts.has(key)) {
+    layoutEdgeDrafts.set(key, {
+      sourceId: Number(sourceId),
+      targetId: Number(targetId),
+      originalPoints: normalizeEdgeControlPoints(beforePoints).map((point) => ({ ...point }))
+    })
+  }
+
+  const entry = layoutEdgeDrafts.get(key)
+
+  if (layoutPointsEqual(info.link.controlPoints, entry.originalPoints)) {
+    layoutEdgeDrafts.delete(key)
+  }
+
+  renderLayoutEditorState()
+}
+
+function recordLayoutAction(action) {
+  if (!action) return
+  layoutUndoStack.push(action)
+  if (layoutUndoStack.length > 160) layoutUndoStack.shift()
+  layoutRedoStack = []
+  refreshHistoryButtons()
+}
+
+function recomputeLayoutNodeDraft(nodeId) {
+  const entry = layoutNodeDrafts.get(Number(nodeId))
+  const node = findNode(nodeId)
+  if (!entry || !node) return
+  if (layoutGeometryEqual(layoutNodeGeometry(node), entry.original)) {
+    layoutNodeDrafts.delete(Number(nodeId))
+  }
+}
+
+function recomputeLayoutEdgeDraft(sourceId, targetId) {
+  const key = layoutEdgeKey(sourceId, targetId)
+  const entry = layoutEdgeDrafts.get(key)
+  const info = getEdgeInfo(sourceId, targetId)
+  if (!entry || !info) return
+  if (layoutPointsEqual(info.link.controlPoints, entry.originalPoints)) {
+    layoutEdgeDrafts.delete(key)
+  }
+}
+
+function applyLayoutActionState(action, side) {
+  if (!action) return
+
+  if (action.type === 'node') {
+    const node = findNode(action.nodeId)
+    const state = action[side]
+    if (!node || !state) return
+
+    node.x = Number(state.x)
+    node.y = Number(state.y)
+    node.width = state.width == null ? null : Number(state.width)
+    node.height = state.height == null ? null : Number(state.height)
+    recomputeLayoutNodeDraft(node.id)
+    renderLayoutEditorState()
+    return
+  }
+
+  if (action.type === 'edge') {
+    const info = getEdgeInfo(action.sourceId, action.targetId)
+    const points = action[side]
+    if (!info || !points) return
+
+    info.link.controlPoints = normalizeEdgeControlPoints(points)
+    recomputeLayoutEdgeDraft(action.sourceId, action.targetId)
+    renderLayoutEditorState()
+  }
+}
+
+function undoLayoutChange() {
+  const action = layoutUndoStack.pop()
+  if (!action) return
+  layoutRedoStack.push(action)
+  applyLayoutActionState(action, 'before')
+  renderAll()
+  refreshHistoryButtons()
+}
+
+function redoLayoutChange() {
+  const action = layoutRedoStack.pop()
+  if (!action) return
+  layoutUndoStack.push(action)
+  applyLayoutActionState(action, 'after')
+  renderAll()
+  refreshHistoryButtons()
+}
+
+function clearLayoutDraftState() {
+  layoutNodeDrafts = new Map()
+  layoutEdgeDrafts = new Map()
+  layoutUndoStack = []
+  layoutRedoStack = []
+  layoutSaveBusy = false
+  renderLayoutEditorState()
+  refreshHistoryButtons()
+}
+
+function discardLayoutChanges() {
+  for (const [nodeId, entry] of layoutNodeDrafts) {
+    const node = findNode(nodeId)
+    if (!node) continue
+    node.x = Number(entry.original.x)
+    node.y = Number(entry.original.y)
+    node.width = entry.original.width == null ? null : Number(entry.original.width)
+    node.height = entry.original.height == null ? null : Number(entry.original.height)
+  }
+
+  for (const entry of layoutEdgeDrafts.values()) {
+    const info = getEdgeInfo(entry.sourceId, entry.targetId)
+    if (!info) continue
+    info.link.controlPoints = normalizeEdgeControlPoints(entry.originalPoints)
+  }
+
+  clearLayoutDraftState()
+  renderAll()
+}
+
+async function saveLayoutChanges({ quiet = false } = {}) {
+  if (layoutSaveBusy) return false
+
+  if (!hasUnsavedLayoutChanges()) {
+    renderLayoutEditorState()
+    return true
+  }
+
+  layoutSaveBusy = true
+  renderLayoutEditorState()
+
+  try {
+    const nodePayload = [...layoutNodeDrafts.keys()]
+      .map((nodeId) => findNode(nodeId))
+      .filter(Boolean)
+      .map((node) => ({ id: Number(node.id), ...layoutNodeGeometry(node) }))
+
+    const edgePayload = [...layoutEdgeDrafts.values()]
+      .map((entry) => {
+        const info = getEdgeInfo(entry.sourceId, entry.targetId)
+        if (!info) return null
+        return {
+          source_id: Number(entry.sourceId),
+          target_id: Number(entry.targetId),
+          control_points: normalizeEdgeControlPoints(info.link.controlPoints)
+        }
+      })
+      .filter(Boolean)
+
+    const { error } = await supabase.rpc('atlas_layout_batch_save', {
+      p_project_id: PROJECT_ID,
+      p_node_scope: isTeamAtlasMode() ? 'team' : 'public',
+      p_team_id: isTeamAtlasMode() ? Number(activeTeamId) : null,
+      p_nodes: nodePayload,
+      p_edges: edgePayload
+    })
+
+    if (error) throw error
+
+    clearLayoutDraftState()
+    saveCachedNodes()
+    renderAll()
+    return true
+  } catch (error) {
+    layoutSaveBusy = false
+    renderLayoutEditorState()
+
+    if (!quiet) {
+      alert(error?.message || 'Layout-ul nu a putut fi salvat.')
+    }
+    return false
+  }
+}
+
+function renderLayoutEditorState() {
+  if (!layoutEditorBar) return
+
+  const mapSection =
+    activePublicSection === 'explore' ||
+    activePublicSection === 'team'
+
+  const available = Boolean(
+    editorMode &&
+    canEditCurrentAtlas() &&
+    mapSection
+  )
+
+  layoutEditorBar.hidden = !available
+
+  if (!available) layoutEditMode = false
+
+  const count = layoutChangeCount()
+
+  layoutEditorBar.classList.toggle('active', layoutEditMode)
+  layoutEditorModeLabel.textContent = layoutEditMode ? 'EDIT LAYOUT MODE' : 'VIEW MODE'
+  layoutEditorStatus.textContent = layoutEditMode
+    ? 'Drag mută · resize handles redimensionează · săgețile fac nudge · Ctrl/Cmd+Z/Y lucrează local.'
+    : 'Click deschide documentația · layout-ul nu se modifică.'
+
+  layoutEditModeBtn.textContent = layoutEditMode ? 'Exit layout edit' : 'Edit layout'
+  layoutEditModeBtn.classList.toggle('primary', layoutEditMode)
+  layoutEditModeBtn.disabled = !available || layoutSaveBusy
+
+  layoutUnsavedCount.textContent = `Unsaved changes: ${count}`
+  layoutUnsavedCount.classList.toggle('dirty', count > 0)
+
+  discardLayoutBtn.disabled = layoutSaveBusy || count === 0
+  saveLayoutBtn.disabled = layoutSaveBusy || count === 0
+  saveLayoutBtn.textContent = layoutSaveBusy ? 'Saving...' : 'Save layout'
+}
+
+function setLayoutEditMode(nextValue) {
+  const next = Boolean(nextValue)
+
+  if (next && (!editorMode || !canEditCurrentAtlas())) return false
+
+  if (!next && hasUnsavedLayoutChanges()) {
+    alert('Salvează sau folosește Discard înainte să ieși din Layout Edit Mode.')
+    return false
+  }
+
+  layoutEditMode = next
+
+  if (!layoutEditMode) {
+    selectedEdgePointIndex = null
+    layoutUndoStack = []
+    layoutRedoStack = []
+  }
+
+  renderAll()
+  refreshHistoryButtons()
+  return true
+}
+
 // Node movement and resizing
 function keyboardMoveVector(keys = keyboardMoveState.keys) {
   let x = 0
@@ -11336,28 +11721,28 @@ async function saveUnsavedNodePosition({ quiet = false } = {}) {
 }
 
 async function confirmUnsavedPositionBeforeLeaving(nextNodeId = null) {
-  if (!unsavedNodePosition) return true
+  if (nextNodeId != null) return true
 
-  if (
-    nextNodeId != null &&
-    Number(nextNodeId) === Number(unsavedNodePosition.nodeId)
-  ) {
-    return true
+  if (hasUnsavedLayoutChanges()) {
+    const shouldSave = window.confirm(
+      `Ai ${layoutChangeCount()} modificări de layout nesalvate.\n\n` +
+      'OK = Save layout și continuă.\n' +
+      'Cancel = rămâi aici. Poți folosi și Discard din bara Layout.'
+    )
+
+    if (!shouldSave) return false
+    return saveLayoutChanges()
   }
 
-  const node = nodes.find(
-    (item) => Number(item.id) === Number(unsavedNodePosition.nodeId)
-  )
-  const nodeName = node?.title || `#${unsavedNodePosition.nodeId}`
+  if (!unsavedNodePosition) return true
 
   const shouldSave = window.confirm(
-    `Ai modificat poziția nodului „${nodeName}”, dar nu ai salvat-o.\n\n` +
-    'OK = salvează poziția în Supabase și continuă.\n' +
-    'Cancel = rămâi aici fără să pierzi modificarea.'
+    'Există o poziție locală veche nesalvată.\n\n' +
+    'OK = salvează și continuă.\n' +
+    'Cancel = rămâi aici.'
   )
 
   if (!shouldSave) return false
-
   return saveUnsavedNodePosition()
 }
 
@@ -11501,59 +11886,36 @@ function startKeyboardNodeMovement(key) {
 }
 
 async function nudgeSelectedNode(dx, dy) {
-  if (!canEditCurrentAtlas() || !editorMode) return
+  if (!canEditCurrentAtlas() || !editorMode || !layoutEditMode) return
 
   const node = selectedNode()
-
   if (!node || !canEditNode(node)) return
 
+  const before = layoutNodeGeometry(node)
   const { width, height } = nodeSize(node)
 
   const desiredX = clamp(node.x + dx, 20, WORLD_WIDTH - width - 20)
-
   const desiredY = clamp(node.y + dy, 20, WORLD_HEIGHT - height - 20)
-
   const free = findNearestFreeSpot(node.id, desiredX, desiredY)
 
-  const changed = Number(free.x) !== Number(node.x) || Number(free.y) !== Number(node.y)
+  if (Number(free.x) === Number(node.x) && Number(free.y) === Number(node.y)) return
 
-  if (!changed) return
+  node.x = Number(free.x)
+  node.y = Number(free.y)
 
-  try {
-    const updated = await updateNodeRemote({
-      ...node,
-      x: free.x,
-      y: free.y
-    })
-
-    node.x = Number(updated.x)
-    node.y = Number(updated.y)
-
-    if (hasUnsavedNodePosition(node.id)) {
-      clearUnsavedNodePosition()
-    }
-
-    saveCachedNodes()
-    renderAll()
-
-    await refreshHistoryButtons()
-  } catch (error) {
-    console.error('Move node with keyboard failed:', error)
-
-    alert(`Eroare la mutarea nodului: ${error?.message || 'necunoscută'}`)
-
-    await fetchAllData()
-  }
+  const after = layoutNodeGeometry(node)
+  queueLayoutNodeDraft(node, before)
+  recordLayoutAction({ type: 'node', nodeId: Number(node.id), before, after })
+  renderAll()
 }
 
 async function resizeSelectedNode(deltaWidth, deltaHeight) {
-  if (!canEditCurrentAtlas() || !editorMode || selectedEdge) return
+  if (!canEditCurrentAtlas() || !editorMode || !layoutEditMode || selectedEdge) return
 
   const node = selectedNode()
   if (!node || !canEditNode(node)) return
 
-  const originalWidth = node.width
-  const originalHeight = node.height
+  const before = layoutNodeGeometry(node)
   const current = nodeSize(node)
 
   const nextWidth = clamp(
@@ -11568,9 +11930,7 @@ async function resizeSelectedNode(deltaWidth, deltaHeight) {
     Math.min(NODE_MAX_HEIGHT, WORLD_HEIGHT - node.y - 20)
   )
 
-  if (nextWidth === current.width && nextHeight === current.height) {
-    return
-  }
+  if (nextWidth === current.width && nextHeight === current.height) return
 
   if (overlapsAny(node.id, node.x, node.y, nextWidth, nextHeight)) {
     alert('Nodul s-ar suprapune peste alt nod.')
@@ -11579,56 +11939,38 @@ async function resizeSelectedNode(deltaWidth, deltaHeight) {
 
   node.width = nextWidth
   node.height = nextHeight
-  renderAll()
 
-  try {
-    const updated = await updateNodeGeometryRemote(node)
-    node.width = updated.width == null ? null : Number(updated.width)
-    node.height = updated.height == null ? null : Number(updated.height)
-    await refreshHistoryButtons()
-  } catch (error) {
-    node.width = originalWidth
-    node.height = originalHeight
-    renderAll()
-    throw error
-  }
+  const after = layoutNodeGeometry(node)
+  queueLayoutNodeDraft(node, before)
+  recordLayoutAction({ type: 'node', nodeId: Number(node.id), before, after })
+  renderAll()
 }
 
 async function resetSelectedNodeSize() {
-  if (!canEditCurrentAtlas() || !editorMode || selectedEdge) return
+  if (!canEditCurrentAtlas() || !editorMode || !layoutEditMode || selectedEdge) return
 
   const node = selectedNode()
   if (!node || !canEditNode(node)) return
 
-  const originalWidth = node.width
-  const originalHeight = node.height
-
+  const before = layoutNodeGeometry(node)
   node.width = null
   node.height = null
 
   const fallback = nodeSize(node)
+
   if (overlapsAny(node.id, node.x, node.y, fallback.width, fallback.height)) {
-    node.width = originalWidth
-    node.height = originalHeight
+    node.width = before.width
+    node.height = before.height
     alert('Dimensiunea automată s-ar suprapune peste alt nod.')
     return
   }
 
+  const after = layoutNodeGeometry(node)
+  queueLayoutNodeDraft(node, before)
+  recordLayoutAction({ type: 'node', nodeId: Number(node.id), before, after })
   renderAll()
-
-  try {
-    await updateNodeGeometryRemote(node)
-    if (hasUnsavedNodePosition(node.id)) {
-      clearUnsavedNodePosition()
-    }
-    await refreshHistoryButtons()
-  } catch (error) {
-    node.width = originalWidth
-    node.height = originalHeight
-    renderAll()
-    throw error
-  }
 }
+
 
 // Authentication, permissions and Editor Mode
 function updateAuthUI() {
@@ -11700,16 +12042,12 @@ function updateAuthUI() {
   codeManagerBtn.disabled =
     editorBlocked || !hasSelectedNode || !selectedNodeEditable
 
-  const selectedHasUnsavedPosition =
-    editorActive &&
-    selectedNodeEditable &&
-    hasUnsavedNodePosition(selected?.id)
+  if (savePositionBtn) {
+    savePositionBtn.hidden = true
+    savePositionBtn.disabled = true
+  }
 
-  savePositionBtn.hidden = !selectedHasUnsavedPosition
-  savePositionBtn.disabled = !selectedHasUnsavedPosition || positionSaveBusy
-  savePositionBtn.textContent = positionSaveBusy
-    ? 'Se salvează poziția...'
-    : 'Salvează poziția · F'
+  renderLayoutEditorState()
 
   if (
     isTaxonomyManagerOpen() &&
@@ -11773,6 +12111,10 @@ function updateAuthUI() {
     }
   }
 
+  if (isSourceCompareOpen()) {
+    renderSourceCompare()
+  }
+
   if (isDocumentationMetaOpen()) {
     const metadataNode =
       currentDocumentationMetaNode()
@@ -11808,13 +12150,22 @@ function updateAuthUI() {
   const edgePointCount = edgeInfo?.link?.controlPoints?.length || 0
 
   addEdgePointBtn.disabled =
-    editorBlocked || !selectedEdge || edgePointCount >= MAX_EDGE_CONTROL_POINTS
+    editorBlocked ||
+    !layoutEditMode ||
+    !selectedEdge ||
+    edgePointCount >= MAX_EDGE_CONTROL_POINTS
 
   removeEdgePointBtn.disabled =
-    editorBlocked || !selectedEdge || edgePointCount === 0
+    editorBlocked ||
+    !layoutEditMode ||
+    !selectedEdge ||
+    edgePointCount === 0
 
   resetEdgePathBtn.disabled =
-    editorBlocked || !selectedEdge || edgePointCount === 0
+    editorBlocked ||
+    !layoutEditMode ||
+    !selectedEdge ||
+    edgePointCount === 0
 
   editEdgeBtn.disabled = editorBlocked || !selectedEdge
   deleteEdgeBtn.disabled = editorBlocked || !selectedEdge
@@ -11860,6 +12211,8 @@ function setEditorMode(nextValue) {
   localStorage.setItem(CACHE_KEYS.editorMode, editorMode ? '1' : '0')
 
   if (!editorMode) {
+    layoutEditMode = false
+
     relationMode = {
       active: false,
       sourceId: null
@@ -12182,7 +12535,7 @@ function edgeWorldPoint(clientX, clientY) {
 }
 
 function startEdgeControlDrag(event, sourceId, targetId, pointIndex) {
-  if (!canEditCurrentAtlas() || !editorMode) return
+  if (!canEditCurrentAtlas() || !editorMode || !layoutEditMode) return
   if (event.button !== 0 && event.pointerType !== 'touch') return
 
   const info = getEdgeInfo(sourceId, targetId)
@@ -12255,23 +12608,29 @@ function startEdgeControlDrag(event, sourceId, targetId, pointIndex) {
       return
     }
 
-    try {
-      const updated = await updateEdgeControlPointsRemote(
-        state.sourceId,
-        state.targetId,
+    const before =
+      state.originalPoints.map((point) => ({ ...point }))
+
+    const after =
+      normalizeEdgeControlPoints(
         currentInfo.link.controlPoints
       )
 
-      currentInfo.link.controlPoints = normalizeEdgeControlPoints(updated.control_points)
+    queueLayoutEdgeDraft(
+      state.sourceId,
+      state.targetId,
+      before
+    )
 
-      await refreshHistoryButtons()
-      renderAll()
-    } catch (error) {
-      currentInfo.link.controlPoints = state.originalPoints.map((point) => ({ ...point }))
+    recordLayoutAction({
+      type: 'edge',
+      sourceId: Number(state.sourceId),
+      targetId: Number(state.targetId),
+      before,
+      after
+    })
 
-      renderAll()
-      alert(error.message || 'Traseul relației nu a putut fi salvat.')
-    }
+    renderAll()
   }
 
   document.addEventListener('pointermove', onMove, { passive: false })
@@ -12325,7 +12684,7 @@ function findEdgePointInsertion(source, target, controlPoints) {
 }
 
 async function addEdgeControlPoint() {
-  if (!canEditCurrentAtlas() || !editorMode) return
+  if (!canEditCurrentAtlas() || !editorMode || !layoutEditMode) return
 
   const info = selectedEdgeInfo()
   if (!info) {
@@ -12336,39 +12695,34 @@ async function addEdgeControlPoint() {
   const target = findNode(info.link.targetId)
   if (!target) return
 
-  const originalPoints = normalizeEdgeControlPoints(info.link.controlPoints)
+  const before = normalizeEdgeControlPoints(info.link.controlPoints)
 
-  if (originalPoints.length >= MAX_EDGE_CONTROL_POINTS) {
+  if (before.length >= MAX_EDGE_CONTROL_POINTS) {
     alert(`Poți folosi maximum ${MAX_EDGE_CONTROL_POINTS} puncte pe o muchie.`)
     return
   }
 
-  const insertion = findEdgePointInsertion(info.source, target, originalPoints)
+  const insertion = findEdgePointInsertion(info.source, target, before)
+  const after = before.map((point) => ({ ...point }))
+  after.splice(insertion.index, 0, insertion.point)
 
-  const nextPoints = originalPoints.map((point) => ({ ...point }))
-  nextPoints.splice(insertion.index, 0, insertion.point)
-
-  info.link.controlPoints = nextPoints
+  info.link.controlPoints = after
   selectedEdgePointIndex = insertion.index
+
+  queueLayoutEdgeDraft(info.source.id, target.id, before)
+  recordLayoutAction({
+    type: 'edge',
+    sourceId: Number(info.source.id),
+    targetId: Number(target.id),
+    before,
+    after: after.map((point) => ({ ...point }))
+  })
+
   renderAll()
-
-  try {
-    const updated = await updateEdgeControlPointsRemote(info.source.id, target.id, nextPoints)
-
-    info.link.controlPoints = normalizeEdgeControlPoints(updated.control_points)
-
-    await refreshHistoryButtons()
-    renderAll()
-  } catch (error) {
-    info.link.controlPoints = originalPoints
-    selectedEdgePointIndex = null
-    renderAll()
-    alert(error.message || 'Punctul nu a putut fi adăugat.')
-  }
 }
 
 async function removeSelectedEdgeControlPoint() {
-  if (!canEditCurrentAtlas() || !editorMode) return
+  if (!canEditCurrentAtlas() || !editorMode || !layoutEditMode) return
 
   const info = selectedEdgeInfo()
   if (!info) {
@@ -12376,69 +12730,61 @@ async function removeSelectedEdgeControlPoint() {
     return
   }
 
-  const originalPoints = normalizeEdgeControlPoints(info.link.controlPoints)
-
-  if (originalPoints.length === 0) return
+  const before = normalizeEdgeControlPoints(info.link.controlPoints)
+  if (before.length === 0) return
 
   const pointIndex =
     Number.isInteger(selectedEdgePointIndex) &&
     selectedEdgePointIndex >= 0 &&
-    selectedEdgePointIndex < originalPoints.length
+    selectedEdgePointIndex < before.length
       ? selectedEdgePointIndex
-      : originalPoints.length - 1
+      : before.length - 1
 
-  const nextPoints = originalPoints.map((point) => ({ ...point }))
-  nextPoints.splice(pointIndex, 1)
+  const after = before.map((point) => ({ ...point }))
+  after.splice(pointIndex, 1)
+  info.link.controlPoints = after
 
-  info.link.controlPoints = nextPoints
-  selectedEdgePointIndex = nextPoints.length ? Math.min(pointIndex, nextPoints.length - 1) : null
+  selectedEdgePointIndex = after.length
+    ? Math.min(pointIndex, after.length - 1)
+    : null
+
+  queueLayoutEdgeDraft(info.source.id, info.link.targetId, before)
+  recordLayoutAction({
+    type: 'edge',
+    sourceId: Number(info.source.id),
+    targetId: Number(info.link.targetId),
+    before,
+    after: after.map((point) => ({ ...point }))
+  })
 
   renderAll()
-
-  try {
-    const updated = await updateEdgeControlPointsRemote(
-      info.source.id,
-      info.link.targetId,
-      nextPoints
-    )
-
-    info.link.controlPoints = normalizeEdgeControlPoints(updated.control_points)
-
-    await refreshHistoryButtons()
-    renderAll()
-  } catch (error) {
-    info.link.controlPoints = originalPoints
-    selectedEdgePointIndex = pointIndex
-    renderAll()
-    alert(error.message || 'Punctul nu a putut fi șters.')
-  }
 }
 
 async function resetEdgeControl(sourceId, targetId) {
-  if (!canEditCurrentAtlas() || !editorMode) return
+  if (!canEditCurrentAtlas() || !editorMode || !layoutEditMode) return
 
   const info = getEdgeInfo(sourceId, targetId)
   if (!info) return
 
-  const originalPoints = normalizeEdgeControlPoints(info.link.controlPoints)
+  const before = normalizeEdgeControlPoints(info.link.controlPoints)
+  if (before.length === 0) return
 
-  info.link.controlPoints = []
+  const after = []
+  info.link.controlPoints = after
   selectedEdgePointIndex = null
+
+  queueLayoutEdgeDraft(sourceId, targetId, before)
+  recordLayoutAction({
+    type: 'edge',
+    sourceId: Number(sourceId),
+    targetId: Number(targetId),
+    before,
+    after
+  })
+
   renderAll()
-
-  try {
-    const updated = await updateEdgeControlPointsRemote(sourceId, targetId, [])
-
-    info.link.controlPoints = normalizeEdgeControlPoints(updated.control_points)
-
-    await refreshHistoryButtons()
-    renderAll()
-  } catch (error) {
-    info.link.controlPoints = originalPoints
-    renderAll()
-    alert(error.message || 'Traseul automat nu a putut fi restaurat.')
-  }
 }
+
 
 // Atlas rendering
 function renderLinks() {
@@ -12506,7 +12852,7 @@ function renderLinks() {
         : `animation: circuitFlow ${duration}s linear infinite, circuitPulse 2s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(177,76,255,0.28));`
 
       const editorControl =
-        edgeSelected && canEditCurrentAtlas() && editorMode
+        edgeSelected && canEditCurrentAtlas() && editorMode && layoutEditMode
           ? `
           <path
             class="edge-control-guide"
@@ -12642,6 +12988,9 @@ function renderNodes() {
         ? healthIssues.length > 0
           ? 'quality-attention'
           : 'quality-clean'
+        : '',
+      layoutEditMode && canEditNode(node)
+        ? 'layout-editable'
         : ''
     ]
       .filter(Boolean)
@@ -12654,7 +13003,7 @@ function renderNodes() {
 
     const tagNames = nodeTagNames(node)
     const resizeHandles =
-      canEditNode(node) && editorMode && node.id === selectedId
+      canEditNode(node) && editorMode && layoutEditMode && node.id === selectedId
         ? `
         <span class="node-resize-handle east" data-node-resize="e" aria-hidden="true"></span>
         <span class="node-resize-handle south" data-node-resize="s" aria-hidden="true"></span>
@@ -12676,7 +13025,7 @@ function renderNodes() {
               : '<span class="node-health-badge clean">✓</span>'
             : ''
         }
-        ${node.id === selectedId ? `<span class="open-mark">${canEditNode(node) && editorMode ? '2× open' : 'open'}</span>` : ''}
+        ${node.id === selectedId ? `<span class="open-mark">${canEditNode(node) && editorMode && layoutEditMode ? '2× open' : 'open'}</span>` : ''}
       </div>
       <h3 class="node-title">${escapeHtml(node.title)}</h3>
       <p class="node-preview">${escapeHtml(nodeContentPlainText(node))}</p>
@@ -12747,7 +13096,7 @@ function renderNodes() {
 
         if (interactionMode !== 'drag') return
       } else {
-        if (!canEditNode(node) || !editorMode) return
+        if (!canEditNode(node) || !editorMode || !layoutEditMode) return
         if (!moved && distance < DRAG_THRESHOLD) return
         interactionMode = 'drag'
       }
@@ -12787,7 +13136,7 @@ function renderNodes() {
         return
       }
 
-      if (!canEditNode(node) || !editorMode || interactionMode !== 'drag') {
+      if (!canEditNode(node) || !editorMode || !layoutEditMode || interactionMode !== 'drag') {
         renderAll()
         return
       }
@@ -12809,30 +13158,24 @@ function renderNodes() {
         return
       }
 
-      ;(async () => {
-        try {
-          const updated = await updateNodeRemote({
-            ...node,
-            x: free.x,
-            y: free.y
-          })
+      const before = layoutNodeGeometry(node)
 
-          node.x = Number(updated.x)
-          node.y = Number(updated.y)
-          if (hasUnsavedNodePosition(node.id)) {
-            clearUnsavedNodePosition()
-          }
-          selectedId = node.id
-          clearEdgeSelection()
-          saveCachedNodes()
-          renderAll()
-          await refreshHistoryButtons()
-        } catch (error) {
-          console.error('Move node failed:', error)
-          alert(`Eroare la mutarea nodului: ${error?.message || 'necunoscută'}`)
-          await fetchAllData()
-        }
-      })()
+      node.x = Number(free.x)
+      node.y = Number(free.y)
+
+      const after = layoutNodeGeometry(node)
+
+      queueLayoutNodeDraft(node, before)
+      recordLayoutAction({
+        type: 'node',
+        nodeId: Number(node.id),
+        before,
+        after
+      })
+
+      selectedId = node.id
+      clearEdgeSelection()
+      renderAll()
     }
 
     // Keep a real href for crawlers, new-tab actions and accessibility while
@@ -12866,7 +13209,7 @@ function renderNodes() {
       moved = false
       interactionMode = event.pointerType === 'touch' ? 'pending' : 'idle'
 
-      if (event.pointerType === 'touch' && canEditNode(node) && editorMode) {
+      if (event.pointerType === 'touch' && canEditNode(node) && editorMode && layoutEditMode) {
         touchLongPressTimer = window.setTimeout(() => {
           interactionMode = 'drag'
         }, MOBILE_LONG_PRESS_MS)
@@ -12883,7 +13226,7 @@ function renderNodes() {
 
     el.querySelectorAll('[data-node-resize]').forEach((handle) => {
       handle.addEventListener('pointerdown', (event) => {
-        if (!canEditNode(node) || !editorMode) return
+        if (!canEditNode(node) || !editorMode || !layoutEditMode) return
         if (event.button !== 0 && event.pointerType !== 'touch') return
 
         event.preventDefault()
@@ -12955,22 +13298,27 @@ function renderNodes() {
             return
           }
 
+          const before = {
+            x: Number(node.x),
+            y: Number(node.y),
+            width: originalWidth == null ? null : Number(originalWidth),
+            height: originalHeight == null ? null : Number(originalHeight)
+          }
+
           node.width = Math.round(nextWidth)
           node.height = Math.round(nextHeight)
-          renderAll()
 
-          try {
-            const updated = await updateNodeGeometryRemote(node)
-            node.width = updated.width == null ? null : Number(updated.width)
-            node.height = updated.height == null ? null : Number(updated.height)
-            await refreshHistoryButtons()
-            renderAll()
-          } catch (error) {
-            node.width = originalWidth
-            node.height = originalHeight
-            renderAll()
-            alert(error.message || 'Dimensiunea nodului nu a putut fi salvată.')
-          }
+          const after = layoutNodeGeometry(node)
+
+          queueLayoutNodeDraft(node, before)
+          recordLayoutAction({
+            type: 'node',
+            nodeId: Number(node.id),
+            before,
+            after
+          })
+
+          renderAll()
         }
 
         document.addEventListener('pointermove', onResizeMove, { passive: false })
@@ -13004,8 +13352,8 @@ function renderSelectedStrip() {
         ${escapeHtml(info.link.label || 'relație')}<br>
         ${pointCount} ${pointCount === 1 ? 'punct de traseu' : 'puncte de traseu'}${selectedPointText}<br>
         ${
-          canEditCurrentAtlas() && editorMode
-            ? 'Folosește „+ Punct muchie”, apoi trage fiecare punct numerotat.'
+          canEditCurrentAtlas() && editorMode && layoutEditMode
+            ? 'Layout Edit Mode · folosește „+ Punct muchie”, apoi trage fiecare punct numerotat.'
             : ''
         }
       `
@@ -13023,8 +13371,8 @@ function renderSelectedStrip() {
 
   const { width, height } = nodeSize(node)
 
-  const unsavedPositionText = hasUnsavedNodePosition(node.id)
-    ? '<br><strong>Poziție nesalvată</strong> · apasă F sau „Salvează poziția”.'
+  const unsavedPositionText = layoutNodeDrafts.has(Number(node.id))
+    ? '<br><strong>Layout nesalvat</strong> · folosește Save layout sau Discard.'
     : ''
 
   selectedStrip.innerHTML = `
@@ -14352,6 +14700,478 @@ async function moveCodeItem(codeId, direction) {
 
 
 
+
+function isSourceCompareOpen() {
+  return Boolean(sourceCompareBackdrop?.classList.contains('open'))
+}
+
+function currentSourceCompareNode() {
+  if (sourceCompareNodeId == null) return null
+  return teamNodes.find((node) => Number(node.id) === Number(sourceCompareNodeId)) || null
+}
+
+function currentSourceComparePublicNode() {
+  const teamNode = currentSourceCompareNode()
+  if (!teamNode?.sourcePublicNodeId) return null
+  return publicNodes.find(
+    (node) => Number(node.id) === Number(teamNode.sourcePublicNodeId)
+  ) || null
+}
+
+function sourceCategorySlug(node, scope = 'public') {
+  const collection = scope === 'team' ? teamCategories : publicCategories
+  return collection.find(
+    (item) => Number(item.id) === Number(node?.categoryId)
+  )?.slug || ''
+}
+
+function sourceDifficultySlug(node, scope = 'public') {
+  const collection = scope === 'team' ? teamDifficulties : publicDifficulties
+  return collection.find(
+    (item) => Number(item.id) === Number(node?.difficultyId)
+  )?.slug || ''
+}
+
+function sourceTagSlugs(node, scope = 'public') {
+  const collection = scope === 'team' ? teamTaxonomyTags : publicTaxonomyTags
+
+  return (node?.tagIds || [])
+    .map(
+      (id) =>
+        collection.find((item) => Number(item.id) === Number(id))?.slug || ''
+    )
+    .filter(Boolean)
+    .sort()
+}
+
+function sourceCodeModel(items = []) {
+  return [...items]
+    .map((item) => ({
+      language: String(item.language || 'text'),
+      title: String(item.title || ''),
+      description: String(item.description || ''),
+      code: String(item.code || ''),
+      sort_order: Number(item.sortOrder ?? item.sort_order ?? 0)
+    }))
+    .sort((a, b) => {
+      const order = Number(a.sort_order) - Number(b.sort_order)
+      if (order !== 0) return order
+      return a.title.localeCompare(b.title, 'ro', { sensitivity: 'base' })
+    })
+}
+
+function sourceSnapshotModel(snapshot = {}) {
+  return {
+    title: String(snapshot.title || ''),
+    content: String(snapshot.content || ''),
+    contentFormat: snapshot.content_format === 'plain' ? 'plain' : 'html',
+    taxonomy: {
+      category: String(snapshot.category_slug || ''),
+      difficulty: String(snapshot.difficulty_slug || ''),
+      tags: Array.isArray(snapshot.tag_slugs)
+        ? snapshot.tag_slugs.map(String).sort()
+        : []
+    },
+    code: sourceCodeModel(
+      Array.isArray(snapshot.code_snippets)
+        ? snapshot.code_snippets
+        : []
+    ),
+    publicUpdatedAt: snapshot.public_updated_at || null
+  }
+}
+
+function publicSourceCurrentModel(node) {
+  return {
+    title: String(node?.title || ''),
+    content: String(node?.content || ''),
+    contentFormat: node?.contentFormat === 'plain' ? 'plain' : 'html',
+    taxonomy: {
+      category: sourceCategorySlug(node, 'public'),
+      difficulty: sourceDifficultySlug(node, 'public'),
+      tags: sourceTagSlugs(node, 'public')
+    },
+    code: sourceCodeModel(node?.codeSnippets || []),
+    publicUpdatedAt: node?.updatedAt || null
+  }
+}
+
+function teamSourceCurrentModel(node) {
+  return {
+    title: String(node?.title || ''),
+    content: String(node?.content || ''),
+    contentFormat: node?.contentFormat === 'plain' ? 'plain' : 'html',
+    taxonomy: {
+      category: sourceCategorySlug(node, 'team'),
+      difficulty: sourceDifficultySlug(node, 'team'),
+      tags: sourceTagSlugs(node, 'team')
+    },
+    code: sourceCodeModel(node?.codeSnippets || [])
+  }
+}
+
+function stableSourceValue(value) {
+  if (value && typeof value === 'object') return JSON.stringify(value)
+  return String(value ?? '')
+}
+
+function sourceFieldState(field, baseline, publicCurrent, teamCurrent) {
+  let baselineValue
+  let publicValue
+  let teamValue
+
+  if (field === 'content') {
+    baselineValue = { format: baseline.contentFormat, content: baseline.content }
+    publicValue = { format: publicCurrent.contentFormat, content: publicCurrent.content }
+    teamValue = { format: teamCurrent.contentFormat, content: teamCurrent.content }
+  } else {
+    baselineValue = baseline[field]
+    publicValue = publicCurrent[field]
+    teamValue = teamCurrent[field]
+  }
+
+  const base = stableSourceValue(baselineValue)
+
+  return {
+    baselineValue,
+    publicValue,
+    teamValue,
+    publicChanged: stableSourceValue(publicValue) !== base,
+    teamChanged: stableSourceValue(teamValue) !== base
+  }
+}
+
+function sourceComparisonState(teamNode) {
+  const publicNode = publicNodes.find(
+    (node) => Number(node.id) === Number(teamNode?.sourcePublicNodeId)
+  )
+
+  const baseline = sourceSnapshotModel(teamNode?.sourceSnapshot || {})
+  const publicCurrent = publicSourceCurrentModel(publicNode)
+  const teamCurrent = teamSourceCurrentModel(teamNode)
+
+  const fields = {
+    title: sourceFieldState('title', baseline, publicCurrent, teamCurrent),
+    content: sourceFieldState('content', baseline, publicCurrent, teamCurrent),
+    taxonomy: sourceFieldState('taxonomy', baseline, publicCurrent, teamCurrent),
+    code: sourceFieldState('code', baseline, publicCurrent, teamCurrent)
+  }
+
+  return { teamNode, publicNode, baseline, publicCurrent, teamCurrent, fields }
+}
+
+function sourceContentExcerpt(value) {
+  const raw =
+    typeof value === 'object'
+      ? String(value.content || '')
+      : String(value || '')
+
+  const plain = plainTextFromHtml(raw).replace(/\s+/g, ' ').trim()
+  if (!plain) return 'Empty'
+  return plain.length > 260 ? `${plain.slice(0, 260)}…` : plain
+}
+
+function sourceCompareDisplay(field, value) {
+  if (field === 'content') {
+    const content = typeof value === 'object' ? value.content : value
+    const format = typeof value === 'object' ? value.format : 'html'
+    return `${format} · ${String(content || '').length} chars\n${sourceContentExcerpt(value)}`
+  }
+
+  if (field === 'taxonomy') {
+    const taxonomy = value || {}
+    return [
+      `category: ${taxonomy.category || '—'}`,
+      `difficulty: ${taxonomy.difficulty || '—'}`,
+      `tags: ${
+        Array.isArray(taxonomy.tags) && taxonomy.tags.length
+          ? taxonomy.tags.join(', ')
+          : '—'
+      }`
+    ].join('\n')
+  }
+
+  if (field === 'code') {
+    const items = Array.isArray(value) ? value : []
+    if (!items.length) return '0 snippets'
+
+    return [
+      `${items.length} snippets`,
+      ...items.slice(0, 5).map(
+        (item) => `${item.language} · ${item.title || 'Untitled'}`
+      ),
+      items.length > 5 ? `+${items.length - 5} more` : ''
+    ]
+      .filter(Boolean)
+      .join('\n')
+  }
+
+  return String(value || '—')
+}
+
+function sourceCompareFieldLabel(field) {
+  const labels = {
+    title: 'Title',
+    content: 'Documentation',
+    taxonomy: 'Taxonomy',
+    code: 'Code snippets'
+  }
+  return labels[field] || field
+}
+
+function sourceCompareStatusLabel(state) {
+  if (state.publicChanged && state.teamChanged) return 'Conflict / both changed'
+  if (state.publicChanged) return 'Public changed'
+  if (state.teamChanged) return 'Team customized'
+  return 'In sync with baseline'
+}
+
+function sourceCompareTotals(comparison) {
+  const values = Object.values(comparison.fields)
+  return {
+    publicChanged: values.filter((item) => item.publicChanged).length,
+    teamChanged: values.filter((item) => item.teamChanged).length,
+    conflicts: values.filter(
+      (item) => item.publicChanged && item.teamChanged
+    ).length
+  }
+}
+
+function sourceSyncFact(node) {
+  if (!node?.isTeamNode || !node.sourcePublicNodeId) return ''
+
+  const comparison = sourceComparisonState(node)
+  const totals = sourceCompareTotals(comparison)
+
+  let copy = 'Source baseline current'
+
+  if (!comparison.publicNode) copy = 'Public source unavailable'
+  else if (totals.conflicts > 0) copy = `${totals.conflicts} source conflicts`
+  else if (totals.publicChanged > 0) copy = `${totals.publicChanged} public changes available`
+  else if (totals.teamChanged > 0) copy = 'Team copy customized'
+
+  return `
+    <div class="fact-box">
+      <strong>Public source</strong>
+      <span>${escapeHtmlText(copy)}</span>
+      ${
+        node.sourceSyncedAt
+          ? `<span>Baseline ${escapeHtmlText(formatPublicDate(node.sourceSyncedAt))}</span>`
+          : ''
+      }
+    </div>
+  `
+}
+
+function setSourceCompareBusy(nextValue, status = '') {
+  sourceCompareBusy = Boolean(nextValue)
+
+  for (const element of [
+    closeSourceCompareBtn,
+    closeSourceCompareFooterBtn,
+    sourceCompareOpenPublicBtn,
+    sourceCompareMarkBtn,
+    sourceCompareSyncBtn
+  ]) {
+    if (element) element.disabled = sourceCompareBusy
+  }
+
+  const editable = Boolean(
+    editorMode && canEditNode(currentSourceCompareNode())
+  )
+
+  sourceCompareTable
+    ?.querySelectorAll('input')
+    .forEach((input) => {
+      input.disabled = sourceCompareBusy || !editable
+    })
+
+  if (status) sourceCompareStatus.textContent = status
+}
+
+function renderSourceCompare() {
+  if (!isSourceCompareOpen()) return
+
+  const teamNode = currentSourceCompareNode()
+
+  if (!teamNode) {
+    sourceCompareTitle.textContent = 'Compare public source'
+    sourceCompareSummary.innerHTML = ''
+    sourceCompareTable.innerHTML = `
+      <div class="revision-history-empty">
+        Copia Team Atlas nu mai este disponibilă.
+      </div>
+    `
+    return
+  }
+
+  const comparison = sourceComparisonState(teamNode)
+  sourceCompareTitle.textContent = `Compare source · ${teamNode.title}`
+
+  if (!comparison.publicNode) {
+    sourceCompareSummary.innerHTML = `
+      <span class="source-compare-chip conflict">
+        Public source unavailable
+      </span>
+    `
+    sourceCompareTable.innerHTML = `
+      <div class="revision-history-empty">
+        Nodul public original nu mai este disponibil.
+      </div>
+    `
+    sourceCompareOpenPublicBtn.disabled = true
+    sourceCompareMarkBtn.disabled = true
+    sourceCompareSyncBtn.disabled = true
+    return
+  }
+
+  const totals = sourceCompareTotals(comparison)
+
+  sourceCompareSummary.innerHTML = `
+    <span class="source-compare-chip ${totals.publicChanged ? 'changed' : ''}">
+      ${totals.publicChanged} public changes
+    </span>
+    <span class="source-compare-chip ${totals.teamChanged ? 'changed' : ''}">
+      ${totals.teamChanged} team customizations
+    </span>
+    <span class="source-compare-chip ${totals.conflicts ? 'conflict' : ''}">
+      ${totals.conflicts} conflicts
+    </span>
+    <span class="source-compare-chip">
+      ${
+        teamNode.sourceSyncedAt
+          ? `baseline ${escapeHtmlText(formatPublicDate(teamNode.sourceSyncedAt))}`
+          : 'import baseline'
+      }
+    </span>
+  `
+
+  sourceCompareTable.innerHTML =
+    Object.entries(comparison.fields)
+      .map(([field, state]) => {
+        const safeAutoApply = state.publicChanged && !state.teamChanged
+
+        return `
+          <div class="source-compare-row">
+            <div class="source-compare-field">
+              <strong>${escapeHtmlText(sourceCompareFieldLabel(field))}</strong>
+              <span>${escapeHtmlText(sourceCompareStatusLabel(state))}</span>
+            </div>
+
+            <div class="source-compare-value">
+              <strong>Public Atlas</strong>
+              <p>${escapeHtmlText(sourceCompareDisplay(field, state.publicValue))}</p>
+            </div>
+
+            <div class="source-compare-value">
+              <strong>Team Atlas</strong>
+              <p>${escapeHtmlText(sourceCompareDisplay(field, state.teamValue))}</p>
+            </div>
+
+            <label class="source-compare-apply">
+              <input
+                type="checkbox"
+                data-source-sync-field="${field}"
+                ${safeAutoApply ? 'checked' : ''}
+                ${!(editorMode && canEditNode(teamNode)) ? 'disabled' : ''}
+              />
+              Apply public
+            </label>
+          </div>
+        `
+      })
+      .join('')
+
+  const editable = Boolean(editorMode && canEditNode(teamNode))
+  sourceCompareMarkBtn.hidden = !editable
+  sourceCompareSyncBtn.hidden = !editable
+  sourceCompareOpenPublicBtn.hidden = false
+
+  setSourceCompareBusy(sourceCompareBusy)
+}
+
+function openSourceCompare(nodeId = selectedId) {
+  const node = teamNodes.find(
+    (candidate) => Number(candidate.id) === Number(nodeId)
+  )
+
+  if (!node || !node.sourcePublicNodeId) return
+
+  sourceCompareNodeId = Number(node.id)
+  sourceCompareBusy = false
+  sourceCompareBackdrop.classList.add('open')
+  sourceCompareStatus.textContent = 'Pregătit.'
+  renderSourceCompare()
+}
+
+function closeSourceCompare() {
+  if (sourceCompareBusy) return
+  sourceCompareBackdrop?.classList.remove('open')
+  sourceCompareNodeId = null
+}
+
+async function runSourceSync({ markOnly = false } = {}) {
+  if (sourceCompareBusy) return
+
+  const teamNode = currentSourceCompareNode()
+
+  if (!teamNode || !editorMode || !canEditNode(teamNode)) {
+    throw new Error('Nu ai drept de sync pentru acest document.')
+  }
+
+  const selectedFields = new Set(
+    markOnly
+      ? []
+      : [
+          ...sourceCompareTable.querySelectorAll(
+            '[data-source-sync-field]:checked'
+          )
+        ].map((input) => input.dataset.sourceSyncField)
+  )
+
+  if (!markOnly && selectedFields.size === 0) {
+    throw new Error(
+      'Selectează cel puțin un câmp sau folosește Mark source reviewed.'
+    )
+  }
+
+  setSourceCompareBusy(
+    true,
+    markOnly
+      ? 'Se actualizează baseline-ul...'
+      : 'Se sincronizează câmpurile selectate...'
+  )
+
+  try {
+    const { error } = await supabase.rpc('atlas_team_sync_public_source', {
+      p_project_id: PROJECT_ID,
+      p_team_id: Number(teamNode.teamId),
+      p_node_id: Number(teamNode.id),
+      p_sync_title: selectedFields.has('title'),
+      p_sync_content: selectedFields.has('content'),
+      p_sync_taxonomy: selectedFields.has('taxonomy'),
+      p_sync_code: selectedFields.has('code')
+    })
+
+    if (error) throw error
+
+    await fetchAllData()
+    await loadActiveTeamAtlasNodes({ forceReset: false })
+
+    syncActiveNodeCollection({ forceReset: false })
+    selectedId = Number(teamNode.id)
+    detailOpen = true
+
+    sourceCompareStatus.textContent =
+      markOnly ? 'Baseline actualizat.' : 'Sync finalizat.'
+
+    renderAll()
+    renderSourceCompare()
+  } finally {
+    setSourceCompareBusy(false)
+  }
+}
+
 function isRevisionHistoryOpen() {
   return Boolean(
     revisionHistoryBackdrop?.classList.contains('open')
@@ -15159,36 +15979,25 @@ function healthInboundCount(node) {
 }
 
 function publicSourceNewerThanTeamNode(node) {
-  if (
-    !node?.isTeamNode ||
-    !node.sourcePublicNodeId
-  ) {
-    return false
-  }
+  if (!node?.isTeamNode || !node.sourcePublicNodeId) return false
 
   const source = publicNodes.find(
-    (candidate) =>
-      Number(candidate.id) ===
-      Number(node.sourcePublicNodeId)
+    (candidate) => Number(candidate.id) === Number(node.sourcePublicNodeId)
   )
 
   if (!source?.updatedAt) return false
 
-  const sourceTime =
-    new Date(source.updatedAt).getTime()
+  const sourceTime = new Date(source.updatedAt).getTime()
+  const baselineTime = new Date(
+    node.sourceSnapshot?.public_updated_at ||
+      node.sourceSyncedAt ||
+      node.sourceImportedAt ||
+      0
+  ).getTime()
 
-  const teamTime =
-    new Date(node.updatedAt || node.createdAt || 0)
-      .getTime()
+  if (!Number.isFinite(sourceTime) || !Number.isFinite(baselineTime)) return false
 
-  if (
-    !Number.isFinite(sourceTime) ||
-    !Number.isFinite(teamTime)
-  ) {
-    return false
-  }
-
-  return sourceTime > teamTime + 60 * 1000
+  return sourceTime > baselineTime + 60 * 1000
 }
 
 function documentHealthIssues(node) {
@@ -16750,6 +17559,7 @@ function renderDetailPanel() {
           <button class="icon-btn" id="detailMetaBtn" aria-label="Sources & review" title="Sources & review">◎</button>
           <button class="icon-btn" id="detailHistoryBtn" aria-label="Version history" title="Version history">◷</button>
           <button class="icon-btn" id="detailImportTeamBtn" aria-label="Copy to Team Atlas" title="Copy to Team Atlas">⇢</button>
+          <button class="icon-btn" id="detailCompareSourceBtn" aria-label="Compare public source" title="Compare public source">⇄</button>
           <button class="icon-btn" id="detailPublicSourceBtn" aria-label="Open public source" title="Open public source">↗</button>
           <button class="icon-btn" id="detailCopyTeamLinkBtn" aria-label="Copy private Team Atlas link" title="Copy private Team Atlas link">🔗</button>
           <button class="icon-btn" id="detailAddRelationBtn" aria-label="Add relation">＋</button>
@@ -16775,16 +17585,7 @@ function renderDetailPanel() {
             }
           </div>
         </div>
-        ${
-          node.isTeamNode && node.sourcePublicNodeId
-            ? `
-              <div class="fact-box">
-                <strong>Sursă</strong>
-                <span>Copiat din Public Atlas · #${Number(node.sourcePublicNodeId)}</span>
-              </div>
-            `
-            : ''
-        }
+        ${sourceSyncFact(node)}
 
         ${renderDocumentReviewFact(node)}
 
@@ -16853,6 +17654,7 @@ function renderDetailPanel() {
   const detailMetaBtn = document.getElementById('detailMetaBtn')
   const detailHistoryBtn = document.getElementById('detailHistoryBtn')
   const detailImportTeamBtn = document.getElementById('detailImportTeamBtn')
+  const detailCompareSourceBtn = document.getElementById('detailCompareSourceBtn')
   const detailPublicSourceBtn = document.getElementById('detailPublicSourceBtn')
   const detailCopyTeamLinkBtn = document.getElementById('detailCopyTeamLinkBtn')
   const detailAddRelationBtn = document.getElementById('detailAddRelationBtn')
@@ -16866,6 +17668,7 @@ function renderDetailPanel() {
   detailMetaBtn.hidden = !nodeEditorActions
   detailHistoryBtn.hidden = !nodeEditorActions
   detailImportTeamBtn.hidden = !canImportPublicNodeToTeam(node)
+  detailCompareSourceBtn.hidden = !(node.isTeamNode && node.sourcePublicNodeId)
   detailPublicSourceBtn.hidden = !(node.isTeamNode && node.sourcePublicNodeId)
   detailCopyTeamLinkBtn.hidden = !node.isTeamNode
   detailAddRelationBtn.hidden = !nodeEditorActions
@@ -16878,6 +17681,7 @@ function renderDetailPanel() {
   detailMetaBtn.disabled = !nodeEditorActions
   detailHistoryBtn.disabled = !nodeEditorActions
   detailImportTeamBtn.disabled = !canImportPublicNodeToTeam(node)
+  detailCompareSourceBtn.disabled = !(node.isTeamNode && node.sourcePublicNodeId)
   detailPublicSourceBtn.disabled = !(node.isTeamNode && node.sourcePublicNodeId)
   detailCopyTeamLinkBtn.disabled = !node.isTeamNode
   detailAddRelationBtn.disabled = !nodeEditorActions
@@ -16909,6 +17713,9 @@ function renderDetailPanel() {
   })
 
   detailImportTeamBtn.addEventListener('click', () => openTeamImport(node.id))
+  detailCompareSourceBtn.addEventListener('click', () =>
+    openSourceCompare(node.id)
+  )
   detailPublicSourceBtn.addEventListener('click', () =>
     openPublicSourceFromTeamNode(node)
   )
@@ -17019,6 +17826,7 @@ function renderAll() {
   renderSelectedStrip()
   renderModeStrip()
   renderHealthToolState()
+  renderLayoutEditorState()
   renderLinks()
   renderNodes()
   renderDetailPanel()
@@ -17926,8 +18734,15 @@ deleteBtn.addEventListener('click', () => {
 relationBtn.addEventListener('click', () => {
   ;(async () => {
     if (!relationMode.active && !(await confirmUnsavedPositionBeforeLeaving())) return
-    if (relationMode.active) deactivateRelationMode()
-    else activateRelationMode()
+
+    if (relationMode.active) {
+      deactivateRelationMode()
+    } else {
+      layoutEditMode = false
+      layoutUndoStack = []
+      layoutRedoStack = []
+      activateRelationMode()
+    }
   })().catch((error) => alert(error.message || 'Modul relație nu a putut fi schimbat.'))
 })
 editEdgeBtn.addEventListener('click', () => {
@@ -17937,16 +18752,15 @@ deleteEdgeBtn.addEventListener('click', () => {
   deleteSelectedEdge().catch((error) => alert(error.message || 'Eroare la ștergerea muchiei.'))
 })
 undoBtn.addEventListener('click', () => {
-  ;(async () => {
-    if (!(await confirmUnsavedPositionBeforeLeaving())) return
-    await undo()
-  })().catch((error) => alert(error.message || 'Eroare la undo.'))
+  runHistoryActionWithUnsavedGuard(undo).catch((error) =>
+    alert(error.message || 'Eroare la undo.')
+  )
 })
+
 redoBtn.addEventListener('click', () => {
-  ;(async () => {
-    if (!(await confirmUnsavedPositionBeforeLeaving())) return
-    await redo()
-  })().catch((error) => alert(error.message || 'Eroare la redo.'))
+  runHistoryActionWithUnsavedGuard(redo).catch((error) =>
+    alert(error.message || 'Eroare la redo.')
+  )
 })
 
 zoomInBtn.addEventListener('click', () => setScale(view.scale * 1.12))
@@ -17985,9 +18799,36 @@ editorModeBtn.addEventListener('click', () => {
   })
 })
 
-savePositionBtn.addEventListener('click', () => {
+layoutEditModeBtn?.addEventListener(
+  'click',
+  () => {
+    setLayoutEditMode(!layoutEditMode)
+  }
+)
+
+discardLayoutBtn?.addEventListener(
+  'click',
+  () => {
+    if (!hasUnsavedLayoutChanges()) return
+
+    if (confirm(`Discard ${layoutChangeCount()} modificări de layout?`)) {
+      discardLayoutChanges()
+    }
+  }
+)
+
+saveLayoutBtn?.addEventListener(
+  'click',
+  () => {
+    saveLayoutChanges().catch((error) => {
+      console.error('Layout save failed:', error)
+    })
+  }
+)
+
+savePositionBtn?.addEventListener('click', () => {
   saveUnsavedNodePosition().catch((error) => {
-    console.error('Position save button failed:', error)
+    console.error('Legacy position save failed:', error)
   })
 })
 
@@ -18162,6 +19003,59 @@ teamAtlasSelect?.addEventListener('change', () => {
     console.error('Switch Team Atlas failed:', error)
   })
 })
+
+closeSourceCompareBtn?.addEventListener(
+  'click',
+  closeSourceCompare
+)
+
+closeSourceCompareFooterBtn?.addEventListener(
+  'click',
+  closeSourceCompare
+)
+
+sourceCompareBackdrop?.addEventListener(
+  'click',
+  (event) => {
+    if (event.target === sourceCompareBackdrop) {
+      closeSourceCompare()
+    }
+  }
+)
+
+sourceCompareOpenPublicBtn?.addEventListener(
+  'click',
+  () => {
+    const node = currentSourceCompareNode()
+    if (!node) return
+    closeSourceCompare()
+    openPublicSourceFromTeamNode(node)
+  }
+)
+
+sourceCompareMarkBtn?.addEventListener(
+  'click',
+  () => {
+    runSourceSync({ markOnly: true }).catch((error) => {
+      console.error('Mark source reviewed failed:', error)
+      sourceCompareStatus.textContent =
+        error?.message || 'Baseline-ul nu a putut fi actualizat.'
+      alert(error?.message || 'Baseline-ul nu a putut fi actualizat.')
+    })
+  }
+)
+
+sourceCompareSyncBtn?.addEventListener(
+  'click',
+  () => {
+    runSourceSync().catch((error) => {
+      console.error('Source sync failed:', error)
+      sourceCompareStatus.textContent =
+        error?.message || 'Sync-ul nu a putut fi finalizat.'
+      alert(error?.message || 'Sync-ul nu a putut fi finalizat.')
+    })
+  }
+)
 
 closeRevisionHistoryBtn?.addEventListener(
   'click',
@@ -19153,11 +20047,29 @@ retryLoadBtn.addEventListener('click', () => {
 
 // Keyboard shortcuts and global lifecycle events
 async function runHistoryActionWithUnsavedGuard(action) {
+  if (layoutEditMode) {
+    if (action === undo) {
+      undoLayoutChange()
+      return
+    }
+
+    if (action === redo) {
+      redoLayoutChange()
+      return
+    }
+  }
+
   if (!(await confirmUnsavedPositionBeforeLeaving())) return
   await action()
 }
 
 async function refreshHistoryButtons() {
+  if (layoutEditMode && editorMode && canEditCurrentAtlas()) {
+    undoBtn.disabled = layoutUndoStack.length === 0
+    redoBtn.disabled = layoutRedoStack.length === 0
+    return
+  }
+
   if (!canEdit || !editorMode || isTeamAtlasMode()) {
     undoBtn.disabled = true
     redoBtn.disabled = true
@@ -19244,7 +20156,7 @@ window.addEventListener('keydown', (event) => {
     return
   }
 
-  if (!isTyping && canEdit && editorMode && !isAnyModalOpen() && event.key === 'Delete') {
+  if (!isTyping && canEditCurrentAtlas() && editorMode && !isAnyModalOpen() && event.key === 'Delete') {
     event.preventDefault()
     if (selectedEdge) {
       deleteSelectedEdge().catch((error) => {
@@ -19262,8 +20174,9 @@ window.addEventListener('keydown', (event) => {
 
   if (
     !isTyping &&
-    canEdit &&
+    canEditCurrentAtlas() &&
     editorMode &&
+    layoutEditMode &&
     !isAnyModalOpen() &&
     event.altKey &&
     event.key === '0'
@@ -19275,41 +20188,9 @@ window.addEventListener('keydown', (event) => {
     return
   }
 
-  if (
-    !isTyping &&
-    canEdit &&
-    editorMode &&
-    !isAnyModalOpen() &&
-    !event.ctrlKey &&
-    !event.metaKey &&
-    !event.altKey &&
-    event.key.toLowerCase() === 'f' &&
-    hasUnsavedNodePosition(selectedId)
-  ) {
-    event.preventDefault()
-    saveUnsavedNodePosition().catch((error) => {
-      console.error('F position save failed:', error)
-    })
-    return
-  }
 
-  if (
-    !isTyping &&
-    canEdit &&
-    editorMode &&
-    !isAnyModalOpen() &&
-    !selectedEdge &&
-    !event.ctrlKey &&
-    !event.metaKey &&
-    !event.altKey &&
-    ['w', 'a', 's', 'd'].includes(event.key.toLowerCase())
-  ) {
-    event.preventDefault()
-    startKeyboardNodeMovement(event.key)
-    return
-  }
 
-  if (!isTyping && canEdit && editorMode && !isAnyModalOpen()) {
+  if (!isTyping && canEditCurrentAtlas() && editorMode && layoutEditMode && !isAnyModalOpen()) {
     const step = event.shiftKey ? 36 : 12
     let dx = 0
     let dy = 0
@@ -19338,7 +20219,9 @@ window.addEventListener('keydown', (event) => {
 
   if (event.key === 'Escape') {
     if (!introDismissed) dismissIntro()
-    else if (revisionHistoryBackdrop?.classList.contains('open')) {
+    else if (sourceCompareBackdrop?.classList.contains('open')) {
+      closeSourceCompare()
+    } else if (revisionHistoryBackdrop?.classList.contains('open')) {
       closeRevisionHistory()
     } else if (documentationHealthBackdrop?.classList.contains('open')) {
       closeDocumentationHealth()
@@ -19398,7 +20281,7 @@ window.addEventListener('popstate', async () => {
 })
 
 window.addEventListener('beforeunload', (event) => {
-  if (!hasUnsavedNodePosition()) return
+  if (!hasUnsavedLayoutChanges() && !hasUnsavedNodePosition()) return
   event.preventDefault()
   event.returnValue = ''
 })
@@ -19573,6 +20456,8 @@ window.atlasDebug = {
   openDocumentationHealth,
   openRevisionHistory: () =>
     openRevisionHistory(selectedId),
+  openSourceCompare: () =>
+    openSourceCompare(selectedId),
   openPublicIndex: () =>
     selectPublicSection('index'),
   refreshSession,
