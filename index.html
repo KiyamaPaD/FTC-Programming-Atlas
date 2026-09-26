@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=90" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=91" />
   <style>
     :root {
       --bg: #000000;
@@ -6976,6 +6976,417 @@
     }
   }
 
+
+  /* =======================================================================
+     v91 — UI/UX rework 2 · navigation + Quick Panel simplification
+     ======================================================================= */
+  .topbar {
+    gap: 9px;
+    min-height: 46px;
+    padding: 7px 10px 7px 8px;
+    border-radius: 14px;
+  }
+
+  .topbar-logo {
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+    border-radius: 9px;
+    object-fit: cover;
+  }
+
+  .topbar > strong {
+    font-size: 0.86rem;
+    white-space: nowrap;
+  }
+
+  .topbar-team-link {
+    max-width: 160px;
+    padding-left: 9px;
+    border-left: 1px solid rgba(255,255,255,0.08);
+    color: #aaa5b0;
+    font-size: 0.68rem;
+    font-weight: 720;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .topbar-team-link:hover {
+    color: #fff;
+  }
+
+  .atlas-navigation {
+    top: 76px;
+    width: min(304px, calc(100vw - 44px));
+    padding: 8px;
+    border-radius: 16px;
+  }
+
+  .ui-collapse {
+    min-width: 0;
+  }
+
+  .ui-collapse + .ui-collapse {
+    margin-top: 6px;
+  }
+
+  .ui-collapse > summary {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    color: #ddd9e1;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+  }
+
+  .ui-collapse > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .ui-collapse > summary::after {
+    content: '›';
+    flex: 0 0 auto;
+    color: #77727d;
+    font-size: 1rem;
+    line-height: 1;
+    transform: rotate(0deg);
+    transition: transform 140ms ease, color 140ms ease;
+  }
+
+  .ui-collapse[open] > summary::after {
+    transform: rotate(90deg);
+    color: #d5a9ff;
+  }
+
+  .ui-collapse > summary:hover {
+    border-color: rgba(177,76,255,0.16);
+    background: rgba(177,76,255,0.045);
+    color: #fff;
+  }
+
+  .ui-collapse > summary > span:first-child,
+  .ui-collapse > summary > strong:first-child {
+    min-width: 0;
+    font-size: 0.76rem;
+    font-weight: 790;
+    letter-spacing: 0.01em;
+  }
+
+  .ui-collapse-meta {
+    margin-left: auto;
+    color: #77727d;
+    font-size: 0.64rem !important;
+    font-weight: 650 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ui-collapse-body {
+    min-width: 0;
+    padding: 6px 4px 4px;
+  }
+
+  .nav-collapse > .ui-collapse-body {
+    padding: 4px 2px 2px;
+  }
+
+  .atlas-primary-tabs {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    gap: 5px;
+  }
+
+  .atlas-primary-tab {
+    min-height: 34px;
+    padding: 7px 8px;
+    border-radius: 9px;
+    font-size: 0.69rem;
+  }
+
+  .department-tabs {
+    gap: 5px;
+  }
+
+  .department-tab {
+    padding: 8px 9px;
+    border-radius: 9px;
+    font-size: 0.7rem;
+  }
+
+  .atlas-navigation.global-section [data-ui-section="departments"] {
+    display: none;
+  }
+
+  .team-space-entry {
+    margin-top: 0;
+  }
+
+  .floating-tools {
+    width: 314px;
+  }
+
+  .tools-shell {
+    border-radius: 16px;
+  }
+
+  .tools-header {
+    min-height: 48px;
+    padding: 8px 9px 8px 12px;
+    cursor: default;
+  }
+
+  .tools-header-left strong {
+    font-size: 0.84rem;
+  }
+
+  .tools-header-left span,
+  .site-corner-logo {
+    display: none;
+  }
+
+  .tools-header-right {
+    gap: 6px;
+  }
+
+  .account-trigger,
+  .toggle-btn {
+    min-height: 32px;
+    border-radius: 9px;
+  }
+
+  .tools-body {
+    padding: 0 8px 8px;
+  }
+
+  .quick-search {
+    margin: 8px 2px 6px;
+    width: calc(100% - 4px);
+    min-height: 40px;
+    padding: 9px 11px;
+    border-radius: 10px;
+    font-size: 0.82rem;
+  }
+
+  .tool-collapse {
+    border-top: 1px solid rgba(255,255,255,0.045);
+    padding-top: 3px;
+  }
+
+  .tool-collapse:first-of-type {
+    border-top: 0;
+  }
+
+  .tool-collapse > summary {
+    min-height: 36px;
+    padding: 7px 8px;
+  }
+
+  .compact-grid,
+  .editor-ui-body {
+    display: grid;
+    gap: 7px;
+  }
+
+  .taxonomy-filters {
+    gap: 8px;
+    margin: 0;
+    padding: 8px;
+    border-radius: 11px;
+  }
+
+  .filter-row,
+  .btn-row {
+    gap: 7px;
+  }
+
+  .filter-select,
+  .btn {
+    min-height: 36px;
+    padding: 8px 9px;
+    border-radius: 10px;
+    font-size: 0.73rem;
+  }
+
+  .btn-row.three .btn {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .filter-label {
+    margin-bottom: 5px;
+    font-size: 0.64rem;
+  }
+
+  .taxonomy-chip {
+    padding: 5px 8px;
+    font-size: 0.68rem;
+  }
+
+  .account-panel {
+    margin: 8px 2px 6px;
+    padding: 9px;
+    border-radius: 11px;
+  }
+
+  .account-panel .search-input {
+    margin-top: 7px;
+  }
+
+  .privacy-login-note {
+    margin-top: 6px;
+  }
+
+  .editor-tools-section {
+    margin-top: 3px;
+    padding-top: 3px;
+    border-top: 1px solid rgba(255,255,255,0.045);
+  }
+
+  .editor-tools-section > .ui-collapse-body {
+    padding-top: 5px;
+  }
+
+  .nested-collapse {
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 11px;
+    background: rgba(255,255,255,0.012);
+  }
+
+  .nested-collapse + .nested-collapse {
+    margin-top: 0;
+  }
+
+  .nested-collapse > summary {
+    min-height: 34px;
+    padding: 6px 8px;
+  }
+
+  .nested-collapse > .ui-collapse-body {
+    padding: 2px 7px 7px;
+  }
+
+  .editor-history-row {
+    margin-bottom: 1px;
+  }
+
+  .layout-editor-bar {
+    margin: 0 0 2px;
+    padding: 8px;
+    border-radius: 11px;
+  }
+
+  .layout-editor-copy span {
+    display: none;
+  }
+
+  .layout-editor-actions {
+    gap: 6px;
+  }
+
+  .layout-unsaved-count {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 7px;
+    font-size: 0.64rem;
+  }
+
+  #statusSection .selected-strip,
+  #statusSection .mode-strip {
+    margin: 0;
+    padding: 8px 9px;
+    border-radius: 9px;
+    font-size: 0.72rem;
+    line-height: 1.42;
+  }
+
+  .app.public-section-open .atlas-navigation {
+    width: min(304px, calc(100vw - 44px));
+  }
+
+  .public-hub-panel {
+    left: 348px;
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .topbar {
+      left: 10px;
+      right: auto;
+      max-width: calc(100vw - 20px);
+    }
+
+    .topbar-team-link {
+      display: none;
+    }
+
+    .atlas-navigation {
+      top: 66px;
+      left: 10px;
+      width: min(296px, calc(100vw - 20px));
+      max-height: 42vh;
+      overflow: auto;
+    }
+
+    .floating-tools {
+      left: 8px;
+      right: 8px;
+      width: auto;
+      max-height: min(56vh, 500px);
+    }
+
+    .tools-shell {
+      max-height: min(56vh, 500px);
+    }
+
+    .public-hub-panel,
+    .atlas-navigation.global-section + .map-surface + .public-hub-panel {
+      top: 122px;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .topbar > strong {
+      max-width: 190px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .atlas-navigation {
+      width: calc(100vw - 20px);
+    }
+
+    .atlas-primary-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      overflow: visible;
+    }
+
+    .atlas-primary-tab {
+      min-width: 0;
+    }
+
+    .filter-row,
+    .btn-row,
+    .btn-row.three {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .btn-row.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -6983,69 +7394,81 @@
 
   <div class="app">
     <div class="topbar">
-      <span class="brand-dot"></span>
-
-      <div class="topbar-brand">
-        <strong>FTC Programming Atlas</strong>
-        <span>manual interactiv pentru generațiile următoare</span>
-      </div>
-
-      <div class="topbar-divider" aria-hidden="true"></div>
-
-      <span class="brand-dot team-dot" aria-hidden="true"></span>
-
-      <div class="topbar-team">
-        <span>Creat de</span>
-        <a
-          href="https://itx.infoel.ro"
-          target="_blank"
-          rel="noopener noreferrer"
-        >InfotronX #19119</a>
-      </div>
+      <img
+        class="topbar-logo"
+        src="/img/FTCProgrammingAtlasLogo.png"
+        alt=""
+        aria-hidden="true"
+      />
+      <strong>FTC Programming Atlas</strong>
+      <a
+        class="topbar-team-link"
+        href="https://itx.infoel.ro"
+        target="_blank"
+        rel="noopener noreferrer"
+      >InfotronX #19119</a>
     </div>
 
     <nav class="atlas-navigation" id="atlasNavigation" aria-label="Navigare Atlas">
-      <div class="atlas-primary-tabs" id="publicSectionTabs" role="tablist" aria-label="Navigare principală">
-        <button class="atlas-primary-tab active" type="button" role="tab" data-public-section="explore">Explore</button>
-        <button class="atlas-primary-tab" type="button" role="tab" data-public-section="index">Index</button>
-        <button class="atlas-primary-tab" type="button" role="tab" data-public-section="roadmaps">Roadmaps</button>
-        <button class="atlas-primary-tab" type="button" role="tab" data-public-section="resources">Resources</button>
-        <button class="atlas-primary-tab" type="button" role="tab" data-public-section="announcements">Announcements</button>
-      </div>
-
-      <div class="atlas-navigation-head">
-        <div class="atlas-navigation-copy">
-          <span class="atlas-navigation-eyebrow" id="atlasNavigationEyebrow">Explorează Atlasul</span>
-          <strong class="atlas-navigation-title" id="activeDepartmentTitle">Programming</strong>
+      <details class="ui-collapse nav-collapse" data-ui-section="navigation" open>
+        <summary>
+          <span>Navigare</span>
+          <span class="ui-collapse-meta">Atlas</span>
+        </summary>
+        <div class="ui-collapse-body">
+          <div class="atlas-primary-tabs" id="publicSectionTabs" role="tablist" aria-label="Navigare principală">
+            <button class="atlas-primary-tab active" type="button" role="tab" data-public-section="explore">Explore</button>
+            <button class="atlas-primary-tab" type="button" role="tab" data-public-section="index">Index</button>
+            <button class="atlas-primary-tab" type="button" role="tab" data-public-section="roadmaps">Roadmaps</button>
+            <button class="atlas-primary-tab" type="button" role="tab" data-public-section="resources">Resources</button>
+            <button class="atlas-primary-tab" type="button" role="tab" data-public-section="announcements">Announcements</button>
+          </div>
         </div>
-        <span class="atlas-navigation-context" id="departmentContext">departament</span>
-      </div>
+      </details>
 
-      <div class="department-tabs" id="departmentTabs" role="tablist" aria-label="Departamente FTC">
-        <span class="department-tabs-loading">Se încarcă departamentele...</span>
-      </div>
-
-      <button class="team-space-entry" id="teamSpaceEntry" type="button" hidden>
-        <span class="team-space-entry-label">Team Atlas</span>
-        <span class="team-space-entry-main">
-          <strong id="teamSpaceEntryName">Team Atlas</strong>
-          <span class="team-space-role" id="teamSpaceEntryRole">Member</span>
-        </span>
-      </button>
-
-      <div class="team-atlas-context" id="teamAtlasContext" hidden>
-        <div class="team-atlas-context-row">
-          <select id="teamAtlasSelect" aria-label="Select team"></select>
+      <details class="ui-collapse nav-collapse" data-ui-section="departments" open>
+        <summary>
+          <span>Departamente</span>
+          <strong class="ui-collapse-meta" id="activeDepartmentTitle">Programming</strong>
+        </summary>
+        <div class="ui-collapse-body">
+          <span id="atlasNavigationEyebrow" hidden>Explorează Atlasul</span>
+          <span id="departmentContext" hidden>departament</span>
+          <div class="department-tabs" id="departmentTabs" role="tablist" aria-label="Departamente FTC">
+            <span class="department-tabs-loading">Se încarcă departamentele...</span>
+          </div>
         </div>
-        <div class="team-atlas-context-meta" id="teamAtlasContextMeta"></div>
-        <div class="team-atlas-context-actions">
-          <button class="btn" id="teamAtlasIndexBtn" type="button">Index</button>
-          <button class="btn" id="teamAtlasRoadmapsBtn" type="button">Roadmaps</button>
-          <button class="btn" id="teamAtlasTaxonomyBtn" type="button" hidden>Taxonomy</button>
-          <button class="btn" id="teamAtlasSettingsBtn" type="button" hidden>Team settings</button>
-          <button class="btn" id="teamAtlasMembersBtn" type="button" hidden>Members</button>
+      </details>
+
+      <details class="ui-collapse nav-collapse" id="teamNavigationSection" data-ui-section="team" hidden>
+        <summary>
+          <span>Team Atlas</span>
+          <span class="ui-collapse-meta" id="teamNavigationSummary">private</span>
+        </summary>
+        <div class="ui-collapse-body">
+          <button class="team-space-entry" id="teamSpaceEntry" type="button" hidden>
+            <span class="team-space-entry-label">Team Atlas</span>
+            <span class="team-space-entry-main">
+              <strong id="teamSpaceEntryName">Team Atlas</strong>
+              <span class="team-space-role" id="teamSpaceEntryRole">Member</span>
+            </span>
+          </button>
+
+          <div class="team-atlas-context" id="teamAtlasContext" hidden>
+            <div class="team-atlas-context-row">
+              <select id="teamAtlasSelect" aria-label="Select team"></select>
+            </div>
+            <div class="team-atlas-context-meta" id="teamAtlasContextMeta"></div>
+            <div class="team-atlas-context-actions">
+              <button class="btn" id="teamAtlasIndexBtn" type="button">Index</button>
+              <button class="btn" id="teamAtlasRoadmapsBtn" type="button">Roadmaps</button>
+              <button class="btn" id="teamAtlasTaxonomyBtn" type="button" hidden>Taxonomy</button>
+              <button class="btn" id="teamAtlasSettingsBtn" type="button" hidden>Settings</button>
+              <button class="btn" id="teamAtlasMembersBtn" type="button" hidden>Members</button>
+            </div>
+          </div>
         </div>
-      </div>
+      </details>
     </nav>
 
     <main class="map-surface" id="mapSurface">
@@ -7062,8 +7485,7 @@
       <div class="tools-shell">
         <div class="tools-header" id="toolsHeader">
           <div class="tools-header-left">
-            <strong>Explore</strong>
-            <span>căutare, filtre și hartă</span>
+            <strong>Quick Panel</strong>
           </div>
           <div class="tools-header-right">
             <button
@@ -7073,26 +7495,16 @@
               aria-expanded="false"
               aria-controls="accountPanel"
             >Cont</button>
-            <img
-              class="site-corner-logo"
-              src="/img/FTCProgrammingAtlasLogo.png"
-              alt="FTC Programming Atlas logo"
-            />
-            <button class="toggle-btn" id="collapseBtn" aria-label="Toggle controls">–</button>
+            <button class="toggle-btn" id="collapseBtn" aria-label="Ascunde Quick Panel">–</button>
           </div>
         </div>
 
         <div class="tools-body">
           <div class="account-panel" id="accountPanel" hidden>
-            <div class="account-panel-title">
-              <strong>Cont</strong>
-              <span>login și acces</span>
-            </div>
-
-            <div class="count-strip" id="authStatusBox">Neautentificat. Poți citi atlasul, dar pentru editare trebuie login.</div>
-            <input id="authEmailInput" class="search-input" placeholder="Email pentru magic link..." />
+            <div class="count-strip" id="authStatusBox">Neautentificat.</div>
+            <input id="authEmailInput" class="search-input" placeholder="Email..." />
             <div class="btn-row">
-              <button class="btn primary" id="loginBtn">Trimite magic link</button>
+              <button class="btn primary" id="loginBtn">Magic link</button>
               <button class="btn" id="logoutBtn">Logout</button>
             </div>
 
@@ -7106,210 +7518,184 @@
                 pattern="[0-9]{6,10}"
                 placeholder="Cod OTP..."
               />
-              <button class="btn" id="verifyOtpBtn" type="button">Verifică codul</button>
+              <button class="btn" id="verifyOtpBtn" type="button">Verifică</button>
             </div>
             <p class="privacy-login-note">
-              Adresa de email este folosită pentru autentificare și controlul accesului.
-              <a href="/privacy.html">Politica de confidențialitate</a>
+              <a href="/privacy.html">Confidențialitate</a>
             </p>
 
             <div class="team-invites-panel" id="teamInvitesPanel" hidden>
               <div class="team-invites-title">
-                <strong>Team invitations</strong>
+                <strong>Invitații</strong>
                 <span class="team-invites-count" id="teamInvitesCount">0</span>
               </div>
               <div id="teamInvitesList"></div>
             </div>
           </div>
 
-          <input id="searchInput" class="search-input" placeholder="Caută topic, categorie, dificultate, etichetă sau text..." />
+          <input id="searchInput" class="search-input quick-search" placeholder="Caută în Atlas..." />
 
-          <div class="btn-row">
-            <button class="btn" id="quickFinderBtn" type="button">
-              ⌕ Quick Find · Ctrl K
-            </button>
-            <button class="btn" id="savedDocsBtn" type="button">
-              ☆ Saved
-            </button>
-            <button class="btn" id="documentationHealthBtn" type="button" hidden>
-              ◈ Health
-            </button>
-          </div>
-
-          <div class="taxonomy-filters" id="taxonomyFilters">
-            <div class="filter-row">
-              <select class="filter-select" id="categoryFilter" aria-label="Filtrează după categorie">
-                <option value="">Toate categoriile</option>
-              </select>
-
-              <select class="filter-select" id="difficultyFilter" aria-label="Filtrează după dificultate">
-                <option value="">Toate dificultățile</option>
-              </select>
+          <details class="ui-collapse tool-collapse" data-ui-section="library" open>
+            <summary>
+              <span>Bibliotecă</span>
+              <span class="ui-collapse-meta">find · saved</span>
+            </summary>
+            <div class="ui-collapse-body compact-grid">
+              <div class="btn-row">
+                <button class="btn" id="quickFinderBtn" type="button">⌕ Quick Find</button>
+                <button class="btn" id="savedDocsBtn" type="button">☆ Saved</button>
+              </div>
+              <button class="btn" id="documentationHealthBtn" type="button" hidden>◈ Health</button>
             </div>
+          </details>
 
-            <div>
-              <div class="filter-label">Etichete</div>
-              <div class="chip-list" id="tagFilterChips">
-                <span class="chip-empty">Se încarcă etichetele...</span>
+          <details class="ui-collapse tool-collapse" data-ui-section="filters">
+            <summary>
+              <span>Filtre</span>
+              <span class="ui-collapse-meta">categorie · nivel · tags</span>
+            </summary>
+            <div class="ui-collapse-body">
+              <div class="taxonomy-filters" id="taxonomyFilters">
+                <div class="filter-row">
+                  <select class="filter-select" id="categoryFilter" aria-label="Filtrează după categorie">
+                    <option value="">Toate categoriile</option>
+                  </select>
+
+                  <select class="filter-select" id="difficultyFilter" aria-label="Filtrează după dificultate">
+                    <option value="">Toate dificultățile</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div class="filter-label">Etichete</div>
+                  <div class="chip-list" id="tagFilterChips">
+                    <span class="chip-empty">Se încarcă etichetele...</span>
+                  </div>
+                </div>
+
+                <button class="btn" id="clearFiltersBtn" type="button" hidden>Reset filtre</button>
               </div>
             </div>
+          </details>
 
-            <button class="btn" id="clearFiltersBtn" type="button" hidden>
-              Arată toate nodurile
-            </button>
-          </div>
+          <details class="ui-collapse tool-collapse" data-ui-section="view">
+            <summary>
+              <span>Hartă</span>
+              <span class="ui-collapse-meta">zoom · fit</span>
+            </summary>
+            <div class="ui-collapse-body compact-grid">
+              <div class="btn-row three">
+                <button class="btn" id="zoomOutBtn" aria-label="Zoom out">−</button>
+                <button class="btn" id="fitBtn">Fit</button>
+                <button class="btn" id="zoomInBtn" aria-label="Zoom in">+</button>
+              </div>
 
-          <div class="tools-grid">
-                      
-            <div class="btn-row three">
-              <button class="btn" id="zoomOutBtn">– Zoom</button>
-              <button class="btn" id="fitBtn">Fit</button>
-              <button class="btn" id="zoomInBtn">+ Zoom</button>
-            </div>
-
-            <div class="btn-row">
-              <button class="btn" id="resetViewBtn">Reset view</button>
-              <button class="btn" id="fitSelectionBtn">Fit selecția</button>
-            </div>
-
-            <div class="btn-row">
-              <button class="btn" id="tutorialBtn">Tutorial</button>
+              <div class="btn-row">
+                <button class="btn" id="resetViewBtn">Reset</button>
+                <button class="btn" id="fitSelectionBtn">Selecție</button>
+              </div>
 
               <button
                 class="btn primary"
                 id="editorModeBtn"
                 type="button"
                 hidden
+              >Editor mode</button>
+            </div>
+          </details>
+
+          <details class="ui-collapse tool-collapse editor-tools-section" id="editorToolsSection" data-ui-section="editor" hidden open>
+            <summary>
+              <span>Editor</span>
+              <span class="ui-collapse-meta">content · layout</span>
+            </summary>
+            <div class="ui-collapse-body editor-ui-body">
+              <div
+                class="layout-editor-bar"
+                id="layoutEditorBar"
+                hidden
               >
-                Editor mode
-              </button>
-            </div>
+                <div class="layout-editor-copy">
+                  <strong id="layoutEditorModeLabel">VIEW MODE</strong>
+                  <span id="layoutEditorStatus">Layout blocat.</span>
+                </div>
 
-            <div
-              class="layout-editor-bar"
-              id="layoutEditorBar"
-              hidden
-            >
-              <div class="layout-editor-copy">
-                <strong id="layoutEditorModeLabel">VIEW MODE</strong>
-                <span id="layoutEditorStatus">
-                  Click deschide documentația · layout-ul nu se modifică.
-                </span>
+                <div class="layout-editor-actions">
+                  <button class="btn" id="layoutEditModeBtn" type="button">Edit layout</button>
+                  <span class="layout-unsaved-count" id="layoutUnsavedCount">0 changes</span>
+                  <button class="btn" id="discardLayoutBtn" type="button" disabled>Discard</button>
+                  <button class="btn primary" id="saveLayoutBtn" type="button" disabled>Save</button>
+                </div>
               </div>
 
-              <div class="layout-editor-actions">
-                <button
-                  class="btn"
-                  id="layoutEditModeBtn"
-                  type="button"
-                >
-                  Edit layout
-                </button>
-
-                <span
-                  class="layout-unsaved-count"
-                  id="layoutUnsavedCount"
-                >
-                  Unsaved changes: 0
-                </span>
-
-                <button
-                  class="btn"
-                  id="discardLayoutBtn"
-                  type="button"
-                  disabled
-                >
-                  Discard
-                </button>
-
-                <button
-                  class="btn primary"
-                  id="saveLayoutBtn"
-                  type="button"
-                  disabled
-                >
-                  Save layout
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div
-            class="editor-tools-section"
-            id="editorToolsSection"
-            hidden
-          >
-            <div class="editor-tools-heading">
-              <div>
-                <strong>Editor tools</strong>
-                <span>Conținut, relații și atașamente · layout-ul se editează separat.</span>
-              </div>
-            </div>
-
-            <div class="tools-grid">
-              <div class="btn-row">
-                <button class="btn primary" id="createBtn">+ Nod nou</button>
-                <button class="btn" id="editBtn">Editează</button>
-              </div>
-
-              <div class="btn-row">
-                <button class="btn danger" id="deleteBtn">Șterge</button>
-                <button class="btn" id="relationBtn">Adaugă relație</button>
-              </div>
-
-              <div class="btn-row">
-                <button class="btn" id="editEdgeBtn">Editează muchie</button>
-                <button class="btn danger" id="deleteEdgeBtn">Șterge muchie</button>
-              </div>
-
-              <div class="btn-row">
+              <div class="btn-row editor-history-row">
                 <button class="btn" id="undoBtn">Undo</button>
                 <button class="btn" id="redoBtn">Redo</button>
               </div>
 
-              <div class="btn-row">
-                <button class="btn" id="addEdgePointBtn" type="button">+ Punct muchie</button>
-                <button class="btn" id="removeEdgePointBtn" type="button">− Punct muchie</button>
-              </div>
+              <details class="ui-collapse nested-collapse" data-ui-section="editor-node" open>
+                <summary><span>Nod</span><span class="ui-collapse-meta">content</span></summary>
+                <div class="ui-collapse-body compact-grid">
+                  <div class="btn-row">
+                    <button class="btn primary" id="createBtn">+ Nod</button>
+                    <button class="btn" id="editBtn">Editează</button>
+                  </div>
+                  <div class="btn-row">
+                    <button class="btn" id="mediaManagerBtn" type="button">Media</button>
+                    <button class="btn" id="fileManagerBtn" type="button">Fișiere</button>
+                  </div>
+                  <div class="btn-row">
+                    <button class="btn" id="codeManagerBtn" type="button">Cod</button>
+                    <button class="btn danger" id="deleteBtn">Șterge</button>
+                  </div>
+                </div>
+              </details>
 
-              <div class="btn-row">
-                <button class="btn" id="resetEdgePathBtn" type="button">Traseu automat</button>
-                <button class="btn" id="mediaManagerBtn" type="button">Media nod</button>
-              </div>
+              <details class="ui-collapse nested-collapse" data-ui-section="editor-edge">
+                <summary><span>Relații</span><span class="ui-collapse-meta">edges</span></summary>
+                <div class="ui-collapse-body compact-grid">
+                  <button class="btn" id="relationBtn">+ Relație</button>
+                  <div class="btn-row">
+                    <button class="btn" id="editEdgeBtn">Editează</button>
+                    <button class="btn danger" id="deleteEdgeBtn">Șterge</button>
+                  </div>
+                  <div class="btn-row">
+                    <button class="btn" id="addEdgePointBtn" type="button">+ Punct</button>
+                    <button class="btn" id="removeEdgePointBtn" type="button">− Punct</button>
+                  </div>
+                  <button class="btn" id="resetEdgePathBtn" type="button">Traseu automat</button>
+                </div>
+              </details>
 
-              <div class="btn-row">
-                <button class="btn" id="fileManagerBtn" type="button">Fișiere nod</button>
-                <button class="btn" id="codeManagerBtn" type="button">Nod cod</button>
-              </div>
-
-              <button class="btn primary" id="taxonomyManagerBtn" type="button">
-                Taxonomy Manager
-              </button>
-
-              <button class="btn" id="publicContentManagerBtn" type="button">
-                Public Content
-              </button>
-
-              <button class="btn" id="roadmapManagerBtn" type="button">
-                Roadmap Manager
-              </button>
-
-              <button class="btn" id="teamSetupBtn" type="button">
-                Team Setup
-              </button>
+              <details class="ui-collapse nested-collapse" data-ui-section="editor-manage">
+                <summary><span>Administrare</span><span class="ui-collapse-meta">advanced</span></summary>
+                <div class="ui-collapse-body compact-grid">
+                  <button class="btn" id="taxonomyManagerBtn" type="button">Taxonomy</button>
+                  <button class="btn" id="publicContentManagerBtn" type="button">Public Content</button>
+                  <button class="btn" id="roadmapManagerBtn" type="button">Roadmaps</button>
+                  <button class="btn" id="teamSetupBtn" type="button">Teams</button>
+                </div>
+              </details>
             </div>
+          </details>
 
-            <div class="editor-tools-note">
-              Editor Mode este disponibil doar conturilor autorizate. Controalele de editare nu fac parte din interfața publică.
+          <details class="ui-collapse tool-collapse" id="statusSection" data-ui-section="status">
+            <summary>
+              <span>Status</span>
+              <span class="ui-collapse-meta"><strong id="nodeCount">0</strong> noduri</span>
+            </summary>
+            <div class="ui-collapse-body compact-grid">
+              <div class="selected-strip" id="selectedStrip">Niciun nod selectat.</div>
+              <div class="mode-strip" id="modeStrip"></div>
             </div>
-          </div>
+          </details>
 
-          <div class="count-strip"><strong id="nodeCount">0</strong> topicuri încărcate din atlas.</div>
-          <div class="selected-strip" id="selectedStrip">Niciun nod selectat.</div>
-          <div class="mode-strip" id="modeStrip"></div>
-          <div class="tools-note">
-            Click sau tap pe un nod pentru documentație. Folosește scroll pentru zoom și drag pe fundal pentru pan.
-          </div>
+          <details class="ui-collapse tool-collapse" data-ui-section="help">
+            <summary><span>Ajutor</span><span class="ui-collapse-meta">?</span></summary>
+            <div class="ui-collapse-body compact-grid">
+              <button class="btn" id="tutorialBtn">Tutorial</button>
+            </div>
+          </details>
         </div>
       </div>
     </aside>
@@ -8639,6 +9025,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=90"></script>
+  <script type="module" src="/js/atlas-script.js?v=91"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v90 · Full English UI + dynamic public content translations
+// v91 · Full English UI + simplified navigation/Quick Panel
 //
 // Source language: Romanian
 // Secondary language: English
@@ -21,6 +21,29 @@ const SECONDARY_LANGUAGE = 'en'
 const SUPPORTED_LANGUAGES = new Set(['ro', 'en'])
 
 const UI_EN = new Map(Object.entries({
+  'Navigare': 'Navigation',
+  'Departamente': 'Departments',
+  'Bibliotecă': 'Library',
+  'Filtre': 'Filters',
+  'Hartă': 'Map',
+  'Nod': 'Node',
+  'Relații': 'Relations',
+  'Administrare': 'Manage',
+  'Ajutor': 'Help',
+  'Invitații': 'Invitations',
+  'Confidențialitate': 'Privacy',
+  'Reset filtre': 'Reset filters',
+  'Selecție': 'Selection',
+  'Fișiere': 'Files',
+  'Cod': 'Code',
+  '+ Nod': '+ Node',
+  '+ Relație': '+ Relation',
+  '+ Punct': '+ Point',
+  '− Punct': '− Point',
+  'Editează': 'Edit',
+  'Șterge': 'Delete',
+  'Traseu automat': 'Auto route',
+  'Verifică': 'Verify',
   'manual interactiv pentru generațiile următoare':
     'interactive manual for future generations',
   'Explorează Atlasul':

@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v90 · I18N + SECURITY/PERFORMANCE HARDENING')
+console.log('ATLAS SCRIPT LOADED v91 · NAVIGATION + QUICK PANEL REWORK')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -47,7 +47,8 @@ const CACHE_KEYS = {
   qualityLens: 'ftc_atlas_quality_lens_v1',
   healthStaleDays: 'ftc_atlas_health_stale_days_v1',
   publicIndexSort: 'ftc_atlas_public_index_sort_v1',
-  publicIndexGroup: 'ftc_atlas_public_index_group_v1'
+  publicIndexGroup: 'ftc_atlas_public_index_group_v1',
+  uiSections: 'ftc_atlas_ui_sections_v1'
 }
 
 const initialTeamInviteToken = new URLSearchParams(window.location.search).get('teamInvite')
@@ -480,6 +481,8 @@ const atlasNavigation = document.getElementById('atlasNavigation')
 const publicSectionTabs = document.getElementById('publicSectionTabs')
 const publicHubPanel = document.getElementById('publicHubPanel')
 const atlasNavigationEyebrow = document.getElementById('atlasNavigationEyebrow')
+const teamNavigationSection = document.getElementById('teamNavigationSection')
+const teamNavigationSummary = document.getElementById('teamNavigationSummary')
 const teamSpaceEntry = document.getElementById('teamSpaceEntry')
 const teamSpaceEntryName = document.getElementById('teamSpaceEntryName')
 const teamSpaceEntryRole = document.getElementById('teamSpaceEntryRole')
@@ -564,6 +567,10 @@ const modeStrip = document.getElementById('modeStrip')
 const toolPanel = document.getElementById('toolPanel')
 const toolsHeader = document.getElementById('toolsHeader')
 const collapseBtn = document.getElementById('collapseBtn')
+const statusSection = document.getElementById('statusSection')
+const uiCollapsibles = Array.from(
+  document.querySelectorAll('details[data-ui-section]')
+)
 const accountBtn = document.getElementById('accountBtn')
 const accountPanel = document.getElementById('accountPanel')
 const teamInvitesPanel = document.getElementById('teamInvitesPanel')
@@ -785,6 +792,48 @@ function isNativeAtlasApp() {
 }
 
 const nativeAtlasApp = isNativeAtlasApp()
+
+function readUICollapseState() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CACHE_KEYS.uiSections) || '{}')
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+let uiCollapseState = readUICollapseState()
+
+function persistUICollapseState() {
+  localStorage.setItem(CACHE_KEYS.uiSections, JSON.stringify(uiCollapseState))
+}
+
+function initializeUICollapsibles() {
+  uiCollapsibles.forEach((section) => {
+    const key = section.dataset.uiSection
+    if (!key) return
+
+    if (typeof uiCollapseState[key] === 'boolean') {
+      section.open = uiCollapseState[key]
+    }
+
+    section.addEventListener('toggle', () => {
+      uiCollapseState[key] = section.open
+      persistUICollapseState()
+    })
+  })
+}
+
+function openUICollapseSection(key) {
+  const section = uiCollapsibles.find(
+    (item) => item.dataset.uiSection === key
+  )
+
+  if (!section || section.open) return
+  section.open = true
+}
+
+initializeUICollapsibles()
 
 if (authOtpRow) {
   authOtpRow.hidden = !nativeAtlasApp
@@ -4629,6 +4678,10 @@ function renderTeamNavigation() {
       ? 'Platform Admin'
       : 'Member'
 
+  if (teamNavigationSection) {
+    teamNavigationSection.hidden = !visible
+  }
+
   teamSpaceEntry.hidden = !visible
   teamSpaceEntry.classList.toggle(
     'active',
@@ -4648,6 +4701,11 @@ function renderTeamNavigation() {
     : team.name
 
   teamSpaceEntryRole.textContent = roleLabel
+  if (teamNavigationSummary) {
+    teamNavigationSummary.textContent = team.teamNumber
+      ? `#${team.teamNumber}`
+      : roleLabel
+  }
 
   if (!teamAtlasContext) return
 
@@ -11663,19 +11721,19 @@ function renderLayoutEditorState() {
   layoutEditorBar.classList.toggle('active', layoutEditMode)
   layoutEditorModeLabel.textContent = layoutEditMode ? 'EDIT LAYOUT MODE' : 'VIEW MODE'
   layoutEditorStatus.textContent = layoutEditMode
-    ? 'Drag mută · resize handles redimensionează · săgețile fac nudge · Ctrl/Cmd+Z/Y lucrează local.'
-    : 'Click deschide documentația · layout-ul nu se modifică.'
+    ? 'Drag · resize · arrows'
+    : 'Layout locked'
 
   layoutEditModeBtn.textContent = layoutEditMode ? 'Exit layout edit' : 'Edit layout'
   layoutEditModeBtn.classList.toggle('primary', layoutEditMode)
   layoutEditModeBtn.disabled = !available || layoutSaveBusy
 
-  layoutUnsavedCount.textContent = `Unsaved changes: ${count}`
+  layoutUnsavedCount.textContent = `${count} changes`
   layoutUnsavedCount.classList.toggle('dirty', count > 0)
 
   discardLayoutBtn.disabled = layoutSaveBusy || count === 0
   saveLayoutBtn.disabled = layoutSaveBusy || count === 0
-  saveLayoutBtn.textContent = layoutSaveBusy ? 'Saving...' : 'Save layout'
+  saveLayoutBtn.textContent = layoutSaveBusy ? 'Saving...' : 'Save'
 }
 
 function setLayoutEditMode(nextValue) {
@@ -12145,7 +12203,7 @@ function updateAuthUI() {
   const hasNodes = nodes.length > 0
 
   editorModeBtn.hidden = !currentAtlasEditable
-  editorModeBtn.textContent = editorMode ? 'Ieși din Editor' : 'Editor mode'
+  editorModeBtn.textContent = editorMode ? 'Exit editor' : 'Editor mode'
   editorModeBtn.classList.toggle('active', editorMode && currentAtlasEditable)
 
   editorToolsSection.hidden = !publicAdminEditorActive
@@ -12330,6 +12388,10 @@ function setEditorMode(nextValue) {
 
   editorMode = Boolean(nextValue)
   localStorage.setItem(CACHE_KEYS.editorMode, editorMode ? '1' : '0')
+
+  if (editorMode) {
+    openUICollapseSection('editor')
+  }
 
   if (!editorMode) {
     layoutEditMode = false
@@ -13537,6 +13599,7 @@ function renderModeStrip() {
   relationBtn.classList.add('active')
   relationBtn.textContent = 'Anulează'
   modeStrip.classList.add('show')
+  openUICollapseSection('status')
 
   if (!relationMode.sourceId) {
     modeStrip.innerHTML =
@@ -20107,12 +20170,6 @@ clearFiltersBtn.addEventListener('click', () => {
   requestAnimationFrame(fitView)
 })
 
-toolsHeader.addEventListener('click', (event) => {
-  if (event.target === collapseBtn) return
-  if (accountBtn && (event.target === accountBtn || accountBtn.contains(event.target))) return
-  togglePanel()
-})
-
 collapseBtn.addEventListener('click', (event) => {
   event.stopPropagation()
   togglePanel()
@@ -20123,6 +20180,10 @@ function togglePanel(force) {
 
   toolPanel.classList.toggle('collapsed', collapsed)
   collapseBtn.textContent = collapsed ? '+' : '–'
+  collapseBtn.setAttribute(
+    'aria-label',
+    collapsed ? 'Arată Quick Panel' : 'Ascunde Quick Panel'
+  )
 
   if (collapsed && accountPanel) {
     accountPanel.hidden = true
