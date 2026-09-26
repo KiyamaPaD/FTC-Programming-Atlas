@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v94 · CONTEXTUAL EDITOR MODE + LAYOUT UX')
+console.log('ATLAS SCRIPT LOADED v95 · MOBILE + RESPONSIVE INTERACTION REDESIGN')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -435,6 +435,8 @@ let currentUser = null
 let canEdit = false
 
 let editorMode = localStorage.getItem(CACHE_KEYS.editorMode) === '1'
+let mobileNavigationOpen = false
+let lastTouchLayout = isTouchLayout()
 
 let isAtlasLoading = true
 let atlasLoadPromise = null
@@ -478,6 +480,9 @@ let positionSaveBusy = false
 // Frequently used DOM references
 const appRoot = document.querySelector('.app')
 const atlasNavigation = document.getElementById('atlasNavigation')
+const mobileNavBtn = document.getElementById('mobileNavBtn')
+const mobileQuickBtn = document.getElementById('mobileQuickBtn')
+const mobileShellBackdrop = document.getElementById('mobileShellBackdrop')
 const publicSectionTabs = document.getElementById('publicSectionTabs')
 const publicHubPanel = document.getElementById('publicHubPanel')
 const atlasNavigationEyebrow = document.getElementById('atlasNavigationEyebrow')
@@ -841,6 +846,57 @@ function openUICollapseSection(key) {
 
   if (!section || section.open) return
   section.open = true
+}
+
+
+function syncMobileChrome() {
+  if (!atlasNavigation || !toolPanel) return
+
+  const mobile = isTouchLayout()
+  const navigationOpen = mobile && mobileNavigationOpen
+  const quickPanelOpen =
+    mobile &&
+    !toolPanel.classList.contains('collapsed') &&
+    !appRoot?.classList.contains('public-section-open')
+
+  atlasNavigation.classList.toggle('mobile-open', navigationOpen)
+  mobileNavBtn?.setAttribute('aria-expanded', navigationOpen ? 'true' : 'false')
+  mobileQuickBtn?.setAttribute('aria-expanded', quickPanelOpen ? 'true' : 'false')
+
+  if (mobileShellBackdrop) {
+    mobileShellBackdrop.hidden = !(navigationOpen || quickPanelOpen)
+  }
+}
+
+function setMobileNavigationOpen(open) {
+  if (!isTouchLayout()) {
+    mobileNavigationOpen = false
+    syncMobileChrome()
+    return
+  }
+
+  mobileNavigationOpen = Boolean(open)
+
+  if (mobileNavigationOpen && !toolPanel.classList.contains('collapsed')) {
+    togglePanel(true, { persist: false })
+  }
+
+  syncMobileChrome()
+}
+
+function closeMobileChrome({ collapsePanel = true } = {}) {
+  mobileNavigationOpen = false
+
+  if (
+    collapsePanel &&
+    isTouchLayout() &&
+    toolPanel &&
+    !toolPanel.classList.contains('collapsed')
+  ) {
+    togglePanel(true, { persist: false })
+  }
+
+  syncMobileChrome()
 }
 
 initializeUICollapsibles()
@@ -1434,6 +1490,7 @@ function openNodeDetail(nodeId, { pushHistory = true } = {}) {
   const node = findNode(nodeId)
   if (!node) return false
 
+  closeMobileChrome()
   selectedId = node.id
   clearEdgeSelection()
   detailOpen = true
@@ -20093,8 +20150,12 @@ collapseBtn.addEventListener('click', (event) => {
   togglePanel()
 })
 
-function togglePanel(force) {
+function togglePanel(force, { persist = true } = {}) {
   const collapsed = typeof force === 'boolean' ? force : !toolPanel.classList.contains('collapsed')
+
+  if (!collapsed && isTouchLayout()) {
+    mobileNavigationOpen = false
+  }
 
   toolPanel.classList.toggle('collapsed', collapsed)
   collapseBtn.textContent = collapsed ? '+' : '–'
@@ -20109,8 +20170,36 @@ function togglePanel(force) {
     accountBtn?.setAttribute('aria-expanded', 'false')
   }
 
-  localStorage.setItem(CACHE_KEYS.panel, collapsed ? '1' : '0')
+  if (persist) {
+    localStorage.setItem(CACHE_KEYS.panel, collapsed ? '1' : '0')
+  }
+
+  syncMobileChrome()
 }
+
+mobileNavBtn?.addEventListener('click', () => {
+  setMobileNavigationOpen(!mobileNavigationOpen)
+})
+
+mobileQuickBtn?.addEventListener('click', () => {
+  if (!isTouchLayout()) return
+  const shouldOpen = toolPanel.classList.contains('collapsed')
+  togglePanel(shouldOpen ? false : true, { persist: false })
+})
+
+mobileShellBackdrop?.addEventListener('click', () => {
+  closeMobileChrome()
+})
+
+atlasNavigation?.addEventListener('click', (event) => {
+  if (!isTouchLayout()) return
+  const action = event.target instanceof Element
+    ? event.target.closest('button, a')
+    : null
+  if (!action) return
+
+  requestAnimationFrame(() => setMobileNavigationOpen(false))
+})
 
 closeModalBtn.addEventListener('click', closeModal)
 cancelBtn.addEventListener('click', closeModal)
@@ -20360,6 +20449,11 @@ window.addEventListener('keydown', (event) => {
       closeTaxonomyManager()
     } else if (modalBackdrop.classList.contains('open')) {
       closeModal()
+    } else if (
+      isTouchLayout() &&
+      (mobileNavigationOpen || !toolPanel.classList.contains('collapsed'))
+    ) {
+      closeMobileChrome()
     } else if (detailOpen) {
       closeNodeDetail({ pushHistory: true })
     } else if (relationMode.active) {
@@ -20391,8 +20485,12 @@ window.addEventListener('beforeunload', (event) => {
 
 const savedPanelState = localStorage.getItem(CACHE_KEYS.panel)
 
-if (savedPanelState === '1' || (savedPanelState == null && isTouchLayout())) {
-  togglePanel(true)
+if (isTouchLayout()) {
+  togglePanel(true, { persist: false })
+} else if (savedPanelState === '1') {
+  togglePanel(true, { persist: false })
+} else {
+  syncMobileChrome()
 }
 
 if (introDismissed) introScreen.classList.add('hidden')
@@ -20405,6 +20503,24 @@ document.addEventListener('focusin', (event) => {
 
 window.addEventListener('resize', () => {
   updateAtlasViewportHeight()
+
+  const touchLayout = isTouchLayout()
+
+  if (touchLayout !== lastTouchLayout) {
+    mobileNavigationOpen = false
+
+    if (touchLayout) {
+      togglePanel(true, { persist: false })
+    } else {
+      const desktopCollapsed = localStorage.getItem(CACHE_KEYS.panel) === '1'
+      togglePanel(desktopCollapsed, { persist: false })
+    }
+
+    lastTouchLayout = touchLayout
+  } else {
+    syncMobileChrome()
+  }
+
   renderAll()
   applyView()
 })

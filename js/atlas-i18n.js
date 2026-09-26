@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v94 · Full English UI + contextual Editor Mode/layout UX
+// v95 · Full English UI + mobile/responsive interaction redesign
 //
 // Source language: Romanian
 // Secondary language: English
@@ -22,6 +22,10 @@ const SUPPORTED_LANGUAGES = new Set(['ro', 'en'])
 
 const UI_EN = new Map(Object.entries({
   'Navigare': 'Navigation',
+  'Comenzi mobile': 'Mobile controls',
+  'Deschide navigarea': 'Open navigation',
+  'Deschide Quick Panel': 'Open Quick Panel',
+  'Închide meniurile': 'Close menus',
   'Departamente': 'Departments',
   'Bibliotecă': 'Library',
   'Filtre': 'Filters',

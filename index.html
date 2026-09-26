@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=94" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=95" />
   <style>
     :root {
       --bg: #000000;
@@ -8121,6 +8121,392 @@
     }
   }
 
+
+  /* =======================================================================
+     v95 — mobile / responsive interaction redesign
+     ======================================================================= */
+  .mobile-topbar-actions,
+  .mobile-shell-backdrop {
+    display: none;
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .topbar {
+      z-index: 58;
+      top: max(8px, env(safe-area-inset-top));
+      left: 8px;
+      right: 8px;
+      width: auto;
+      max-width: none;
+      min-height: 48px;
+      padding: 7px 7px 7px 8px;
+      border-radius: 14px;
+    }
+
+    .topbar-logo {
+      width: 32px;
+      height: 32px;
+      flex-basis: 32px;
+    }
+
+    .topbar > strong {
+      min-width: 0;
+      max-width: none;
+      flex: 1 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: .82rem;
+    }
+
+    .topbar-team-link {
+      display: none;
+    }
+
+    .mobile-topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-left: auto;
+      flex: 0 0 auto;
+    }
+
+    .mobile-shell-btn {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(177,76,255,.15);
+      border-radius: 10px;
+      background: rgba(255,255,255,.028);
+      color: #e6e1e9;
+      font: inherit;
+      font-size: 1rem;
+      font-weight: 820;
+      line-height: 1;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .mobile-shell-btn[aria-expanded="true"] {
+      border-color: rgba(205,112,255,.34);
+      background: rgba(177,76,255,.1);
+      color: #fff;
+    }
+
+    .mobile-shell-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 44;
+      display: block;
+      border: 0;
+      padding: 0;
+      background: rgba(0,0,0,.48);
+      backdrop-filter: blur(3px);
+      opacity: 1;
+      touch-action: none;
+    }
+
+    .mobile-shell-backdrop[hidden] {
+      display: none !important;
+    }
+
+    .atlas-navigation {
+      z-index: 50;
+      top: calc(max(8px, env(safe-area-inset-top)) + 56px);
+      left: 8px;
+      right: auto;
+      bottom: max(8px, env(safe-area-inset-bottom));
+      width: min(330px, calc(100vw - 24px));
+      max-height: none;
+      padding: 8px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      border-radius: 16px;
+      transform: translateX(calc(-100% - 18px));
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 180ms ease, opacity 160ms ease;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .atlas-navigation.mobile-open {
+      transform: translateX(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .atlas-navigation .atlas-primary-tabs {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 5px;
+      overflow: visible;
+      padding-bottom: 0;
+    }
+
+    .atlas-navigation .atlas-primary-tab,
+    .atlas-navigation .department-tab,
+    .atlas-navigation .team-space-entry,
+    .atlas-navigation .team-atlas-context-actions .btn {
+      min-height: 42px;
+    }
+
+    .atlas-navigation .atlas-primary-tab {
+      width: 100%;
+      min-width: 0;
+      text-align: left;
+    }
+
+    .floating-tools {
+      z-index: 52;
+      left: 8px;
+      right: 8px;
+      bottom: max(8px, env(safe-area-inset-bottom));
+      width: auto;
+      max-width: none;
+      max-height: min(78vh, calc(var(--atlas-viewport-height, 100dvh) - 76px));
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+      transition: transform 180ms ease, opacity 150ms ease;
+    }
+
+    .floating-tools.collapsed {
+      transform: translateY(calc(100% + 24px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .tools-shell {
+      position: relative;
+      max-height: min(78vh, calc(var(--atlas-viewport-height, 100dvh) - 76px));
+      border-radius: 18px 18px 14px 14px;
+      box-shadow: 0 -20px 54px rgba(0,0,0,.56);
+    }
+
+    .tools-shell::before {
+      content: '';
+      position: absolute;
+      top: 5px;
+      left: 50%;
+      z-index: 5;
+      width: 34px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.16);
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .tools-header {
+      min-height: 54px;
+      padding: 13px 9px 8px 12px;
+    }
+
+    .tools-header-left strong {
+      font-size: .82rem;
+    }
+
+    .tools-body {
+      padding: 0 8px max(10px, env(safe-area-inset-bottom));
+    }
+
+    .quick-search {
+      position: sticky;
+      top: 0;
+      z-index: 6;
+      margin-top: 4px;
+      background: rgba(10,9,13,.98);
+    }
+
+    .app.public-section-open .mobile-quick-btn {
+      display: none;
+    }
+
+    .public-hub-panel,
+    .atlas-navigation.global-section + .map-surface + .public-hub-panel {
+      top: calc(max(8px, env(safe-area-inset-top)) + 64px);
+      right: 8px;
+      bottom: max(8px, env(safe-area-inset-bottom));
+      left: 8px;
+      padding: 18px 14px max(18px, env(safe-area-inset-bottom));
+      border-radius: 18px;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .public-hub-head {
+      gap: 12px;
+    }
+
+    .public-hub-actions {
+      gap: 6px;
+    }
+
+    .public-hub-actions .btn {
+      flex: 1 1 140px;
+    }
+
+    .detail-panel {
+      z-index: 90;
+    }
+
+    .detail-top {
+      padding:
+        max(12px, env(safe-area-inset-top))
+        58px
+        10px
+        12px;
+      background: rgba(5,5,7,.985);
+      backdrop-filter: blur(18px);
+    }
+
+    .detail-toolbar {
+      margin-top: 9px;
+    }
+
+    .detail-toolbar .icon-btn,
+    .detail-action-menu > summary {
+      width: 40px;
+      height: 40px;
+      min-width: 40px;
+    }
+
+    #detailCloseBtn {
+      top: max(8px, env(safe-area-inset-top));
+      right: 8px;
+      width: 42px;
+      height: 42px;
+      min-width: 42px;
+      border-radius: 11px;
+    }
+
+    .detail-content {
+      padding: 10px 9px max(20px, env(safe-area-inset-bottom));
+    }
+
+    .detail-document-card {
+      padding: 15px 12px;
+      border-radius: 13px;
+    }
+
+    .document-disclosure > summary {
+      min-height: 44px;
+      padding: 10px 11px;
+    }
+
+    .document-disclosure-body {
+      padding: 10px;
+    }
+
+    .modal-backdrop {
+      z-index: 120;
+      padding: 0;
+    }
+
+    .modal-backdrop > .modal,
+    .modal-backdrop > .compact-modal {
+      width: 100%;
+      max-width: none;
+      height: var(--atlas-viewport-height, 100dvh);
+      max-height: var(--atlas-viewport-height, 100dvh) !important;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+    }
+
+    .modal-head,
+    .compact-modal .modal-head {
+      min-height: 56px;
+      padding:
+        max(10px, env(safe-area-inset-top))
+        10px
+        9px
+        12px;
+    }
+
+    .modal-head .icon-btn,
+    .compact-modal .modal-head .icon-btn {
+      width: 42px;
+      height: 42px;
+      min-width: 42px;
+    }
+
+    .modal-body,
+    .media-manager-body,
+    .file-manager-body,
+    .code-manager-body,
+    .taxonomy-manager-body,
+    .team-members-body,
+    .team-setup-body,
+    .roadmap-manager-body,
+    .public-content-manager-body {
+      padding: 11px;
+      scroll-padding-bottom: 96px;
+    }
+
+    .modal-foot {
+      padding:
+        9px
+        10px
+        max(10px, env(safe-area-inset-bottom));
+    }
+
+    .modal-foot .btn {
+      min-height: 44px;
+    }
+
+    .admin-modal .public-content-editor-actions,
+    .admin-modal .roadmap-editor-actions,
+    .admin-modal .team-manager-actions,
+    .admin-modal .team-setup-actions {
+      margin-left: -2px;
+      margin-right: -2px;
+      padding: 9px 2px 2px;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .topbar > strong {
+      font-size: .78rem;
+    }
+
+    .mobile-shell-btn {
+      width: 36px;
+      height: 36px;
+    }
+
+    .atlas-navigation {
+      width: calc(100vw - 16px);
+      right: 8px;
+    }
+
+    .atlas-navigation .department-tabs,
+    .atlas-navigation .team-atlas-context-actions {
+      grid-template-columns: 1fr;
+    }
+
+    .filter-row,
+    .btn-row,
+    .btn-row.three {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .editor-primary-actions {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .modal-foot {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+    }
+
+    .modal-foot .btn:last-child:nth-child(3) {
+      grid-column: 1 / -1;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -8141,7 +8527,34 @@
         target="_blank"
         rel="noopener noreferrer"
       >InfotronX #19119</a>
+
+      <div class="mobile-topbar-actions" aria-label="Comenzi mobile">
+        <button
+          class="mobile-shell-btn"
+          id="mobileNavBtn"
+          type="button"
+          aria-label="Deschide navigarea"
+          aria-expanded="false"
+          aria-controls="atlasNavigation"
+        >☰</button>
+        <button
+          class="mobile-shell-btn mobile-quick-btn"
+          id="mobileQuickBtn"
+          type="button"
+          aria-label="Deschide Quick Panel"
+          aria-expanded="false"
+          aria-controls="toolPanel"
+        >⌕</button>
+      </div>
     </div>
+
+    <button
+      class="mobile-shell-backdrop"
+      id="mobileShellBackdrop"
+      type="button"
+      aria-label="Închide meniurile"
+      hidden
+    ></button>
 
     <nav class="atlas-navigation" id="atlasNavigation" aria-label="Navigare Atlas">
       <details class="ui-collapse nav-collapse" data-ui-section="navigation" open>
@@ -9781,6 +10194,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=94"></script>
+  <script type="module" src="/js/atlas-script.js?v=95"></script>
 </body>
 </html>

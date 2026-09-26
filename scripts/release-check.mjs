@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const RELEASE = 94
+const RELEASE = 95
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const projectRoot = join(scriptDirectory, '..')
 
@@ -85,6 +85,20 @@ async function main() {
     appScript.includes("editorToolsSection.hidden = !editorActive") &&
       appScript.includes('function renderEditorContext()'),
     'contextual editor runtime is missing or stale'
+  )
+  assert(
+    index.includes('id="mobileNavBtn"') &&
+      index.includes('id="mobileQuickBtn"') &&
+      index.includes('id="mobileShellBackdrop"') &&
+      index.includes('.atlas-navigation.mobile-open') &&
+      index.includes('.floating-tools.collapsed'),
+    'mobile navigation / Quick Panel shell is missing'
+  )
+  assert(
+    appScript.includes('function syncMobileChrome()') &&
+      appScript.includes('function setMobileNavigationOpen(open)') &&
+      appScript.includes('function closeMobileChrome('),
+    'mobile shell runtime is missing or stale'
   )
   assert(
     mobileBuilder.includes(`data-atlas-mobile="v${RELEASE}"`) &&
