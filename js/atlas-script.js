@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v91 · NAVIGATION + QUICK PANEL REWORK')
+console.log('ATLAS SCRIPT LOADED v92 · COMPACT PANELS + ADMIN UX REWORK')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -2071,7 +2071,7 @@ function resetPublicContentEditor() {
     renderResourceDepartmentPicker(defaultDepartments)
   }
 
-  publicContentEditorStatus.textContent = 'Pregătit pentru editare.'
+  publicContentEditorStatus.textContent = ''
 }
 
 function editPublicContentItem(id) {
@@ -2127,7 +2127,7 @@ function editPublicContentItem(id) {
   }
 
   deletePublicContentBtn.hidden = false
-  publicContentEditorStatus.textContent = 'Element încărcat pentru editare.'
+  publicContentEditorStatus.textContent = ''
 }
 
 function renderPublicContentManager() {
@@ -2167,7 +2167,7 @@ function renderPublicContentManager() {
   if (items.length === 0) {
     publicContentManagerList.innerHTML = `
       <div class="public-content-manager-empty">
-        Nu există încă ${publicContentManagerKind === 'announcements' ? 'announcements' : 'resources'}.
+        ${publicContentManagerKind === 'announcements' ? 'Niciun announcement.' : 'Nicio resursă.'}
       </div>
     `
   } else {
@@ -3301,7 +3301,7 @@ function resetRoadmapEditor() {
   roadmapStepOptionalInput.checked = false
 
   deleteRoadmapBtn.hidden = true
-  roadmapEditorStatus.textContent = 'Pregătit pentru editare.'
+  roadmapEditorStatus.textContent = ''
 
   renderRoadmapDraftSteps()
 }
@@ -3340,7 +3340,7 @@ function editRoadmap(id) {
   roadmapStepOptionalInput.checked = false
 
   deleteRoadmapBtn.hidden = false
-  roadmapEditorStatus.textContent = 'Roadmap încărcat pentru editare.'
+  roadmapEditorStatus.textContent = ''
 
   renderRoadmapDraftSteps()
 }
@@ -3375,16 +3375,12 @@ function renderRoadmapManager() {
   }
 
   roadmapManagerSummary.innerHTML = `
-    <strong>${items.length} roadmaps</strong>
-    · ${items.filter((item) => item.isActive !== false).length} active
-    · ${roadmapManagerScope === 'team' ? 'private team scope' : 'public scope'}.
+    <strong>${items.length} roadmaps</strong> · ${items.filter((item) => item.isActive !== false).length} active
   `
 
   if (items.length === 0) {
     roadmapManagerList.innerHTML = `
-      <div class="public-content-manager-empty">
-        Nu există încă roadmaps în acest scope.
-      </div>
+      <div class="public-content-manager-empty">Niciun roadmap.</div>
     `
   } else {
     roadmapManagerList.innerHTML = items
@@ -5424,7 +5420,7 @@ function resetTeamMemberEditor() {
   renderTeamManagerDepartmentPicker(teamInviteDepartmentPicker, [])
 
   saveTeamMemberBtn.textContent = 'Creează invitația'
-  teamMembersManagerStatus.textContent = 'Pregătit.'
+  teamMembersManagerStatus.textContent = ''
 }
 
 function editTeamMember(membershipId) {
@@ -5459,7 +5455,7 @@ function editTeamMember(membershipId) {
   )
 
   saveTeamMemberBtn.textContent = 'Salvează membrul'
-  teamMembersManagerStatus.textContent = 'Membru încărcat pentru editare.'
+  teamMembersManagerStatus.textContent = ''
 }
 
 function inviteLink(token) {
@@ -6151,7 +6147,7 @@ function resetTeamSetupForm({ createMode = false } = {}) {
       (currentUser?.email ? currentUser.email.split('@')[0] : '')
 
     renderTeamSetupDepartmentPicker(currentTeamDepartmentIds())
-    teamSetupStatus.textContent = 'Editezi configurația Team Atlas pentru echipa selectată.'
+    teamSetupStatus.textContent = ''
   } else {
     teamSetupCurrent.textContent =
       'Creezi o echipă nouă în Team Atlas. Vei deveni Team Leader pentru această echipă.'
@@ -6168,7 +6164,7 @@ function resetTeamSetupForm({ createMode = false } = {}) {
         .map((item) => Number(item.id))
     )
 
-    teamSetupStatus.textContent = 'Completează datele noii echipe.'
+    teamSetupStatus.textContent = ''
   }
 
   setTeamSetupBusy(false)
@@ -9329,15 +9325,9 @@ function renderTaxonomyManager() {
     0
   )
 
-  const taxonomyScopeLabel = isTeamAtlasMode()
-    ? `Team Atlas · ${currentTeamRecord()?.name || 'Team'}`
-    : 'Public Atlas'
-
   taxonomyManagerSummary.innerHTML = `
     <strong>${items.length} ${escapeHtml(meta.plural)}</strong>
-    · ${activeCount} active
-    · ${totalUsage} utilizări în noduri.
-    <br>${escapeHtml(taxonomyScopeLabel)} · poți edita, dezactiva, reordona sau șterge în siguranță.
+    · ${activeCount} active · ${totalUsage} utilizări
   `
 
   if (items.length === 0) {
@@ -13686,16 +13676,13 @@ function renderMediaManager() {
 
   mediaManagerTitle.textContent = `Media · ${node.title}`
   mediaManagerSummary.innerHTML = `
-    <strong>${items.length}</strong>
-    ${items.length === 1 ? 'element media' : 'elemente media'}.
-    Imaginile și videoclipurile apar sub documentația nodului.
+    <strong>${items.length}</strong> ${items.length === 1 ? 'element' : 'elemente'}
   `
 
   if (items.length === 0) {
     mediaManagerList.innerHTML = `
       <div class="media-manager-empty">
-        <strong>Nicio imagine sau filmare</strong>
-        <span>Încarcă un screenshot/video ori adaugă un link YouTube.</span>
+        <strong>Nicio media.</strong>
       </div>
     `
     return
@@ -14077,21 +14064,17 @@ function renderFileManager() {
   }
 
   const items = Array.isArray(node.files) ? node.files : []
-  const folderCount = new Set(items.map((item) => item.relativePath || '').filter(Boolean)).size
   const totalSize = items.reduce((sum, item) => sum + Number(item.fileSize || 0), 0)
 
   fileManagerTitle.textContent = `Fișiere · ${node.title}`
   fileManagerSummary.innerHTML = `
-    <strong>${items.length}</strong> ${items.length === 1 ? 'fișier' : 'fișiere'} ·
-    <strong>${folderCount}</strong> ${folderCount === 1 ? 'cale de folder' : 'căi de folder'} ·
-    ${escapeHtml(humanFileSize(totalSize))} total.
+    <strong>${items.length}</strong> ${items.length === 1 ? 'fișier' : 'fișiere'} · ${escapeHtml(humanFileSize(totalSize))}
   `
 
   if (items.length === 0) {
     fileManagerList.innerHTML = `
       <div class="file-manager-empty">
-        <strong>Niciun fișier atașat</strong>
-        <span>Poți încărca fișiere individuale sau un folder întreg.</span>
+        <strong>Niciun fișier.</strong>
       </div>
     `
     return
@@ -14623,18 +14606,15 @@ function renderCodeManager() {
 
   const items = Array.isArray(node.codeSnippets) ? node.codeSnippets : []
 
-  codeManagerTitle.textContent = `Nod cod · ${node.title}`
+  codeManagerTitle.textContent = `Cod · ${node.title}`
   codeManagerSummary.innerHTML = `
-    <strong>${items.length}</strong>
-    ${items.length === 1 ? 'snippet de cod' : 'snippet-uri de cod'}.
-    Fiecare exemplu apare în documentație cu buton de copiere.
+    <strong>${items.length}</strong> ${items.length === 1 ? 'snippet' : 'snippet-uri'}
   `
 
   if (items.length === 0) {
     codeManagerList.innerHTML = `
       <div class="code-manager-empty">
-        <strong>Niciun snippet încă</strong>
-        <span>Scrie sau lipește primul exemplu folosind formularul de mai sus.</span>
+        <strong>Niciun snippet.</strong>
       </div>
     `
     return

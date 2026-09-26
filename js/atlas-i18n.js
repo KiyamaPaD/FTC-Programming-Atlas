@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v91 · Full English UI + simplified navigation/Quick Panel
+// v92 · Full English UI + compact panels/admin UX
 //
 // Source language: Romanian
 // Secondary language: English
@@ -1178,8 +1178,8 @@ function translateRuntimeText(value) {
   match = text.match(/^Fișiere\s*·\s*(.+)$/i)
   if (match) return `Files · ${match[1]}`
 
-  match = text.match(/^Nod cod\s*·\s*(.+)$/i)
-  if (match) return `Node code · ${match[1]}`
+  match = text.match(/^(?:Nod cod|Cod)\s*·\s*(.+)$/i)
+  if (match) return `Code · ${match[1]}`
 
   match = text.match(/^Ordine:\s*(.+)$/i)
   if (match) return `Order: ${match[1]}`
@@ -1422,6 +1422,23 @@ function installEnglishDialogTranslation() {
   ['Adaugă media', 'Add media'],
   ['Acest nod nu are încă imagini sau videoclipuri.', 'This node does not have images or videos yet.'],
   ['Adaugă fișiere', 'Add files'],
+  ['Snippet nou', 'New snippet'],
+  ['Avansat', 'Advanced'],
+  ['Atlas nu trimite email automat. Copiază link-ul invitației.', 'Atlas does not send email automatically. Copy the invite link.'],
+  ['Ordine recomandată, fără unlock.', 'Recommended order, no unlock.'],
+  ['Nicio media.', 'No media.'],
+  ['Niciun fișier.', 'No files.'],
+  ['Niciun snippet.', 'No snippets.'],
+  ['Niciun announcement.', 'No announcements.'],
+  ['Nicio resursă.', 'No resources.'],
+  ['Niciun roadmap.', 'No roadmaps.'],
+  ['element', 'item'],
+  ['elemente', 'items'],
+  ['fișier', 'file'],
+  ['fișiere', 'files'],
+  ['snippet', 'snippet'],
+  ['snippet-uri', 'snippets'],
+  ['utilizări', 'uses'],
   ['Poți atașa arhive, PDF-uri, proiecte, configurații, surse și foldere întregi.', 'You can attach archives, PDFs, projects, configuration files, source files, and complete folders.'],
   ['Rădăcina nodului', 'Node root'],
   ['Fără documentație încă.', 'No documentation yet.'],

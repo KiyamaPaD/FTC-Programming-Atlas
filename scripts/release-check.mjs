@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const RELEASE = 91
+const RELEASE = 92
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const projectRoot = join(scriptDirectory, '..')
 

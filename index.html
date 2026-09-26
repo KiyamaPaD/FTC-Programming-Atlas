@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=91" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=92" />
   <style>
     :root {
       --bg: #000000;
@@ -7387,6 +7387,267 @@
     }
   }
 
+
+  /* =======================================================================
+     v92 — compact panels + admin modal simplification
+     ======================================================================= */
+  .compact-modal {
+    border-radius: 16px;
+  }
+
+  .compact-modal .modal-head {
+    min-height: 50px;
+    align-items: center;
+    padding: 11px 13px;
+    gap: 10px;
+  }
+
+  .compact-modal .modal-head h3 {
+    margin: 0;
+    font-size: 0.92rem;
+    line-height: 1.25;
+  }
+
+  .admin-modal .modal-head p,
+  .admin-modal .public-content-editor-head span,
+  .admin-modal .roadmap-editor-head span,
+  .admin-modal .team-member-editor-head span,
+  .admin-modal .team-members-section-title span,
+  .admin-modal .admin-helper {
+    display: none !important;
+  }
+
+  .compact-modal .modal-head .icon-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 9px;
+  }
+
+  .admin-modal .modal-body,
+  .admin-modal .media-manager-body,
+  .admin-modal .file-manager-body,
+  .admin-modal .code-manager-body,
+  .admin-modal .taxonomy-manager-body,
+  .admin-modal .team-members-body,
+  .admin-modal .team-setup-body,
+  .admin-modal .roadmap-manager-body,
+  .admin-modal .public-content-manager-body {
+    padding: 12px 13px 14px;
+  }
+
+  .admin-modal .media-manager-body,
+  .admin-modal .file-manager-body,
+  .admin-modal .code-manager-body {
+    gap: 10px;
+  }
+
+  .admin-modal .media-manager-summary,
+  .admin-modal .file-manager-summary,
+  .admin-modal .code-manager-summary,
+  .admin-modal .taxonomy-manager-summary,
+  .admin-modal .count-strip {
+    min-height: 0;
+    padding: 7px 9px;
+    border-radius: 9px;
+    font-size: 0.68rem;
+    line-height: 1.35;
+  }
+
+  .modal-foot-close-only {
+    display: none !important;
+  }
+
+  .admin-disclosure {
+    min-width: 0;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 11px;
+    background: rgba(255,255,255,0.012);
+    overflow: clip;
+  }
+
+  .admin-disclosure > summary {
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    color: #c7c2cb;
+    font-size: 0.72rem;
+    font-weight: 800;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+  }
+
+  .admin-disclosure > summary::-webkit-details-marker { display: none; }
+
+  .admin-disclosure > summary::after {
+    content: '›';
+    margin-left: auto;
+    color: #77727d;
+    font-size: 1rem;
+    transition: transform 140ms ease;
+  }
+
+  .admin-disclosure[open] > summary::after {
+    transform: rotate(90deg);
+    color: #d5a9ff;
+  }
+
+  .admin-disclosure[open] > summary {
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    color: #fff;
+  }
+
+  .admin-disclosure-body {
+    display: grid;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .admin-create-disclosure {
+    border-color: rgba(177,76,255,0.12);
+  }
+
+  .admin-advanced {
+    margin-top: 2px;
+    background: rgba(255,255,255,0.008);
+  }
+
+  .admin-advanced > summary {
+    min-height: 34px;
+    color: #918b97;
+    font-size: 0.68rem;
+  }
+
+  .admin-advanced-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: end;
+  }
+
+  .compact-toggle {
+    min-height: 39px;
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 9px;
+  }
+
+  .admin-inline-note {
+    margin: 0;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(177,76,255,0.045);
+    color: #97919c;
+    font-size: 0.68rem;
+    line-height: 1.4;
+  }
+
+  .admin-modal .media-create-card,
+  .admin-modal .file-upload-card,
+  .admin-modal .code-create-card {
+    padding: 12px;
+    border-radius: 11px;
+    gap: 9px;
+  }
+
+  .admin-modal .media-create-card > p,
+  .admin-modal .file-upload-card > p,
+  .admin-modal .code-create-heading span {
+    display: none;
+  }
+
+  .admin-modal .media-create-card h4,
+  .admin-modal .file-upload-card h4,
+  .admin-modal .code-create-card h4 {
+    font-size: 0.8rem;
+  }
+
+  .admin-modal .field label {
+    margin-bottom: 5px;
+    color: #aaa5b0;
+    font-size: 0.72rem;
+  }
+
+  .admin-modal .field input,
+  .admin-modal .field select,
+  .admin-modal .field textarea {
+    padding: 9px 10px;
+  }
+
+  .admin-modal .public-content-manager-toolbar {
+    margin-bottom: 8px;
+  }
+
+  .admin-modal .public-content-manager-layout,
+  .admin-modal .roadmap-manager-layout,
+  .admin-modal .team-members-layout {
+    gap: 10px;
+  }
+
+  .admin-modal .public-content-manager-list,
+  .admin-modal .roadmap-manager-list {
+    padding: 7px;
+    border-radius: 12px;
+  }
+
+  .admin-modal .public-content-manager-item,
+  .admin-modal .roadmap-manager-item {
+    padding: 8px 9px;
+    border-radius: 9px;
+  }
+
+  .admin-modal .public-content-editor,
+  .admin-modal .roadmap-editor,
+  .admin-modal .team-member-editor {
+    padding: 11px;
+    border-radius: 12px;
+  }
+
+  .admin-modal .public-content-editor-head,
+  .admin-modal .roadmap-editor-head,
+  .admin-modal .team-member-editor-head {
+    margin-bottom: 9px;
+  }
+
+  .admin-modal .public-content-editor-actions,
+  .admin-modal .roadmap-editor-actions,
+  .admin-modal .team-manager-actions,
+  .admin-modal .team-setup-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-top: 10px;
+    padding: 10px 0 0;
+    background: linear-gradient(180deg, rgba(6,6,8,0), rgba(6,6,8,0.98) 28%);
+  }
+
+  .admin-modal .editor-tools-note {
+    margin: 0;
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .modal-backdrop {
+      padding: 8px;
+    }
+
+    .compact-modal {
+      max-height: calc(100dvh - 16px) !important;
+      border-radius: 14px;
+    }
+
+    .admin-advanced-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .admin-modal .public-content-manager-layout,
+    .admin-modal .roadmap-manager-layout,
+    .admin-modal .team-members-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -7816,7 +8077,7 @@
 
 
   <div class="modal-backdrop media-manager-backdrop" id="mediaManagerBackdrop">
-    <div class="modal media-manager-modal" role="dialog" aria-modal="true" aria-labelledby="mediaManagerTitle">
+    <div class="modal media-manager-modal compact-modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="mediaManagerTitle">
       <div class="modal-head">
         <div>
           <h3 id="mediaManagerTitle">Media nod</h3>
@@ -7828,7 +8089,10 @@
       <div class="media-manager-body">
         <div class="media-manager-summary" id="mediaManagerSummary"></div>
 
-        <div class="media-create-grid">
+        <details class="admin-disclosure admin-create-disclosure">
+          <summary>Adaugă media</summary>
+          <div class="admin-disclosure-body">
+            <div class="media-create-grid">
           <section class="media-create-card">
             <h4>Upload fișier</h4>
             <p>Imagini și videoclipuri de maximum 50 MB. Sunt salvate în Supabase Storage.</p>
@@ -7872,13 +8136,15 @@
 
             <button class="btn primary" id="addExternalMediaBtn" type="button">Adaugă linkul</button>
           </section>
-        </div>
+            </div>
+          </div>
+        </details>
 
         <div class="media-upload-status" id="mediaUploadStatus" aria-live="polite"></div>
         <div class="media-manager-list" id="mediaManagerList"></div>
       </div>
 
-      <div class="modal-foot">
+      <div class="modal-foot modal-foot-close-only">
         <button class="btn" id="closeMediaManagerFooterBtn" type="button">Închide</button>
       </div>
     </div>
@@ -7886,7 +8152,7 @@
 
 
   <div class="modal-backdrop file-manager-backdrop" id="fileManagerBackdrop">
-    <div class="modal file-manager-modal" role="dialog" aria-modal="true" aria-labelledby="fileManagerTitle">
+    <div class="modal file-manager-modal compact-modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="fileManagerTitle">
       <div class="modal-head">
         <div>
           <h3 id="fileManagerTitle">Fișiere nod</h3>
@@ -7898,7 +8164,10 @@
       <div class="file-manager-body">
         <div class="file-manager-summary" id="fileManagerSummary"></div>
 
-        <div class="file-upload-grid">
+        <details class="admin-disclosure admin-create-disclosure">
+          <summary>Adaugă fișiere</summary>
+          <div class="admin-disclosure-body">
+            <div class="file-upload-grid">
           <section class="file-upload-card">
             <h4>Fișiere</h4>
             <p>Selectează unul sau mai multe fișiere: ZIP, PDF, TXT, Java, Python, JSON, XML și alte formate. Maximum 100 MB per fișier.</p>
@@ -7922,13 +8191,15 @@
 
             <button class="btn primary" id="uploadNodeFolderBtn" type="button">Încarcă folderul</button>
           </section>
-        </div>
+            </div>
+          </div>
+        </details>
 
         <div class="file-manager-status" id="fileManagerStatus" aria-live="polite"></div>
         <div class="file-manager-list" id="fileManagerList"></div>
       </div>
 
-      <div class="modal-foot">
+      <div class="modal-foot modal-foot-close-only">
         <button class="btn" id="closeFileManagerFooterBtn" type="button">Închide</button>
       </div>
     </div>
@@ -7936,7 +8207,7 @@
 
 
   <div class="modal-backdrop code-manager-backdrop" id="codeManagerBackdrop">
-    <div class="modal code-manager-modal" role="dialog" aria-modal="true" aria-labelledby="codeManagerTitle">
+    <div class="modal code-manager-modal compact-modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="codeManagerTitle">
       <div class="modal-head">
         <div>
           <h3 id="codeManagerTitle">Nod cod</h3>
@@ -7948,6 +8219,9 @@
       <div class="code-manager-body">
         <div class="code-manager-summary" id="codeManagerSummary"></div>
 
+        <details class="admin-disclosure admin-create-disclosure">
+          <summary>Snippet nou</summary>
+          <div class="admin-disclosure-body">
         <section class="code-create-card">
           <div class="code-create-heading">
             <div>
@@ -7996,14 +8270,16 @@
           </div>
 
           <button class="btn primary" id="addCodeSnippetBtn" type="button">Adaugă snippet-ul</button>
-          <div class="code-draft-note">Ciornă salvată automat în browser. Fereastra se închide doar din X, Închide sau Escape.</div>
+          <div class="code-draft-note admin-helper">Ciornă salvată automat în browser.</div>
         </section>
+          </div>
+        </details>
 
         <div class="code-manager-status" id="codeManagerStatus" aria-live="polite"></div>
         <div class="code-manager-list" id="codeManagerList"></div>
       </div>
 
-      <div class="modal-foot">
+      <div class="modal-foot modal-foot-close-only">
         <button class="btn" id="closeCodeManagerFooterBtn" type="button">Închide</button>
       </div>
     </div>
@@ -8011,7 +8287,7 @@
 
 
   <div class="modal-backdrop taxonomy-manager-backdrop" id="taxonomyManagerBackdrop">
-    <div class="taxonomy-manager-modal modal" role="dialog" aria-modal="true" aria-labelledby="taxonomyManagerTitle">
+    <div class="taxonomy-manager-modal modal compact-modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="taxonomyManagerTitle">
       <div class="modal-head">
         <div>
           <h3 id="taxonomyManagerTitle">Taxonomy Manager</h3>
@@ -8038,7 +8314,7 @@
   </div>
 
   <div class="modal-backdrop taxonomy-item-backdrop" id="taxonomyItemBackdrop">
-    <div class="modal taxonomy-item-modal" role="dialog" aria-modal="true" aria-labelledby="taxonomyItemTitle">
+    <div class="modal taxonomy-item-modal compact-modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="taxonomyItemTitle">
       <div class="modal-head">
         <div>
           <h3 id="taxonomyItemTitle">Adaugă element</h3>
@@ -8048,16 +8324,9 @@
       </div>
 
       <div class="modal-body">
-        <div class="taxonomy-form-grid">
-          <div class="field">
-            <label for="taxonomyNameInput">Nume</label>
-            <input id="taxonomyNameInput" maxlength="120" placeholder="Ex: NextFTC" />
-          </div>
-
-          <div class="field">
-            <label for="taxonomyOrderInput">Ordine</label>
-            <input id="taxonomyOrderInput" type="number" step="1" value="10" />
-          </div>
+        <div class="field">
+          <label for="taxonomyNameInput">Nume</label>
+          <input id="taxonomyNameInput" maxlength="120" placeholder="Ex: NextFTC" />
         </div>
 
         <div class="field">
@@ -8065,13 +8334,19 @@
           <textarea id="taxonomyDescriptionInput" style="min-height: 130px;" placeholder="Ce fel de subiecte intră aici?"></textarea>
         </div>
 
-        <label class="taxonomy-active-row">
-          <input id="taxonomyActiveInput" type="checkbox" checked />
-          <span>
-            <strong>Element activ</strong>
-            <span>Elementele inactive rămân salvate, dar nu apar în filtrele publice sau la nodurile noi.</span>
-          </span>
-        </label>
+        <details class="admin-disclosure admin-advanced">
+          <summary>Avansat</summary>
+          <div class="admin-disclosure-body admin-advanced-grid">
+            <div class="field">
+              <label for="taxonomyOrderInput">Ordine</label>
+              <input id="taxonomyOrderInput" type="number" step="1" value="10" />
+            </div>
+            <label class="taxonomy-active-row compact-toggle">
+              <input id="taxonomyActiveInput" type="checkbox" checked />
+              <span><strong>Activ</strong></span>
+            </label>
+          </div>
+        </details>
 
         <div class="taxonomy-delete-note" id="taxonomyDeleteNote"></div>
       </div>
@@ -8085,7 +8360,7 @@
   </div>
 
   <div class="modal-backdrop taxonomy-replace-backdrop" id="taxonomyReplaceBackdrop">
-    <div class="modal taxonomy-replace-modal" role="dialog" aria-modal="true" aria-labelledby="taxonomyReplaceTitle">
+    <div class="modal taxonomy-replace-modal compact-modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="taxonomyReplaceTitle">
       <div class="modal-head">
         <div>
           <h3 id="taxonomyReplaceTitle">Mută nodurile înainte de ștergere</h3>
@@ -8115,7 +8390,7 @@
 
 
   <div class="modal-backdrop team-members-backdrop" id="teamMembersBackdrop">
-    <div class="modal team-members-modal">
+    <div class="modal team-members-modal compact-modal admin-modal">
       <div class="modal-head">
         <div>
           <h3>Members & Invites</h3>
@@ -8184,9 +8459,7 @@
                 <div class="team-manager-departments" id="teamInviteDepartmentPicker"></div>
               </div>
 
-              <div class="team-invite-note">
-                Atlas nu trimite automat un email separat în această fază. După creare, copiezi link-ul invitației și îl trimiți persoanei. Ea trebuie să se logheze cu exact email-ul invitat.
-              </div>
+              <div class="team-invite-note admin-inline-note">Atlas nu trimite email automat. Copiază link-ul invitației.</div>
             </div>
 
             <div id="teamMemberEditorFields" hidden>
@@ -8212,7 +8485,7 @@
               </div>
             </div>
 
-            <div class="count-strip" id="teamMembersManagerStatus">Pregătit.</div>
+            <div class="count-strip" id="teamMembersManagerStatus"></div>
 
             <div class="team-manager-actions">
               <button class="btn" id="resetTeamMemberEditorBtn" type="button">Invitație nouă</button>
@@ -8222,14 +8495,14 @@
         </div>
       </div>
 
-      <div class="modal-foot">
+      <div class="modal-foot modal-foot-close-only">
         <button class="btn" id="closeTeamMembersFooterBtn" type="button">Închide</button>
       </div>
     </div>
   </div>
 
   <div class="modal-backdrop team-onboarding-backdrop" id="teamOnboardingBackdrop">
-    <div class="modal team-onboarding-modal">
+    <div class="modal team-onboarding-modal compact-modal">
       <div class="modal-head">
         <div>
           <h3>Team onboarding</h3>
@@ -8251,7 +8524,7 @@
   </div>
 
   <div class="modal-backdrop" id="sourceCompareBackdrop">
-    <div class="modal source-compare-modal">
+    <div class="modal source-compare-modal compact-modal">
       <div class="modal-head">
         <div>
           <h3 id="sourceCompareTitle">Compare public source</h3>
@@ -8271,7 +8544,7 @@
       </div>
 
       <div class="modal-foot">
-        <span class="count-strip" id="sourceCompareStatus">Pregătit.</span>
+        <span class="count-strip" id="sourceCompareStatus"></span>
         <button class="btn" id="sourceCompareOpenPublicBtn" type="button">Open public source</button>
         <button class="btn" id="sourceCompareMarkBtn" type="button">Mark source reviewed</button>
         <button class="btn primary" id="sourceCompareSyncBtn" type="button">Sync selected</button>
@@ -8281,7 +8554,7 @@
   </div>
 
   <div class="modal-backdrop" id="revisionHistoryBackdrop">
-    <div class="modal revision-history-modal">
+    <div class="modal revision-history-modal compact-modal">
       <div class="modal-head">
         <div>
           <h3 id="revisionHistoryTitle">Version history</h3>
@@ -8314,7 +8587,7 @@
   </div>
 
   <div class="modal-backdrop" id="documentationHealthBackdrop">
-    <div class="modal documentation-health-modal">
+    <div class="modal documentation-health-modal compact-modal admin-modal">
       <div class="modal-head">
         <div>
           <h3 id="documentationHealthTitle">Documentation Health</h3>
@@ -8381,7 +8654,7 @@
   </div>
 
   <div class="modal-backdrop" id="documentationMetaBackdrop">
-    <div class="modal documentation-meta-modal">
+    <div class="modal documentation-meta-modal compact-modal admin-modal">
       <div class="modal-head">
         <div>
           <h3 id="documentationMetaTitle">Sources & review</h3>
@@ -8493,7 +8766,7 @@
   </div>
 
   <div class="modal-backdrop" id="documentationFinderBackdrop">
-    <div class="modal documentation-finder-modal">
+    <div class="modal documentation-finder-modal compact-modal">
       <div class="modal-head">
         <div>
           <h3>Quick Find</h3>
@@ -8532,7 +8805,7 @@
   </div>
 
   <div class="modal-backdrop" id="documentationLibraryBackdrop">
-    <div class="modal documentation-library-modal">
+    <div class="modal documentation-library-modal compact-modal">
       <div class="modal-head">
         <div>
           <h3>Saved & Recent</h3>
@@ -8551,7 +8824,7 @@
   </div>
 
   <div class="modal-backdrop" id="teamImportBackdrop">
-    <div class="modal team-import-modal">
+    <div class="modal team-import-modal compact-modal">
       <div class="modal-head">
         <div>
           <h3>Copy to Team Atlas</h3>
@@ -8604,7 +8877,7 @@
   </div>
 
   <div class="modal-backdrop team-setup-backdrop" id="teamSetupBackdrop">
-    <div class="modal team-setup-modal">
+    <div class="modal team-setup-modal compact-modal admin-modal">
       <div class="modal-head">
         <div>
           <h3>Team Setup</h3>
@@ -8630,29 +8903,32 @@
           </div>
         </div>
 
-        <div class="field">
-          <label for="teamDescriptionInput">Descriere</label>
-          <textarea
-            id="teamDescriptionInput"
-            class="compact-textarea"
-            maxlength="1200"
-            placeholder="Scurtă descriere a echipei..."
-          ></textarea>
-        </div>
+        <details class="admin-disclosure admin-advanced">
+          <summary>Avansat</summary>
+          <div class="admin-disclosure-body">
+            <div class="field">
+              <label for="teamDescriptionInput">Descriere</label>
+              <textarea
+                id="teamDescriptionInput"
+                class="compact-textarea"
+                maxlength="1200"
+                placeholder="Scurtă descriere a echipei..."
+              ></textarea>
+            </div>
 
-        <div class="field">
-          <label for="teamDisplayNameInput">Numele tău în Team Atlas</label>
-          <input id="teamDisplayNameInput" maxlength="80" placeholder="Ex: Cristi" />
-        </div>
+            <div class="field">
+              <label for="teamDisplayNameInput">Numele tău în Team Atlas</label>
+              <input id="teamDisplayNameInput" maxlength="80" placeholder="Ex: Cristi" />
+            </div>
+          </div>
+        </details>
 
         <div class="field">
           <label>Departamente active</label>
           <div class="team-setup-departments" id="teamSetupDepartmentPicker"></div>
         </div>
 
-        <div class="count-strip" id="teamSetupStatus">
-          Creează prima echipă sau editează echipa curentă.
-        </div>
+        <div class="count-strip" id="teamSetupStatus"></div>
 
         <div class="team-setup-actions">
           <button class="btn" id="newTeamSetupBtn" type="button">Echipă nouă</button>
@@ -8660,14 +8936,14 @@
         </div>
       </div>
 
-      <div class="modal-foot">
+      <div class="modal-foot modal-foot-close-only">
         <button class="btn" id="closeTeamSetupFooterBtn" type="button">Închide</button>
       </div>
     </div>
   </div>
 
   <div class="modal-backdrop roadmap-manager-backdrop" id="roadmapManagerBackdrop">
-    <div class="modal roadmap-manager-modal">
+    <div class="modal roadmap-manager-modal compact-modal admin-modal">
       <div class="modal-head">
         <div>
           <h3>Roadmap Manager</h3>
@@ -8680,7 +8956,7 @@
         <div class="public-content-manager-toolbar">
           <div>
             <strong id="roadmapManagerScopeLabel">Roadmaps publice</strong>
-            <div class="editor-tools-note">Ordinea din roadmap este orientativă, nu un sistem de unlock.</div>
+            <div class="editor-tools-note admin-helper">Ordine recomandată, fără unlock.</div>
           </div>
 
           <button class="btn primary" id="newRoadmapBtn" type="button">+ Roadmap nou</button>
@@ -8721,19 +8997,18 @@
               ></textarea>
             </div>
 
-            <div class="field-grid">
-              <div class="field">
-                <label for="roadmapSortOrderInput">Ordine</label>
-                <input id="roadmapSortOrderInput" type="number" step="1" value="0" />
-              </div>
-
-              <div class="field">
-                <label>Status</label>
-                <div class="public-content-toggle-grid">
-                  <label><input id="roadmapActiveInput" type="checkbox" checked /> Activ / vizibil</label>
+            <details class="admin-disclosure admin-advanced">
+              <summary>Avansat</summary>
+              <div class="admin-disclosure-body admin-advanced-grid">
+                <div class="field">
+                  <label for="roadmapSortOrderInput">Ordine</label>
+                  <input id="roadmapSortOrderInput" type="number" step="1" value="0" />
+                </div>
+                <div class="public-content-toggle-grid admin-toggle-row">
+                  <label><input id="roadmapActiveInput" type="checkbox" checked /> Activ</label>
                 </div>
               </div>
-            </div>
+            </details>
 
             <div class="field">
               <label>Pași recomandați</label>
@@ -8762,7 +9037,7 @@
               <div class="roadmap-editor-steps" id="roadmapEditorSteps"></div>
             </div>
 
-            <div class="count-strip" id="roadmapEditorStatus">Pregătit pentru editare.</div>
+            <div class="count-strip" id="roadmapEditorStatus"></div>
 
             <div class="roadmap-editor-actions">
               <button class="btn danger" id="deleteRoadmapBtn" type="button" hidden>Șterge</button>
@@ -8773,14 +9048,14 @@
         </div>
       </div>
 
-      <div class="modal-foot">
+      <div class="modal-foot modal-foot-close-only">
         <button class="btn" id="closeRoadmapManagerFooterBtn" type="button">Închide</button>
       </div>
     </div>
   </div>
 
   <div class="modal-backdrop public-content-manager-backdrop" id="publicContentManagerBackdrop">
-    <div class="modal public-content-modal">
+    <div class="modal public-content-modal compact-modal admin-modal">
       <div class="modal-head">
         <div>
           <h3>Public Content</h3>
@@ -8856,28 +9131,30 @@
                 ></textarea>
               </div>
 
-              <div class="field-grid">
-                <div class="field">
-                  <label for="announcementSourceUrlInput">Link sursă (opțional)</label>
-                  <input id="announcementSourceUrlInput" placeholder="https://..." />
+              <details class="admin-disclosure admin-advanced">
+                <summary>Avansat</summary>
+                <div class="admin-disclosure-body">
+                  <div class="field-grid">
+                    <div class="field">
+                      <label for="announcementSourceUrlInput">Link sursă</label>
+                      <input id="announcementSourceUrlInput" placeholder="https://..." />
+                    </div>
+                    <div class="field">
+                      <label for="announcementRelatedNodeInput">Nod asociat</label>
+                      <select id="announcementRelatedNodeInput"></select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="announcementPublishedAtInput">Data publicării</label>
+                    <input id="announcementPublishedAtInput" type="datetime-local" />
+                  </div>
+                  <div class="public-content-toggle-grid">
+                    <label><input id="announcementPublishedInput" type="checkbox" checked /> Publicat</label>
+                    <label><input id="announcementPinnedInput" type="checkbox" /> Pinned</label>
+                    <label><input id="announcementImportantInput" type="checkbox" /> Important</label>
+                  </div>
                 </div>
-
-                <div class="field">
-                  <label for="announcementRelatedNodeInput">Nod asociat (opțional)</label>
-                  <select id="announcementRelatedNodeInput"></select>
-                </div>
-              </div>
-
-              <div class="field">
-                <label for="announcementPublishedAtInput">Data publicării</label>
-                <input id="announcementPublishedAtInput" type="datetime-local" />
-              </div>
-
-              <div class="public-content-toggle-grid">
-                <label><input id="announcementPublishedInput" type="checkbox" checked /> Publicat</label>
-                <label><input id="announcementPinnedInput" type="checkbox" /> Pinned</label>
-                <label><input id="announcementImportantInput" type="checkbox" /> Important</label>
-              </div>
+              </details>
             </div>
 
             <div class="public-content-fields" id="resourceEditorFields" hidden>
@@ -8915,31 +9192,32 @@
                 ></textarea>
               </div>
 
-              <div class="field-grid">
-                <div class="field">
-                  <label for="resourceRelatedNodeInput">Nod asociat (opțional)</label>
-                  <select id="resourceRelatedNodeInput"></select>
+              <details class="admin-disclosure admin-advanced">
+                <summary>Avansat</summary>
+                <div class="admin-disclosure-body">
+                  <div class="field-grid">
+                    <div class="field">
+                      <label for="resourceRelatedNodeInput">Nod asociat</label>
+                      <select id="resourceRelatedNodeInput"></select>
+                    </div>
+                    <div class="field">
+                      <label for="resourceSortOrderInput">Ordine</label>
+                      <input id="resourceSortOrderInput" type="number" step="1" value="0" />
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label>Departamente</label>
+                    <div class="public-content-departments" id="resourceDepartmentPicker"></div>
+                  </div>
+                  <div class="public-content-toggle-grid">
+                    <label><input id="resourceActiveInput" type="checkbox" checked /> Activ</label>
+                    <label><input id="resourceFeaturedInput" type="checkbox" /> Featured</label>
+                  </div>
                 </div>
-
-                <div class="field">
-                  <label for="resourceSortOrderInput">Ordine</label>
-                  <input id="resourceSortOrderInput" type="number" step="1" value="0" />
-                </div>
-              </div>
-
-              <div class="field">
-                <label>Departamente</label>
-                <div class="public-content-departments" id="resourceDepartmentPicker"></div>
-                <div class="editor-tools-note">Fără selecție = resursa este universală și apare în toate departamentele.</div>
-              </div>
-
-              <div class="public-content-toggle-grid">
-                <label><input id="resourceActiveInput" type="checkbox" checked /> Activ</label>
-                <label><input id="resourceFeaturedInput" type="checkbox" /> Featured</label>
-              </div>
+              </details>
             </div>
 
-            <div class="count-strip" id="publicContentEditorStatus">Pregătit pentru editare.</div>
+            <div class="count-strip" id="publicContentEditorStatus"></div>
 
             <div class="public-content-editor-actions">
               <button class="btn danger" id="deletePublicContentBtn" type="button" hidden>Șterge</button>
@@ -8950,7 +9228,7 @@
         </div>
       </div>
 
-      <div class="modal-foot">
+      <div class="modal-foot modal-foot-close-only">
         <button class="btn" id="closePublicContentManagerFooterBtn" type="button">Închide</button>
       </div>
     </div>
@@ -9025,6 +9303,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=91"></script>
+  <script type="module" src="/js/atlas-script.js?v=92"></script>
 </body>
 </html>
