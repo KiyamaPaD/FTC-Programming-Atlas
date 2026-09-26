@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v95 · MOBILE + RESPONSIVE INTERACTION REDESIGN')
+console.log('ATLAS SCRIPT LOADED v96 · FINAL UI/UX CLEANUP + CONSOLIDATION')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -85,13 +85,6 @@ const NODE_MAX_WIDTH = 720
 const NODE_MAX_HEIGHT = 520
 const MAX_EDGE_CONTROL_POINTS = 12
 
-// Legacy keyboard movement constants kept for compatibility.
-// v88 uses explicit Layout Edit Mode with arrow-key nudging instead of WASD.
-const WASD_TAP_STEP = 12
-const WASD_INITIAL_SPEED = 160
-const WASD_ACCELERATION_DELAY_MS = 180
-const WASD_ACCELERATION = 500
-const WASD_MAX_SPEED = 720
 const EDITOR_NODE_DOUBLE_CLICK_MS = 420
 const activeTouchPoints = new Map()
 let pinchState = null
@@ -461,22 +454,6 @@ let edgeClickState = { key: null, time: 0 }
 let editorNodeClickState = { nodeId: null, time: 0 }
 let panState = null
 
-const keyboardMoveState = {
-  keys: new Set(),
-  nodeId: null,
-  startedAt: 0,
-  lastFrameAt: 0,
-  frameId: null,
-  dirty: false,
-  startX: 0,
-  startY: 0
-}
-
-// WASD movement is intentionally local-only. One dirty node is kept at a time
-// and is persisted only with the Save position button or the F shortcut.
-let unsavedNodePosition = null
-let positionSaveBusy = false
-
 // Frequently used DOM references
 const appRoot = document.querySelector('.app')
 const atlasNavigation = document.getElementById('atlasNavigation')
@@ -541,7 +518,6 @@ const removeEdgePointBtn = document.getElementById('removeEdgePointBtn')
 const resetEdgePathBtn = document.getElementById('resetEdgePathBtn')
 const tutorialBtn = document.getElementById('tutorialBtn')
 const editorModeBtn = document.getElementById('editorModeBtn')
-const savePositionBtn = document.getElementById('savePositionBtn')
 
 const layoutEditorBar = document.getElementById('layoutEditorBar')
 const layoutEditorModeLabel = document.getElementById('layoutEditorModeLabel')
@@ -920,7 +896,6 @@ const contentInputLabel = document.getElementById('contentInputLabel')
 const richEditorShell = document.getElementById('richEditorShell')
 const richEditorToolbar = document.getElementById('richEditorToolbar')
 const richBlockSelect = document.getElementById('richBlockSelect')
-const richFontSizeSelect = document.getElementById('richFontSizeSelect')
 const richLinkBtn = document.getElementById('richLinkBtn')
 const contentRichEditor = document.getElementById('contentRichEditor')
 const richEditorHint = document.getElementById('richEditorHint')
@@ -1585,8 +1560,6 @@ function handleNodeTap(nodeId) {
   ;(async () => {
     const numericNodeId = Number(nodeId)
 
-    if (!(await confirmUnsavedPositionBeforeLeaving(numericNodeId))) return
-
     selectedId = numericNodeId
     clearEdgeSelection()
 
@@ -1632,8 +1605,6 @@ function handleNodeTap(nodeId) {
 
 function selectEdge(sourceId, targetId) {
   ;(async () => {
-    if (!(await confirmUnsavedPositionBeforeLeaving(sourceId))) return
-
     console.log('selectEdge', { sourceId, targetId })
     selectedEdge = { sourceId: Number(sourceId), targetId: Number(targetId) }
     selectedEdgePointIndex = null
@@ -2018,8 +1989,6 @@ async function openNodeFromPublicContent(nodeId) {
 
   const node = findNode(nodeId)
   if (!node) return
-
-  if (!(await confirmUnsavedPositionBeforeLeaving(node.id))) return
 
   activateDepartmentForNode(node, { persist: true })
 
@@ -4486,7 +4455,7 @@ async function selectActiveTeam(teamId) {
     Number(teamId) !== Number(activeTeamId) &&
     hasUnsavedLayoutChanges()
   ) {
-    if (!(await confirmUnsavedPositionBeforeLeaving())) {
+    if (!(await confirmUnsavedLayoutBeforeLeaving())) {
       if (teamAtlasSelect) {
         teamAtlasSelect.value = String(activeTeamId)
       }
@@ -7692,10 +7661,6 @@ function initRichTextEditor() {
     richBlockSelect.value = 'p'
   })
 
-  richFontSizeSelect?.addEventListener('change', () => {
-    runRichCommand('fontSize', richFontSizeSelect.value)
-    richFontSizeSelect.value = '3'
-  })
 
   richEditorToolbar.querySelectorAll('[data-rich-block]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -11756,309 +11721,18 @@ function setLayoutEditMode(nextValue) {
   return true
 }
 
-// Node movement and resizing
-function keyboardMoveVector(keys = keyboardMoveState.keys) {
-  let x = 0
-  let y = 0
-
-  if (keys.has('a')) x -= 1
-  if (keys.has('d')) x += 1
-  if (keys.has('w')) y -= 1
-  if (keys.has('s')) y += 1
-
-  const magnitude = Math.hypot(x, y)
-
-  if (!magnitude) return { x: 0, y: 0 }
-
-  return {
-    x: x / magnitude,
-    y: y / magnitude
-  }
-}
-
-function applyKeyboardNodeDelta(node, dx, dy) {
-  if (!node) return false
-
-  const { width, height } = nodeSize(node)
-  const currentX = Number(node.x)
-  const currentY = Number(node.y)
-  const nextX = clamp(currentX + dx, 20, WORLD_WIDTH - width - 20)
-  const nextY = clamp(currentY + dy, 20, WORLD_HEIGHT - height - 20)
-
-  let finalX = currentX
-  let finalY = currentY
-
-  if (!overlapsAny(node.id, nextX, nextY, width, height)) {
-    finalX = nextX
-    finalY = nextY
-  } else {
-    const canMoveX =
-      Math.abs(nextX - currentX) > 0.001 &&
-      !overlapsAny(node.id, nextX, currentY, width, height)
-
-    const canMoveY =
-      Math.abs(nextY - currentY) > 0.001 &&
-      !overlapsAny(node.id, currentX, nextY, width, height)
-
-    if (canMoveX) finalX = nextX
-    if (canMoveY) finalY = nextY
-  }
-
-  const changed =
-    Math.abs(finalX - currentX) > 0.001 ||
-    Math.abs(finalY - currentY) > 0.001
-
-  if (!changed) return false
-
-  node.x = finalX
-  node.y = finalY
-
-  const nodeElement = nodeLayer.querySelector(`[data-node-id="${node.id}"]`)
-
-  if (nodeElement) {
-    nodeElement.style.left = `${node.x}px`
-    nodeElement.style.top = `${node.y}px`
-  }
-
-  // Only links need to be redrawn every frame; rebuilding every node would be wasteful.
-  renderLinks()
-  return true
-}
-
-function hasUnsavedNodePosition(nodeId = null) {
-  if (!unsavedNodePosition) return false
-  if (nodeId == null) return true
-  return Number(unsavedNodePosition.nodeId) === Number(nodeId)
-}
-
-function markNodePositionUnsaved(node, originalX, originalY) {
-  if (!node) return
-
-  if (!unsavedNodePosition) {
-    unsavedNodePosition = {
-      nodeId: Number(node.id),
-      originalX: Number(originalX),
-      originalY: Number(originalY)
-    }
-  }
-
-  if (Number(unsavedNodePosition.nodeId) !== Number(node.id)) return
-
-  updateAuthUI()
-  renderSelectedStrip()
-}
-
-function clearUnsavedNodePosition() {
-  unsavedNodePosition = null
-  positionSaveBusy = false
-  updateAuthUI()
-  renderSelectedStrip()
-}
-
-async function saveUnsavedNodePosition({ quiet = false } = {}) {
-  if (!unsavedNodePosition || positionSaveBusy) return true
-
-  const node = nodes.find(
-    (item) => Number(item.id) === Number(unsavedNodePosition.nodeId)
-  )
-
-  if (!node) {
-    clearUnsavedNodePosition()
-    return true
-  }
-
-  positionSaveBusy = true
-  updateAuthUI()
-
-  try {
-    const updated = await updateNodeGeometryRemote(node)
-
-    node.x = Number(updated.x)
-    node.y = Number(updated.y)
-    node.width = updated.width == null ? node.width : Number(updated.width)
-    node.height = updated.height == null ? node.height : Number(updated.height)
-
-    clearUnsavedNodePosition()
-    saveCachedNodes()
-    renderAll()
-    await refreshHistoryButtons()
-    return true
-  } catch (error) {
-    positionSaveBusy = false
-    updateAuthUI()
-    console.error('Manual position save failed:', error)
-
-    if (!quiet) {
-      alert(`Eroare la salvarea poziției nodului: ${error?.message || 'necunoscută'}`)
-    }
-
-    return false
-  }
-}
-
-async function confirmUnsavedPositionBeforeLeaving(nextNodeId = null) {
-  if (nextNodeId != null) return true
-
-  if (hasUnsavedLayoutChanges()) {
-    const shouldSave = window.confirm(
-      `Ai ${layoutChangeCount()} modificări de layout nesalvate.\n\n` +
-      'OK = Save layout și continuă.\n' +
-      'Cancel = rămâi aici. Poți folosi și Discard din bara Layout.'
-    )
-
-    if (!shouldSave) return false
-    return saveLayoutChanges()
-  }
-
-  if (!unsavedNodePosition) return true
+// Layout movement and resizing
+async function confirmUnsavedLayoutBeforeLeaving() {
+  if (!hasUnsavedLayoutChanges()) return true
 
   const shouldSave = window.confirm(
-    'Există o poziție locală veche nesalvată.\n\n' +
-    'OK = salvează și continuă.\n' +
-    'Cancel = rămâi aici.'
+    `Ai ${layoutChangeCount()} modificări de layout nesalvate.\n\n` +
+    'OK = Save layout și continuă.\n' +
+    'Cancel = rămâi aici. Poți folosi și Discard din bara Layout.'
   )
 
   if (!shouldSave) return false
-  return saveUnsavedNodePosition()
-}
-
-function finishKeyboardNodeMovement() {
-  if (keyboardMoveState.frameId != null) {
-    cancelAnimationFrame(keyboardMoveState.frameId)
-  }
-
-  keyboardMoveState.frameId = null
-  keyboardMoveState.keys.clear()
-
-  const nodeId = keyboardMoveState.nodeId
-  const dirty = keyboardMoveState.dirty
-  const originalX = keyboardMoveState.startX
-  const originalY = keyboardMoveState.startY
-
-  keyboardMoveState.nodeId = null
-  keyboardMoveState.startedAt = 0
-  keyboardMoveState.lastFrameAt = 0
-  keyboardMoveState.dirty = false
-
-  if (!dirty || nodeId == null) return
-
-  const node = nodes.find((item) => Number(item.id) === Number(nodeId))
-  if (!node) return
-
-  const { width, height } = nodeSize(node)
-  const roundedX = clamp(Math.round(Number(node.x)), 20, WORLD_WIDTH - width - 20)
-  const roundedY = clamp(Math.round(Number(node.y)), 20, WORLD_HEIGHT - height - 20)
-
-  if (!overlapsAny(node.id, roundedX, roundedY, width, height)) {
-    node.x = roundedX
-    node.y = roundedY
-  }
-
-  markNodePositionUnsaved(node, originalX, originalY)
-  renderAll()
-}
-
-function runKeyboardNodeMovementFrame(now) {
-  keyboardMoveState.frameId = null
-
-  if (!keyboardMoveState.keys.size || keyboardMoveState.nodeId == null) return
-
-  if (
-    !canEdit ||
-    !editorMode ||
-    isAnyModalOpen() ||
-    selectedEdge ||
-    Number(selectedId) !== Number(keyboardMoveState.nodeId)
-  ) {
-    finishKeyboardNodeMovement()
-    return
-  }
-
-  const node = nodes.find(
-    (item) => Number(item.id) === Number(keyboardMoveState.nodeId)
-  )
-
-  if (!node) {
-    finishKeyboardNodeMovement()
-    return
-  }
-
-  const dt = Math.min(
-    Math.max((now - keyboardMoveState.lastFrameAt) / 1000, 0),
-    0.05
-  )
-
-  keyboardMoveState.lastFrameAt = now
-
-  const acceleratingFor = Math.max(
-    0,
-    (now - keyboardMoveState.startedAt - WASD_ACCELERATION_DELAY_MS) / 1000
-  )
-
-  const speed = Math.min(
-    WASD_MAX_SPEED,
-    WASD_INITIAL_SPEED + WASD_ACCELERATION * acceleratingFor
-  )
-
-  const direction = keyboardMoveVector()
-
-  if (direction.x || direction.y) {
-    const moved = applyKeyboardNodeDelta(
-      node,
-      direction.x * speed * dt,
-      direction.y * speed * dt
-    )
-
-    keyboardMoveState.dirty = keyboardMoveState.dirty || moved
-  }
-
-  keyboardMoveState.frameId = requestAnimationFrame(runKeyboardNodeMovementFrame)
-}
-
-function startKeyboardNodeMovement(key) {
-  if (!canEditCurrentAtlas() || !editorMode || isAnyModalOpen() || selectedEdge) return false
-
-  const node = selectedNode()
-
-  if (!node || !canEditNode(node)) return false
-
-  const normalizedKey = String(key || '').toLowerCase()
-
-  if (!['w', 'a', 's', 'd'].includes(normalizedKey)) return false
-
-  const now = performance.now()
-
-  if (keyboardMoveState.nodeId == null) {
-    keyboardMoveState.nodeId = node.id
-    keyboardMoveState.startedAt = now
-    keyboardMoveState.lastFrameAt = now
-    keyboardMoveState.dirty = false
-    keyboardMoveState.startX = Number(node.x)
-    keyboardMoveState.startY = Number(node.y)
-  } else if (Number(keyboardMoveState.nodeId) !== Number(node.id)) {
-    finishKeyboardNodeMovement()
-    return startKeyboardNodeMovement(normalizedKey)
-  }
-
-  if (!keyboardMoveState.keys.has(normalizedKey)) {
-    keyboardMoveState.keys.add(normalizedKey)
-
-    // A quick tap should still feel like the old 12 px keyboard nudge.
-    const direction = keyboardMoveVector(new Set([normalizedKey]))
-    const moved = applyKeyboardNodeDelta(
-      node,
-      direction.x * WASD_TAP_STEP,
-      direction.y * WASD_TAP_STEP
-    )
-
-    keyboardMoveState.dirty = keyboardMoveState.dirty || moved
-  }
-
-  if (keyboardMoveState.frameId == null) {
-    keyboardMoveState.frameId = requestAnimationFrame(runKeyboardNodeMovementFrame)
-  }
-
-  return true
+  return saveLayoutChanges()
 }
 
 async function nudgeSelectedNode(dx, dy) {
@@ -12283,10 +11957,6 @@ function updateAuthUI() {
   codeManagerBtn.disabled =
     editorBlocked || !hasSelectedNode || !selectedNodeEditable
 
-  if (savePositionBtn) {
-    savePositionBtn.hidden = true
-    savePositionBtn.disabled = true
-  }
 
   renderLayoutEditorState()
 
@@ -18410,9 +18080,6 @@ async function saveNode() {
       node.x = Number(updated.x)
       node.y = Number(updated.y)
 
-      if (hasUnsavedNodePosition(node.id)) {
-        clearUnsavedNodePosition()
-      }
 
       selectedId = node.id
       clearEdgeSelection()
@@ -18428,10 +18095,7 @@ async function saveNode() {
     console.error('Save node failed FULL:', error)
     alert(`Eroare la salvare nod: ${error?.message || 'necunoscută'}`)
 
-    // Do not overwrite a local WASD position that the editor has not saved yet.
-    if (!hasUnsavedNodePosition()) {
-      await fetchAllData()
-    }
+    await fetchAllData()
   }
 }
 
@@ -18866,7 +18530,7 @@ mapSurface.addEventListener(
 // Interface event bindings
 createBtn.addEventListener('click', () => {
   ;(async () => {
-    if (!(await confirmUnsavedPositionBeforeLeaving())) return
+    if (!(await confirmUnsavedLayoutBeforeLeaving())) return
     openCreate()
   })().catch((error) => alert(error.message || 'Nodul nou nu a putut fi deschis.'))
 })
@@ -18879,7 +18543,7 @@ deleteBtn.addEventListener('click', () => {
 })
 relationBtn.addEventListener('click', () => {
   ;(async () => {
-    if (!relationMode.active && !(await confirmUnsavedPositionBeforeLeaving())) return
+    if (!relationMode.active && !(await confirmUnsavedLayoutBeforeLeaving())) return
 
     if (relationMode.active) {
       deactivateRelationMode()
@@ -18937,7 +18601,7 @@ resetViewBtn.addEventListener('click', () => {
 tutorialBtn.addEventListener('click', openTutorial)
 editorModeBtn.addEventListener('click', () => {
   ;(async () => {
-    if (editorMode && !(await confirmUnsavedPositionBeforeLeaving())) return
+    if (editorMode && !(await confirmUnsavedLayoutBeforeLeaving())) return
     setEditorMode(!editorMode)
   })().catch((error) => {
     console.error('Editor mode toggle failed:', error)
@@ -18972,11 +18636,6 @@ saveLayoutBtn?.addEventListener(
   }
 )
 
-savePositionBtn?.addEventListener('click', () => {
-  saveUnsavedNodePosition().catch((error) => {
-    console.error('Legacy position save failed:', error)
-  })
-})
 
 taxonomyManagerBtn.addEventListener('click', () => {
   openTaxonomyManager()
@@ -20251,7 +19910,7 @@ async function runHistoryActionWithUnsavedGuard(action) {
     }
   }
 
-  if (!(await confirmUnsavedPositionBeforeLeaving())) return
+  if (!(await confirmUnsavedLayoutBeforeLeaving())) return
   await action()
 }
 
@@ -20283,31 +19942,6 @@ async function refreshHistoryButtons() {
   redoBtn.disabled = !canEdit || Number(data?.redo_count || 0) === 0
 }
 
-window.addEventListener('keyup', (event) => {
-  const key = event.key.toLowerCase()
-
-  if (!['w', 'a', 's', 'd'].includes(key)) return
-  if (!keyboardMoveState.keys.has(key)) return
-
-  event.preventDefault()
-  keyboardMoveState.keys.delete(key)
-
-  if (!keyboardMoveState.keys.size) {
-    finishKeyboardNodeMovement()
-  }
-})
-
-window.addEventListener('blur', () => {
-  if (keyboardMoveState.nodeId != null) {
-    finishKeyboardNodeMovement()
-  }
-})
-
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden && keyboardMoveState.nodeId != null) {
-    finishKeyboardNodeMovement()
-  }
-})
 
 window.addEventListener('keydown', (event) => {
   const tag = document.activeElement?.tagName
@@ -20478,7 +20112,7 @@ window.addEventListener('popstate', async () => {
 })
 
 window.addEventListener('beforeunload', (event) => {
-  if (!hasUnsavedLayoutChanges() && !hasUnsavedNodePosition()) return
+  if (!hasUnsavedLayoutChanges()) return
   event.preventDefault()
   event.returnValue = ''
 })

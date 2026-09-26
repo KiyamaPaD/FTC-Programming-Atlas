@@ -7,12 +7,13 @@ import {
 } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ATLAS_RELEASE, LEGACY_I18N_RELEASE, atlasVersionedPath } from './release-meta.mjs'
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const projectRoot = join(scriptDirectory, '..')
 const outputRoot = join(projectRoot, 'www')
 
-const MOBILE_MARKER = 'data-atlas-mobile="v95"'
+const MOBILE_MARKER = `data-atlas-mobile="v${ATLAS_RELEASE}"`
 
 const rootFiles = [
   'index.html',
@@ -60,8 +61,8 @@ function injectMobileRuntime(html) {
 
   const mobileScripts = [
     atlasScript,
-    '<script type="module" src="/js/atlas-i18n.js?v=95"></script>',
-    `<script type="module" src="/js/atlas-i18n-v56.js?v=56" ${MOBILE_MARKER}></script>`
+    `<script type="module" src="${atlasVersionedPath('/js/atlas-i18n.js')}"></script>`,
+    `<script type="module" src="${atlasVersionedPath(`/js/atlas-i18n-v${LEGACY_I18N_RELEASE}.js`, LEGACY_I18N_RELEASE)}" ${MOBILE_MARKER}></script>`
   ].join('\n  ')
 
   html = html.replace(
@@ -115,7 +116,7 @@ async function buildMobileWeb() {
   )
 
   console.log('FTC Programming Atlas mobile web bundle ready: www/')
-  console.log('Included bilingual runtime: atlas-i18n v95 + v56')
+  console.log(`Included bilingual runtime: atlas-i18n v${ATLAS_RELEASE} + v${LEGACY_I18N_RELEASE}`)
 }
 
 buildMobileWeb().catch((error) => {

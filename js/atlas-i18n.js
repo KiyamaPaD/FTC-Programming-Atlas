@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v95 · Full English UI + mobile/responsive interaction redesign
+// v96 · Full English UI + mobile/responsive interaction redesign
 //
 // Source language: Romanian
 // Secondary language: English
@@ -3730,11 +3730,11 @@ function injectTranslationManagerButton() {
     return
   }
 
-  const editorToolsGrid = document.querySelector(
-    '#editorToolsSection .tools-grid'
+  const editorAdminActions = document.querySelector(
+    '#editorAdminSection .compact-grid'
   )
 
-  if (!editorToolsGrid) return
+  if (!editorAdminActions) return
 
   const button = document.createElement('button')
   button.id = 'atlasTranslationManagerBtn'
@@ -3750,7 +3750,7 @@ function injectTranslationManagerButton() {
     openTranslationManager()
   })
 
-  editorToolsGrid.appendChild(button)
+  editorAdminActions.appendChild(button)
 }
 
 function closeTranslationManager() {
