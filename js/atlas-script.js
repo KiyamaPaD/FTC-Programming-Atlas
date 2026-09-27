@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v98 · TEAM WORKSPACE + ADMIN CONTROL CENTER')
+console.log('ATLAS SCRIPT LOADED v99 · NAVIGATION REPAIR + INLINE EDITOR WORKSPACE')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -414,6 +414,7 @@ const mobileNavBtn = document.getElementById('mobileNavBtn')
 const mobileQuickBtn = document.getElementById('mobileQuickBtn')
 const mobileShellBackdrop = document.getElementById('mobileShellBackdrop')
 const publicSectionTabs = document.getElementById('publicSectionTabs')
+const teamAtlasPrimary = document.getElementById('teamAtlasPrimary')
 const publicHubPanel = document.getElementById('publicHubPanel')
 const atlasNavigationEyebrow = document.getElementById('atlasNavigationEyebrow')
 
@@ -458,6 +459,8 @@ const removeEdgePointBtn = document.getElementById('removeEdgePointBtn')
 const resetEdgePathBtn = document.getElementById('resetEdgePathBtn')
 const tutorialBtn = document.getElementById('tutorialBtn')
 const editorModeBtn = document.getElementById('editorModeBtn')
+const editorModeState = document.getElementById('editorModeState')
+const navigationEditorZone = document.querySelector('.navigation-editor-zone')
 
 const layoutEditorBar = document.getElementById('layoutEditorBar')
 const layoutEditorModeLabel = document.getElementById('layoutEditorModeLabel')
@@ -6370,6 +6373,7 @@ function renderPublicShell() {
   appRoot.dataset.publicSection = activePublicSection
   atlasNavigation?.classList.toggle('global-section', isAnnouncements)
   if (departmentSection) departmentSection.hidden = !isTeamMap
+  if (teamAtlasPrimary) teamAtlasPrimary.hidden = !currentTeamRecord()
 
   publicSectionTabs.querySelectorAll('[data-public-section]').forEach((button) => {
     const section = button.dataset.publicSection
@@ -10740,35 +10744,48 @@ async function resetSelectedNodeSize() {
 function renderEditorContext() {
   if (!editorToolsSection) return
 
-  const active = Boolean(editorMode && canEditCurrentAtlas())
+  const teamEditorActive = Boolean(editorMode && canEditCurrentAtlas())
+  const globalAnnouncementsEditorActive = Boolean(
+    editorMode && canEdit && activePublicSection === 'announcements'
+  )
+  const active = teamEditorActive || globalAnnouncementsEditorActive
   const node = selectedNode()
   const edgeInfo = selectedEdgeInfo()
-  const hasEdge = Boolean(selectedEdge && edgeInfo)
-  const hasNode = Boolean(node && !hasEdge && !relationMode.active)
+  const hasEdge = Boolean(teamEditorActive && selectedEdge && edgeInfo)
+  const hasNode = Boolean(teamEditorActive && node && !hasEdge && !relationMode.active)
+
+  if (editorPrimaryActions) {
+    editorPrimaryActions.hidden = !teamEditorActive
+  }
 
   if (editorContextMeta) {
-    editorContextMeta.textContent = relationMode.active
-      ? 'relation'
-      : layoutEditMode
-        ? 'layout'
-        : hasEdge
-          ? 'edge'
-          : hasNode
-            ? 'node'
-            : 'ready'
+    editorContextMeta.textContent = globalAnnouncementsEditorActive
+      ? 'global'
+      : relationMode.active
+        ? 'relation'
+        : layoutEditMode
+          ? 'layout'
+          : hasEdge
+            ? 'edge'
+            : hasNode
+              ? 'node'
+              : 'ready'
   }
 
   if (editorContextEmpty) {
-    editorContextEmpty.hidden = !active || hasNode || hasEdge || layoutEditMode
-    editorContextEmpty.textContent = relationMode.active
-      ? relationMode.sourceId
-        ? 'Alege destinația'
-        : 'Alege sursa'
-      : 'Nicio selecție'
+    editorContextEmpty.hidden =
+      !active || hasNode || hasEdge || (teamEditorActive && layoutEditMode)
+    editorContextEmpty.textContent = globalAnnouncementsEditorActive
+      ? 'Announcements globale'
+      : relationMode.active
+        ? relationMode.sourceId
+          ? 'Alege destinația'
+          : 'Alege sursa'
+        : 'Nicio selecție'
   }
 
   if (editorNodeContext) {
-    editorNodeContext.hidden = !active || !hasNode || layoutEditMode
+    editorNodeContext.hidden = !teamEditorActive || !hasNode || layoutEditMode
   }
 
   if (editorNodeContextTitle) {
@@ -10776,7 +10793,7 @@ function renderEditorContext() {
   }
 
   if (editorEdgeContext) {
-    editorEdgeContext.hidden = !active || !hasEdge
+    editorEdgeContext.hidden = !teamEditorActive || !hasEdge
   }
 
   if (editorEdgeContextTitle) {
@@ -10789,11 +10806,11 @@ function renderEditorContext() {
   }
 
   if (editorEdgeLayoutTools) {
-    editorEdgeLayoutTools.hidden = !active || !hasEdge || !layoutEditMode
+    editorEdgeLayoutTools.hidden = !teamEditorActive || !hasEdge || !layoutEditMode
   }
 
   if (editorHistorySection) {
-    editorHistorySection.hidden = !active || (!layoutEditMode && (!canEdit || isTeamAtlasMode()))
+    editorHistorySection.hidden = !teamEditorActive || (!layoutEditMode && (!canEdit || isTeamAtlasMode()))
   }
 
 }
@@ -10809,7 +10826,12 @@ function updateAuthUI() {
 
   const currentAtlasEditable = canEditCurrentAtlas()
   const editorAvailable = canUseEditorModeAnywhere()
-  const editorActive = currentAtlasEditable && editorMode
+  const globalAnnouncementsEditorActive = Boolean(
+    canEdit && editorMode && activePublicSection === 'announcements'
+  )
+  const editorActive = Boolean(
+    editorMode && (currentAtlasEditable || globalAnnouncementsEditorActive)
+  )
   const publicAdminEditorActive = canEdit && editorMode
   const teamTaxonomyEditorActive = Boolean(
     editorMode && isTeamAtlasMode() && canManageTeamTaxonomy()
@@ -10859,8 +10881,10 @@ function updateAuthUI() {
   const hasNodes = nodes.length > 0
 
   editorModeBtn.hidden = !editorAvailable
-  editorModeBtn.textContent = editorMode ? 'Editor ✓' : 'Editor'
+  if (navigationEditorZone) navigationEditorZone.hidden = !editorAvailable
   editorModeBtn.classList.toggle('active', editorMode && editorAvailable)
+  editorModeBtn.setAttribute('aria-pressed', editorMode && editorAvailable ? 'true' : 'false')
+  if (editorModeState) editorModeState.textContent = editorMode ? 'On' : 'Off'
 
   editorToolsSection.hidden = !editorActive
   renderEditorContext()

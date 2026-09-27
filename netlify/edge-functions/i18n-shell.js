@@ -1,4 +1,4 @@
-const ATLAS_RELEASE = 98
+const ATLAS_RELEASE = 99
 const LEGACY_I18N_RELEASE = 56
 const I18N_SCRIPT = `/js/atlas-i18n.js?v=${ATLAS_RELEASE}`
 const I18N_COVERAGE_SCRIPT = `/js/atlas-i18n-v${LEGACY_I18N_RELEASE}.js?v=${LEGACY_I18N_RELEASE}`

@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=98" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=99" />
   <style>
     :root {
       --bg: #000000;
@@ -8007,7 +8007,6 @@
     font-size: .68rem;
     line-height: 1.45;
   }
-  .team-atlas-primary .atlas-primary-tabs { display: grid; gap: 9px; }
   .team-atlas-primary-tabs {
     display: grid;
     grid-template-columns: repeat(2,minmax(0,1fr));
@@ -8018,26 +8017,6 @@
     font-size: .75rem;
     font-weight: 820;
   }
-  .team-atlas-global-row {
-    display: grid;
-    grid-template-columns: auto minmax(0,1fr);
-    align-items: center;
-    gap: 9px;
-    padding-top: 8px;
-    border-top: 1px solid rgba(255,255,255,.055);
-  }
-  .team-atlas-global-row > span {
-    color: #6f6975;
-    font-size: .56rem;
-    font-weight: 900;
-    letter-spacing: .1em;
-  }
-  .team-atlas-primary .global-primary-tab {
-    min-height: 34px;
-    font-size: .68rem;
-    text-align: left;
-  }
-
   .editor-mode-trigger {
     position: fixed;
     top: 18px;
@@ -8143,6 +8122,150 @@
     .team-admin-actions .btn { flex: 1 1 130px; }
   }
 
+  /* v99 — navigation repair + non-overlay editor workspace */
+  .atlas-navigation {
+    max-height: calc(var(--atlas-viewport-height, 100vh) - 98px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(177,76,255,.28) transparent;
+  }
+
+  .atlas-section-switcher {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 7px;
+  }
+
+  .team-atlas-primary { margin: 0; }
+
+  .announcements-nav-button {
+    width: 100%;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 11px;
+    border: 1px solid rgba(255,255,255,.065);
+    border-radius: 11px;
+    background: rgba(255,255,255,.018);
+    color: #aaa5b0;
+    font: inherit;
+    font-size: .72rem;
+    font-weight: 780;
+    text-align: left;
+    cursor: pointer;
+    transition: color 140ms ease, border-color 140ms ease, background 140ms ease;
+  }
+  .announcements-nav-button:hover {
+    color: #fff;
+    border-color: rgba(177,76,255,.25);
+    background: rgba(177,76,255,.055);
+  }
+  .announcements-nav-button.active {
+    color: #fff;
+    border-color: rgba(255,77,109,.36);
+    background: linear-gradient(135deg, rgba(177,76,255,.12), rgba(255,77,109,.075));
+  }
+  .announcements-nav-badge {
+    flex: 0 0 auto;
+    padding: 3px 6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.045);
+    color: #77717d;
+    font-size: .53rem;
+    font-weight: 900;
+    letter-spacing: .1em;
+  }
+  .announcements-nav-button.active .announcements-nav-badge {
+    color: #d8c5e2;
+    background: rgba(177,76,255,.1);
+  }
+
+  .navigation-editor-zone {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,.055);
+  }
+  .navigation-editor-zone[hidden] { display: none !important; }
+
+  .editor-mode-trigger {
+    position: static;
+    width: 100%;
+    min-height: 38px;
+    margin: 0;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    transform: none;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .editor-mode-state {
+    flex: 0 0 auto;
+    color: #77717d;
+    font-size: .58rem;
+    font-weight: 850;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .editor-mode-trigger.active .editor-mode-state { color: #d8bae8; }
+
+  .editor-dock {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    margin-top: 6px;
+    transform: none;
+    pointer-events: auto;
+  }
+  .editor-dock > .editor-tools-section:not([hidden]) {
+    max-height: none;
+    overflow: visible;
+    border: 1px solid rgba(177,76,255,.13);
+    border-radius: 11px;
+    background: rgba(255,255,255,.018);
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .app.public-section-open .atlas-navigation {
+    max-height: calc(var(--atlas-viewport-height, 100vh) - 98px);
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .atlas-navigation {
+      max-height: none;
+    }
+    .navigation-editor-zone {
+      margin-top: 7px;
+      padding-top: 7px;
+    }
+    .editor-mode-trigger {
+      min-height: 44px;
+      padding: 9px 11px;
+    }
+    .editor-dock {
+      position: static;
+      left: auto;
+      right: auto;
+      top: auto;
+      bottom: auto;
+      width: 100%;
+      min-width: 0;
+      margin-top: 6px;
+      transform: none;
+    }
+    .editor-dock > .editor-tools-section:not([hidden]) {
+      max-height: none;
+      overflow: visible;
+      border-radius: 11px;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -8193,33 +8316,25 @@
       hidden
     ></button>
 
-    <button
-      class="editor-mode-trigger topbar-editor-btn"
-      id="editorModeBtn"
-      type="button"
-      hidden
-      aria-controls="editorDock"
-    >Editor</button>
-
     <nav class="atlas-navigation" id="atlasNavigation" aria-label="Navigare Atlas">
-      <section class="team-atlas-primary" id="teamAtlasPrimary">
-        <div class="team-atlas-primary-head">
-          <span>TEAM ATLAS</span>
-          <strong>Documentația echipei</strong>
-          <p>Explorează harta și traseele de învățare ale echipei.</p>
-        </div>
-
-        <div class="atlas-primary-tabs" id="publicSectionTabs" role="tablist" aria-label="Navigare principală">
+      <div class="atlas-section-switcher" id="publicSectionTabs" role="tablist" aria-label="Navigare principală">
+        <section class="team-atlas-primary" id="teamAtlasPrimary">
+          <div class="team-atlas-primary-head">
+            <span>TEAM ATLAS</span>
+            <strong>Documentația echipei</strong>
+            <p>Harta și traseele de lucru ale echipei.</p>
+          </div>
           <div class="team-atlas-primary-tabs">
             <button class="atlas-primary-tab team-primary-tab active" type="button" role="tab" data-public-section="team">Explore</button>
             <button class="atlas-primary-tab team-primary-tab" type="button" role="tab" data-public-section="team-roadmaps">Roadmaps</button>
           </div>
-          <div class="team-atlas-global-row">
-            <span>GLOBAL</span>
-            <button class="atlas-primary-tab global-primary-tab" type="button" role="tab" data-public-section="announcements">Announcements</button>
-          </div>
-        </div>
-      </section>
+        </section>
+
+        <button class="announcements-nav-button" type="button" role="tab" data-public-section="announcements">
+          <span>Announcements</span>
+          <span class="announcements-nav-badge">GLOBAL</span>
+        </button>
+      </div>
 
       <details class="ui-collapse nav-collapse" data-ui-section="departments" open>
         <summary>
@@ -8235,6 +8350,107 @@
         </div>
       </details>
 
+      <div class="navigation-editor-zone" hidden>
+        <button
+          class="editor-mode-trigger topbar-editor-btn"
+          id="editorModeBtn"
+          type="button"
+          hidden
+          aria-controls="editorDock"
+        >
+          <span>Editor Mode</span>
+          <span class="editor-mode-state" id="editorModeState">Off</span>
+        </button>
+        <aside class="editor-dock" id="editorDock">
+      <details class="ui-collapse tool-collapse editor-tools-section" id="editorToolsSection" data-ui-section="editor" hidden open>
+            <summary>
+              <span>Editor</span>
+              <span class="ui-collapse-meta" id="editorContextMeta">context</span>
+            </summary>
+            <div class="ui-collapse-body editor-ui-body">
+              <div class="editor-primary-actions" id="editorPrimaryActions">
+                <button class="btn primary" id="createBtn">+ Nod</button>
+                <button class="btn" id="relationBtn">+ Relație</button>
+                <button class="btn" id="layoutEditModeBtn" type="button">Layout</button>
+              </div>
+
+              <div class="editor-context-card editor-context-empty" id="editorContextEmpty">
+                <span>Nicio selecție</span>
+              </div>
+
+              <div class="editor-context-card" id="editorNodeContext" hidden>
+                <div class="editor-context-head">
+                  <span>Nod selectat</span>
+                  <strong id="editorNodeContextTitle">—</strong>
+                </div>
+                <div class="editor-context-actions">
+                  <button class="btn primary" id="editBtn">Editează</button>
+                  <details class="editor-context-menu">
+                    <summary aria-label="Mai multe acțiuni">•••</summary>
+                    <div class="editor-context-menu-list">
+                      <button class="btn" id="mediaManagerBtn" type="button">Media</button>
+                      <button class="btn" id="fileManagerBtn" type="button">Fișiere</button>
+                      <button class="btn" id="codeManagerBtn" type="button">Cod</button>
+                      <button class="btn danger" id="deleteBtn">Șterge</button>
+                    </div>
+                  </details>
+                </div>
+              </div>
+
+              <div class="editor-context-card" id="editorEdgeContext" hidden>
+                <div class="editor-context-head">
+                  <span>Relație selectată</span>
+                  <strong id="editorEdgeContextTitle">—</strong>
+                </div>
+                <div class="btn-row">
+                  <button class="btn" id="editEdgeBtn">Editează</button>
+                  <button class="btn danger" id="deleteEdgeBtn">Șterge</button>
+                </div>
+                <div class="editor-edge-layout-tools" id="editorEdgeLayoutTools" hidden>
+                  <div class="btn-row three">
+                    <button class="btn" id="addEdgePointBtn" type="button">+ Punct</button>
+                    <button class="btn" id="removeEdgePointBtn" type="button">− Punct</button>
+                    <button class="btn" id="resetEdgePathBtn" type="button">Auto</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="layout-editor-bar" id="layoutEditorBar" hidden>
+                <div class="layout-editor-copy">
+                  <strong id="layoutEditorModeLabel">LAYOUT</strong>
+                  <span id="layoutEditorStatus">Editare activă</span>
+                </div>
+                <div class="layout-editor-actions">
+                  <span class="layout-unsaved-count" id="layoutUnsavedCount">0 changes</span>
+                  <button class="btn" id="discardLayoutBtn" type="button" disabled>Discard</button>
+                  <button class="btn primary" id="saveLayoutBtn" type="button" disabled>Save</button>
+                </div>
+              </div>
+
+              <details class="ui-collapse nested-collapse editor-history-section" id="editorHistorySection">
+                <summary><span>Istoric</span><span class="ui-collapse-meta">undo · redo</span></summary>
+                <div class="ui-collapse-body">
+                  <div class="btn-row editor-history-row" id="editorHistoryRow">
+                    <button class="btn" id="undoBtn">Undo</button>
+                    <button class="btn" id="redoBtn">Redo</button>
+                  </div>
+                </div>
+              </details>
+
+              <details class="ui-collapse nested-collapse" id="editorAdminSection" data-ui-section="editor-manage">
+                <summary><span>Administrare</span><span class="ui-collapse-meta">advanced</span></summary>
+                <div class="ui-collapse-body compact-grid">
+                  <button class="btn" id="taxonomyManagerBtn" type="button">Taxonomy</button>
+                  <button class="btn" id="publicContentManagerBtn" type="button">Announcements</button>
+                  <button class="btn" id="roadmapManagerBtn" type="button">Roadmaps</button>
+                  <button class="btn" id="teamSetupBtn" type="button">Teams & access</button>
+                </div>
+              </details>
+            </div>
+          </details>
+        </aside>
+
+      </div>
     </nav>
 
     <main class="map-surface" id="mapSurface">
@@ -8384,95 +8600,6 @@
           </details>
         </div>
       </div>
-    </aside>
-
-    <aside class="editor-dock" id="editorDock">
-      <details class="ui-collapse tool-collapse editor-tools-section" id="editorToolsSection" data-ui-section="editor" hidden open>
-            <summary>
-              <span>Editor</span>
-              <span class="ui-collapse-meta" id="editorContextMeta">context</span>
-            </summary>
-            <div class="ui-collapse-body editor-ui-body">
-              <div class="editor-primary-actions" id="editorPrimaryActions">
-                <button class="btn primary" id="createBtn">+ Nod</button>
-                <button class="btn" id="relationBtn">+ Relație</button>
-                <button class="btn" id="layoutEditModeBtn" type="button">Layout</button>
-              </div>
-
-              <div class="editor-context-card editor-context-empty" id="editorContextEmpty">
-                <span>Nicio selecție</span>
-              </div>
-
-              <div class="editor-context-card" id="editorNodeContext" hidden>
-                <div class="editor-context-head">
-                  <span>Nod selectat</span>
-                  <strong id="editorNodeContextTitle">—</strong>
-                </div>
-                <div class="editor-context-actions">
-                  <button class="btn primary" id="editBtn">Editează</button>
-                  <details class="editor-context-menu">
-                    <summary aria-label="Mai multe acțiuni">•••</summary>
-                    <div class="editor-context-menu-list">
-                      <button class="btn" id="mediaManagerBtn" type="button">Media</button>
-                      <button class="btn" id="fileManagerBtn" type="button">Fișiere</button>
-                      <button class="btn" id="codeManagerBtn" type="button">Cod</button>
-                      <button class="btn danger" id="deleteBtn">Șterge</button>
-                    </div>
-                  </details>
-                </div>
-              </div>
-
-              <div class="editor-context-card" id="editorEdgeContext" hidden>
-                <div class="editor-context-head">
-                  <span>Relație selectată</span>
-                  <strong id="editorEdgeContextTitle">—</strong>
-                </div>
-                <div class="btn-row">
-                  <button class="btn" id="editEdgeBtn">Editează</button>
-                  <button class="btn danger" id="deleteEdgeBtn">Șterge</button>
-                </div>
-                <div class="editor-edge-layout-tools" id="editorEdgeLayoutTools" hidden>
-                  <div class="btn-row three">
-                    <button class="btn" id="addEdgePointBtn" type="button">+ Punct</button>
-                    <button class="btn" id="removeEdgePointBtn" type="button">− Punct</button>
-                    <button class="btn" id="resetEdgePathBtn" type="button">Auto</button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="layout-editor-bar" id="layoutEditorBar" hidden>
-                <div class="layout-editor-copy">
-                  <strong id="layoutEditorModeLabel">LAYOUT</strong>
-                  <span id="layoutEditorStatus">Editare activă</span>
-                </div>
-                <div class="layout-editor-actions">
-                  <span class="layout-unsaved-count" id="layoutUnsavedCount">0 changes</span>
-                  <button class="btn" id="discardLayoutBtn" type="button" disabled>Discard</button>
-                  <button class="btn primary" id="saveLayoutBtn" type="button" disabled>Save</button>
-                </div>
-              </div>
-
-              <details class="ui-collapse nested-collapse editor-history-section" id="editorHistorySection">
-                <summary><span>Istoric</span><span class="ui-collapse-meta">undo · redo</span></summary>
-                <div class="ui-collapse-body">
-                  <div class="btn-row editor-history-row" id="editorHistoryRow">
-                    <button class="btn" id="undoBtn">Undo</button>
-                    <button class="btn" id="redoBtn">Redo</button>
-                  </div>
-                </div>
-              </details>
-
-              <details class="ui-collapse nested-collapse" id="editorAdminSection" data-ui-section="editor-manage">
-                <summary><span>Administrare</span><span class="ui-collapse-meta">advanced</span></summary>
-                <div class="ui-collapse-body compact-grid">
-                  <button class="btn" id="taxonomyManagerBtn" type="button">Taxonomy</button>
-                  <button class="btn" id="publicContentManagerBtn" type="button">Announcements</button>
-                  <button class="btn" id="roadmapManagerBtn" type="button">Roadmaps</button>
-                  <button class="btn" id="teamSetupBtn" type="button">Teams & access</button>
-                </div>
-              </details>
-            </div>
-          </details>
     </aside>
 
     <section class="detail-panel" id="detailPanel"></section>
@@ -9695,6 +9822,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=98"></script>
+  <script type="module" src="/js/atlas-script.js?v=99"></script>
 </body>
 </html>

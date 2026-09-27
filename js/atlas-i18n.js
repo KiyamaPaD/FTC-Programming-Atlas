@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v98 · Full English UI + team workspace/admin polish
+// v99 · Full English UI + navigation repair/editor workspace
 //
 // Source language: Romanian
 // Secondary language: English
@@ -416,6 +416,12 @@ const UI_EN = new Map(Object.entries({
     'Team documentation',
   'Explorează harta și traseele de învățare ale echipei.':
     "Explore the team's map and learning paths.",
+  'Harta și traseele de lucru ale echipei.':
+    "The team's map and working paths.",
+  'Announcements globale':
+    'Global announcements',
+  'Editor Mode':
+    'Editor Mode',
   'Teams & access':
     'Teams & access',
   'Administrează echipele, accesul și Atlasul activ.':

@@ -184,10 +184,28 @@ async function main() {
   assert(
     index.includes('id="teamAtlasPrimary"') &&
       index.includes('class="team-atlas-primary-tabs"') &&
+      index.includes('class="announcements-nav-button"') &&
+      index.includes('class="atlas-section-switcher"') &&
       index.includes('id="teamAdminBackdrop"') &&
       index.includes('id="teamAdminList"') &&
       index.includes('Teams & access'),
-    'v98 Team Atlas hierarchy / team control center is missing'
+    'v99 Team Atlas / global navigation hierarchy is missing'
+  )
+  assert(
+    !index.includes('team-atlas-global-row') &&
+      !index.includes('global-primary-tab') &&
+      appScript.includes('teamAtlasPrimary.hidden = !currentTeamRecord()'),
+    'legacy/broken Global tab layout is still present'
+  )
+  const navStart = index.indexOf('id="atlasNavigation"')
+  const navEnd = index.indexOf('</nav>', navStart)
+  const editorTrigger = index.indexOf('id="editorModeBtn"')
+  assert(
+    navStart >= 0 && navEnd > navStart && editorTrigger > navStart && editorTrigger < navEnd &&
+      index.includes('class="navigation-editor-zone"') &&
+      index.includes('id="editorModeState"') &&
+      index.includes('.editor-mode-trigger {\n    position: static;'),
+    'Editor Mode is not embedded in the navigation workspace'
   )
   assert(
     !index.includes('id="teamAtlasTaxonomyBtn"') &&
@@ -203,12 +221,18 @@ async function main() {
       appScript.includes('data-team-admin-settings') &&
       appScript.includes('data-team-admin-members') &&
       appScript.includes("currentUser && (canEdit || canManageCurrentTeam())"),
-    'v98 team administration runtime is missing'
+    'team administration runtime is missing'
+  )
+  assert(
+    appScript.includes("editorMode && canEdit && activePublicSection === 'announcements'") &&
+      appScript.includes("editorPrimaryActions.hidden = !teamEditorActive") &&
+      appScript.includes("editorContextEmpty.textContent = globalAnnouncementsEditorActive"),
+    'Global announcements editor context is missing or exposes team node controls'
   )
   assert(
     appScript.includes('1. Team Atlas\n\nAtlasul este documentația internă a echipei.') &&
       appScript.includes("modalTitle.textContent = 'Cum folosești Atlasul'"),
-    'v98 tutorial is missing or stale'
+    'team-first tutorial is missing or stale'
   )
 
   assert(
