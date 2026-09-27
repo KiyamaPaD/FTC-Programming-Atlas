@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v102 · COLLAPSIBLE NAV + I18N + VIEW PERSISTENCE')
+console.log('ATLAS SCRIPT LOADED v103 · FULL NAV COLLAPSE + I18N COMPLETION')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -43,7 +43,8 @@ const CACHE_KEYS = {
   pendingTeamRoute: 'ftc_atlas_pending_team_route_v1',
   recentDocs: 'ftc_atlas_recent_docs_v1',
   localBookmarks: 'ftc_atlas_local_bookmarks_v1',
-  uiSections: 'ftc_atlas_ui_sections_v1'
+  uiSections: 'ftc_atlas_ui_sections_v1',
+  navigationRail: 'ftc_atlas_navigation_rail_v1'
 }
 
 const initialTeamInviteToken = new URLSearchParams(window.location.search).get('teamInvite')
@@ -419,6 +420,7 @@ let panState = null
 // Frequently used DOM references
 const appRoot = document.querySelector('.app')
 const atlasNavigation = document.getElementById('atlasNavigation')
+const navigationRailCollapseBtn = document.getElementById('navigationRailCollapseBtn')
 const mobileNavBtn = document.getElementById('mobileNavBtn')
 const mobileQuickBtn = document.getElementById('mobileQuickBtn')
 const mobileShellBackdrop = document.getElementById('mobileShellBackdrop')
@@ -736,6 +738,28 @@ function initializeUICollapsibles() {
   })
 }
 
+function setNavigationRailCollapsed(collapsed, { persist = true } = {}) {
+  if (!atlasNavigation || !navigationRailCollapseBtn) return
+
+  const next = Boolean(collapsed)
+  atlasNavigation.classList.toggle('rail-collapsed', next)
+  navigationRailCollapseBtn.textContent = next ? '+' : '–'
+  navigationRailCollapseBtn.setAttribute('aria-expanded', next ? 'false' : 'true')
+  navigationRailCollapseBtn.setAttribute(
+    'aria-label',
+    next ? 'Arată navigarea' : 'Ascunde navigarea'
+  )
+
+  if (persist) {
+    localStorage.setItem(CACHE_KEYS.navigationRail, next ? '1' : '0')
+  }
+}
+
+function initializeNavigationRailCollapse() {
+  const collapsed = localStorage.getItem(CACHE_KEYS.navigationRail) === '1'
+  setNavigationRailCollapsed(collapsed, { persist: false })
+}
+
 function openUICollapseSection(key) {
   const section = uiCollapsibles.find(
     (item) => item.dataset.uiSection === key
@@ -797,6 +821,7 @@ function closeMobileChrome({ collapsePanel = true } = {}) {
 }
 
 initializeUICollapsibles()
+initializeNavigationRailCollapse()
 
 if (authOtpRow) {
   authOtpRow.hidden = !nativeAtlasApp
@@ -2392,7 +2417,7 @@ function teamRoadmapManagerButton() {
         type="button"
         data-open-team-roadmap-manager
       >
-        Manage team roadmaps
+        Administrează roadmap-urile
       </button>
     </div>
   `
@@ -2405,14 +2430,14 @@ function renderTeamRoadmapCards() {
     return `
       <div class="roadmap-list">
         <article class="public-hub-card wide">
-          <span class="public-hub-card-label">Team roadmaps</span>
-          <h3>Niciun roadmap privat în acest departament.</h3>
+          <span class="public-hub-card-label">Roadmap-uri echipă</span>
+          <h3>Niciun roadmap în acest departament.</h3>
           <p>
-            Sunt trasee recomandate prin documentația internă, nu task-uri.
+            Sunt trasee recomandate prin documentația echipei, nu task-uri.
             Nu au deadline-uri și nu blochează niciun nod.
           </p>
           <div class="public-hub-empty">
-            Toată documentația rămâne accesibilă direct din hartă și Index.
+            Toată documentația rămâne accesibilă direct din hartă.
           </div>
         </article>
       </div>
@@ -2433,7 +2458,7 @@ function renderTeamRoadmapCards() {
                   <span class="roadmap-card-label">${escapeHtmlText(
                     department?.short_name ||
                       department?.name ||
-                      'Team roadmap'
+                      'Roadmap echipă'
                   )}</span>
 
                   <h2>${escapeHtmlText(roadmap.title)}</h2>
@@ -2448,7 +2473,7 @@ function renderTeamRoadmapCards() {
                 </div>
 
                 <span class="roadmap-progress-copy">
-                  ${stats.completed} / ${stats.total} completed
+                  ${stats.completed} / ${stats.total} finalizate
                 </span>
               </div>
 
@@ -2518,7 +2543,7 @@ function renderTeamRoadmapCards() {
 
                           ${
                             step.isOptional
-                              ? '<span class="roadmap-step-optional">Optional</span>'
+                              ? '<span class="roadmap-step-optional">Opțional</span>'
                               : ''
                           }
 
@@ -2541,7 +2566,7 @@ function renderTeamRoadmapCards() {
               </div>
 
               <div class="roadmap-card-foot">
-                <p>Progres personal · zero locks · documentația rămâne liberă.</p>
+                <p>Progres personal · fără blocări · documentația rămâne liberă.</p>
                 <p>${stats.percent}%</p>
               </div>
             </article>
@@ -2710,7 +2735,7 @@ function renderRoadmapCards() {
                 </div>
 
                 <span class="roadmap-progress-copy">
-                  ${stats.completed} / ${stats.total} completed
+                  ${stats.completed} / ${stats.total} finalizate
                 </span>
               </div>
 
@@ -2754,7 +2779,7 @@ function renderRoadmapCards() {
 
                           ${
                             step.isOptional
-                              ? '<span class="roadmap-step-optional">Optional</span>'
+                              ? '<span class="roadmap-step-optional">Opțional</span>'
                               : ''
                           }
 
@@ -4777,7 +4802,7 @@ function teamOnboardingProfile(role) {
       ]
     },
     department_coordinator: {
-      title: 'Department Coordinator',
+      title: 'Coordonator departament',
       intro:
         'Întreții documentația pentru unul sau mai multe departamente din Team Atlas.',
       steps: [
@@ -4815,7 +4840,7 @@ function teamOnboardingProfile(role) {
       ]
     },
     team_member: {
-      title: 'Team Member',
+      title: 'Membru',
       intro:
         'Team Atlas îți oferă documentația internă a echipei și departamentele relevante pentru tine.',
       steps: [
@@ -5993,7 +6018,7 @@ function rolePreviewCapabilityProfile(role) {
       ]
     },
     department_coordinator: {
-      title: 'Department Coordinator',
+      title: 'Coordonator departament',
       items: [
         'Poate edita noduri, relații, layout și roadmap-uri doar în departamentul simulat.',
         'Nu poate administra Taxonomy, Team Settings sau Members.',
@@ -6001,7 +6026,7 @@ function rolePreviewCapabilityProfile(role) {
       ]
     },
     team_member: {
-      title: 'Team Member',
+      title: 'Membru',
       items: [
         'Poate citi documentația, folosi roadmap-uri și biblioteca personală.',
         'Nu poate activa Editor Mode și nu poate modifica noduri sau administrare.',
@@ -18575,6 +18600,10 @@ function togglePanel(force, { persist = true } = {}) {
   syncMobileChrome()
 }
 
+navigationRailCollapseBtn?.addEventListener('click', () => {
+  setNavigationRailCollapsed(!atlasNavigation?.classList.contains('rail-collapsed'))
+})
+
 mobileNavBtn?.addEventListener('click', () => {
   setMobileNavigationOpen(!mobileNavigationOpen)
 })
@@ -18595,6 +18624,7 @@ atlasNavigation?.addEventListener('click', (event) => {
     ? event.target.closest('button, a')
     : null
   if (!action) return
+  if (action.id === 'navigationRailCollapseBtn') return
 
   requestAnimationFrame(() => setMobileNavigationOpen(false))
 })

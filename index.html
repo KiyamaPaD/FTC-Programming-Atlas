@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=102" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=103" />
   <style>
     :root {
       --bg: #000000;
@@ -8392,6 +8392,71 @@
   .navigation-editor-body { display: grid; gap: 7px; }
   .navigation-editor-zone:not([open]) .editor-dock { display: none; }
   .navigation-editor-zone:not([open]) .editor-mode-trigger { display: none; }
+
+  /* v103 — whole navigation rail can collapse like Quick Panel */
+  .navigation-rail-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 30px;
+    margin: -2px -2px 8px;
+    padding: 0 2px 7px;
+    border-bottom: 1px solid rgba(255,255,255,.055);
+  }
+  .navigation-rail-head > span {
+    color: #77717d;
+    font-size: .58rem;
+    font-weight: 850;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .navigation-rail-toggle {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border: 1px solid rgba(177,76,255,.14);
+    border-radius: 9px;
+    background: rgba(255,255,255,.025);
+    color: #a39ca8;
+    font: inherit;
+    font-size: .9rem;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .navigation-rail-toggle:hover {
+    color: #fff;
+    border-color: rgba(177,76,255,.3);
+    background: rgba(177,76,255,.07);
+  }
+  .atlas-navigation.rail-collapsed {
+    width: 48px;
+    min-width: 48px;
+    max-height: 50px;
+    padding: 8px;
+    overflow: hidden;
+  }
+  .atlas-navigation.rail-collapsed .navigation-rail-head {
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border-bottom: 0;
+  }
+  .atlas-navigation.rail-collapsed .navigation-rail-head > span { display: none; }
+  .atlas-navigation.rail-collapsed > :not(.navigation-rail-head) { display: none !important; }
+  .atlas-navigation.rail-collapsed + .map-surface + .public-hub-panel { left: 88px; }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .atlas-navigation.rail-collapsed {
+      width: 50px;
+      right: auto;
+      max-height: 52px;
+    }
+    .atlas-navigation.rail-collapsed + .map-surface + .public-hub-panel { left: 8px; }
+  }
 </style>
 </head>
 <body>
@@ -8443,6 +8508,16 @@
     ></button>
 
     <nav class="atlas-navigation" id="atlasNavigation" aria-label="Navigare Atlas">
+      <div class="navigation-rail-head">
+        <span>Navigare</span>
+        <button
+          class="navigation-rail-toggle"
+          id="navigationRailCollapseBtn"
+          type="button"
+          aria-label="Ascunde navigarea"
+          aria-expanded="true"
+        >–</button>
+      </div>
       <div class="atlas-section-switcher" id="publicSectionTabs" role="tablist" aria-label="Navigare principală">
         <details class="team-atlas-primary" id="teamAtlasPrimary" data-ui-section="team-atlas" open>
           <summary class="team-atlas-primary-summary">
@@ -9996,6 +10071,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=102"></script>
+  <script type="module" src="/js/atlas-script.js?v=103"></script>
 </body>
 </html>

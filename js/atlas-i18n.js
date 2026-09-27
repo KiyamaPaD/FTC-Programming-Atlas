@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v102 · collapsible navigation + full admin i18n + view persistence
+// v103 · full navigation collapse + roadmap/team admin/role-preview i18n
 //
 // Source language: Romanian
 // Secondary language: English
@@ -1216,6 +1216,34 @@ function translateRuntimeText(value) {
 
   let match
 
+  match = text.match(/^Atlas activ\s*·\s*(.+)$/i)
+  if (match) return `Active Atlas · ${match[1]}`
+
+  match = text.match(/^Preview\s*·\s*(Membru|Coordonator departament|Team Leader|Mentor)(.*)$/i)
+  if (match) {
+    const roleLabels = {
+      'membru': 'Member',
+      'coordonator departament': 'Department Coordinator',
+      'team leader': 'Team Leader',
+      'mentor': 'Mentor'
+    }
+    return `Role preview · ${roleLabels[match[1].toLowerCase()] || match[1]}${match[2]}`
+  }
+
+  match = text.match(/^·\s*(Membru|Coordonator departament|Team Leader|Mentor)$/i)
+  if (match) {
+    const roleLabels = {
+      'membru': 'Member',
+      'coordonator departament': 'Department Coordinator',
+      'team leader': 'Team Leader',
+      'mentor': 'Mentor'
+    }
+    return `· ${roleLabels[match[1].toLowerCase()] || match[1]}`
+  }
+
+  match = text.match(/^(\d+)\s*\/\s*(\d+)\s+finalizate$/i)
+  if (match) return `${match[1]} / ${match[2]} completed`
+
   match = text.match(/^Echipe și acces\s*·\s*(\d+)$/i)
   if (match) return `Teams & access · ${match[1]}`
 
@@ -1225,8 +1253,8 @@ function translateRuntimeText(value) {
   match = text.match(/^(\d+)\s+roadmap-uri\s*·\s*(\d+)\s+active$/i)
   if (match) return `${match[1]} roadmaps · ${match[2]} active`
 
-  match = text.match(/^(\d+)\s+roadmap-uri$/i)
-  if (match) return `${match[1]} roadmaps`
+  match = text.match(/^·?\s*(\d+)\s+roadmap-uri$/i)
+  if (match) return `${text.startsWith('·') ? '· ' : ''}${match[1]} roadmaps`
 
   match = text.match(/^(\d+)\s+pași$/i)
   if (match) return `${match[1]} ${pluralizeEnglish(Number(match[1]), 'step')}`
@@ -1237,11 +1265,11 @@ function translateRuntimeText(value) {
   match = text.match(/^·\s*(\d+)\s+invitații în așteptare$/i)
   if (match) return `· ${match[1]} pending ${pluralizeEnglish(Number(match[1]), 'invite')}`
 
-  match = text.match(/^(\d+)\s+membri$/i)
-  if (match) return `${match[1]} ${pluralizeEnglish(Number(match[1]), 'member')}`
+  match = text.match(/^·?\s*(\d+)\s+membri$/i)
+  if (match) return `${text.startsWith('·') ? '· ' : ''}${match[1]} ${pluralizeEnglish(Number(match[1]), 'member')}`
 
-  match = text.match(/^(\d+)\s+departamente$/i)
-  if (match) return `${match[1]} ${pluralizeEnglish(Number(match[1]), 'department')}`
+  match = text.match(/^·?\s*(\d+)\s+departamente$/i)
+  if (match) return `${text.startsWith('·') ? '· ' : ''}${match[1]} ${pluralizeEnglish(Number(match[1]), 'department')}`
 
   match = text.match(/^(\d+)\s+în așteptare$/i)
   if (match) return `${match[1]} pending`
@@ -1290,10 +1318,10 @@ function translateRuntimeText(value) {
     return `${tags} ${pluralizeEnglish(tags, 'tag')} · ${relations} ${pluralizeEnglish(relations, 'relation')}`
   }
 
-  match = text.match(/^(\d+)\s+(nod|noduri)$/i)
+  match = text.match(/^·?\s*(\d+)\s+(nod|noduri)$/i)
   if (match) {
     const count = Number(match[1])
-    return `${count} ${pluralizeEnglish(count, 'node')}`
+    return `${text.startsWith('·') ? '· ' : ''}${count} ${pluralizeEnglish(count, 'node')}`
   }
 
   match = text.match(/^(\d+)\s+(fișier|fișiere)$/i)
@@ -1867,6 +1895,45 @@ function installEnglishDialogTranslation() {
   ['Ex: Alex', 'Example: Alex'],
   ['Ex: Localization Basics', 'Example: Localization Basics']
 ].forEach(([source, target]) => ATTRIBUTE_EN.set(source, target))
+
+// v103 · remaining Team Roadmaps / Team Admin / Role Preview bilingual coverage.
+;[
+  ['Navigare', 'Navigation'],
+  ['Arată navigarea', 'Show navigation'],
+  ['Ascunde navigarea', 'Hide navigation'],
+  ['Parcursuri recomandate prin documentația echipei.', "Recommended paths through your team's documentation."],
+  ['Administrează roadmap-urile', 'Manage roadmaps'],
+  ['Roadmap-uri echipă', 'Team roadmaps'],
+  ['Roadmap echipă', 'Team roadmap'],
+  ['Niciun roadmap în acest departament.', 'No roadmap in this department yet.'],
+  ['Sunt trasee recomandate prin documentația echipei, nu task-uri. Nu au deadline-uri și nu blochează niciun nod.', "They are recommended paths through the team's documentation, not tasks. They have no deadlines and do not lock any node."],
+  ['Toată documentația rămâne accesibilă direct din hartă.', 'All documentation remains directly accessible from the map.'],
+  ['Progres personal · fără blocări · documentația rămâne liberă.', 'Personal progress · no locks · documentation stays open.'],
+  ['Atlas activ', 'Active Atlas'],
+  ['ATLAS ACTIV', 'ACTIVE ATLAS'],
+  ['Vezi ca rol', 'View as role'],
+  ['Simulează interfața și permisiunile pe Atlasul activ.', 'Simulate the interface and permissions on the active Atlas.'],
+  ['Departament simulat', 'Simulated department'],
+  ['Coordonator departament', 'Department Coordinator'],
+  ['Membru', 'Member'],
+  ['Pornește preview', 'Start preview'],
+  ['Ieși din preview', 'Exit preview'],
+  ['Poate edita noduri, relații, layout și roadmap-uri în toate departamentele echipei.', 'Can edit nodes, relationships, layout, and roadmaps across all team departments.'],
+  ['Poate administra Taxonomy, Team Settings, Members și invitațiile echipei.', 'Can manage Taxonomy, Team Settings, Members, and team invitations.'],
+  ['Nu poate vedea sau schimba alte echipe ca Platform Admin.', 'Cannot view or switch to other teams like a Platform Admin.'],
+  ['Poate edita documentația și layout-ul în toate departamentele echipei.', 'Can edit documentation and layout across all team departments.'],
+  ['Poate administra Taxonomy și roadmap-uri.', 'Can manage Taxonomy and roadmaps.'],
+  ['Nu poate schimba echipa activă și nu primește administrarea membrilor ca Platform Admin.', 'Cannot switch the active team and does not get Platform Admin member management.'],
+  ['Poate edita noduri, relații, layout și roadmap-uri doar în departamentul simulat.', 'Can edit nodes, relationships, layout, and roadmaps only in the simulated department.'],
+  ['Nu poate administra Taxonomy, Team Settings sau Members.', 'Cannot manage Taxonomy, Team Settings, or Members.'],
+  ['Vede numai zona echipei și departamentul la care are acces.', 'Can see only the team area and the department they can access.'],
+  ['Poate citi documentația, folosi roadmap-uri și biblioteca personală.', 'Can read documentation, use roadmaps, and use the personal library.'],
+  ['Nu poate activa Editor Mode și nu poate modifica noduri sau administrare.', 'Cannot enable Editor Mode or modify nodes or administration.'],
+  ['Vede numai echipa sa și departamentul simulat.', 'Can see only their team and the simulated department.']
+].forEach(([source, target]) => UI_EN.set(source, target))
+
+ATTRIBUTE_EN.set('Arată navigarea', 'Show navigation')
+ATTRIBUTE_EN.set('Ascunde navigarea', 'Hide navigation')
 
 const CONTENT_SKIP_SELECTOR = [
   'script',

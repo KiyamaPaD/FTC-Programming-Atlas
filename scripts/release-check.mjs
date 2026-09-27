@@ -331,6 +331,30 @@ async function main() {
   )
 
   assert(
+    index.includes('id="navigationRailCollapseBtn"') &&
+      index.includes('.atlas-navigation.rail-collapsed') &&
+      appScript.includes("navigationRail: 'ftc_atlas_navigation_rail_v1'") &&
+      appScript.includes('function setNavigationRailCollapsed(') &&
+      appScript.includes('initializeNavigationRailCollapse()'),
+    'v103 whole navigation rail collapse is missing'
+  )
+  assert(
+    i18n.includes('Niciun roadmap în acest departament.') &&
+      i18n.includes('Toată documentația rămâne accesibilă direct din hartă.') &&
+      i18n.includes('Progres personal · fără blocări · documentația rămâne liberă.') &&
+      !appScript.includes('hartă și Index'),
+    'v103 Team Roadmaps bilingual cleanup is incomplete'
+  )
+  assert(
+    i18n.includes('Active Atlas · ${match[1]}') &&
+      i18n.includes('Role preview · ${roleLabels[match[1].toLowerCase()] || match[1]}${match[2]}') &&
+      i18n.includes("/^·?\\s*(\\d+)\\s+roadmap-uri$/i") &&
+      i18n.includes("/^·?\\s*(\\d+)\\s+membri$/i") &&
+      i18n.includes("/^·?\\s*(\\d+)\\s+departamente$/i"),
+    'v103 Team Admin / Role Preview dynamic i18n is incomplete'
+  )
+
+  assert(
     mobileBuilder.includes('ATLAS_RELEASE') &&
       mobileBuilder.includes("atlasVersionedPath('/js/atlas-i18n.js')") &&
       mobileBuilder.includes('data-atlas-mobile="v${ATLAS_RELEASE}"'),
