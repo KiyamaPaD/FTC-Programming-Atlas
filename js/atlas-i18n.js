@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v97 · Full English UI + team-first product simplification
+// v98 · Full English UI + team workspace/admin polish
 //
 // Source language: Romanian
 // Secondary language: English
@@ -414,6 +414,36 @@ const UI_EN = new Map(Object.entries({
     'Coordinators can edit only nodes in departments they are assigned to.',
   'Documentația echipei':
     'Team documentation',
+  'Explorează harta și traseele de învățare ale echipei.':
+    "Explore the team's map and learning paths.",
+  'Teams & access':
+    'Teams & access',
+  'Administrează echipele, accesul și Atlasul activ.':
+    'Manage teams, access, and the active Atlas.',
+  'Platform Admin · echipe, acces și Atlas activ.':
+    'Platform Admin · teams, access, and active Atlas.',
+  'Setările și accesul echipei tale.':
+    'Your team settings and access.',
+  'Atlas activ':
+    'Active Atlas',
+  'Deschide Atlas':
+    'Open Atlas',
+  'Echipa ta':
+    'Your team',
+  'administrare platformă':
+    'platform administration',
+  'settings & access':
+    'settings & access',
+  'Members & access':
+    'Members & access',
+  'Roluri, departamente și invitații.':
+    'Roles, departments, and invitations.',
+  'Nume, număr FTC, descriere și departamente.':
+    'Name, FTC number, description, and departments.',
+  'Cum folosești Atlasul':
+    'How to use the Atlas',
+  'Platform Admin · tutorial editabil':
+    'Platform Admin · editable tutorial',
   'documentație privată a echipei':
     'private team documentation',
   'Rolul tău nu permite editarea documentației acestei echipe.':

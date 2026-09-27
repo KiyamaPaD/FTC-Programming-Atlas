@@ -145,10 +145,11 @@ async function main() {
     'legacy Resources manager UI is still present'
   )
   assert(
-    index.includes('class="topbar-editor-btn"') &&
+    index.includes('class="editor-mode-trigger topbar-editor-btn"') &&
       index.includes('id="editorDock"') &&
-      index.includes('id="editorModeBtn"'),
-    'Editor Mode is not separated from Quick Panel'
+      index.includes('id="editorModeBtn"') &&
+      !index.includes('id="teamNavigationSection"'),
+    'Editor trigger / team workspace navigation is stale'
   )
   assert(
     appScript.includes("localStorage.getItem(CACHE_KEYS.editorMode) === '1'") &&
@@ -178,8 +179,38 @@ async function main() {
   assert(
     index.includes('<h2 id="atlasStatusTitle">Se încarcă...</h2>') &&
       index.includes('id="atlasStatusMessage" hidden'),
-    'loading screen is not the compact one-line v97 version'
+    'loading screen is not the compact one-line version'
   )
+  assert(
+    index.includes('id="teamAtlasPrimary"') &&
+      index.includes('class="team-atlas-primary-tabs"') &&
+      index.includes('id="teamAdminBackdrop"') &&
+      index.includes('id="teamAdminList"') &&
+      index.includes('Teams & access'),
+    'v98 Team Atlas hierarchy / team control center is missing'
+  )
+  assert(
+    !index.includes('id="teamAtlasTaxonomyBtn"') &&
+      !index.includes('id="teamAtlasSettingsBtn"') &&
+      !index.includes('id="teamAtlasMembersBtn"') &&
+      !index.includes('slug: ${escapeHtml(item.slug') &&
+      !appScript.includes('slug: ${escapeHtml(item.slug'),
+    'legacy left-side team controls or user-visible slug remain'
+  )
+  assert(
+    appScript.includes('function openTeamAdminManager()') &&
+      appScript.includes('data-team-admin-atlas') &&
+      appScript.includes('data-team-admin-settings') &&
+      appScript.includes('data-team-admin-members') &&
+      appScript.includes("currentUser && (canEdit || canManageCurrentTeam())"),
+    'v98 team administration runtime is missing'
+  )
+  assert(
+    appScript.includes('1. Team Atlas\n\nAtlasul este documentația internă a echipei.') &&
+      appScript.includes("modalTitle.textContent = 'Cum folosești Atlasul'"),
+    'v98 tutorial is missing or stale'
+  )
+
   assert(
     mobileBuilder.includes('ATLAS_RELEASE') &&
       mobileBuilder.includes("atlasVersionedPath('/js/atlas-i18n.js')") &&
