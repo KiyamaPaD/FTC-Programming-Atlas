@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v99 · Full English UI + navigation repair/editor workspace
+// v100 · Full English UI + Team UX / role preview polish
 //
 // Source language: Romanian
 // Secondary language: English
@@ -33,6 +33,18 @@ const UI_EN = new Map(Object.entries({
   'Nod': 'Node',
   'Relații': 'Relations',
   'Administrare': 'Manage',
+  'Acțiuni': 'Actions',
+  'nod · relație · layout': 'node · relation · layout',
+  'View as role': 'View as role',
+  'Preview rol': 'Role preview',
+  'Ieși din preview': 'Exit preview',
+  'Simulează interfața și permisiunile pe Atlasul activ.': 'Simulate the interface and permissions on the active Atlas.',
+  'Rol': 'Role',
+  'Departament simulat': 'Simulated department',
+  'Pornește preview': 'Start preview',
+  'Anulează': 'Cancel',
+  'opțional': 'optional',
+  'Documentația echipei · Explore și Roadmaps': 'Team documentation · Explore and Roadmaps',
   'Nicio selecție': 'No selection',
   'Nod selectat': 'Selected node',
   'Relație selectată': 'Selected relation',

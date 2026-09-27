@@ -65,9 +65,10 @@ async function main() {
     'rich-text toolbar simplification is missing or stale'
   )
   assert(
-    appScript.includes('data-document-section="sources"') &&
-      appScript.includes('id="detailMoreMenu"'),
-    'documentation reader disclosure structure is missing'
+    appScript.includes('id="detailMoreMenu"') &&
+      !appScript.includes('${renderDocumentReferences(node)}') &&
+      !appScript.includes('${renderDocumentReviewFact(node)}'),
+    'node viewer still exposes Sources/Review or lost its compact action menu'
   )
   assert(
     index.includes('id="editorContextMeta"') &&
@@ -182,14 +183,15 @@ async function main() {
     'loading screen is not the compact one-line version'
   )
   assert(
-    index.includes('id="teamAtlasPrimary"') &&
+    index.includes('id="teamAtlasPrimary" data-ui-section="team-atlas"') &&
+      index.includes('id="teamAtlasIdentity"') &&
       index.includes('class="team-atlas-primary-tabs"') &&
       index.includes('class="announcements-nav-button"') &&
       index.includes('class="atlas-section-switcher"') &&
       index.includes('id="teamAdminBackdrop"') &&
       index.includes('id="teamAdminList"') &&
       index.includes('Teams & access'),
-    'v99 Team Atlas / global navigation hierarchy is missing'
+    'v100 collapsible Team Atlas / team identity hierarchy is missing'
   )
   assert(
     !index.includes('team-atlas-global-row') &&
@@ -220,15 +222,40 @@ async function main() {
       appScript.includes('data-team-admin-atlas') &&
       appScript.includes('data-team-admin-settings') &&
       appScript.includes('data-team-admin-members') &&
-      appScript.includes("currentUser && (canEdit || canManageCurrentTeam())"),
+      appScript.includes("currentUser && (hasPlatformAdminPrivileges() || canManageCurrentTeam())"),
     'team administration runtime is missing'
   )
   assert(
-    appScript.includes("editorMode && canEdit && activePublicSection === 'announcements'") &&
+    appScript.includes("hasPlatformAdminPrivileges() && editorMode && activePublicSection === 'announcements'") &&
+      appScript.includes('function canEditCurrentSection()') &&
+      appScript.includes("if (activePublicSection === 'announcements') return hasPlatformAdminPrivileges()") &&
       appScript.includes("editorPrimaryActions.hidden = !teamEditorActive") &&
       appScript.includes("editorContextEmpty.textContent = globalAnnouncementsEditorActive"),
-    'Global announcements editor context is missing or exposes team node controls'
+    'Global announcements editor permission repair is missing'
   )
+  assert(
+    index.includes('id="editorPrimaryActions" data-ui-section="editor-actions"') &&
+      index.includes('id="editorNodeContext" data-ui-section="editor-node-context"') &&
+      index.includes('id="editorEdgeContext" data-ui-section="editor-edge-context"') &&
+      index.includes('<details class="field form-disclosure" id="nodeTagsField">'),
+    'v100 collapsible editor actions / selection / node tags are missing'
+  )
+  assert(
+    index.includes('id="rolePreviewBtn"') &&
+      index.includes('id="rolePreviewBackdrop"') &&
+      index.includes('id="rolePreviewBanner"') &&
+      appScript.includes('function startAdminRolePreview()') &&
+      appScript.includes('function stopAdminRolePreview()') &&
+      appScript.includes('function hasPlatformAdminPrivileges()'),
+    'Platform Admin role preview is missing'
+  )
+  assert(
+    appScript.includes("teamAtlasIdentity.textContent = teamName") &&
+      appScript.includes('function readableTeamDepartmentIds()') &&
+      appScript.includes('function currentViewDepartments()'),
+    'team identity / role-scoped Team Atlas view is missing'
+  )
+
   assert(
     appScript.includes('1. Team Atlas\n\nAtlasul este documentația internă a echipei.') &&
       appScript.includes("modalTitle.textContent = 'Cum folosești Atlasul'"),

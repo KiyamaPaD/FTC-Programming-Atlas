@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v99 · NAVIGATION REPAIR + INLINE EDITOR WORKSPACE')
+console.log('ATLAS SCRIPT LOADED v100 · TEAM UX + ROLE PREVIEW + DOCUMENT CLEANUP')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -379,6 +379,8 @@ let relationDraft = { sourceId: null, targetId: null, label: '' }
 let view = loadView()
 let currentUser = null
 let canEdit = false
+let adminRolePreview = null
+let editorModeBeforeRolePreview = null
 
 let editorMode = localStorage.getItem(CACHE_KEYS.editorMode) === '1'
 let mobileNavigationOpen = false
@@ -481,11 +483,17 @@ const editorEdgeContextTitle = document.getElementById('editorEdgeContextTitle')
 const editorEdgeLayoutTools = document.getElementById('editorEdgeLayoutTools')
 const editorHistorySection = document.getElementById('editorHistorySection')
 const editorAdminSection = document.getElementById('editorAdminSection')
+const teamAtlasIdentity = document.getElementById('teamAtlasIdentity')
+const teamAtlasContextLine = document.getElementById('teamAtlasContextLine')
+const rolePreviewBanner = document.getElementById('rolePreviewBanner')
+const rolePreviewBannerText = document.getElementById('rolePreviewBannerText')
+const exitRolePreviewBtn = document.getElementById('exitRolePreviewBtn')
 
 const taxonomyManagerBtn = document.getElementById('taxonomyManagerBtn')
 const publicContentManagerBtn = document.getElementById('publicContentManagerBtn')
 const roadmapManagerBtn = document.getElementById('roadmapManagerBtn')
 const teamSetupBtn = document.getElementById('teamSetupBtn')
+const rolePreviewBtn = document.getElementById('rolePreviewBtn')
 
 const mediaManagerBtn = document.getElementById('mediaManagerBtn')
 
@@ -1026,6 +1034,16 @@ const teamAdminSummary = document.getElementById('teamAdminSummary')
 const teamAdminNewTeamBtn = document.getElementById('teamAdminNewTeamBtn')
 const teamAdminList = document.getElementById('teamAdminList')
 const teamAdminStatus = document.getElementById('teamAdminStatus')
+
+const rolePreviewBackdrop = document.getElementById('rolePreviewBackdrop')
+const closeRolePreviewBtn = document.getElementById('closeRolePreviewBtn')
+const cancelRolePreviewBtn = document.getElementById('cancelRolePreviewBtn')
+const startRolePreviewBtn = document.getElementById('startRolePreviewBtn')
+const rolePreviewTeamLabel = document.getElementById('rolePreviewTeamLabel')
+const rolePreviewRoleInput = document.getElementById('rolePreviewRoleInput')
+const rolePreviewDepartmentField = document.getElementById('rolePreviewDepartmentField')
+const rolePreviewDepartmentInput = document.getElementById('rolePreviewDepartmentInput')
+const rolePreviewCapabilities = document.getElementById('rolePreviewCapabilities')
 
 const teamMembersBackdrop = document.getElementById('teamMembersBackdrop')
 const closeTeamMembersBtn = document.getElementById('closeTeamMembersBtn')
@@ -1671,7 +1689,7 @@ function visibleResources() {
 }
 
 function publicManagerButton(kind) {
-  if (!(canEdit && editorMode)) return ''
+  if (!(hasPlatformAdminPrivileges() && editorMode)) return ''
 
   return `
     <div class="public-hub-actions">
@@ -3427,6 +3445,52 @@ async function deleteRoadmap() {
 
 
 
+function isAdminRolePreviewActive() {
+  return Boolean(
+    canEdit &&
+    adminRolePreview &&
+    activeTeamId != null &&
+    Number(adminRolePreview.teamId) === Number(activeTeamId)
+  )
+}
+
+function hasPlatformAdminPrivileges() {
+  return Boolean(canEdit && !isAdminRolePreviewActive())
+}
+
+function effectiveCurrentTeamRole() {
+  if (isAdminRolePreviewActive()) return adminRolePreview.role
+  if (canEdit) return 'platform_admin'
+
+  const membership = currentTeamMembership()
+  return membership?.role || null
+}
+
+function effectiveAssignedDepartmentIds() {
+  if (isAdminRolePreviewActive()) {
+    return (adminRolePreview.departmentIds || []).map(Number).filter(Number.isFinite)
+  }
+
+  const membership = currentTeamMembership()
+  return membership ? membershipDepartmentIds(membership.id) : []
+}
+
+function readableTeamDepartmentIds() {
+  const enabled = currentTeamDepartmentIds().map(Number)
+  const role = effectiveCurrentTeamRole()
+
+  if (role === 'platform_admin' || role === 'team_leader' || role === 'mentor') {
+    return enabled
+  }
+
+  if (role === 'department_coordinator' || role === 'team_member') {
+    const assigned = new Set(effectiveAssignedDepartmentIds())
+    return enabled.filter((id) => assigned.has(Number(id)))
+  }
+
+  return []
+}
+
 function isTeamAtlasMode() {
   return (
     (activePublicSection === 'team' ||
@@ -3441,6 +3505,11 @@ function teamAtlasRoleCanEdit(role) {
 
 function canEditTeamAtlas() {
   if (!currentUser || !activeTeamId) return false
+
+  if (isAdminRolePreviewActive()) {
+    return teamAtlasRoleCanEdit(adminRolePreview.role)
+  }
+
   if (canEdit) return true
 
   const membership = currentTeamMembership()
@@ -3459,8 +3528,19 @@ function canEditCurrentAtlas() {
   return isTeamAtlasMode() ? canEditTeamAtlas() : false
 }
 
+function canEditCurrentSection() {
+  if (isTeamAtlasMode()) return canEditTeamAtlas()
+  if (activePublicSection === 'announcements') return hasPlatformAdminPrivileges()
+  return false
+}
+
 function canManageTeamTaxonomy() {
   if (!currentUser || !activeTeamId) return false
+
+  if (isAdminRolePreviewActive()) {
+    return ['team_leader', 'mentor'].includes(adminRolePreview.role)
+  }
+
   if (canEdit) return true
 
   const membership = currentTeamMembership()
@@ -3533,6 +3613,10 @@ function syncActiveNodeCollection({ forceReset = false } = {}) {
 
 
 function coordinatorEditableDepartmentIds() {
+  if (isAdminRolePreviewActive()) {
+    return effectiveAssignedDepartmentIds()
+  }
+
   const membership = currentTeamMembership()
   if (!membership) return []
 
@@ -3540,6 +3624,18 @@ function coordinatorEditableDepartmentIds() {
 }
 
 function canEditTeamDepartment(departmentId) {
+  if (isAdminRolePreviewActive()) {
+    if (adminRolePreview.role === 'team_leader' || adminRolePreview.role === 'mentor') {
+      return true
+    }
+
+    if (adminRolePreview.role === 'department_coordinator') {
+      return effectiveAssignedDepartmentIds().includes(Number(departmentId))
+    }
+
+    return false
+  }
+
   if (canEdit) return true
 
   const membership = currentTeamMembership()
@@ -3730,18 +3826,27 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   ])
 
   if (nodesResult.error) throw nodesResult.error
-  if (edgesResult.error) throw edgesResult.error
-  if (codeResult.error) throw codeResult.error
-  if (mediaResult.error) throw mediaResult.error
-  if (filesResult.error) throw filesResult.error
-  if (teamCategoriesResult.error) throw teamCategoriesResult.error
-  if (teamDifficultiesResult.error) throw teamDifficultiesResult.error
-  if (teamTagsResult.error) throw teamTagsResult.error
-  if (teamRoadmapsResult.error) throw teamRoadmapsResult.error
-  if (teamRoadmapStepsResult.error) throw teamRoadmapStepsResult.error
-  if (teamRoadmapProgressResult.error) throw teamRoadmapProgressResult.error
-  if (teamReferencesResult.error) throw teamReferencesResult.error
-  if (teamReviewStateResult.error) throw teamReviewStateResult.error
+
+  const optionalTeamResults = [
+    ['edges', edgesResult],
+    ['code', codeResult],
+    ['media', mediaResult],
+    ['files', filesResult],
+    ['categories', teamCategoriesResult],
+    ['difficulties', teamDifficultiesResult],
+    ['tags', teamTagsResult],
+    ['roadmaps', teamRoadmapsResult],
+    ['roadmap steps', teamRoadmapStepsResult],
+    ['roadmap progress', teamRoadmapProgressResult],
+    ['references', teamReferencesResult],
+    ['review state', teamReviewStateResult]
+  ]
+
+  optionalTeamResults.forEach(([label, result]) => {
+    if (!result?.error) return
+    console.warn(`Team Atlas ${label} unavailable; continuing with core nodes:`, result.error)
+    result.data = []
+  })
 
   teamCategories = teamCategoriesResult.data || []
   teamDifficulties = teamDifficultiesResult.data || []
@@ -3997,6 +4102,22 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     sourceSyncedAt: row.source_synced_at || null
   }))
 
+  const team = currentTeamRecord()
+  if (team && /infotronx/i.test(String(team.name || ''))) {
+    const seedTitles = new Set(['teleop basics', 'pid for lift', 'autonomous flow'])
+    const foundSeedTitles = teamNodes
+      .map((node) => String(node.title || '').trim().toLowerCase())
+      .filter((title) => seedTitles.has(title))
+
+    if (foundSeedTitles.length < 3) {
+      console.warn('InfotronX seed diagnostic:', {
+        teamId: Number(activeTeamId),
+        loadedNodeCount: teamNodes.length,
+        foundSeedTitles
+      })
+    }
+  }
+
   syncActiveNodeCollection({ forceReset })
 }
 
@@ -4066,6 +4187,19 @@ function editableDepartmentIdsForTeam(teamId) {
   const enabled = teamEnabledDepartments
     .filter((row) => Number(row.teamId) === Number(teamId))
     .map((row) => Number(row.departmentId))
+
+  if (isAdminRolePreviewActive() && Number(teamId) === Number(activeTeamId)) {
+    if (adminRolePreview.role === 'team_leader' || adminRolePreview.role === 'mentor') {
+      return enabled
+    }
+
+    if (adminRolePreview.role === 'department_coordinator') {
+      const assigned = new Set(effectiveAssignedDepartmentIds())
+      return enabled.filter((id) => assigned.has(Number(id)))
+    }
+
+    return []
+  }
 
   if (canEdit) return enabled
 
@@ -4171,7 +4305,7 @@ async function selectActiveTeam(teamId) {
   )
 
   const adminTeamAccess =
-    canEdit &&
+    hasPlatformAdminPrivileges() &&
     teamRecords.some((team) => Number(team.id) === Number(teamId))
 
   if (!membership && !adminTeamAccess) return
@@ -4553,6 +4687,10 @@ async function respondToTeamInvite(token, action) {
 }
 
 function canManageTeamMembers() {
+  if (isAdminRolePreviewActive()) {
+    return adminRolePreview.role === 'team_leader'
+  }
+
   const membership = currentTeamMembership()
 
   return Boolean(
@@ -5451,7 +5589,7 @@ function isTeamAdminOpen() {
 function teamAdminRecords() {
   if (!currentUser) return []
 
-  if (canEdit) {
+  if (hasPlatformAdminPrivileges()) {
     return [...teamRecords].sort((a, b) =>
       String(a.name || '').localeCompare(String(b.name || ''), 'ro', {
         sensitivity: 'base'
@@ -5520,19 +5658,20 @@ function renderTeamAdminManager() {
   if (!isTeamAdminOpen()) return
 
   const records = teamAdminRecords()
+  const platformAdmin = hasPlatformAdminPrivileges()
 
   if (teamAdminSubtitle) {
-    teamAdminSubtitle.textContent = canEdit
+    teamAdminSubtitle.textContent = platformAdmin
       ? 'Platform Admin · echipe, acces și Atlas activ.'
       : 'Setările și accesul echipei tale.'
   }
 
   if (teamAdminNewTeamBtn) {
-    teamAdminNewTeamBtn.hidden = !canEdit
+    teamAdminNewTeamBtn.hidden = !platformAdmin
   }
 
   if (teamAdminSummary) {
-    teamAdminSummary.innerHTML = canEdit
+    teamAdminSummary.innerHTML = platformAdmin
       ? `<strong>${records.length} echipe</strong> · administrare platformă`
       : '<strong>Echipa ta</strong> · settings & access'
   }
@@ -5549,10 +5688,10 @@ function renderTeamAdminManager() {
     .map((team) => {
       const id = Number(team.id)
       const membership = membershipForTeam(id)
-      const role = membership ? teamRoleLabel(membership.role) : 'Platform Admin'
-      const isActiveAtlas = canEdit && Number(activeTeamId) === id
-      const canSettings = canEdit || membership?.role === 'team_leader'
-      const canMembers = canEdit || membership?.role === 'team_leader'
+      const role = isAdminRolePreviewActive() ? teamRoleLabel(adminRolePreview.role) : membership ? teamRoleLabel(membership.role) : 'Platform Admin'
+      const isActiveAtlas = platformAdmin && Number(activeTeamId) === id
+      const canSettings = platformAdmin || (isAdminRolePreviewActive() ? adminRolePreview.role === 'team_leader' : membership?.role === 'team_leader')
+      const canMembers = platformAdmin || (isAdminRolePreviewActive() ? adminRolePreview.role === 'team_leader' : membership?.role === 'team_leader')
       const title = team.teamNumber
         ? `${team.name} #${team.teamNumber}`
         : team.name
@@ -5573,7 +5712,7 @@ function renderTeamAdminManager() {
               <span>· ${roadmapsCount} roadmaps</span>
               <span>· ${membersCount} members</span>
               <span>· ${departmentsCount} departments</span>
-              ${!canEdit ? `<span>· ${escapeHtmlText(role)}</span>` : ''}
+              ${!platformAdmin ? `<span>· ${escapeHtmlText(role)}</span>` : ''}
             </div>
             <div class="team-admin-description">${escapeHtmlText(
               team.description || 'Fără descriere.'
@@ -5581,7 +5720,7 @@ function renderTeamAdminManager() {
           </div>
           <div class="team-admin-actions">
             ${
-              canEdit
+              platformAdmin
                 ? `<button class="btn ${isActiveAtlas ? 'primary' : ''}" type="button" data-team-admin-atlas="${id}">${isActiveAtlas ? 'Atlas activ' : 'Deschide Atlas'}</button>`
                 : ''
             }
@@ -5625,7 +5764,7 @@ async function focusTeamForAdminAction(teamId) {
   if (!Number.isFinite(id)) return false
 
   if (Number(activeTeamId) !== id) {
-    if (!canEdit) return false
+    if (!hasPlatformAdminPrivileges()) return false
     await selectActiveTeam(id)
   }
 
@@ -5633,12 +5772,169 @@ async function focusTeamForAdminAction(teamId) {
 }
 
 function canManageCurrentTeam() {
+  if (isAdminRolePreviewActive()) {
+    return adminRolePreview.role === 'team_leader'
+  }
+
   const membership = currentTeamMembership()
 
   return Boolean(
     canEdit ||
     (membership && membership.role === 'team_leader')
   )
+}
+
+function rolePreviewCapabilityProfile(role) {
+  const profiles = {
+    team_leader: {
+      title: 'Team Leader',
+      items: [
+        'Poate edita noduri, relații, layout și roadmap-uri în toate departamentele echipei.',
+        'Poate administra Taxonomy, Team Settings, Members și invitațiile echipei.',
+        'Nu poate vedea sau schimba alte echipe ca Platform Admin.'
+      ]
+    },
+    mentor: {
+      title: 'Mentor',
+      items: [
+        'Poate edita documentația și layout-ul în toate departamentele echipei.',
+        'Poate administra Taxonomy și roadmap-uri.',
+        'Nu poate schimba echipa activă și nu primește administrarea membrilor ca Platform Admin.'
+      ]
+    },
+    department_coordinator: {
+      title: 'Department Coordinator',
+      items: [
+        'Poate edita noduri, relații, layout și roadmap-uri doar în departamentul simulat.',
+        'Nu poate administra Taxonomy, Team Settings sau Members.',
+        'Vede numai zona echipei și departamentul la care are acces.'
+      ]
+    },
+    team_member: {
+      title: 'Team Member',
+      items: [
+        'Poate citi documentația, folosi roadmap-uri și biblioteca personală.',
+        'Nu poate activa Editor Mode și nu poate modifica noduri sau administrare.',
+        'Vede numai echipa sa și departamentul simulat.'
+      ]
+    }
+  }
+
+  return profiles[role] || profiles.team_member
+}
+
+function updateRolePreviewForm() {
+  if (!rolePreviewRoleInput) return
+
+  const team = currentTeamRecord()
+  const teamName = team?.teamNumber
+    ? `${team.name} #${team.teamNumber}`
+    : team?.name || 'Team Atlas'
+
+  if (rolePreviewTeamLabel) {
+    rolePreviewTeamLabel.textContent = `Atlas activ · ${teamName}`
+  }
+
+  const role = rolePreviewRoleInput.value
+  const scopedDepartment = role === 'department_coordinator' || role === 'team_member'
+
+  if (rolePreviewDepartmentField) {
+    rolePreviewDepartmentField.hidden = !scopedDepartment
+  }
+
+  if (rolePreviewDepartmentInput) {
+    const enabled = currentTeamDepartmentIds()
+    rolePreviewDepartmentInput.innerHTML = departments
+      .filter((department) =>
+        department.is_active !== false && enabled.includes(Number(department.id))
+      )
+      .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
+      .map((department) => `<option value="${Number(department.id)}">${escapeHtmlText(department.name)}</option>`)
+      .join('')
+
+    if (activeDepartmentId != null && [...rolePreviewDepartmentInput.options].some((option) => Number(option.value) === Number(activeDepartmentId))) {
+      rolePreviewDepartmentInput.value = String(activeDepartmentId)
+    }
+  }
+
+  const profile = rolePreviewCapabilityProfile(role)
+  if (rolePreviewCapabilities) {
+    rolePreviewCapabilities.innerHTML = `
+      <strong>${escapeHtmlText(profile.title)}</strong>
+      ${profile.items.map((item) => `<span>• ${escapeHtmlText(item)}</span>`).join('')}
+    `
+  }
+}
+
+function openRolePreviewManager() {
+  if (!canEdit || !currentTeamRecord()) {
+    alert('Role Preview este disponibil Platform Admin-ului pe un Team Atlas activ.')
+    return
+  }
+
+  rolePreviewRoleInput.value = isAdminRolePreviewActive()
+    ? adminRolePreview.role
+    : 'team_leader'
+  updateRolePreviewForm()
+  rolePreviewBackdrop?.classList.add('open')
+}
+
+function closeRolePreviewManager() {
+  rolePreviewBackdrop?.classList.remove('open')
+}
+
+function startAdminRolePreview() {
+  if (!canEdit || !currentTeamRecord()) return
+
+  const role = rolePreviewRoleInput.value
+  const scopedDepartment = role === 'department_coordinator' || role === 'team_member'
+  const departmentId = scopedDepartment ? Number(rolePreviewDepartmentInput.value) : null
+
+  if (scopedDepartment && !Number.isFinite(departmentId)) {
+    alert('Alege un departament pentru rolul simulat.')
+    return
+  }
+
+  if (!isAdminRolePreviewActive()) {
+    editorModeBeforeRolePreview = editorMode
+  }
+
+  adminRolePreview = {
+    teamId: Number(activeTeamId),
+    role,
+    departmentIds: scopedDepartment ? [departmentId] : []
+  }
+
+  if (scopedDepartment) {
+    activeDepartmentId = departmentId
+  } else {
+    normalizeDepartmentState()
+  }
+
+  if (!teamAtlasRoleCanEdit(role)) {
+    editorMode = false
+  }
+
+  closeRolePreviewManager()
+  normalizeSelectionAfterFilters()
+  renderAll()
+  requestAnimationFrame(fitView)
+}
+
+function stopAdminRolePreview() {
+  if (!adminRolePreview) return
+
+  adminRolePreview = null
+
+  if (editorModeBeforeRolePreview != null) {
+    editorMode = Boolean(editorModeBeforeRolePreview)
+  }
+  editorModeBeforeRolePreview = null
+
+  normalizeDepartmentState()
+  normalizeSelectionAfterFilters()
+  renderAll()
+  requestAnimationFrame(fitView)
 }
 
 function isTeamSetupOpen() {
@@ -6375,6 +6671,18 @@ function renderPublicShell() {
   if (departmentSection) departmentSection.hidden = !isTeamMap
   if (teamAtlasPrimary) teamAtlasPrimary.hidden = !currentTeamRecord()
 
+  const currentTeam = currentTeamRecord()
+  if (currentTeam) {
+    const teamName = currentTeam.teamNumber
+      ? `${currentTeam.name} #${currentTeam.teamNumber}`
+      : currentTeam.name
+    if (teamAtlasIdentity) teamAtlasIdentity.textContent = teamName
+    if (teamAtlasContextLine) teamAtlasContextLine.textContent = 'Documentația echipei · Explore și Roadmaps'
+  } else {
+    if (teamAtlasIdentity) teamAtlasIdentity.textContent = 'Documentația echipei'
+    if (teamAtlasContextLine) teamAtlasContextLine.textContent = 'Harta și traseele de lucru ale echipei.'
+  }
+
   publicSectionTabs.querySelectorAll('[data-public-section]').forEach((button) => {
     const section = button.dataset.publicSection
     const requiresTeam = section === 'team' || section === 'team-roadmaps'
@@ -6401,9 +6709,7 @@ function renderPublicShell() {
     const teamName = team?.teamNumber
       ? `${team.name} #${team.teamNumber}`
       : team?.name || 'Team Atlas'
-    const roadmapKicker = canEdit
-      ? `${teamName} · ${departmentName}`
-      : `Team Atlas · ${departmentName}`
+    const roadmapKicker = `${teamName} · ${departmentName}`
 
     publicHubPanel.innerHTML = `
       <div class="public-hub-inner">
@@ -6483,8 +6789,17 @@ function nodeDepartmentNames(node) {
     .filter(Boolean)
 }
 
+function currentViewDepartments() {
+  const active = departments.filter((item) => item.is_active !== false)
+
+  if (!isTeamAtlasMode()) return active
+
+  const readable = new Set(readableTeamDepartmentIds())
+  return active.filter((item) => readable.has(Number(item.id)))
+}
+
 function normalizeDepartmentState() {
-  const activeDepartments = departments.filter((item) => item.is_active !== false)
+  const activeDepartments = currentViewDepartments()
 
   if (activeDepartments.length === 0) {
     activeDepartmentId = null
@@ -6547,6 +6862,10 @@ function selectDepartment(id) {
   const department = getDepartmentById(id)
   if (!department || department.is_active === false) return
 
+  if (isTeamAtlasMode() && !currentViewDepartments().some((item) => Number(item.id) === Number(id))) {
+    return
+  }
+
   activeDepartmentId = Number(department.id)
   localStorage.setItem(CACHE_KEYS.department, department.slug)
 
@@ -6561,8 +6880,7 @@ function selectDepartment(id) {
 function renderDepartmentNavigation() {
   if (!departmentTabs) return
 
-  const active = departments
-    .filter((item) => item.is_active !== false)
+  const active = currentViewDepartments()
     .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
 
   const current = getDepartmentById(activeDepartmentId)
@@ -6714,12 +7032,22 @@ function matchesTaxonomyFilters(node) {
 }
 
 function getVisibleNodes() {
-  return nodes.filter(
-    (node) =>
+  const readableDepartments = isTeamAtlasMode()
+    ? new Set(readableTeamDepartmentIds())
+    : null
+
+  return nodes.filter((node) => {
+    if (readableDepartments) {
+      const readable = nodeDepartmentIds(node).some((id) => readableDepartments.has(Number(id)))
+      if (!readable) return false
+    }
+
+    return (
       matchesDepartment(node) &&
       matchesSearch(node) &&
       matchesTaxonomyFilters(node)
-  )
+    )
+  })
 }
 
 function getVisibleNodeIdSet() {
@@ -8237,7 +8565,7 @@ async function openDocumentationReference(reference) {
     (candidate) => Number(candidate.id) === teamId
   )
 
-  if (!team || (!membershipForTeam(teamId) && !canEdit)) {
+  if (!team || (!membershipForTeam(teamId) && !hasPlatformAdminPrivileges())) {
     alert('Nu mai ai acces la Team Atlas-ul acestui document.')
     return false
   }
@@ -8571,6 +8899,7 @@ function isAnyModalOpen() {
     roadmapManagerBackdrop?.classList.contains('open') ||
     teamSetupBackdrop?.classList.contains('open') ||
     teamAdminBackdrop?.classList.contains('open') ||
+    rolePreviewBackdrop?.classList.contains('open') ||
     teamMembersBackdrop?.classList.contains('open') ||
     teamOnboardingBackdrop?.classList.contains('open') ||
     teamImportBackdrop?.classList.contains('open') ||
@@ -10746,7 +11075,7 @@ function renderEditorContext() {
 
   const teamEditorActive = Boolean(editorMode && canEditCurrentAtlas())
   const globalAnnouncementsEditorActive = Boolean(
-    editorMode && canEdit && activePublicSection === 'announcements'
+    editorMode && hasPlatformAdminPrivileges() && activePublicSection === 'announcements'
   )
   const active = teamEditorActive || globalAnnouncementsEditorActive
   const node = selectedNode()
@@ -10827,12 +11156,12 @@ function updateAuthUI() {
   const currentAtlasEditable = canEditCurrentAtlas()
   const editorAvailable = canUseEditorModeAnywhere()
   const globalAnnouncementsEditorActive = Boolean(
-    canEdit && editorMode && activePublicSection === 'announcements'
+    hasPlatformAdminPrivileges() && editorMode && activePublicSection === 'announcements'
   )
   const editorActive = Boolean(
     editorMode && (currentAtlasEditable || globalAnnouncementsEditorActive)
   )
-  const publicAdminEditorActive = canEdit && editorMode
+  const publicAdminEditorActive = hasPlatformAdminPrivileges() && editorMode
   const teamTaxonomyEditorActive = Boolean(
     editorMode && isTeamAtlasMode() && canManageTeamTaxonomy()
   )
@@ -10840,27 +11169,27 @@ function updateAuthUI() {
     editorMode && isTeamAtlasMode() && canManageRoadmapScope('team')
   )
   const teamSetupEditorActive = Boolean(
-    editorMode && currentUser && (canEdit || canManageCurrentTeam())
+    editorMode && currentUser && (hasPlatformAdminPrivileges() || canManageCurrentTeam())
   )
 
   if (!currentUser) {
     authStatusBox.innerHTML = 'Neautentificat. Atlasul este în Reader Mode.'
   } else if (isTeamAtlasMode()) {
-    const membership = currentTeamMembership()
-    const role = membership
-      ? teamRoleLabel(membership.role)
-      : canEdit
-        ? 'Platform Admin'
-        : 'Member'
-
-    const atlasContext = canEdit
-      ? `${escapeHtml(currentTeamRecord()?.name || 'Team')} · ${escapeHtml(role)}`
-      : escapeHtml(role)
+    const team = currentTeamRecord()
+    const teamName = team?.teamNumber
+      ? `${team.name} #${team.teamNumber}`
+      : team?.name || 'Team Atlas'
+    const effectiveRole = effectiveCurrentTeamRole()
+    const role = effectiveRole === 'platform_admin'
+      ? 'Platform Admin'
+      : teamRoleLabel(effectiveRole)
+    const atlasContext = `${escapeHtml(teamName)} · ${escapeHtml(role)}`
+    const previewLabel = isAdminRolePreviewActive() ? ' · Preview' : ''
 
     if (editorActive) {
-      authStatusBox.innerHTML = `<strong>Team Atlas · Editor Mode</strong><br>${atlasContext}`
+      authStatusBox.innerHTML = `<strong>Team Atlas · Editor Mode${previewLabel}</strong><br>${atlasContext}`
     } else {
-      authStatusBox.innerHTML = `<strong>Team Atlas</strong><br>${atlasContext}`
+      authStatusBox.innerHTML = `<strong>Team Atlas${previewLabel}</strong><br>${atlasContext}`
     }
   } else if (canEdit && editorMode) {
     authStatusBox.innerHTML = `<strong>Editor Mode activ</strong><br>${escapeHtml(currentUser.email)}`
@@ -10880,11 +11209,26 @@ function updateAuthUI() {
   const selectedNodeEditable = Boolean(selected && canEditNode(selected))
   const hasNodes = nodes.length > 0
 
-  editorModeBtn.hidden = !editorAvailable
-  if (navigationEditorZone) navigationEditorZone.hidden = !editorAvailable
-  editorModeBtn.classList.toggle('active', editorMode && editorAvailable)
-  editorModeBtn.setAttribute('aria-pressed', editorMode && editorAvailable ? 'true' : 'false')
+  const previewActive = isAdminRolePreviewActive()
+  const previewCanEdit = !previewActive || teamAtlasRoleCanEdit(adminRolePreview.role)
+  editorModeBtn.hidden = !editorAvailable || !previewCanEdit
+  if (navigationEditorZone) navigationEditorZone.hidden = !editorAvailable && !previewActive
+  editorModeBtn.classList.toggle('active', editorMode && editorAvailable && previewCanEdit)
+  editorModeBtn.setAttribute('aria-pressed', editorMode && editorAvailable && previewCanEdit ? 'true' : 'false')
   if (editorModeState) editorModeState.textContent = editorMode ? 'On' : 'Off'
+
+  if (rolePreviewBanner) {
+    rolePreviewBanner.hidden = !previewActive
+  }
+  if (rolePreviewBannerText && previewActive) {
+    const team = currentTeamRecord()
+    const teamName = team?.teamNumber ? `${team.name} #${team.teamNumber}` : team?.name || 'Team Atlas'
+    const roleLabel = teamRoleLabel(adminRolePreview.role)
+    const departmentLabel = adminRolePreview.departmentIds?.length
+      ? ` · ${getDepartmentById(adminRolePreview.departmentIds[0])?.name || 'departament'}`
+      : ''
+    rolePreviewBannerText.textContent = `Preview · ${roleLabel}${departmentLabel} · ${teamName}`
+  }
 
   editorToolsSection.hidden = !editorActive
   renderEditorContext()
@@ -10909,12 +11253,21 @@ function updateAuthUI() {
     teamSetupBtn.disabled = !teamSetupEditorActive || isAtlasLoading
   }
 
+  const rolePreviewAvailable = Boolean(
+    canEdit && editorMode && isTeamAtlasMode() && !previewActive
+  )
+  if (rolePreviewBtn) {
+    rolePreviewBtn.hidden = !rolePreviewAvailable
+    rolePreviewBtn.disabled = !rolePreviewAvailable || isAtlasLoading
+  }
+
   if (editorAdminSection) {
     editorAdminSection.hidden = !(
       teamTaxonomyEditorActive ||
       teamRoadmapEditorActive ||
       publicAdminEditorActive ||
-      teamSetupEditorActive
+      teamSetupEditorActive ||
+      rolePreviewAvailable
     )
   }
 
@@ -11070,17 +11423,19 @@ function updateAuthUI() {
 }
 
 function setEditorMode(nextValue) {
-  if (nextValue && !canEditCurrentAtlas()) {
+  if (nextValue && !canEditCurrentSection()) {
     alert(
       isTeamAtlasMode()
         ? 'Rolul tău nu permite editarea documentației acestei echipe.'
-        : 'Trebuie să fii autentificat ca editor.'
+        : 'Doar Platform Admin poate edita Announcements.'
     )
     return
   }
 
   editorMode = Boolean(nextValue)
-  localStorage.setItem(CACHE_KEYS.editorMode, editorMode ? '1' : '0')
+  if (!isAdminRolePreviewActive()) {
+    localStorage.setItem(CACHE_KEYS.editorMode, editorMode ? '1' : '0')
+  }
 
   if (editorMode) {
     openUICollapseSection('editor')
@@ -15730,7 +16085,6 @@ function renderDetailPanel() {
                   : ''
               }
 
-              ${renderDocumentReviewFact(node)}
 
               ${
                 node.updatedAt
@@ -15754,7 +16108,6 @@ function renderDetailPanel() {
           </div>
         </details>
 
-        ${renderDocumentReferences(node)}
         ${renderDocumentConnections(node)}
       </div>
     </div>
@@ -15930,7 +16283,7 @@ function renderAll() {
 }
 
 function canEditTutorial() {
-  return Boolean(canEdit && editorMode)
+  return Boolean(hasPlatformAdminPrivileges() && editorMode)
 }
 
 function setModalModeUi(mode) {
@@ -16014,6 +16367,7 @@ function openModal(mode) {
     teamNodeDepartmentField.hidden =
       mode !== 'node' || !isTeamAtlasMode()
     nodeTagsField.style.display = mode === 'tutorial' ? 'none' : 'block'
+    if (mode === 'node') nodeTagsField.open = false
     nodeContentField.style.display = 'block'
     relationTargetField.style.display = 'none'
     relationLabelField.style.display = 'none'
@@ -17528,6 +17882,16 @@ teamSetupBtn?.addEventListener('click', () => {
   })
 })
 
+rolePreviewBtn?.addEventListener('click', openRolePreviewManager)
+closeRolePreviewBtn?.addEventListener('click', closeRolePreviewManager)
+cancelRolePreviewBtn?.addEventListener('click', closeRolePreviewManager)
+startRolePreviewBtn?.addEventListener('click', startAdminRolePreview)
+exitRolePreviewBtn?.addEventListener('click', stopAdminRolePreview)
+rolePreviewRoleInput?.addEventListener('change', updateRolePreviewForm)
+rolePreviewBackdrop?.addEventListener('click', (event) => {
+  if (event.target === rolePreviewBackdrop) closeRolePreviewManager()
+})
+
 closeTeamAdminBtn?.addEventListener('click', closeTeamAdminManager)
 
 teamAdminBackdrop?.addEventListener('click', (event) => {
@@ -17535,7 +17899,7 @@ teamAdminBackdrop?.addEventListener('click', (event) => {
 })
 
 teamAdminNewTeamBtn?.addEventListener('click', () => {
-  if (!canEdit) return
+  if (!hasPlatformAdminPrivileges()) return
   closeTeamAdminManager()
   openTeamSetup({ createMode: true }).catch((error) => {
     console.error('Open new team setup failed:', error)
@@ -18183,6 +18547,8 @@ window.addEventListener('keydown', (event) => {
       closeTeamOnboarding()
     } else if (teamMembersBackdrop?.classList.contains('open')) {
       closeTeamMembersManager()
+    } else if (rolePreviewBackdrop?.classList.contains('open')) {
+      closeRolePreviewManager()
     } else if (teamSetupBackdrop?.classList.contains('open')) {
       closeTeamSetup()
     } else if (roadmapManagerBackdrop?.classList.contains('open')) {
@@ -18318,6 +18684,8 @@ supabase.auth.onAuthStateChange((event, session) => {
 
   if (!currentUser) {
     canEdit = false
+    adminRolePreview = null
+    editorModeBeforeRolePreview = null
 
     if (editorMode) {
       editorMode = false

@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=99" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=100" />
   <style>
     :root {
       --bg: #000000;
@@ -7285,6 +7285,30 @@
     font-size: .66rem;
   }
 
+  .form-disclosure {
+    border: 1px solid rgba(255,255,255,.055);
+    border-radius: 11px;
+    background: rgba(255,255,255,.012);
+  }
+  .form-disclosure > summary {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    color: #d7d2da;
+    cursor: pointer;
+    list-style: none;
+    font-size: .71rem;
+    font-weight: 780;
+  }
+  .form-disclosure > summary::-webkit-details-marker { display: none; }
+  .form-disclosure > summary::after { content: '›'; color: #77717d; transition: transform 140ms ease; }
+  .form-disclosure[open] > summary::after { transform: rotate(90deg); }
+  .form-disclosure-hint { margin-left: auto; color: #716b76; font-size: .61rem; font-weight: 700; }
+  .form-disclosure-body { padding: 0 10px 10px; }
+
   #modalBackdrop .modal-head p:empty { display: none; }
 
   @media (max-width: 760px) {
@@ -7310,13 +7334,15 @@
   /* =======================================================================
      v94 — contextual Editor Mode + layout controls
      ======================================================================= */
-  .editor-primary-actions {
+  .editor-actions-section { margin: 0; }
+  .editor-actions-section[hidden] { display: none !important; }
+  .editor-primary-actions-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 7px;
   }
 
-  .editor-primary-actions.layout-active {
+  .editor-actions-section.layout-active .editor-primary-actions-grid {
     grid-template-columns: 1fr;
   }
 
@@ -7346,6 +7372,28 @@
     align-items: center;
     justify-content: space-between;
     gap: 10px;
+  }
+
+  details.editor-context-card > summary.editor-context-head {
+    cursor: pointer;
+    list-style: none;
+    padding-right: 18px;
+  }
+  details.editor-context-card > summary.editor-context-head::-webkit-details-marker { display: none; }
+  details.editor-context-card > summary.editor-context-head::after {
+    content: '›';
+    position: absolute;
+    right: 9px;
+    top: 9px;
+    color: #77717d;
+    transition: transform 140ms ease;
+  }
+  details.editor-context-card[open] > summary.editor-context-head::after { transform: rotate(90deg); }
+  .editor-context-body {
+    display: grid;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,.045);
   }
 
   .editor-context-head span {
@@ -7450,7 +7498,7 @@
   .editor-tools-section.layout-context #editorContextEmpty { display: none !important; }
 
   @media (max-width: 520px) {
-    .editor-primary-actions {
+    .editor-primary-actions-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
@@ -7835,7 +7883,7 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
-    .editor-primary-actions {
+    .editor-primary-actions-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
@@ -7979,15 +8027,35 @@
   /* v98 — team workspace hierarchy + admin team control center */
   .team-atlas-primary {
     display: grid;
-    gap: 12px;
-    padding: 13px;
+    gap: 0;
+    padding: 0;
     border: 1px solid rgba(177,76,255,.24);
     border-radius: 15px;
     background:
       radial-gradient(circle at 90% 0%, rgba(177,76,255,.13), transparent 42%),
       linear-gradient(145deg, rgba(177,76,255,.085), rgba(255,255,255,.018));
     box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+    overflow: hidden;
   }
+  .team-atlas-primary > summary {
+    position: relative;
+    list-style: none;
+    cursor: pointer;
+    padding: 13px 34px 13px 13px;
+  }
+  .team-atlas-primary > summary::-webkit-details-marker { display: none; }
+  .team-atlas-primary > summary::after {
+    content: '›';
+    position: absolute;
+    right: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #a58eaf;
+    font-size: 1.05rem;
+    transition: transform 140ms ease;
+  }
+  .team-atlas-primary[open] > summary::after { transform: translateY(-50%) rotate(90deg); }
+  .team-atlas-primary-body { padding: 0 13px 13px; }
 
   .team-atlas-primary-head { display: grid; gap: 4px; }
   .team-atlas-primary-head > span {
@@ -8094,6 +8162,45 @@
   }
   .team-admin-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
   .team-admin-actions .btn { min-height: 32px; padding: 6px 9px; font-size: .66rem; }
+
+  .role-preview-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 6px;
+    padding: 8px 9px;
+    border: 1px solid rgba(255,190,70,.22);
+    border-radius: 10px;
+    background: rgba(255,190,70,.055);
+    color: #d7c39c;
+    font-size: .66rem;
+  }
+  .role-preview-banner[hidden] { display: none !important; }
+  .role-preview-banner .btn { min-height: 30px; padding: 5px 8px; font-size: .62rem; }
+  .role-preview-modal { width: min(660px, calc(100vw - 28px)); }
+  .role-preview-body { display: grid; gap: 12px; }
+  .role-preview-team {
+    padding: 9px 10px;
+    border-radius: 10px;
+    background: rgba(177,76,255,.055);
+    color: #d5cbd9;
+    font-size: .7rem;
+    font-weight: 760;
+  }
+  .role-preview-capabilities {
+    display: grid;
+    gap: 6px;
+    padding: 10px;
+    border: 1px solid rgba(255,255,255,.055);
+    border-radius: 11px;
+    background: rgba(255,255,255,.015);
+    color: #918a96;
+    font-size: .68rem;
+    line-height: 1.5;
+  }
+  .role-preview-capabilities strong { color: #eee9f1; }
+  .role-preview-capabilities span { display: block; }
 
   @media (max-width: 1180px) and (min-width: 921px) {
     .editor-dock { width: 340px; min-width: 0; }
@@ -8318,17 +8425,21 @@
 
     <nav class="atlas-navigation" id="atlasNavigation" aria-label="Navigare Atlas">
       <div class="atlas-section-switcher" id="publicSectionTabs" role="tablist" aria-label="Navigare principală">
-        <section class="team-atlas-primary" id="teamAtlasPrimary">
-          <div class="team-atlas-primary-head">
-            <span>TEAM ATLAS</span>
-            <strong>Documentația echipei</strong>
-            <p>Harta și traseele de lucru ale echipei.</p>
+        <details class="team-atlas-primary" id="teamAtlasPrimary" data-ui-section="team-atlas" open>
+          <summary class="team-atlas-primary-summary">
+            <div class="team-atlas-primary-head">
+              <span>TEAM ATLAS</span>
+              <strong id="teamAtlasIdentity">Documentația echipei</strong>
+              <p id="teamAtlasContextLine">Harta și traseele de lucru ale echipei.</p>
+            </div>
+          </summary>
+          <div class="team-atlas-primary-body">
+            <div class="team-atlas-primary-tabs">
+              <button class="atlas-primary-tab team-primary-tab active" type="button" role="tab" data-public-section="team">Explore</button>
+              <button class="atlas-primary-tab team-primary-tab" type="button" role="tab" data-public-section="team-roadmaps">Roadmaps</button>
+            </div>
           </div>
-          <div class="team-atlas-primary-tabs">
-            <button class="atlas-primary-tab team-primary-tab active" type="button" role="tab" data-public-section="team">Explore</button>
-            <button class="atlas-primary-tab team-primary-tab" type="button" role="tab" data-public-section="team-roadmaps">Roadmaps</button>
-          </div>
-        </section>
+        </details>
 
         <button class="announcements-nav-button" type="button" role="tab" data-public-section="announcements">
           <span>Announcements</span>
@@ -8362,58 +8473,71 @@
           <span class="editor-mode-state" id="editorModeState">Off</span>
         </button>
         <aside class="editor-dock" id="editorDock">
+          <div class="role-preview-banner" id="rolePreviewBanner" hidden>
+            <span id="rolePreviewBannerText">Preview rol</span>
+            <button class="btn" id="exitRolePreviewBtn" type="button">Ieși din preview</button>
+          </div>
       <details class="ui-collapse tool-collapse editor-tools-section" id="editorToolsSection" data-ui-section="editor" hidden open>
             <summary>
               <span>Editor</span>
               <span class="ui-collapse-meta" id="editorContextMeta">context</span>
             </summary>
             <div class="ui-collapse-body editor-ui-body">
-              <div class="editor-primary-actions" id="editorPrimaryActions">
-                <button class="btn primary" id="createBtn">+ Nod</button>
-                <button class="btn" id="relationBtn">+ Relație</button>
-                <button class="btn" id="layoutEditModeBtn" type="button">Layout</button>
-              </div>
+              <details class="ui-collapse nested-collapse editor-actions-section" id="editorPrimaryActions" data-ui-section="editor-actions" open>
+                <summary><span>Acțiuni</span><span class="ui-collapse-meta">nod · relație · layout</span></summary>
+                <div class="ui-collapse-body">
+                  <div class="editor-primary-actions-grid">
+                    <button class="btn primary" id="createBtn">+ Nod</button>
+                    <button class="btn" id="relationBtn">+ Relație</button>
+                    <button class="btn" id="layoutEditModeBtn" type="button">Layout</button>
+                  </div>
+                </div>
+              </details>
 
               <div class="editor-context-card editor-context-empty" id="editorContextEmpty">
                 <span>Nicio selecție</span>
               </div>
 
-              <div class="editor-context-card" id="editorNodeContext" hidden>
-                <div class="editor-context-head">
+              <details class="editor-context-card editor-context-collapse" id="editorNodeContext" data-ui-section="editor-node-context" hidden open>
+                <summary class="editor-context-head">
                   <span>Nod selectat</span>
                   <strong id="editorNodeContextTitle">—</strong>
-                </div>
-                <div class="editor-context-actions">
-                  <button class="btn primary" id="editBtn">Editează</button>
-                  <details class="editor-context-menu">
-                    <summary aria-label="Mai multe acțiuni">•••</summary>
-                    <div class="editor-context-menu-list">
-                      <button class="btn" id="mediaManagerBtn" type="button">Media</button>
-                      <button class="btn" id="fileManagerBtn" type="button">Fișiere</button>
-                      <button class="btn" id="codeManagerBtn" type="button">Cod</button>
-                      <button class="btn danger" id="deleteBtn">Șterge</button>
-                    </div>
-                  </details>
-                </div>
-              </div>
-
-              <div class="editor-context-card" id="editorEdgeContext" hidden>
-                <div class="editor-context-head">
-                  <span>Relație selectată</span>
-                  <strong id="editorEdgeContextTitle">—</strong>
-                </div>
-                <div class="btn-row">
-                  <button class="btn" id="editEdgeBtn">Editează</button>
-                  <button class="btn danger" id="deleteEdgeBtn">Șterge</button>
-                </div>
-                <div class="editor-edge-layout-tools" id="editorEdgeLayoutTools" hidden>
-                  <div class="btn-row three">
-                    <button class="btn" id="addEdgePointBtn" type="button">+ Punct</button>
-                    <button class="btn" id="removeEdgePointBtn" type="button">− Punct</button>
-                    <button class="btn" id="resetEdgePathBtn" type="button">Auto</button>
+                </summary>
+                <div class="editor-context-body">
+                  <div class="editor-context-actions">
+                    <button class="btn primary" id="editBtn">Editează</button>
+                    <details class="editor-context-menu">
+                      <summary aria-label="Mai multe acțiuni">•••</summary>
+                      <div class="editor-context-menu-list">
+                        <button class="btn" id="mediaManagerBtn" type="button">Media</button>
+                        <button class="btn" id="fileManagerBtn" type="button">Fișiere</button>
+                        <button class="btn" id="codeManagerBtn" type="button">Cod</button>
+                        <button class="btn danger" id="deleteBtn">Șterge</button>
+                      </div>
+                    </details>
                   </div>
                 </div>
-              </div>
+              </details>
+
+              <details class="editor-context-card editor-context-collapse" id="editorEdgeContext" data-ui-section="editor-edge-context" hidden open>
+                <summary class="editor-context-head">
+                  <span>Relație selectată</span>
+                  <strong id="editorEdgeContextTitle">—</strong>
+                </summary>
+                <div class="editor-context-body">
+                  <div class="btn-row">
+                    <button class="btn" id="editEdgeBtn">Editează</button>
+                    <button class="btn danger" id="deleteEdgeBtn">Șterge</button>
+                  </div>
+                  <div class="editor-edge-layout-tools" id="editorEdgeLayoutTools" hidden>
+                    <div class="btn-row three">
+                      <button class="btn" id="addEdgePointBtn" type="button">+ Punct</button>
+                      <button class="btn" id="removeEdgePointBtn" type="button">− Punct</button>
+                      <button class="btn" id="resetEdgePathBtn" type="button">Auto</button>
+                    </div>
+                  </div>
+                </div>
+              </details>
 
               <div class="layout-editor-bar" id="layoutEditorBar" hidden>
                 <div class="layout-editor-copy">
@@ -8444,6 +8568,7 @@
                   <button class="btn" id="publicContentManagerBtn" type="button">Announcements</button>
                   <button class="btn" id="roadmapManagerBtn" type="button">Roadmaps</button>
                   <button class="btn" id="teamSetupBtn" type="button">Teams & access</button>
+                  <button class="btn" id="rolePreviewBtn" type="button">View as role</button>
                 </div>
               </details>
             </div>
@@ -8644,11 +8769,12 @@
 
         </div>
 
-        <div class="field" id="nodeTagsField">
-          <label>Etichete</label>
-          <div class="chip-list" id="nodeTagPicker"></div>
-
-        </div>
+        <details class="field form-disclosure" id="nodeTagsField">
+          <summary>Etichete <span class="form-disclosure-hint">opțional</span></summary>
+          <div class="form-disclosure-body">
+            <div class="chip-list" id="nodeTagPicker"></div>
+          </div>
+        </details>
 
         <div class="field" id="nodeContentField">
           <label for="contentInput" id="contentInputLabel">Documentație completă</label>
@@ -9050,6 +9176,41 @@
         </div>
         <div class="team-admin-list" id="teamAdminList"></div>
         <div class="count-strip" id="teamAdminStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop role-preview-backdrop" id="rolePreviewBackdrop">
+    <div class="modal role-preview-modal compact-modal admin-modal">
+      <div class="modal-head">
+        <div>
+          <h3>View as role</h3>
+          <p>Simulează interfața și permisiunile pe Atlasul activ.</p>
+        </div>
+        <button class="icon-btn" id="closeRolePreviewBtn" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body role-preview-body">
+        <div class="role-preview-team" id="rolePreviewTeamLabel">Team Atlas</div>
+        <div class="field-grid two">
+          <div class="field">
+            <label for="rolePreviewRoleInput">Rol</label>
+            <select id="rolePreviewRoleInput">
+              <option value="team_leader">Team Leader</option>
+              <option value="mentor">Mentor</option>
+              <option value="department_coordinator">Department Coordinator</option>
+              <option value="team_member">Team Member</option>
+            </select>
+          </div>
+          <div class="field" id="rolePreviewDepartmentField" hidden>
+            <label for="rolePreviewDepartmentInput">Departament simulat</label>
+            <select id="rolePreviewDepartmentInput"></select>
+          </div>
+        </div>
+        <div class="role-preview-capabilities" id="rolePreviewCapabilities"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="cancelRolePreviewBtn" type="button">Anulează</button>
+        <button class="btn primary" id="startRolePreviewBtn" type="button">Pornește preview</button>
       </div>
     </div>
   </div>
@@ -9822,6 +9983,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=99"></script>
+  <script type="module" src="/js/atlas-script.js?v=100"></script>
 </body>
 </html>
