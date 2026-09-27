@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v96 · Full English UI + mobile/responsive interaction redesign
+// v97 · Full English UI + team-first product simplification
 //
 // Source language: Romanian
 // Secondary language: English
@@ -36,6 +36,11 @@ const UI_EN = new Map(Object.entries({
   'Nicio selecție': 'No selection',
   'Nod selectat': 'Selected node',
   'Relație selectată': 'Selected relation',
+  'Documentație Team Atlas.': 'Team Atlas documentation.',
+  'Media pentru documentul curent.': 'Media for the current document.',
+  'Inserează': 'Insert',
+  'Inserează aici': 'Insert here',
+  'Announcements': 'Announcements',
   'Istoric': 'History',
   'Layout': 'Layout',
   'Exit layout': 'Exit layout',
@@ -2849,15 +2854,10 @@ function scheduleApply() {
     if (language === 'en') {
       translateStaticTree(document.body)
       updateLanguageLinks()
-      applyNodeTranslations()
-      applyEdgeTranslations()
-      applyContextNodeTitleTranslations()
       applyDynamicEntityTranslations()
-      applyEnglishClientSeo()
     }
 
     updateLanguageSwitcher()
-    injectTranslationManagerButton()
   })
 }
 
@@ -3667,8 +3667,7 @@ async function openEdgeTranslationManager(selection) {
             : 'Traducerea EN a relației a fost salvată.'
 
         translationLoadFinished = true
-        applyEdgeTranslations()
-
+  
         window.setTimeout(
           closeTranslationManager,
           450
@@ -4060,8 +4059,7 @@ async function openTranslationManager() {
             : 'Traducerea EN a fost salvată.'
 
         translationLoadFinished = true
-        applyNodeTranslations()
-
+  
         window.setTimeout(
           closeTranslationManager,
           450
@@ -4150,7 +4148,6 @@ function init() {
   installDynamicTranslationEditor()
   injectStyles()
   injectLanguageSwitcher()
-  injectTranslationManagerButton()
 
   if (language === 'en') {
     translateStaticTree(document.body)

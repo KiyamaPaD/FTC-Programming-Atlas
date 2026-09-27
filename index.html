@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=96" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=97" />
   <style>
     :root {
       --bg: #000000;
@@ -2668,7 +2668,7 @@
 
 
   /* -----------------------------------------------------------------------
-     Public content · Announcements + Resources
+     Global content · Announcements
      ----------------------------------------------------------------------- */
 
   .public-hub-actions {
@@ -3717,219 +3717,6 @@
   }
 
 
-
-
-  .documentation-health-modal {
-    width: min(1040px, 100%);
-    max-height: min(900px, calc(100vh - 36px));
-    display: flex;
-    flex-direction: column;
-  }
-
-  .documentation-health-body {
-    min-height: 0;
-    overflow: auto;
-    padding: 16px 18px 20px;
-  }
-
-  .documentation-health-summary {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 8px;
-    margin-bottom: 14px;
-  }
-
-  .documentation-health-stat {
-    padding: 11px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.012);
-  }
-
-  .documentation-health-stat strong {
-    display: block;
-    color: #eee9f0;
-    font-size: 1.05rem;
-    line-height: 1;
-  }
-
-  .documentation-health-stat span {
-    display: block;
-    margin-top: 5px;
-    color: #77717d;
-    font-size: 0.6rem;
-    line-height: 1.25;
-  }
-
-  .documentation-health-controls {
-    display: grid;
-    grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) 150px auto;
-    gap: 9px;
-    align-items: end;
-    margin-bottom: 12px;
-  }
-
-  .documentation-health-lens {
-    min-height: 38px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 0 10px;
-    border: 1px solid rgba(255, 255, 255, 0.055);
-    border-radius: 10px;
-    color: #8d8792;
-    font-size: 0.65rem;
-    white-space: nowrap;
-  }
-
-  .documentation-health-lens input {
-    accent-color: #b14cff;
-  }
-
-  .documentation-health-status {
-    margin-bottom: 10px;
-  }
-
-  .documentation-health-results {
-    display: grid;
-    gap: 8px;
-  }
-
-  .documentation-health-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 12px;
-    align-items: center;
-    padding: 12px 13px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    background: rgba(255, 255, 255, 0.012);
-  }
-
-  .documentation-health-row.has-issues {
-    border-color: rgba(255, 184, 84, 0.11);
-  }
-
-  .documentation-health-row-title {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 7px;
-  }
-
-  .documentation-health-row-title strong {
-    color: #eee9f0;
-    font-size: 0.78rem;
-  }
-
-  .documentation-health-row-meta {
-    margin-top: 5px;
-    color: #746e79;
-    font-size: 0.61rem;
-    line-height: 1.45;
-  }
-
-  .documentation-health-issues {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 8px;
-  }
-
-  .documentation-health-issue {
-    padding: 4px 7px;
-    border: 1px solid rgba(255, 184, 84, 0.11);
-    border-radius: 999px;
-    color: #bca27a;
-    font-size: 0.57rem;
-    line-height: 1.2;
-  }
-
-  .documentation-health-issue.source-newer {
-    border-color: rgba(177, 76, 255, 0.18);
-    color: #c79bdd;
-  }
-
-  .documentation-health-issue.review {
-    border-color: rgba(255, 184, 84, 0.17);
-    color: #d4b581;
-  }
-
-  .documentation-health-clean {
-    padding: 4px 7px;
-    border: 1px solid rgba(104, 213, 157, 0.13);
-    border-radius: 999px;
-    color: #99c8ac;
-    font-size: 0.57rem;
-  }
-
-  .documentation-health-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px;
-  }
-
-  .documentation-health-empty {
-    padding: 28px 16px;
-    border: 1px dashed rgba(255, 255, 255, 0.07);
-    border-radius: 12px;
-    color: #79737e;
-    text-align: center;
-    font-size: 0.7rem;
-    line-height: 1.55;
-  }
-
-  .node.quality-attention {
-    border-color: rgba(255, 184, 84, 0.22);
-    box-shadow:
-      0 0 0 1px rgba(255, 184, 84, 0.035),
-      0 12px 36px rgba(0, 0, 0, 0.16);
-  }
-
-  .node.quality-clean {
-    border-color: rgba(104, 213, 157, 0.13);
-  }
-
-  .node-health-badge {
-    flex: 0 0 auto;
-    padding: 3px 6px;
-    border: 1px solid rgba(255, 184, 84, 0.12);
-    border-radius: 999px;
-    color: #c5a77d;
-    font-size: 0.55rem;
-    line-height: 1;
-  }
-
-  .node-health-badge.clean {
-    border-color: rgba(104, 213, 157, 0.12);
-    color: #91bea3;
-  }
-
-  @media (max-width: 940px) {
-    .documentation-health-summary {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .documentation-health-controls {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  @media (max-width: 620px) {
-    .documentation-health-summary,
-    .documentation-health-controls {
-      grid-template-columns: 1fr;
-    }
-
-    .documentation-health-row {
-      grid-template-columns: 1fr;
-    }
-
-    .documentation-health-actions {
-      justify-content: flex-start;
-    }
-  }
 
 
   .documentation-meta-modal {
@@ -8181,6 +7968,131 @@
     }
   }
 
+
+  /* v97 — team-first polish + inline document embeds */
+  .topbar-editor-btn {
+    margin-left: auto;
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: rgba(14, 11, 17, 0.86);
+    color: var(--muted);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .topbar-editor-btn.active {
+    color: var(--text);
+    border-color: rgba(208, 126, 255, 0.42);
+    background: rgba(164, 74, 219, 0.16);
+  }
+
+  .editor-dock {
+    position: fixed;
+    right: 18px;
+    top: 68px;
+    width: min(320px, calc(100vw - 36px));
+    z-index: 47;
+    pointer-events: none;
+  }
+
+  .editor-dock > .editor-tools-section:not([hidden]) {
+    display: block;
+    pointer-events: auto;
+    max-height: calc(var(--atlas-viewport-height, 100vh) - 86px);
+    overflow: auto;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: rgba(10, 8, 13, 0.94);
+    box-shadow: 0 18px 60px rgba(0,0,0,0.34);
+    backdrop-filter: blur(18px);
+  }
+
+  .rich-editor-insert { position: relative; }
+  .rich-editor-insert > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 7px 9px;
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+  .rich-editor-insert > summary::-webkit-details-marker { display:none; }
+  .rich-editor-insert[open] > summary { color: var(--text); background: rgba(255,255,255,0.06); }
+
+  .atlas-inline-embed {
+    margin: 18px 0;
+    border-radius: 14px;
+  }
+
+  .rich-editor .atlas-embed-placeholder {
+    margin: 12px 0;
+    padding: 12px 14px;
+    border: 1px dashed rgba(208, 126, 255, 0.42);
+    border-radius: 12px;
+    background: rgba(164, 74, 219, 0.08);
+    color: var(--muted);
+    user-select: all;
+  }
+
+  .rich-editor .atlas-embed-placeholder::before {
+    content: "↳ ";
+    color: var(--accent);
+  }
+
+  .inline-file-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.025);
+  }
+
+  .inline-file-card .node-file-copy { min-width: 0; }
+
+  .manager-insert-btn[hidden] { display:none !important; }
+
+  .atlas-status-card {
+    width: auto;
+    max-width: min(420px, calc(100vw - 32px));
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+  }
+  .atlas-status-card h2 { margin: 0; font-size: 0.95rem; }
+  .atlas-status-card .atlas-loader { flex: 0 0 auto; }
+  .atlas-status-card .atlas-status-actions:empty { display:none; }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .topbar-editor-btn {
+      min-width: 44px;
+      min-height: 44px;
+      padding: 0 10px;
+      margin-left: auto;
+    }
+
+    .editor-dock {
+      left: 8px;
+      right: 8px;
+      top: auto;
+      bottom: calc(8px + env(safe-area-inset-bottom));
+      width: auto;
+      z-index: 64;
+    }
+
+    .editor-dock > .editor-tools-section:not([hidden]) {
+      max-height: min(62vh, 560px);
+      border-radius: 16px;
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -8201,6 +8113,13 @@
         target="_blank"
         rel="noopener noreferrer"
       >InfotronX #19119</a>
+
+      <button
+        class="topbar-editor-btn"
+        id="editorModeBtn"
+        type="button"
+        hidden
+      >Editor</button>
 
       <div class="mobile-topbar-actions" aria-label="Comenzi mobile">
         <button
@@ -8238,10 +8157,8 @@
         </summary>
         <div class="ui-collapse-body">
           <div class="atlas-primary-tabs" id="publicSectionTabs" role="tablist" aria-label="Navigare principală">
-            <button class="atlas-primary-tab active" type="button" role="tab" data-public-section="explore">Explore</button>
-            <button class="atlas-primary-tab" type="button" role="tab" data-public-section="index">Index</button>
-            <button class="atlas-primary-tab" type="button" role="tab" data-public-section="roadmaps">Roadmaps</button>
-            <button class="atlas-primary-tab" type="button" role="tab" data-public-section="resources">Resources</button>
+            <button class="atlas-primary-tab active" type="button" role="tab" data-public-section="team">Explore</button>
+            <button class="atlas-primary-tab" type="button" role="tab" data-public-section="team-roadmaps">Roadmaps</button>
             <button class="atlas-primary-tab" type="button" role="tab" data-public-section="announcements">Announcements</button>
           </div>
         </div>
@@ -8281,8 +8198,6 @@
             </div>
             <div class="team-atlas-context-meta" id="teamAtlasContextMeta"></div>
             <div class="team-atlas-context-actions">
-              <button class="btn" id="teamAtlasIndexBtn" type="button">Index</button>
-              <button class="btn" id="teamAtlasRoadmapsBtn" type="button">Roadmaps</button>
               <button class="btn" id="teamAtlasTaxonomyBtn" type="button" hidden>Taxonomy</button>
               <button class="btn" id="teamAtlasSettingsBtn" type="button" hidden>Settings</button>
               <button class="btn" id="teamAtlasMembersBtn" type="button" hidden>Members</button>
@@ -8366,7 +8281,6 @@
                 <button class="btn" id="quickFinderBtn" type="button">⌕ Quick Find</button>
                 <button class="btn" id="savedDocsBtn" type="button">☆ Saved</button>
               </div>
-              <button class="btn" id="documentationHealthBtn" type="button" hidden>◈ Health</button>
             </div>
           </details>
 
@@ -8416,16 +8330,34 @@
                 <button class="btn" id="fitSelectionBtn">Selecție</button>
               </div>
 
-              <button
-                class="btn primary"
-                id="editorModeBtn"
-                type="button"
-                hidden
-              >Editor mode</button>
             </div>
           </details>
 
-          <details class="ui-collapse tool-collapse editor-tools-section" id="editorToolsSection" data-ui-section="editor" hidden open>
+
+
+          <details class="ui-collapse tool-collapse" id="statusSection" data-ui-section="status">
+            <summary>
+              <span>Status</span>
+              <span class="ui-collapse-meta"><strong id="nodeCount">0</strong> noduri</span>
+            </summary>
+            <div class="ui-collapse-body compact-grid">
+              <div class="selected-strip" id="selectedStrip">Niciun nod selectat.</div>
+              <div class="mode-strip" id="modeStrip"></div>
+            </div>
+          </details>
+
+          <details class="ui-collapse tool-collapse" data-ui-section="help">
+            <summary><span>Ajutor</span><span class="ui-collapse-meta">?</span></summary>
+            <div class="ui-collapse-body compact-grid">
+              <button class="btn" id="tutorialBtn">Tutorial</button>
+            </div>
+          </details>
+        </div>
+      </div>
+    </aside>
+
+    <aside class="editor-dock" id="editorDock">
+      <details class="ui-collapse tool-collapse editor-tools-section" id="editorToolsSection" data-ui-section="editor" hidden open>
             <summary>
               <span>Editor</span>
               <span class="ui-collapse-meta" id="editorContextMeta">context</span>
@@ -8504,40 +8436,20 @@
                 <summary><span>Administrare</span><span class="ui-collapse-meta">advanced</span></summary>
                 <div class="ui-collapse-body compact-grid">
                   <button class="btn" id="taxonomyManagerBtn" type="button">Taxonomy</button>
-                  <button class="btn" id="publicContentManagerBtn" type="button">Public Content</button>
+                  <button class="btn" id="publicContentManagerBtn" type="button">Announcements</button>
                   <button class="btn" id="roadmapManagerBtn" type="button">Roadmaps</button>
                   <button class="btn" id="teamSetupBtn" type="button">Teams</button>
                 </div>
               </details>
             </div>
           </details>
-
-          <details class="ui-collapse tool-collapse" id="statusSection" data-ui-section="status">
-            <summary>
-              <span>Status</span>
-              <span class="ui-collapse-meta"><strong id="nodeCount">0</strong> noduri</span>
-            </summary>
-            <div class="ui-collapse-body compact-grid">
-              <div class="selected-strip" id="selectedStrip">Niciun nod selectat.</div>
-              <div class="mode-strip" id="modeStrip"></div>
-            </div>
-          </details>
-
-          <details class="ui-collapse tool-collapse" data-ui-section="help">
-            <summary><span>Ajutor</span><span class="ui-collapse-meta">?</span></summary>
-            <div class="ui-collapse-body compact-grid">
-              <button class="btn" id="tutorialBtn">Tutorial</button>
-            </div>
-          </details>
-        </div>
-      </div>
     </aside>
 
     <section class="detail-panel" id="detailPanel"></section>
 
     <div class="empty-panel" id="emptyPanel">
-      <strong>Niciun nod deschis</strong>
-      Apasă pe un nod din hartă ca să vezi documentația completă. Poți muta nodurile, crea relații între ele și folosi harta ca un atlas viu.
+      <strong>Selectează un nod</strong>
+      Deschide documentația echipei direct din hartă.
     </div>
   </div>
 
@@ -8546,7 +8458,7 @@
       <div class="modal-head">
         <div>
           <h3 id="modalTitle">Creează nod</h3>
-          <p id="modalSubtitle">Adaugi un titlu, o categorie și explicația completă. Poți folosi asta pentru capitole mari, tutoriale, debugging sau concepte de bază.</p>
+          <p id="modalSubtitle">Documentație Team Atlas.</p>
         </div>
         <button class="icon-btn" id="closeModalBtn" aria-label="Close">✕</button>
       </div>
@@ -8598,6 +8510,15 @@
               <button type="button" data-rich-command="insertOrderedList" aria-label="Listă numerotată">1.</button>
               <button type="button" id="richLinkBtn" aria-label="Adaugă link">Link</button>
 
+              <details class="rich-editor-insert">
+                <summary>Inserează</summary>
+                <div class="rich-editor-more-menu">
+                  <button type="button" id="richInsertCodeBtn">Cod</button>
+                  <button type="button" id="richInsertMediaBtn">Media</button>
+                  <button type="button" id="richInsertFileBtn">Fișier</button>
+                </div>
+              </details>
+
               <details class="rich-editor-more">
                 <summary>Mai mult</summary>
                 <div class="rich-editor-more-menu">
@@ -8646,8 +8567,8 @@
     <div class="modal media-manager-modal compact-modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="mediaManagerTitle">
       <div class="modal-head">
         <div>
-          <h3 id="mediaManagerTitle">Media nod</h3>
-          <p>Încarcă screenshoturi și videoclipuri sau adaugă un link YouTube/direct. Media apare în documentația completă.</p>
+          <h3 id="mediaManagerTitle">Media</h3>
+          <p>Media pentru documentul curent.</p>
         </div>
         <button class="icon-btn" id="closeMediaManagerBtn" type="button" aria-label="Închide Media Manager">✕</button>
       </div>
@@ -8721,8 +8642,8 @@
     <div class="modal file-manager-modal compact-modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="fileManagerTitle">
       <div class="modal-head">
         <div>
-          <h3 id="fileManagerTitle">Fișiere nod</h3>
-          <p>Încarcă fișiere individuale sau un folder întreg. Structura folderelor este păstrată în documentația nodului.</p>
+          <h3 id="fileManagerTitle">Fișiere</h3>
+          <p>Încarcă și inserează fișiere direct în documentație.</p>
         </div>
         <button class="icon-btn" id="closeFileManagerBtn" type="button" aria-label="Închide managerul de fișiere">✕</button>
       </div>
@@ -8776,8 +8697,8 @@
     <div class="modal code-manager-modal compact-modal admin-modal" role="dialog" aria-modal="true" aria-labelledby="codeManagerTitle">
       <div class="modal-head">
         <div>
-          <h3 id="codeManagerTitle">Nod cod</h3>
-          <p>Adaugă snippet-uri selectabile și ușor de copiat. Ciornele sunt salvate automat, inclusiv dacă schimbi tab-ul sau browserul reîncarcă pagina.</p>
+          <h3 id="codeManagerTitle">Cod</h3>
+          <p>Creează snippet-uri și inserează-le exact lângă explicația lor.</p>
         </div>
         <button class="icon-btn" id="closeCodeManagerBtn" type="button" aria-label="Închide Nod cod">✕</button>
       </div>
@@ -9151,73 +9072,6 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="documentationHealthBackdrop">
-    <div class="modal documentation-health-modal compact-modal admin-modal">
-      <div class="modal-head">
-        <div>
-          <h3 id="documentationHealthTitle">Documentation Health</h3>
-          <p>Review queue și diagnostic pentru calitatea documentației din scope-ul curent.</p>
-        </div>
-        <button class="icon-btn" id="closeDocumentationHealthBtn" type="button" aria-label="Close">✕</button>
-      </div>
-
-      <div class="documentation-health-body">
-        <div class="documentation-health-summary" id="documentationHealthSummary"></div>
-
-        <div class="documentation-health-controls">
-          <div class="field">
-            <label for="documentationHealthIssueInput">Issue</label>
-            <select id="documentationHealthIssueInput">
-              <option value="all">All documents</option>
-              <option value="attention">Needs attention</option>
-              <option value="not_reviewed">Not reviewed</option>
-              <option value="needs_review">Needs review</option>
-              <option value="missing_sources">Missing sources</option>
-              <option value="no_primary_source">No primary source</option>
-              <option value="stale">Stale</option>
-              <option value="thin_content">Thin content</option>
-              <option value="orphan">Orphaned</option>
-              <option value="no_tags">No tags</option>
-              <option value="source_newer">Public source newer</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="documentationHealthDepartmentInput">Department</label>
-            <select id="documentationHealthDepartmentInput"></select>
-          </div>
-
-          <div class="field">
-            <label for="documentationHealthStaleInput">Stale after</label>
-            <select id="documentationHealthStaleInput">
-              <option value="90">90 days</option>
-              <option value="180">180 days</option>
-              <option value="365">365 days</option>
-            </select>
-          </div>
-
-          <label class="documentation-health-lens">
-            <input id="documentationQualityLensInput" type="checkbox" />
-            Quality lens on map
-          </label>
-        </div>
-
-        <div class="count-strip documentation-health-status" id="documentationHealthStatus"></div>
-
-        <div class="documentation-health-results" id="documentationHealthResults"></div>
-      </div>
-
-      <div class="modal-foot">
-        <button class="btn" id="copyDocumentationHealthReportBtn" type="button">
-          Copy report
-        </button>
-        <button class="btn primary" id="closeDocumentationHealthFooterBtn" type="button">
-          Închide
-        </button>
-      </div>
-    </div>
-  </div>
-
   <div class="modal-backdrop" id="documentationMetaBackdrop">
     <div class="modal documentation-meta-modal compact-modal admin-modal">
       <div class="modal-head">
@@ -9335,7 +9189,7 @@
       <div class="modal-head">
         <div>
           <h3>Quick Find</h3>
-          <p>Caută instant în documentația publică și în Team Atlas-ul activ.</p>
+          <p>Caută instant în documentația echipei active.</p>
         </div>
         <button class="icon-btn" id="closeDocumentationFinderBtn" type="button" aria-label="Close">✕</button>
       </div>
@@ -9349,10 +9203,8 @@
             autocomplete="off"
           />
 
-          <select class="filter-select" id="documentationFinderScope">
-            <option value="all">Public + Team Atlas</option>
-            <option value="public">Doar Public Atlas</option>
-            <option value="team">Doar Team Atlas</option>
+          <select class="filter-select" id="documentationFinderScope" hidden>
+            <option value="team" selected>Team Atlas</option>
           </select>
         </div>
 
@@ -9520,7 +9372,7 @@
       <div class="roadmap-manager-body">
         <div class="public-content-manager-toolbar">
           <div>
-            <strong id="roadmapManagerScopeLabel">Roadmaps publice</strong>
+            <strong id="roadmapManagerScopeLabel">Roadmaps</strong>
             <div class="editor-tools-note admin-helper">Ordine recomandată, fără unlock.</div>
           </div>
 
@@ -9623,8 +9475,8 @@
     <div class="modal public-content-modal compact-modal admin-modal">
       <div class="modal-head">
         <div>
-          <h3>Public Content</h3>
-          <p>Administrează Announcements și Useful Resources. Acest panou este disponibil doar editorilor autorizați.</p>
+          <h3>Announcements</h3>
+          <p>Administrează singurul conținut global al Atlasului.</p>
         </div>
         <button class="icon-btn" id="closePublicContentManagerBtn" aria-label="Close">✕</button>
       </div>
@@ -9634,9 +9486,6 @@
           <div class="public-content-kind-tabs">
             <button class="public-content-kind-tab active" type="button" data-public-content-kind="announcements">
               Announcements
-            </button>
-            <button class="public-content-kind-tab" type="button" data-public-content-kind="resources">
-              Resources
             </button>
           </div>
 
@@ -9670,7 +9519,6 @@
                     <option value="game-manual">Game Manual</option>
                     <option value="season">Season</option>
                     <option value="events">Events</option>
-                    <option value="resources">Resources</option>
                     <option value="platform">Platform</option>
                   </select>
                 </div>
@@ -9704,10 +9552,6 @@
                       <label for="announcementSourceUrlInput">Link sursă</label>
                       <input id="announcementSourceUrlInput" placeholder="https://..." />
                     </div>
-                    <div class="field">
-                      <label for="announcementRelatedNodeInput">Nod asociat</label>
-                      <select id="announcementRelatedNodeInput"></select>
-                    </div>
                   </div>
                   <div class="field">
                     <label for="announcementPublishedAtInput">Data publicării</label>
@@ -9722,65 +9566,7 @@
               </details>
             </div>
 
-            <div class="public-content-fields" id="resourceEditorFields" hidden>
-              <div class="field-grid">
-                <div class="field">
-                  <label for="resourceTitleInput">Titlu</label>
-                  <input id="resourceTitleInput" maxlength="180" placeholder="Ex: Game Manual 0" />
-                </div>
 
-                <div class="field">
-                  <label for="resourceTypeInput">Tip</label>
-                  <input id="resourceTypeInput" maxlength="60" placeholder="Ex: Guide / Official Docs" />
-                </div>
-              </div>
-
-              <div class="field-grid">
-                <div class="field">
-                  <label for="resourceSourceInput">Sursă</label>
-                  <input id="resourceSourceInput" maxlength="120" placeholder="Ex: Game Manual 0" />
-                </div>
-
-                <div class="field">
-                  <label for="resourceUrlInput">URL</label>
-                  <input id="resourceUrlInput" placeholder="https://..." />
-                </div>
-              </div>
-
-              <div class="field">
-                <label for="resourceDescriptionInput">Descriere</label>
-                <textarea
-                  id="resourceDescriptionInput"
-                  class="content-textarea"
-                  maxlength="3000"
-                  placeholder="De ce este utilă resursa?"
-                ></textarea>
-              </div>
-
-              <details class="admin-disclosure admin-advanced">
-                <summary>Avansat</summary>
-                <div class="admin-disclosure-body">
-                  <div class="field-grid">
-                    <div class="field">
-                      <label for="resourceRelatedNodeInput">Nod asociat</label>
-                      <select id="resourceRelatedNodeInput"></select>
-                    </div>
-                    <div class="field">
-                      <label for="resourceSortOrderInput">Ordine</label>
-                      <input id="resourceSortOrderInput" type="number" step="1" value="0" />
-                    </div>
-                  </div>
-                  <div class="field">
-                    <label>Departamente</label>
-                    <div class="public-content-departments" id="resourceDepartmentPicker"></div>
-                  </div>
-                  <div class="public-content-toggle-grid">
-                    <label><input id="resourceActiveInput" type="checkbox" checked /> Activ</label>
-                    <label><input id="resourceFeaturedInput" type="checkbox" /> Featured</label>
-                  </div>
-                </div>
-              </details>
-            </div>
 
             <div class="count-strip" id="publicContentEditorStatus"></div>
 
@@ -9840,20 +9626,9 @@
         aria-hidden="true"
       ></div>
 
-      <div
-        class="atlas-status-kicker"
-        id="atlasStatusKicker"
-      >
-        FTC Programming Atlas
-      </div>
-
-      <h2 id="atlasStatusTitle">
-        Se încarcă harta...
-      </h2>
-
-      <p id="atlasStatusMessage">
-        Pregătim nodurile, documentația și relațiile dintre concepte.
-      </p>
+      <div class="atlas-status-kicker" id="atlasStatusKicker" hidden></div>
+      <h2 id="atlasStatusTitle">Se încarcă...</h2>
+      <p id="atlasStatusMessage" hidden></p>
 
       <div class="atlas-status-actions">
         <button
@@ -9868,6 +9643,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=96"></script>
+  <script type="module" src="/js/atlas-script.js?v=97"></script>
 </body>
 </html>

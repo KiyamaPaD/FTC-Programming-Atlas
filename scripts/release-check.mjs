@@ -119,10 +119,66 @@ async function main() {
       appScript.includes('confirmUnsavedLayoutBeforeLeaving()'),
     'legacy pre-layout editor code is still present'
   )
+  const translationManagerCalls =
+    (i18n.match(/injectTranslationManagerButton\(\)/g) || []).length
   assert(
-    i18n.includes("#editorAdminSection .compact-grid") &&
-      !i18n.includes("#editorToolsSection .tools-grid"),
-    'translation manager is not attached to the consolidated admin controls'
+    translationManagerCalls === 1,
+    'legacy public-node translation manager is still injected at runtime'
+  )
+
+  assert(
+    index.includes('data-public-section="team"') &&
+      index.includes('data-public-section="team-roadmaps"') &&
+      index.includes('data-public-section="announcements"') &&
+      !index.includes('data-public-section="index"') &&
+      !index.includes('data-public-section="resources"'),
+    'team-first primary navigation is missing or legacy Index/Resources tabs remain'
+  )
+  assert(
+    !index.includes('documentationHealth') &&
+      !appScript.includes('documentationHealth'),
+    'Documentation Health is still present'
+  )
+  assert(
+    !index.includes('data-public-content-kind="resources"') &&
+      !index.includes('id="resourceEditorFields"'),
+    'legacy Resources manager UI is still present'
+  )
+  assert(
+    index.includes('class="topbar-editor-btn"') &&
+      index.includes('id="editorDock"') &&
+      index.includes('id="editorModeBtn"'),
+    'Editor Mode is not separated from Quick Panel'
+  )
+  assert(
+    appScript.includes("localStorage.getItem(CACHE_KEYS.editorMode) === '1'") &&
+      appScript.includes("localStorage.setItem(CACHE_KEYS.editorMode, editorMode ? '1' : '0')"),
+    'Editor Mode persistence is missing'
+  )
+  assert(
+    index.includes('id="richInsertCodeBtn"') &&
+      index.includes('id="richInsertMediaBtn"') &&
+      index.includes('id="richInsertFileBtn"') &&
+      appScript.includes('function insertInlineEmbed(type, id)') &&
+      appScript.includes('function renderRichDocumentationWithEmbeds(node)') &&
+      appScript.includes("data-atlas-embed"),
+    'inline code/media/file document embeds are missing'
+  )
+  assert(
+    appScript.includes('async function loadActiveTeamAtlasNodes') &&
+      appScript.includes("'team-roadmaps',\n  'announcements'") && !appScript.includes("'resources'\n])"),
+    'Team Atlas loader or team-first section contract is missing'
+  )
+  assert(
+    !appScript.includes("activePublicSection = 'explore'") &&
+      !appScript.includes(".from('atlas_resources')") &&
+      !appScript.includes(".from('atlas_nodes')"),
+    'legacy global graph/resources runtime is still active'
+  )
+  assert(
+    index.includes('<h2 id="atlasStatusTitle">Se încarcă...</h2>') &&
+      index.includes('id="atlasStatusMessage" hidden'),
+    'loading screen is not the compact one-line v97 version'
   )
   assert(
     mobileBuilder.includes('ATLAS_RELEASE') &&

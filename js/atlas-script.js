@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v96 · FINAL UI/UX CLEANUP + CONSOLIDATION')
+console.log('ATLAS SCRIPT LOADED v97 · TEAM-FIRST + INLINE DOCUMENT EMBEDS')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -44,10 +44,6 @@ const CACHE_KEYS = {
   pendingTeamRoute: 'ftc_atlas_pending_team_route_v1',
   recentDocs: 'ftc_atlas_recent_docs_v1',
   localBookmarks: 'ftc_atlas_local_bookmarks_v1',
-  qualityLens: 'ftc_atlas_quality_lens_v1',
-  healthStaleDays: 'ftc_atlas_health_stale_days_v1',
-  publicIndexSort: 'ftc_atlas_public_index_sort_v1',
-  publicIndexGroup: 'ftc_atlas_public_index_group_v1',
   uiSections: 'ftc_atlas_ui_sections_v1'
 }
 
@@ -335,21 +331,15 @@ let teamManagerInvites = []
 let activeTeamId = null
 
 const PUBLIC_SECTIONS = new Set([
-  'explore',
-  'index',
-  'roadmaps',
-  'resources',
-  'announcements',
   'team',
-  'team-index',
-  'team-roadmaps'
+  'team-roadmaps',
+  'announcements'
 ])
 
-let activePublicSection = PUBLIC_SECTIONS.has(
-  localStorage.getItem(CACHE_KEYS.publicSection)
-)
-  ? localStorage.getItem(CACHE_KEYS.publicSection)
-  : 'explore'
+const savedPrimarySection = localStorage.getItem(CACHE_KEYS.publicSection)
+let activePublicSection = PUBLIC_SECTIONS.has(savedPrimarySection)
+  ? savedPrimarySection
+  : 'team'
 
 let tutorialContent = DEFAULT_TUTORIAL_CONTENT
 let publicContentManagerKind = 'announcements'
@@ -358,7 +348,7 @@ let publicContentMutationBusy = false
 let roadmapManagerEditingId = null
 let roadmapManagerDraftSteps = []
 let roadmapManagerMutationBusy = false
-let roadmapManagerScope = 'public'
+let roadmapManagerScope = 'team'
 let roadmapProgressMutationKeys = new Set()
 let teamRoadmapProgressMutationKeys = new Set()
 
@@ -371,29 +361,6 @@ let documentationMetaTarget = null
 let documentationReferenceEditingId = null
 let documentationMetaMutationBusy = false
 
-let qualityLensEnabled =
-  localStorage.getItem(CACHE_KEYS.qualityLens) === '1'
-
-let healthIssueFilter = 'attention'
-let healthDepartmentFilter = 'all'
-
-let healthStaleDays = [90, 180, 365].includes(
-  Number(localStorage.getItem(CACHE_KEYS.healthStaleDays))
-)
-  ? Number(localStorage.getItem(CACHE_KEYS.healthStaleDays))
-  : 180
-
-let publicIndexSort = ['az', 'updated'].includes(
-  localStorage.getItem(CACHE_KEYS.publicIndexSort)
-)
-  ? localStorage.getItem(CACHE_KEYS.publicIndexSort)
-  : 'az'
-
-let publicIndexGroup = ['category', 'flat'].includes(
-  localStorage.getItem(CACHE_KEYS.publicIndexGroup)
-)
-  ? localStorage.getItem(CACHE_KEYS.publicIndexGroup)
-  : 'category'
 
 let revisionHistoryTarget = null
 let revisionHistoryRows = []
@@ -471,8 +438,8 @@ const teamSpaceEntryRole = document.getElementById('teamSpaceEntryRole')
 const teamAtlasContext = document.getElementById('teamAtlasContext')
 const teamAtlasSelect = document.getElementById('teamAtlasSelect')
 const teamAtlasContextMeta = document.getElementById('teamAtlasContextMeta')
-const teamAtlasIndexBtn = document.getElementById('teamAtlasIndexBtn')
-const teamAtlasRoadmapsBtn = document.getElementById('teamAtlasRoadmapsBtn')
+const teamAtlasIndexBtn = null
+const teamAtlasRoadmapsBtn = null
 const teamAtlasTaxonomyBtn = document.getElementById('teamAtlasTaxonomyBtn')
 const teamAtlasSettingsBtn = document.getElementById('teamAtlasSettingsBtn')
 const teamAtlasMembersBtn = document.getElementById('teamAtlasMembersBtn')
@@ -662,47 +629,6 @@ const revisionHistoryList = document.getElementById(
 )
 const revisionHistoryPreview = document.getElementById(
   'revisionHistoryPreview'
-)
-
-const documentationHealthBtn = document.getElementById(
-  'documentationHealthBtn'
-)
-
-const documentationHealthBackdrop = document.getElementById(
-  'documentationHealthBackdrop'
-)
-const documentationHealthTitle = document.getElementById(
-  'documentationHealthTitle'
-)
-const closeDocumentationHealthBtn = document.getElementById(
-  'closeDocumentationHealthBtn'
-)
-const closeDocumentationHealthFooterBtn = document.getElementById(
-  'closeDocumentationHealthFooterBtn'
-)
-const documentationHealthSummary = document.getElementById(
-  'documentationHealthSummary'
-)
-const documentationHealthIssueInput = document.getElementById(
-  'documentationHealthIssueInput'
-)
-const documentationHealthDepartmentInput = document.getElementById(
-  'documentationHealthDepartmentInput'
-)
-const documentationHealthStaleInput = document.getElementById(
-  'documentationHealthStaleInput'
-)
-const documentationQualityLensInput = document.getElementById(
-  'documentationQualityLensInput'
-)
-const documentationHealthStatus = document.getElementById(
-  'documentationHealthStatus'
-)
-const documentationHealthResults = document.getElementById(
-  'documentationHealthResults'
-)
-const copyDocumentationHealthReportBtn = document.getElementById(
-  'copyDocumentationHealthReportBtn'
 )
 
 const documentationMetaBackdrop = document.getElementById(
@@ -897,6 +823,9 @@ const richEditorShell = document.getElementById('richEditorShell')
 const richEditorToolbar = document.getElementById('richEditorToolbar')
 const richBlockSelect = document.getElementById('richBlockSelect')
 const richLinkBtn = document.getElementById('richLinkBtn')
+const richInsertCodeBtn = document.getElementById('richInsertCodeBtn')
+const richInsertMediaBtn = document.getElementById('richInsertMediaBtn')
+const richInsertFileBtn = document.getElementById('richInsertFileBtn')
 const contentRichEditor = document.getElementById('contentRichEditor')
 const richEditorHint = document.getElementById('richEditorHint')
 const relationSummary = document.getElementById('relationSummary')
@@ -1173,7 +1102,7 @@ function nodeRoutePath(node) {
     return `${HOME_PATH}#team-${Number(node.teamId)}-node-${Number(node.id)}`
   }
 
-  return `/node/${Number(node.id)}/${slugifyNodeTitle(node.title)}`
+  return HOME_PATH
 }
 
 function nodeCanonicalUrl(node) {
@@ -1365,7 +1294,8 @@ async function applyRouteFromLocation({ canonicalize = true } = {}) {
 
     if (!currentUser) {
       detailOpen = false
-      activePublicSection = 'explore'
+      activePublicSection = 'announcements'
+      localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
       syncActiveNodeCollection({ forceReset: true })
       setAccountPanel(true)
       updateDocumentSeo(null)
@@ -1432,33 +1362,14 @@ async function applyRouteFromLocation({ canonicalize = true } = {}) {
     return null
   }
 
-  activePublicSection = 'explore'
+  // Public/global nodes are no longer part of the product surface.
+  // Old public node URLs resolve back to the global announcements shell.
+  activePublicSection = 'announcements'
   localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
   syncActiveNodeCollection({ forceReset: true })
-
-  const node = publicNodes.find(
-    (candidate) => Number(candidate.id) === Number(nodeId)
-  )
-
-  if (!node) {
-    detailOpen = false
-    setHomeRoute({ push: false })
-    return null
-  }
-
-  activateDepartmentForNode(node, { persist: false })
-  clearFiltersForDeepLink()
-  selectedId = node.id
-  clearEdgeSelection()
-  detailOpen = true
-
-  if (canonicalize) {
-    setNodeRoute(node, { push: false })
-  } else {
-    updateDocumentSeo(node)
-  }
-
-  return node
+  detailOpen = false
+  setHomeRoute({ push: false })
+  return null
 }
 
 function openNodeDetail(nodeId, { pushHistory = true } = {}) {
@@ -1691,7 +1602,6 @@ function announcementCategoryLabel(category) {
     'game-manual': 'Game Manual',
     season: 'Season',
     events: 'Events',
-    resources: 'Resources',
     platform: 'Platform'
   }
 
@@ -1814,7 +1724,7 @@ function renderAnnouncementCards() {
       ${items
         .map((item) => {
           const sourceUrl = normalizeHttpUrl(item.sourceUrl)
-          const relatedNode = item.relatedNodeId ? findNode(item.relatedNodeId) : null
+          const relatedNode = null
 
           return `
             <article class="announcement-card ${item.isImportant ? 'important' : ''} ${item.isPinned ? 'pinned' : ''}">
@@ -1983,59 +1893,21 @@ function renderResourceCards() {
   `
 }
 
-async function openNodeFromPublicContent(nodeId) {
-  activePublicSection = 'explore'
-  syncActiveNodeCollection({ forceReset: true })
-
-  const node = findNode(nodeId)
-  if (!node) return
-
-  activateDepartmentForNode(node, { persist: true })
-
-  activePublicSection = 'explore'
+async function openNodeFromPublicContent() {
+  // Legacy global-node links no longer open a graph node in v97.
+  activePublicSection = 'announcements'
   localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
-
-  selectedId = node.id
-  clearEdgeSelection()
-  detailOpen = true
-
-  setNodeRoute(node, { push: true })
+  syncActiveNodeCollection({ forceReset: true })
+  detailOpen = false
+  setHomeRoute({ push: true })
   renderAll()
-
-  requestAnimationFrame(() => centerOnNode(node))
 }
 
 function isPublicContentManagerOpen() {
   return Boolean(publicContentManagerBackdrop?.classList.contains('open'))
 }
 
-function populatePublicContentNodeSelects() {
-  const options = [
-    '<option value="">— Fără nod asociat —</option>',
-    ...[...publicNodes]
-      .sort((a, b) =>
-        String(a.title || '').localeCompare(String(b.title || ''), 'ro', {
-          sensitivity: 'base'
-        })
-      )
-      .map(
-        (node) =>
-          `<option value="${Number(node.id)}">${escapeHtmlText(node.title)}</option>`
-      )
-  ].join('')
-
-  if (announcementRelatedNodeInput) {
-    const value = announcementRelatedNodeInput.value
-    announcementRelatedNodeInput.innerHTML = options
-    announcementRelatedNodeInput.value = value
-  }
-
-  if (resourceRelatedNodeInput) {
-    const value = resourceRelatedNodeInput.value
-    resourceRelatedNodeInput.innerHTML = options
-    resourceRelatedNodeInput.value = value
-  }
-}
+function populatePublicContentNodeSelects() {}
 
 function renderResourceDepartmentPicker(selectedIds = selectedResourceDepartmentIds()) {
   if (!resourceDepartmentPicker) return
@@ -2061,110 +1933,48 @@ function renderResourceDepartmentPicker(selectedIds = selectedResourceDepartment
 }
 
 function resetPublicContentEditor() {
+  publicContentManagerKind = 'announcements'
   publicContentEditingId = null
-
-  const isAnnouncements = publicContentManagerKind === 'announcements'
-
-  announcementEditorFields.hidden = !isAnnouncements
-  resourceEditorFields.hidden = isAnnouncements
   deletePublicContentBtn.hidden = true
-
-  populatePublicContentNodeSelects()
-
-  if (isAnnouncements) {
-    publicContentEditorTitle.textContent = 'Announcement nou'
-    publicContentEditorHint.textContent =
-      'Completează datele și publică atunci când este gata.'
-
-    announcementTitleInput.value = ''
-    announcementCategoryInput.value = 'ftc'
-    announcementSummaryInput.value = ''
-    announcementContentInput.value = ''
-    announcementSourceUrlInput.value = ''
-    announcementRelatedNodeInput.value = ''
-    announcementPublishedAtInput.value = toDatetimeLocalValue(new Date())
-    announcementPublishedInput.checked = true
-    announcementPinnedInput.checked = false
-    announcementImportantInput.checked = false
-  } else {
-    publicContentEditorTitle.textContent = 'Resource nou'
-    publicContentEditorHint.textContent =
-      'Adaugă o resursă utilă și alege departamentele unde trebuie să apară.'
-
-    resourceTitleInput.value = ''
-    resourceTypeInput.value = ''
-    resourceSourceInput.value = ''
-    resourceUrlInput.value = ''
-    resourceDescriptionInput.value = ''
-    resourceRelatedNodeInput.value = ''
-    resourceSortOrderInput.value = '0'
-    resourceActiveInput.checked = true
-    resourceFeaturedInput.checked = false
-
-    const defaultDepartments =
-      activeDepartmentId == null ? [] : [Number(activeDepartmentId)]
-
-    renderResourceDepartmentPicker(defaultDepartments)
-  }
-
+  publicContentEditorTitle.textContent = 'Announcement nou'
+  publicContentEditorHint.textContent = ''
+  announcementTitleInput.value = ''
+  announcementCategoryInput.value = 'ftc'
+  announcementSummaryInput.value = ''
+  announcementContentInput.value = ''
+  announcementSourceUrlInput.value = ''
+  announcementPublishedAtInput.value = toDatetimeLocalValue(new Date())
+  announcementPublishedInput.checked = true
+  announcementPinnedInput.checked = false
+  announcementImportantInput.checked = false
   publicContentEditorStatus.textContent = ''
 }
+
 
 function editPublicContentItem(id) {
   const numericId = Number(id)
+  const item = announcements.find((entry) => Number(entry.id) === numericId)
+  if (!item) return
+
+  publicContentManagerKind = 'announcements'
   publicContentEditingId = numericId
-
-  populatePublicContentNodeSelects()
-
-  if (publicContentManagerKind === 'announcements') {
-    const item = announcements.find((entry) => Number(entry.id) === numericId)
-    if (!item) return
-
-    announcementEditorFields.hidden = false
-    resourceEditorFields.hidden = true
-
-    publicContentEditorTitle.textContent = 'Editează announcement'
-    publicContentEditorHint.textContent =
-      'Modificările publicate devin vizibile imediat după salvare.'
-
-    announcementTitleInput.value = item.title || ''
-    announcementCategoryInput.value = item.category || 'ftc'
-    announcementSummaryInput.value = item.summary || ''
-    announcementContentInput.value = item.content || ''
-    announcementSourceUrlInput.value = item.sourceUrl || ''
-    announcementRelatedNodeInput.value = item.relatedNodeId ? String(item.relatedNodeId) : ''
-    announcementPublishedAtInput.value = toDatetimeLocalValue(
-      item.publishedAt || item.createdAt || new Date()
-    )
-    announcementPublishedInput.checked = item.isPublished !== false
-    announcementPinnedInput.checked = Boolean(item.isPinned)
-    announcementImportantInput.checked = Boolean(item.isImportant)
-  } else {
-    const item = resources.find((entry) => Number(entry.id) === numericId)
-    if (!item) return
-
-    announcementEditorFields.hidden = true
-    resourceEditorFields.hidden = false
-
-    publicContentEditorTitle.textContent = 'Editează resource'
-    publicContentEditorHint.textContent =
-      'Resursele inactive rămân salvate, dar nu apar public.'
-
-    resourceTitleInput.value = item.title || ''
-    resourceTypeInput.value = item.resourceType || ''
-    resourceSourceInput.value = item.sourceName || ''
-    resourceUrlInput.value = item.url || ''
-    resourceDescriptionInput.value = item.description || ''
-    resourceRelatedNodeInput.value = item.relatedNodeId ? String(item.relatedNodeId) : ''
-    resourceSortOrderInput.value = String(Number(item.sortOrder || 0))
-    resourceActiveInput.checked = item.isActive !== false
-    resourceFeaturedInput.checked = Boolean(item.isFeatured)
-    renderResourceDepartmentPicker(item.departmentIds || [])
-  }
-
+  publicContentEditorTitle.textContent = 'Editează announcement'
+  publicContentEditorHint.textContent = ''
+  announcementTitleInput.value = item.title || ''
+  announcementCategoryInput.value = item.category || 'ftc'
+  announcementSummaryInput.value = item.summary || ''
+  announcementContentInput.value = item.content || ''
+  announcementSourceUrlInput.value = item.sourceUrl || ''
+  announcementPublishedAtInput.value = toDatetimeLocalValue(
+    item.publishedAt || item.createdAt || new Date()
+  )
+  announcementPublishedInput.checked = item.isPublished !== false
+  announcementPinnedInput.checked = Boolean(item.isPinned)
+  announcementImportantInput.checked = Boolean(item.isImportant)
   deletePublicContentBtn.hidden = false
   publicContentEditorStatus.textContent = ''
 }
+
 
 function renderPublicContentManager() {
   if (!isPublicContentManagerOpen()) return
@@ -2176,34 +1986,20 @@ function renderPublicContentManager() {
     )
   })
 
-  const items =
-    publicContentManagerKind === 'announcements'
-      ? [...announcements].sort(
-          (a, b) =>
-            new Date(b.publishedAt || b.createdAt || 0).getTime() -
-            new Date(a.publishedAt || a.createdAt || 0).getTime()
-        )
-      : [...resources].sort((a, b) => {
-          const orderDifference = Number(a.sortOrder || 0) - Number(b.sortOrder || 0)
-          if (orderDifference !== 0) return orderDifference
-          return String(a.title || '').localeCompare(String(b.title || ''), 'ro', {
-            sensitivity: 'base'
-          })
-        })
+  publicContentManagerKind = 'announcements'
 
-  publicContentManagerSummary.innerHTML =
-    publicContentManagerKind === 'announcements'
-      ? `<strong>${items.length} announcements</strong> · ${
-          items.filter((item) => item.isPublished !== false).length
-        } publicate.`
-      : `<strong>${items.length} resources</strong> · ${
-          items.filter((item) => item.isActive !== false).length
-        } active.`
+  const items = [...announcements].sort(
+    (a, b) =>
+      new Date(b.publishedAt || b.createdAt || 0).getTime() -
+      new Date(a.publishedAt || a.createdAt || 0).getTime()
+  )
+
+  publicContentManagerSummary.innerHTML = `<strong>${items.length}</strong> announcements · ${items.filter((item) => item.isPublished !== false).length} publicate`
 
   if (items.length === 0) {
     publicContentManagerList.innerHTML = `
       <div class="public-content-manager-empty">
-        ${publicContentManagerKind === 'announcements' ? 'Niciun announcement.' : 'Nicio resursă.'}
+        Niciun announcement.
       </div>
     `
   } else {
@@ -2284,17 +2080,10 @@ function setPublicContentMutationBusy(nextValue) {
   })
 }
 
-async function openPublicContentManager(kind = null) {
-  if (!requireAuth()) return
+async function openPublicContentManager() {
+  if (!canEdit || !editorMode) return
 
-  if (kind === 'resources' || kind === 'announcements') {
-    publicContentManagerKind = kind
-  } else if (activePublicSection === 'resources') {
-    publicContentManagerKind = 'resources'
-  } else {
-    publicContentManagerKind = 'announcements'
-  }
-
+  publicContentManagerKind = 'announcements'
   publicContentManagerBackdrop.classList.add('open')
   publicContentManagerSummary.textContent = 'Se încarcă datele editorului...'
   publicContentManagerList.innerHTML = inlineStateMarkup('Se încarcă datele editorului...')
@@ -2353,9 +2142,7 @@ async function savePublicContentItem() {
         p_published_at: announcementPublishedAtInput.value
           ? new Date(announcementPublishedAtInput.value).toISOString()
           : new Date().toISOString(),
-        p_related_node_id: announcementRelatedNodeInput.value
-          ? Number(announcementRelatedNodeInput.value)
-          : null
+        p_related_node_id: null
       }
 
       const rpcName =
@@ -2814,28 +2601,9 @@ function roadmapProgressStats(roadmap) {
 }
 
 async function loadRoadmapProgress({ rerender = false } = {}) {
+  // Global roadmaps were removed in v97. Team roadmap progress is loaded
+  // with the active Team Atlas workspace instead.
   roadmapProgress = new Set()
-
-  if (!currentUser) {
-    if (rerender) renderAll()
-    return
-  }
-
-  const { data, error } = await supabase
-    .from('atlas_roadmap_progress')
-    .select('roadmap_id, node_id')
-    .eq('project_id', PROJECT_ID)
-
-  if (error) {
-    console.error('Roadmap progress load failed:', error)
-    if (rerender) renderAll()
-    return
-  }
-
-  roadmapProgress = new Set(
-    (data || []).map((row) => roadmapProgressKey(row.roadmap_id, row.node_id))
-  )
-
   if (rerender) renderAll()
 }
 
@@ -3085,13 +2853,9 @@ function canManageRoadmapScope(scope = roadmapManagerScope) {
   return Boolean(canEdit)
 }
 
-function requireRoadmapManagerAuth(scope = roadmapManagerScope) {
-  if (!canManageRoadmapScope(scope)) {
-    alert(
-      scope === 'team'
-        ? 'Rolul tău nu permite administrarea roadmap-urilor Team Atlas.'
-        : 'Doar editorii aprobați pot administra roadmap-urile publice.'
-    )
+function requireRoadmapManagerAuth(scope = 'team') {
+  if (!canManageRoadmapScope('team')) {
+    alert('Rolul tău nu permite administrarea roadmap-urilor echipei.')
     return false
   }
 
@@ -3405,9 +3169,7 @@ function renderRoadmapManager() {
 
   if (roadmapManagerScopeLabel) {
     roadmapManagerScopeLabel.textContent =
-      roadmapManagerScope === 'team'
-        ? `Team roadmaps · ${currentTeamRecord()?.name || 'Team Atlas'}`
-        : 'Roadmaps publice'
+      `Roadmaps · ${currentTeamRecord()?.name || 'Team Atlas'}`
   }
 
   roadmapManagerSummary.innerHTML = `
@@ -3423,12 +3185,7 @@ function renderRoadmapManager() {
       .map((roadmap) => {
         const department = getDepartmentById(roadmap.departmentId)
 
-        const visibility =
-          roadmap.isActive !== false
-            ? roadmapManagerScope === 'team'
-              ? 'Private'
-              : 'Public'
-            : 'Draft'
+        const visibility = roadmap.isActive !== false ? 'Active' : 'Draft'
 
         return `
           <article class="roadmap-manager-item ${
@@ -3446,21 +3203,6 @@ function renderRoadmapManager() {
             </div>
 
             <div class="manager-item-actions">
-              ${
-                roadmapManagerScope === 'public'
-                  ? `
-                    <button
-                      class="taxonomy-mini-btn"
-                      type="button"
-                      data-atlas-i18n-edit="roadmap"
-                      data-atlas-i18n-id="${Number(roadmap.id)}"
-                    >
-                      EN
-                    </button>
-                  `
-                  : ''
-              }
-
               <button
                 class="taxonomy-mini-btn"
                 type="button"
@@ -3486,8 +3228,9 @@ function renderRoadmapManager() {
   setRoadmapManagerBusy(roadmapManagerMutationBusy)
 }
 
-async function openRoadmapManager(scope = 'public') {
-  roadmapManagerScope = scope === 'team' ? 'team' : 'public'
+async function openRoadmapManager(scope = 'team') {
+  // v97+: roadmaps exist only inside Team Atlas.
+  roadmapManagerScope = 'team'
 
   if (!requireRoadmapManagerAuth(roadmapManagerScope)) return
 
@@ -3513,7 +3256,7 @@ function closeRoadmapManager() {
   roadmapManagerEditingId = null
   roadmapManagerDraftSteps = []
   roadmapManagerMutationBusy = false
-  roadmapManagerScope = 'public'
+  roadmapManagerScope = 'team'
 }
 
 function addRoadmapDraftStep() {
@@ -3703,7 +3446,6 @@ async function deleteRoadmap() {
 function isTeamAtlasMode() {
   return (
     (activePublicSection === 'team' ||
-      activePublicSection === 'team-index' ||
       activePublicSection === 'team-roadmaps') &&
     activeTeamId != null
   )
@@ -3730,7 +3472,7 @@ function canUseEditorModeAnywhere() {
 }
 
 function canEditCurrentAtlas() {
-  return isTeamAtlasMode() ? canEditTeamAtlas() : canEdit
+  return isTeamAtlasMode() ? canEditTeamAtlas() : false
 }
 
 function canManageTeamTaxonomy() {
@@ -3746,7 +3488,7 @@ function canManageTeamTaxonomy() {
 }
 
 function canManageCurrentTaxonomy() {
-  return isTeamAtlasMode() ? canManageTeamTaxonomy() : canEdit
+  return isTeamAtlasMode() ? canManageTeamTaxonomy() : false
 }
 
 function requireTaxonomyAuth() {
@@ -3754,7 +3496,7 @@ function requireTaxonomyAuth() {
     alert(
       isTeamAtlasMode()
         ? 'Doar Team Leader, Mentor sau Platform Admin poate modifica taxonomia Team Atlas.'
-        : 'Doar editorii aprobați pot modifica taxonomia Atlasului public.'
+        : 'Taxonomia se administrează în Team Atlas.'
     )
     return false
   }
@@ -3768,12 +3510,7 @@ function requireTaxonomyAuth() {
 }
 
 function canEditNode(node) {
-  if (!node) return false
-
-  if (!node.isTeamNode) {
-    return canEdit
-  }
-
+  if (!node?.isTeamNode) return false
   return canEditTeamDepartment(node.departmentId)
 }
 
@@ -3790,16 +3527,14 @@ function canEditEdge(sourceId, targetId) {
 }
 
 function syncActiveNodeCollection({ forceReset = false } = {}) {
-  const nextScope = isTeamAtlasMode() ? 'team' : 'public'
+  const nextScope = isTeamAtlasMode() ? 'team' : 'none'
   const scopeChanged = nextScope !== activeNodeScope
 
   activeNodeScope = nextScope
-  nodes = nextScope === 'team' ? teamNodes : publicNodes
-  categories = nextScope === 'team' ? teamCategories : publicCategories
-  difficulties =
-    nextScope === 'team' ? teamDifficulties : publicDifficulties
-  taxonomyTags =
-    nextScope === 'team' ? teamTaxonomyTags : publicTaxonomyTags
+  nodes = nextScope === 'team' ? teamNodes : []
+  categories = nextScope === 'team' ? teamCategories : []
+  difficulties = nextScope === 'team' ? teamDifficulties : []
+  taxonomyTags = nextScope === 'team' ? teamTaxonomyTags : []
 
   normalizeTaxonomyState()
 
@@ -3808,21 +3543,10 @@ function syncActiveNodeCollection({ forceReset = false } = {}) {
     selectedEdge = null
     selectedEdgePointIndex = null
     detailOpen = false
-    relationMode = { active: false, sourceId: null }
-
-    if (!teamNodeRouteFromLocation()) {
-      setHomeRoute({ push: false })
-    }
-  } else if (
-    selectedId != null &&
-    !nodes.some((node) => Number(node.id) === Number(selectedId))
-  ) {
-    selectedId = nodes[0]?.id ?? null
-    selectedEdge = null
-    selectedEdgePointIndex = null
-    detailOpen = false
+    closeFileManager()
   }
 }
+
 
 function coordinatorEditableDepartmentIds() {
   const membership = currentTeamMembership()
@@ -4399,13 +4123,8 @@ function importableTeamRecords() {
     )
 }
 
-function canImportPublicNodeToTeam(node) {
-  return Boolean(
-    node &&
-      !node.isTeamNode &&
-      currentUser &&
-      importableTeamRecords().length > 0
-  )
+function canImportPublicNodeToTeam() {
+  return false
 }
 
 function currentTeamDepartmentIds() {
@@ -4427,10 +4146,9 @@ function normalizeActiveTeam() {
 
     if (
       activePublicSection === 'team' ||
-      activePublicSection === 'team-index' ||
       activePublicSection === 'team-roadmaps'
     ) {
-      activePublicSection = 'explore'
+      activePublicSection = 'announcements'
       localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
     }
 
@@ -4687,8 +4405,16 @@ async function loadTeamContext({ rerender = false } = {}) {
   normalizeActiveTeam()
 
   if (activeTeamId != null) {
+    if (!PUBLIC_SECTIONS.has(activePublicSection)) {
+      activePublicSection = 'team'
+    }
+
     await loadActiveTeamAtlasNodes()
+  } else {
+    activePublicSection = 'announcements'
   }
+
+  localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
 
   renderTeamInvites()
   maybeOpenPendingTeamInvite()
@@ -4719,7 +4445,6 @@ function renderTeamNavigation() {
     'active',
     visible &&
       (activePublicSection === 'team' ||
-        activePublicSection === 'team-index' ||
         activePublicSection === 'team-roadmaps')
   )
 
@@ -4743,7 +4468,6 @@ function renderTeamNavigation() {
 
   const inTeamAtlas =
     activePublicSection === 'team' ||
-    activePublicSection === 'team-index' ||
     activePublicSection === 'team-roadmaps'
 
   teamAtlasContext.hidden = !inTeamAtlas
@@ -4781,29 +4505,6 @@ function renderTeamNavigation() {
     · documentație privată a echipei
   `
 
-  teamAtlasIndexBtn.textContent =
-    activePublicSection === 'team-index'
-      ? 'Atlas map'
-      : 'Index'
-
-  teamAtlasIndexBtn.classList.toggle(
-    'primary',
-    activePublicSection === 'team-index'
-  )
-
-  teamAtlasIndexBtn.disabled = isAtlasLoading
-
-  teamAtlasRoadmapsBtn.textContent =
-    activePublicSection === 'team-roadmaps'
-      ? 'Atlas map'
-      : 'Roadmaps'
-
-  teamAtlasRoadmapsBtn.classList.toggle(
-    'primary',
-    activePublicSection === 'team-roadmaps'
-  )
-
-  teamAtlasRoadmapsBtn.disabled = isAtlasLoading
 
   teamAtlasTaxonomyBtn.hidden = !canManageTeamTaxonomy()
   teamAtlasTaxonomyBtn.disabled = !editorMode || isAtlasLoading
@@ -4910,7 +4611,7 @@ function renderTeamSpace() {
           <span class="team-space-card-label">Rolul tău</span>
           <h3>${escapeHtmlText(teamRoleLabel(membership.role))}</h3>
           <p>
-            Permisiunile Team Space sunt separate de drepturile de editor ale Atlasului public.
+            Permisiunile de editare sunt stabilite pe rol și departament.
           </p>
 
           <div class="team-space-chips">
@@ -5205,8 +4906,8 @@ function teamOnboardingProfile(role) {
           'Atribuie Coordinator, Mentor sau Team Leader în funcție de cine poate întreține documentația.'
         ],
         [
-          'Folosește Atlasul public separat',
-          'Rolul de Team Leader nu oferă automat drepturi de editor asupra documentației publice.'
+          'Organizează documentația echipei',
+          'Păstrează structura echipei clară și atribuie accesul doar unde este necesar.'
         ]
       ]
     },
@@ -5224,8 +4925,8 @@ function teamOnboardingProfile(role) {
           'Poți crea noduri, edita documentația, adăuga relații și snippet-uri de cod în departamentele tale.'
         ],
         [
-          'Folosește Atlasul public ca referință',
-          'Atlasul public rămâne baza comună, iar Team Atlas păstrează particularitățile și cunoștințele echipei.'
+          'Documentează ce folosește echipa',
+          'Păstrează în Atlas procedurile, deciziile și exemplele folosite efectiv de echipă.'
         ]
       ]
     },
@@ -5243,8 +4944,8 @@ function teamOnboardingProfile(role) {
           'Poți edita nodurile Team Atlas, relațiile și exemplele de cod acolo unde este nevoie.'
         ],
         [
-          'Păstrează legătura cu Atlasul public',
-          'Team Atlas păstrează informația specifică echipei, iar Public Atlas rămâne documentația comună.'
+          'Revizuiește documentația echipei',
+          'Actualizează documentația echipei când procesele, codul sau robotul se schimbă.'
         ]
       ]
     },
@@ -5258,8 +4959,8 @@ function teamOnboardingProfile(role) {
           'Rolul și departamentele asignate controlează ce documentație poți consulta sau edita.'
         ],
         [
-          'Explorează Atlasul public',
-          'Poți deschide orice nod și urma roadmaps fără sistem de unlock.'
+          'Explorează Atlasul echipei',
+          'Poți deschide nodurile și urma roadmap-urile echipei fără sistem de unlock.'
         ],
         [
           'Folosește documentația echipei',
@@ -6063,33 +5764,9 @@ async function importPublicNodeToTeam() {
   }
 }
 
-function openPublicSourceFromTeamNode(node) {
-  const sourceId = Number(node?.sourcePublicNodeId)
-  if (!sourceId) return
-
-  const sourceNode = publicNodes.find(
-    (candidate) => Number(candidate.id) === sourceId
-  )
-
-  if (!sourceNode) {
-    alert('Nodul public sursă nu mai este disponibil.')
-    return
-  }
-
-  activePublicSection = 'explore'
-  localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
-
-  syncActiveNodeCollection({ forceReset: true })
-  activateDepartmentForNode(sourceNode, { persist: true })
-  clearFiltersForDeepLink()
-
-  selectedId = sourceNode.id
-  clearEdgeSelection()
-  detailOpen = true
-
-  renderAll()
-  setNodeRoute(sourceNode, { push: true })
-  requestAnimationFrame(() => centerOnNode(sourceNode))
+function openPublicSourceFromTeamNode() {
+  // Public/global nodes are legacy data only in v97.
+  return false
 }
 
 function canManageCurrentTeam() {
@@ -6776,79 +6453,44 @@ function openTeamIndexNode(nodeId) {
 
 function publicSectionLabel(section) {
   const labels = {
-    explore: 'Explore',
-    index: 'Index',
-    roadmaps: 'Roadmaps',
-    resources: 'Resources',
-    announcements: 'Announcements',
-    team: 'Team Atlas',
-    'team-index': 'Team Index',
-    'team-roadmaps': 'Team Roadmaps'
+    team: 'Explore',
+    'team-roadmaps': 'Roadmaps',
+    announcements: 'Announcements'
   }
 
   return labels[section] || 'Explore'
 }
-
 function publicSectionEyebrow(section) {
   const labels = {
-    explore: 'Explorează Atlasul',
-    index: 'Indexul documentației',
-    roadmaps: 'Parcursuri recomandate',
-    resources: 'Resurse utile',
-    announcements: 'Anunțuri universale',
-    team: 'Documentația echipei',
-    'team-index': 'Indexul documentației echipei',
-    'team-roadmaps': 'Parcursuri prin documentația echipei'
+    team: 'Team Atlas',
+    'team-roadmaps': 'Team Roadmaps',
+    announcements: 'Announcements'
   }
 
-  return labels[section] || labels.explore
+  return labels[section] || labels.team
 }
-
 function selectPublicSection(section) {
   if (!PUBLIC_SECTIONS.has(section)) return
 
-  if (
-    section !== activePublicSection &&
-    hasUnsavedLayoutChanges()
-  ) {
-    alert(
-      'Ai modificări de layout nesalvate. Folosește Save layout sau Discard înainte să schimbi secțiunea.'
-    )
+  if (section !== activePublicSection && hasUnsavedLayoutChanges()) {
+    alert('Ai modificări de layout nesalvate. Salvează sau renunță la ele înainte să schimbi secțiunea.')
     return
   }
 
-  if (
-    section !== activePublicSection &&
-    layoutEditMode
-  ) {
+  if (section !== activePublicSection && layoutEditMode) {
     layoutEditMode = false
     layoutUndoStack = []
     layoutRedoStack = []
   }
 
-  if (
-    (
-      section === 'team' ||
-      section === 'team-index' ||
-      section === 'team-roadmaps'
-    ) &&
-    !currentTeamRecord()
-  ) {
+  if ((section === 'team' || section === 'team-roadmaps') && !currentTeamRecord()) {
     setAccountPanel(true)
     return
   }
 
-  if (isCodeManagerOpen()) {
-    closeCodeManager()
-  }
-
-  if (isMediaManagerOpen()) {
-    closeMediaManager()
-  }
-
-  if (isFileManagerOpen()) {
-    closeFileManager()
-  }
+  closeCodeManager()
+  closeMediaManager()
+  closeFileManager()
 
   activePublicSection = section
   localStorage.setItem(CACHE_KEYS.publicSection, section)
@@ -6856,33 +6498,34 @@ function selectPublicSection(section) {
   syncActiveNodeCollection({ forceReset: true })
   renderAll()
 
-  if (section === 'explore' || section === 'team') {
-    requestAnimationFrame(fitView)
-  }
+  if (section === 'team') requestAnimationFrame(fitView)
 }
 
 function renderPublicShell() {
   if (!appRoot || !publicSectionTabs || !publicHubPanel) return
 
-  const isExplore = activePublicSection === 'explore'
-  const isPublicIndex = activePublicSection === 'index'
-  const isTeamAtlas = activePublicSection === 'team'
-  const isTeamIndex = activePublicSection === 'team-index'
-  const isTeamRoadmaps =
-    activePublicSection === 'team-roadmaps'
-  const isMapSection = isExplore || isTeamAtlas
-  const isGlobal = activePublicSection === 'announcements'
+  const isTeamMap = activePublicSection === 'team' && Boolean(currentTeamRecord())
+  const isTeamRoadmaps = activePublicSection === 'team-roadmaps' && Boolean(currentTeamRecord())
+  const isAnnouncements = activePublicSection === 'announcements' || !currentTeamRecord()
   const department = getDepartmentById(activeDepartmentId)
-  const departmentName = department?.name || 'Atlas'
+  const departmentName = department?.name || 'Team Atlas'
+  const departmentSection = document.querySelector('[data-ui-section="departments"]')
 
-  appRoot.classList.toggle('public-section-open', !isMapSection)
+  if (!currentTeamRecord() && activePublicSection !== 'announcements') {
+    activePublicSection = 'announcements'
+    localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
+  }
+
+  appRoot.classList.toggle('public-section-open', !isTeamMap)
   appRoot.dataset.publicSection = activePublicSection
-
-  atlasNavigation?.classList.toggle('global-section', isGlobal)
+  atlasNavigation?.classList.toggle('global-section', isAnnouncements)
+  if (departmentSection) departmentSection.hidden = !isTeamMap
 
   publicSectionTabs.querySelectorAll('[data-public-section]').forEach((button) => {
-    const selected = button.dataset.publicSection === activePublicSection
-
+    const section = button.dataset.publicSection
+    const requiresTeam = section === 'team' || section === 'team-roadmaps'
+    button.hidden = requiresTeam && !currentTeamRecord()
+    const selected = section === activePublicSection
     button.classList.toggle('active', selected)
     button.setAttribute('aria-selected', selected ? 'true' : 'false')
   })
@@ -6891,7 +6534,7 @@ function renderPublicShell() {
     atlasNavigationEyebrow.textContent = publicSectionEyebrow(activePublicSection)
   }
 
-  if (isMapSection) {
+  if (isTeamMap) {
     publicHubPanel.classList.remove('open')
     publicHubPanel.innerHTML = ''
     return
@@ -6899,113 +6542,17 @@ function renderPublicShell() {
 
   publicHubPanel.classList.add('open')
 
-  if (isPublicIndex) {
-    const visibleItems = publicDocumentationIndexNodes()
-
-    publicHubPanel.innerHTML = `
-      <div class="public-hub-inner">
-        <p class="public-hub-kicker">
-          Documentation Index · ${escapeHtml(departmentName)}
-        </p>
-
-        <h1 class="public-hub-title">
-          Toată documentația publică într-o vedere rapidă, fără să depinzi de hartă.
-        </h1>
-
-        <p class="public-hub-description">
-          Indexul este o vedere alternativă peste aceleași noduri Public Atlas.
-          Search-ul și filtrele curente se aplică automat, iar orice rezultat
-          deschide documentul original în Explore.
-        </p>
-
-        <div class="team-index-summary">
-          <span class="public-hub-chip">${escapeHtml(departmentName)}</span>
-          <span class="public-hub-chip">${visibleItems.length} documents</span>
-          <span class="public-hub-chip">Public</span>
-          <span class="public-hub-chip">
-            ${publicIndexSort === 'updated' ? 'Recently updated' : 'A–Z'}
-          </span>
-        </div>
-
-        ${renderPublicDocumentationIndex()}
-      </div>
-    `
-    return
-  }
-
-  if (isTeamIndex) {
-    const team = currentTeamRecord()
-    const teamName = team?.teamNumber
-      ? `${team.name} #${team.teamNumber}`
-      : team?.name || 'Team Atlas'
-
-    const visibleItems = teamDocumentationIndexNodes()
-
-    publicHubPanel.innerHTML = `
-      <div class="public-hub-inner">
-        <p class="public-hub-kicker">
-          Team Index · ${escapeHtml(teamName)} · ${escapeHtml(
-            departmentName
-          )}
-        </p>
-
-        <h1 class="public-hub-title">
-          Găsește rapid documentația echipei fără să navighezi manual prin hartă.
-        </h1>
-
-        <p class="public-hub-description">
-          Indexul este o vedere alternativă peste exact aceleași noduri Team Atlas.
-          Search-ul și filtrele curente se aplică automat, iar fiecare rezultat
-          deschide nodul original din hartă.
-        </p>
-
-        <div class="team-index-summary">
-          <span class="public-hub-chip">${escapeHtml(teamName)}</span>
-          <span class="public-hub-chip">${escapeHtml(departmentName)}</span>
-          <span class="public-hub-chip">${visibleItems.length} documents</span>
-          <span class="public-hub-chip">Private team scope</span>
-        </div>
-
-        ${renderTeamDocumentationIndex()}
-      </div>
-    `
-    return
-  }
-
   if (isTeamRoadmaps) {
     const team = currentTeamRecord()
-
     const teamName = team?.teamNumber
       ? `${team.name} #${team.teamNumber}`
       : team?.name || 'Team Atlas'
 
     publicHubPanel.innerHTML = `
       <div class="public-hub-inner">
-        <p class="public-hub-kicker">
-          Team Roadmaps · ${escapeHtml(teamName)} · ${escapeHtml(
-            departmentName
-          )}
-        </p>
-
-        <h1 class="public-hub-title">
-          Parcursuri recomandate prin documentația internă.
-        </h1>
-
-        <p class="public-hub-description">
-          Roadmap-urile organizează ordinea în care merită citite și înțelese
-          nodurile Team Atlas. Nu sunt task-uri, nu au deadline-uri, nu blochează
-          documentația și progresul este personal.
-        </p>
-
-        <div class="public-hub-meta">
-          <span class="public-hub-chip">${escapeHtml(teamName)}</span>
-          <span class="public-hub-chip">${escapeHtml(departmentName)}</span>
-          <span class="public-hub-chip">
-            ${visibleTeamRoadmaps().length} team roadmaps
-          </span>
-          <span class="public-hub-chip">Zero locks</span>
-        </div>
-
+        <p class="public-hub-kicker">${escapeHtml(teamName)} · ${escapeHtml(departmentName)}</p>
+        <h1 class="public-hub-title">Roadmaps</h1>
+        <p class="public-hub-description">Parcursuri recomandate prin documentația echipei.</p>
         ${teamRoadmapManagerButton()}
         ${renderTeamRoadmapCards()}
       </div>
@@ -7013,67 +6560,11 @@ function renderPublicShell() {
     return
   }
 
-  if (activePublicSection === 'roadmaps') {
-    publicHubPanel.innerHTML = `
-      <div class="public-hub-inner">
-        <p class="public-hub-kicker">Roadmaps · ${escapeHtml(departmentName)}</p>
-        <h1 class="public-hub-title">Învață în ordinea care are sens pentru tine.</h1>
-        <p class="public-hub-description">
-          Roadmap-urile oferă un traseu recomandat prin Atlas, dar nu blochează noduri.
-          Toată documentația publică rămâne accesibilă oricând.
-        </p>
-
-        <div class="public-hub-meta">
-          <span class="public-hub-chip">${escapeHtml(departmentName)}</span>
-          <span class="public-hub-chip">Acces liber la toate nodurile</span>
-          <span class="public-hub-chip">${visibleRoadmaps().length} roadmaps</span>
-        </div>
-
-        ${roadmapManagerButton()}
-        ${renderRoadmapCards()}
-      </div>
-    `
-    return
-  }
-
-  if (activePublicSection === 'resources') {
-    publicHubPanel.innerHTML = `
-      <div class="public-hub-inner">
-        <p class="public-hub-kicker">Resources · ${escapeHtml(departmentName)}</p>
-        <h1 class="public-hub-title">Documentație și resurse care merită păstrate aproape.</h1>
-        <p class="public-hub-description">
-          Aici sunt grupate resurse relevante pentru departamentul selectat:
-          documentație oficială, ghiduri și materiale de referință.
-        </p>
-
-        <div class="public-hub-meta">
-          <span class="public-hub-chip">${escapeHtml(departmentName)}</span>
-          <span class="public-hub-chip">Surse externe + resurse Atlas</span>
-          <span class="public-hub-chip">${visibleResources().length} resources</span>
-        </div>
-
-        ${publicManagerButton('resources')}
-        ${renderResourceCards()}
-      </div>
-    `
-    return
-  }
-
   publicHubPanel.innerHTML = `
     <div class="public-hub-inner">
-      <p class="public-hub-kicker">Universal · Announcements</p>
+      <p class="public-hub-kicker">Global</p>
       <h1 class="public-hub-title">Announcements</h1>
-      <p class="public-hub-description">
-        Actualizări publice importante pentru comunitatea Atlas: Game Manual, sezon,
-        events, resurse și schimbări relevante ale platformei.
-      </p>
-
-      <div class="public-hub-meta">
-        <span class="public-hub-chip">Universal</span>
-        <span class="public-hub-chip">Public</span>
-        <span class="public-hub-chip">${publishedAnnouncements().length} announcements</span>
-      </div>
-
+      <p class="public-hub-description">Actualizări importante pentru toate echipele.</p>
       ${publicManagerButton('announcements')}
       ${renderAnnouncementCards()}
     </div>
@@ -7205,7 +6696,7 @@ function selectDepartment(id) {
   normalizeSelectionAfterFilters()
   renderAll()
 
-  if (activePublicSection === 'explore') {
+  if (activePublicSection === 'team') {
     requestAnimationFrame(fitView)
   }
 }
@@ -7501,14 +6992,25 @@ function sanitizeRichHtml(rawHtml) {
       return
     }
 
+    const embedType = tag === 'DIV' ? String(node.getAttribute('data-atlas-embed') || '') : ''
+    const embedId = tag === 'DIV' ? Number(node.getAttribute('data-atlas-id')) : NaN
+    const validEmbed = ['code', 'media', 'file'].includes(embedType) && Number.isFinite(embedId) && embedId > 0
+
     for (const attribute of [...node.attributes]) {
       const name = attribute.name.toLowerCase()
 
       if (tag === 'A' && name === 'href') continue
       if (tag === 'A' && (name === 'target' || name === 'rel')) continue
       if (tag === 'FONT' && name === 'size') continue
+      if (validEmbed && (name === 'data-atlas-embed' || name === 'data-atlas-id' || name === 'contenteditable')) continue
 
       node.removeAttribute(attribute.name)
+    }
+
+    if (validEmbed) {
+      node.setAttribute('data-atlas-embed', embedType)
+      node.setAttribute('data-atlas-id', String(embedId))
+      node.setAttribute('contenteditable', 'false')
     }
 
     if (tag === 'A') {
@@ -7566,27 +7068,132 @@ function nodeContentPlainText(node) {
     : String(node.content || '')
 }
 
+function inlineEmbedItem(node, type, id) {
+  const numericId = Number(id)
+  if (type === 'code') return (node?.codeSnippets || []).find((item) => Number(item.id) === numericId) || null
+  if (type === 'media') return (node?.media || []).find((item) => Number(item.id) === numericId) || null
+  if (type === 'file') return (node?.files || []).find((item) => Number(item.id) === numericId) || null
+  return null
+}
+
+function inlineEmbedLabel(node, type, id) {
+  const item = inlineEmbedItem(node, type, id)
+  if (!item) return `${type} indisponibil`
+  if (type === 'code') return `Cod · ${item.title || codeLanguageLabel(item.language)}`
+  if (type === 'media') return `Media · ${item.title || mediaTypeLabel(item)}`
+  return `Fișier · ${item.title || item.originalName || 'fișier'}`
+}
+
+function renderInlineEmbed(node, type, id) {
+  const item = inlineEmbedItem(node, type, id)
+
+  if (!item) {
+    return `<div class="atlas-inline-embed document-disclosure-empty">Atașament indisponibil.</div>`
+  }
+
+  if (type === 'code') {
+    return `
+      <article class="code-snippet-card atlas-inline-embed">
+        <div class="code-snippet-header">
+          <div class="code-snippet-title-wrap">
+            <span class="code-language-badge">${escapeHtml(codeLanguageLabel(item.language))}</span>
+            ${item.title ? `<h4 class="code-snippet-title">${escapeHtml(item.title)}</h4>` : ''}
+          </div>
+          <button class="btn code-copy-btn" type="button" data-copy-code-id="${Number(item.id)}">Copiază</button>
+        </div>
+        ${item.description ? `<p class="code-snippet-description">${escapeHtml(item.description)}</p>` : ''}
+        <div class="code-block-shell"><pre tabindex="0"><code>${escapeHtmlText(item.code)}</code></pre></div>
+      </article>
+    `
+  }
+
+  if (type === 'media') {
+    return `
+      <figure class="media-card atlas-inline-embed">
+        <div class="media-preview">${renderMediaPreview(item)}</div>
+        ${(item.title || item.caption) ? `<figcaption class="media-card-copy">${item.title ? `<strong>${escapeHtml(item.title)}</strong>` : ''}${item.caption ? `<p>${escapeHtml(item.caption)}</p>` : ''}</figcaption>` : ''}
+      </figure>
+    `
+  }
+
+  const url = filePublicUrl(item)
+  return `
+    <article class="inline-file-card atlas-inline-embed">
+      <div class="node-file-icon">${escapeHtml(fileExtensionLabel(item.originalName))}</div>
+      <div class="node-file-copy">
+        <strong>${escapeHtml(item.title || item.originalName)}</strong>
+        <span>${escapeHtml(item.originalName)} · ${escapeHtml(humanFileSize(item.fileSize))}</span>
+        ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ''}
+      </div>
+      ${url ? `<a class="btn file-download-btn" href="${escapeHtml(url)}" download="${escapeHtml(item.originalName)}" target="_blank" rel="noopener noreferrer">Descarcă</a>` : '<span>Indisponibil</span>'}
+    </article>
+  `
+}
+
+function renderRichDocumentationWithEmbeds(node) {
+  const safeHtml = sanitizeRichHtml(node?.content || '')
+  const template = document.createElement('template')
+  template.innerHTML = safeHtml
+
+  template.content.querySelectorAll('[data-atlas-embed][data-atlas-id]').forEach((placeholder) => {
+    const type = placeholder.getAttribute('data-atlas-embed')
+    const id = Number(placeholder.getAttribute('data-atlas-id'))
+    const shell = document.createElement('template')
+    shell.innerHTML = renderInlineEmbed(node, type, id).trim()
+    placeholder.replaceWith(shell.content.cloneNode(true))
+  })
+
+  return template.innerHTML.trim()
+}
+
 function renderNodeDocumentation(node) {
   if (!node) return '<div class="doc-text plain"></div>'
 
   if (node.contentFormat === 'html') {
-    const safeHtml = sanitizeRichHtml(node.content)
+    const safeHtml = renderRichDocumentationWithEmbeds(node)
     return `<div class="doc-text rich">${safeHtml || '<p>Fără documentație încă.</p>'}</div>`
   }
 
   return `<div class="doc-text plain">${escapeHtml(node.content || 'Fără documentație încă.')}</div>`
 }
 
-function setRichEditorHtml(value) {
+function hydrateRichEditorEmbeds(node) {
+  contentRichEditor.querySelectorAll('[data-atlas-embed][data-atlas-id]').forEach((placeholder) => {
+    const type = placeholder.getAttribute('data-atlas-embed')
+    const id = Number(placeholder.getAttribute('data-atlas-id'))
+    placeholder.className = 'atlas-embed-placeholder'
+    placeholder.setAttribute('contenteditable', 'false')
+    placeholder.textContent = inlineEmbedLabel(node, type, id)
+  })
+}
+
+function setRichEditorHtml(value, node = null) {
   contentRichEditor.innerHTML = sanitizeRichHtml(value)
+  if (node) hydrateRichEditorEmbeds(node)
+}
+
+function normalizeRichEditorEmbedsForSave(root) {
+  root.querySelectorAll('[data-atlas-embed][data-atlas-id]').forEach((placeholder) => {
+    const type = placeholder.getAttribute('data-atlas-embed')
+    const id = Number(placeholder.getAttribute('data-atlas-id'))
+    placeholder.removeAttribute('class')
+    placeholder.setAttribute('data-atlas-embed', type)
+    placeholder.setAttribute('data-atlas-id', String(id))
+    placeholder.setAttribute('contenteditable', 'false')
+    placeholder.textContent = ''
+  })
 }
 
 function getRichEditorHtml() {
-  const safeHtml = sanitizeRichHtml(contentRichEditor.innerHTML)
+  const clone = contentRichEditor.cloneNode(true)
+  normalizeRichEditorEmbedsForSave(clone)
+  const safeHtml = sanitizeRichHtml(clone.innerHTML)
+  const hasEmbeds = Boolean(clone.querySelector('[data-atlas-embed][data-atlas-id]'))
   const plainText = richHtmlToPlainText(safeHtml)
 
-  return plainText ? safeHtml : ''
+  return plainText || hasEmbeds ? safeHtml : ''
 }
+
 
 let richSelectionRange = null
 
@@ -7612,6 +7219,65 @@ function restoreRichSelection() {
   selection.removeAllRanges()
   selection.addRange(richSelectionRange)
   return true
+}
+
+function canInsertInlineAttachment(node) {
+  return Boolean(
+    node &&
+    node.isTeamNode &&
+    modalMode === 'node' &&
+    modalBackdrop.classList.contains('open') &&
+    editingId != null &&
+    Number(editingId) === Number(node.id)
+  )
+}
+
+function insertInlineEmbed(type, id) {
+  const node = findNode(editingId)
+  if (!canInsertInlineAttachment(node)) {
+    alert('Salvează nodul o dată, apoi inserează atașamentele în document.')
+    return false
+  }
+
+  restoreRichSelection()
+  contentRichEditor.focus({ preventScroll: true })
+
+  const placeholder = document.createElement('div')
+  placeholder.dataset.atlasEmbed = type
+  placeholder.dataset.atlasId = String(Number(id))
+  placeholder.className = 'atlas-embed-placeholder'
+  placeholder.contentEditable = 'false'
+  placeholder.textContent = inlineEmbedLabel(node, type, id)
+
+  const selection = window.getSelection()
+  if (selection?.rangeCount) {
+    const range = selection.getRangeAt(0)
+    range.deleteContents()
+    range.insertNode(placeholder)
+    range.setStartAfter(placeholder)
+    range.collapse(true)
+    selection.removeAllRanges()
+    selection.addRange(range)
+  } else {
+    contentRichEditor.appendChild(placeholder)
+  }
+
+  contentRichEditor.dispatchEvent(new Event('input', { bubbles: true }))
+  rememberRichSelection()
+  return true
+}
+
+function openInlineAttachmentManager(type) {
+  const node = findNode(editingId)
+  if (!canInsertInlineAttachment(node)) {
+    alert('Salvează nodul înainte să atașezi cod, media sau fișiere.')
+    return
+  }
+
+  rememberRichSelection()
+  if (type === 'code') openCodeManager(node.id)
+  if (type === 'media') openMediaManager(node.id)
+  if (type === 'file') openFileManager(node.id)
 }
 
 function updateRichToolbarState() {
@@ -7696,6 +7362,10 @@ function initRichTextEditor() {
       anchor.rel = 'noopener noreferrer'
     })
   })
+
+  richInsertCodeBtn?.addEventListener('click', () => openInlineAttachmentManager('code'))
+  richInsertMediaBtn?.addEventListener('click', () => openInlineAttachmentManager('media'))
+  richInsertFileBtn?.addEventListener('click', () => openInlineAttachmentManager('file'))
 
   contentRichEditor.addEventListener('paste', (event) => {
     event.preventDefault()
@@ -8106,51 +7776,13 @@ function isNodeBookmarked(node) {
 }
 
 function readLocalBookmarkRows() {
-  try {
-    const parsed = JSON.parse(
-      localStorage.getItem(CACHE_KEYS.localBookmarks) || '[]'
-    )
-
-    if (!Array.isArray(parsed)) return []
-
-    return parsed
-      .filter(
-        (row) =>
-          row &&
-          row.nodeScope === 'public' &&
-          Number.isFinite(Number(row.publicNodeId))
-      )
-      .slice(0, 80)
-      .map((row) => ({
-        id: null,
-        nodeScope: 'public',
-        publicNodeId: Number(row.publicNodeId),
-        teamId: null,
-        teamNodeId: null,
-        titleSnapshot: String(row.titleSnapshot || 'Public document'),
-        createdAt: row.createdAt || new Date().toISOString(),
-        isLocal: true
-      }))
-  } catch {
-    return []
-  }
+  // v97+: documents exist only inside Team Atlas, so unauthenticated/local
+  // public bookmarks are no longer part of the active product model.
+  return []
 }
 
-function writeLocalBookmarkRows(rows) {
-  const serializable = (rows || [])
-    .filter((row) => row.nodeScope === 'public')
-    .slice(0, 80)
-    .map((row) => ({
-      nodeScope: 'public',
-      publicNodeId: Number(row.publicNodeId),
-      titleSnapshot: String(row.titleSnapshot || 'Public document'),
-      createdAt: row.createdAt || new Date().toISOString()
-    }))
-
-  localStorage.setItem(
-    CACHE_KEYS.localBookmarks,
-    JSON.stringify(serializable)
-  )
+function writeLocalBookmarkRows() {
+  localStorage.removeItem(CACHE_KEYS.localBookmarks)
 }
 
 function normalizeBookmarkRow(row) {
@@ -8192,45 +7824,17 @@ function rebuildBookmarkKeySet() {
   }
 }
 
-async function syncLocalBookmarksToAccount(localRows) {
-  if (!currentUser || !Array.isArray(localRows) || localRows.length === 0) {
-    return
-  }
-
-  for (const row of localRows) {
-    try {
-      await supabase.rpc('atlas_bookmark_save', {
-        p_project_id: PROJECT_ID,
-        p_node_scope: 'public',
-        p_public_node_id: Number(row.publicNodeId),
-        p_team_id: null,
-        p_team_node_id: null,
-        p_title_snapshot: row.titleSnapshot || 'Public document'
-      })
-    } catch (error) {
-      console.warn('Local bookmark sync skipped:', error)
-    }
-  }
-
+async function syncLocalBookmarksToAccount() {
   localStorage.removeItem(CACHE_KEYS.localBookmarks)
 }
 
 async function loadBookmarks() {
-  const localRows = readLocalBookmarkRows()
-
   if (!currentUser) {
-    bookmarkRows = localRows
+    bookmarkRows = []
     rebuildBookmarkKeySet()
 
-    if (isDocumentationLibraryOpen()) {
-      renderDocumentationLibrary()
-    }
-
+    if (isDocumentationLibraryOpen()) renderDocumentationLibrary()
     return
-  }
-
-  if (localRows.length > 0) {
-    await syncLocalBookmarksToAccount(localRows)
   }
 
   const { data, error } = await supabase
@@ -8240,6 +7844,7 @@ async function loadBookmarks() {
     )
     .eq('project_id', PROJECT_ID)
     .eq('user_id', currentUser.id)
+    .eq('node_scope', 'team')
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -8252,69 +7857,32 @@ async function loadBookmarks() {
   bookmarkRows = (data || []).map(normalizeBookmarkRow)
   rebuildBookmarkKeySet()
 
-  if (isDocumentationLibraryOpen()) {
-    renderDocumentationLibrary()
-  }
+  if (isDocumentationLibraryOpen()) renderDocumentationLibrary()
 }
 
 async function toggleNodeBookmark(node) {
-  if (!node) return
-
-  const key = bookmarkKeyForNode(node)
-  const currentlySaved = bookmarkKeys.has(key)
+  if (!node?.isTeamNode) return
 
   if (!currentUser) {
-    if (node.isTeamNode) {
-      alert('Loghează-te pentru a salva documente Team Atlas.')
-      setAccountPanel(true)
-      return
-    }
-
-    let localRows = readLocalBookmarkRows()
-
-    if (currentlySaved) {
-      localRows = localRows.filter(
-        (row) => bookmarkKeyForRow(row) !== key
-      )
-    } else {
-      localRows.unshift({
-        id: null,
-        nodeScope: 'public',
-        publicNodeId: Number(node.id),
-        teamId: null,
-        teamNodeId: null,
-        titleSnapshot: node.title,
-        createdAt: new Date().toISOString(),
-        isLocal: true
-      })
-    }
-
-    writeLocalBookmarkRows(localRows)
-    bookmarkRows = readLocalBookmarkRows()
-    rebuildBookmarkKeySet()
-    renderAll()
-
-    if (isDocumentationLibraryOpen()) {
-      renderDocumentationLibrary()
-    }
-
+    alert('Loghează-te pentru a salva documente Team Atlas.')
+    setAccountPanel(true)
     return
   }
 
-  const params = {
-    p_project_id: PROJECT_ID,
-    p_node_scope: node.isTeamNode ? 'team' : 'public',
-    p_public_node_id: node.isTeamNode ? null : Number(node.id),
-    p_team_id: node.isTeamNode ? Number(node.teamId) : null,
-    p_team_node_id: node.isTeamNode ? Number(node.id) : null,
-    p_title_snapshot: node.title
-  }
-
+  const key = bookmarkKeyForNode(node)
+  const currentlySaved = bookmarkKeys.has(key)
   const rpcName = currentlySaved
     ? 'atlas_bookmark_remove'
     : 'atlas_bookmark_save'
 
-  const { error } = await supabase.rpc(rpcName, params)
+  const { error } = await supabase.rpc(rpcName, {
+    p_project_id: PROJECT_ID,
+    p_node_scope: 'team',
+    p_public_node_id: null,
+    p_team_id: Number(node.teamId),
+    p_team_node_id: Number(node.id),
+    p_title_snapshot: node.title
+  })
 
   if (error) throw error
 
@@ -8331,18 +7899,12 @@ function recentDocs() {
     if (!Array.isArray(parsed)) return []
 
     return parsed
-      .filter((item) => {
-        if (!item) return false
-
-        if (item.nodeScope === 'team') {
-          return (
-            Number.isFinite(Number(item.teamId)) &&
-            Number.isFinite(Number(item.nodeId))
-          )
-        }
-
-        return Number.isFinite(Number(item.nodeId))
-      })
+      .filter(
+        (item) =>
+          item?.nodeScope === 'team' &&
+          Number.isFinite(Number(item.teamId)) &&
+          Number.isFinite(Number(item.nodeId))
+      )
       .slice(0, 30)
   } catch {
     return []
@@ -8359,9 +7921,11 @@ function writeRecentDocs(items) {
 function rememberRecentNode(node) {
   if (!node) return
 
+  if (!node.isTeamNode) return
+
   const item = {
-    nodeScope: node.isTeamNode ? 'team' : 'public',
-    teamId: node.isTeamNode ? Number(node.teamId) : null,
+    nodeScope: 'team',
+    teamId: Number(node.teamId),
     nodeId: Number(node.id),
     title: node.title,
     departmentId:
@@ -8371,20 +7935,14 @@ function rememberRecentNode(node) {
     visitedAt: new Date().toISOString()
   }
 
-  const key = node.isTeamNode
-    ? `team:${item.teamId}:${item.nodeId}`
-    : `public:${item.nodeId}`
+  const key = `team:${item.teamId}:${item.nodeId}`
 
   const next = [
     item,
-    ...recentDocs().filter((existing) => {
-      const existingKey =
-        existing.nodeScope === 'team'
-          ? `team:${Number(existing.teamId)}:${Number(existing.nodeId)}`
-          : `public:${Number(existing.nodeId)}`
-
-      return existingKey !== key
-    })
+    ...recentDocs().filter(
+      (existing) =>
+        `team:${Number(existing.teamId)}:${Number(existing.nodeId)}` !== key
+    )
   ].slice(0, 30)
 
   writeRecentDocs(next)
@@ -8434,25 +7992,14 @@ function documentSearchText(node) {
 }
 
 function finderCandidateNodes() {
-  const items = publicNodes.map((node) => ({
+  if (!currentUser || activeTeamId == null) return []
+
+  const teamName = currentTeamRecord()?.name || 'Team Atlas'
+  return teamNodes.map((node) => ({
     node,
-    scope: 'public',
-    teamName: null
+    scope: 'team',
+    teamName
   }))
-
-  if (currentUser && activeTeamId != null) {
-    const teamName = currentTeamRecord()?.name || 'Team Atlas'
-
-    items.push(
-      ...teamNodes.map((node) => ({
-        node,
-        scope: 'team',
-        teamName
-      }))
-    )
-  }
-
-  return items
 }
 
 function finderScore(candidate, query) {
@@ -8492,7 +8039,6 @@ function finderScore(candidate, query) {
     if (full.includes(term)) score += 4
   }
 
-  if (candidate.scope === 'public') score += 1
 
   return score
 }
@@ -8520,7 +8066,7 @@ function renderDocumentationFinder() {
   if (!isDocumentationFinderOpen()) return
 
   const query = documentationFinderInput.value.trim()
-  const scope = documentationFinderScope.value
+  const scope = 'team'
 
   if (!query) {
     finderResultsCache = []
@@ -8576,10 +8122,7 @@ function renderDocumentationFinder() {
   documentationFinderResults.innerHTML = finderResultsCache
     .map((candidate, index) => {
       const node = candidate.node
-      const scopeLabel =
-        candidate.scope === 'team'
-          ? candidate.teamName || 'Team Atlas'
-          : 'Public Atlas'
+      const scopeLabel = candidate.teamName || 'Team Atlas'
 
       return `
         <button
@@ -8637,13 +8180,6 @@ function openDocumentationFinder() {
   documentationFinderBackdrop.classList.add('open')
   finderSelectedIndex = 0
 
-  if (
-    documentationFinderScope.value === 'team' &&
-    (!currentUser || activeTeamId == null)
-  ) {
-    documentationFinderScope.value = 'all'
-  }
-
   renderDocumentationFinder()
 
   requestAnimationFrame(() => {
@@ -8665,19 +8201,13 @@ function isDocumentationLibraryOpen() {
 }
 
 function bookmarkScopeLabel(row) {
-  if (row.nodeScope === 'team') {
-    const team = teamRecords.find(
-      (item) => Number(item.id) === Number(row.teamId)
-    )
+  const team = teamRecords.find(
+    (item) => Number(item.id) === Number(row?.teamId)
+  )
 
-    return team?.teamNumber
-      ? `${team.name} #${team.teamNumber}`
-      : team?.name || 'Team Atlas'
-  }
-
-  return row.isLocal
-    ? 'Public Atlas · local'
-    : 'Public Atlas'
+  return team?.teamNumber
+    ? `${team.name} #${team.teamNumber}`
+    : team?.name || 'Team Atlas'
 }
 
 function formatRecentTimestamp(value) {
@@ -8693,7 +8223,7 @@ function formatRecentTimestamp(value) {
 function renderDocumentationLibrary() {
   if (!isDocumentationLibraryOpen()) return
 
-  const saved = [...bookmarkRows].sort(
+  const saved = bookmarkRows.filter((row) => row.nodeScope === 'team').sort(
     (a, b) =>
       new Date(b.createdAt).getTime() -
       new Date(a.createdAt).getTime()
@@ -8702,8 +8232,8 @@ function renderDocumentationLibrary() {
   const recent = recentDocs()
 
   const authNote = currentUser
-    ? 'Saved se sincronizează prin contul tău. Recent rămâne local pe acest device.'
-    : 'Fără login, bookmark-urile Public Atlas și istoricul Recent rămân doar în acest browser. După login, bookmark-urile publice locale se sincronizează automat.'
+    ? 'Saved se sincronizează prin cont. Recent rămâne local pe acest device.'
+    : 'Loghează-te pentru Saved. Recent este disponibil după ce deschizi Team Atlas.'
 
   const savedHtml = saved.length
     ? saved
@@ -8756,16 +8286,11 @@ function renderDocumentationLibrary() {
               >
                 <strong>${escapeHtmlText(item.title || 'Document')}</strong>
                 <span>
-                  ${
-                    item.nodeScope === 'team'
-                      ? `Team Atlas · ${escapeHtmlText(
-                          teamRecords.find(
-                            (team) =>
-                              Number(team.id) === Number(item.teamId)
-                          )?.name || 'private'
-                        )}`
-                      : 'Public Atlas'
-                  }
+                  Team Atlas · ${escapeHtmlText(
+                    teamRecords.find(
+                      (team) => Number(team.id) === Number(item.teamId)
+                    )?.name || 'private'
+                  )}
                   · ${escapeHtmlText(
                     formatRecentTimestamp(item.visitedAt)
                   )}
@@ -8822,37 +8347,14 @@ function closeDocumentationLibrary() {
 }
 
 async function removeBookmarkRow(row) {
-  if (!row) return
-
-  if (!currentUser || row.isLocal) {
-    const key = bookmarkKeyForRow(row)
-    const next = readLocalBookmarkRows().filter(
-      (item) => bookmarkKeyForRow(item) !== key
-    )
-
-    writeLocalBookmarkRows(next)
-    bookmarkRows = readLocalBookmarkRows()
-    rebuildBookmarkKeySet()
-    renderDocumentationLibrary()
-    renderAll()
-    return
-  }
+  if (!row || !currentUser || row.nodeScope !== 'team') return
 
   const { error } = await supabase.rpc('atlas_bookmark_remove', {
     p_project_id: PROJECT_ID,
-    p_node_scope: row.nodeScope,
-    p_public_node_id:
-      row.nodeScope === 'public'
-        ? Number(row.publicNodeId)
-        : null,
-    p_team_id:
-      row.nodeScope === 'team'
-        ? Number(row.teamId)
-        : null,
-    p_team_node_id:
-      row.nodeScope === 'team'
-        ? Number(row.teamNodeId)
-        : null,
+    p_node_scope: 'team',
+    p_public_node_id: null,
+    p_team_id: Number(row.teamId),
+    p_team_node_id: Number(row.teamNodeId),
     p_title_snapshot: row.titleSnapshot || ''
   })
 
@@ -8864,36 +8366,7 @@ async function removeBookmarkRow(row) {
 }
 
 async function openDocumentationReference(reference) {
-  if (!reference) return false
-
-  if (reference.nodeScope === 'public') {
-    const node = publicNodes.find(
-      (candidate) =>
-        Number(candidate.id) === Number(reference.nodeId)
-    )
-
-    if (!node) {
-      alert('Documentul public nu mai este disponibil.')
-      return false
-    }
-
-    activePublicSection = 'explore'
-    localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
-
-    syncActiveNodeCollection({ forceReset: true })
-    activateDepartmentForNode(node, { persist: true })
-    clearFiltersForDeepLink()
-
-    selectedId = node.id
-    clearEdgeSelection()
-    detailOpen = true
-
-    renderAll()
-    setNodeRoute(node, { push: true })
-
-    requestAnimationFrame(() => centerOnNode(node))
-    return true
-  }
+  if (!reference || reference.nodeScope !== 'team') return false
 
   if (!currentUser) {
     alert('Loghează-te pentru a deschide documentația Team Atlas.')
@@ -9246,7 +8719,6 @@ function isAnyModalOpen() {
     documentationFinderBackdrop?.classList.contains('open') ||
     documentationLibraryBackdrop?.classList.contains('open') ||
     documentationMetaBackdrop?.classList.contains('open') ||
-    documentationHealthBackdrop?.classList.contains('open') ||
     revisionHistoryBackdrop?.classList.contains('open') ||
     sourceCompareBackdrop?.classList.contains('open')
   )
@@ -9796,7 +9268,7 @@ function renderNetworkStatus(isOnline, { announceRecovery = true } = {}) {
 
 // Atlas loading and empty-state UI
 function showAtlasLoading(
-  message = 'Pregătim nodurile, documentația și relațiile dintre concepte.'
+  message = ''
 ) {
   isAtlasLoading = true
 
@@ -9807,9 +9279,9 @@ function showAtlasLoading(
   atlasLoader.hidden = false
   retryLoadBtn.hidden = true
 
-  atlasStatusKicker.textContent = 'FTC Programming Atlas'
+  atlasStatusKicker.textContent = ''
 
-  atlasStatusTitle.textContent = 'Se încarcă harta...'
+  atlasStatusTitle.textContent = 'Se încarcă...'
 
   atlasStatusMessage.textContent = message
 
@@ -9889,18 +9361,18 @@ async function loadAtlasWithUi() {
       await fetchAllData()
       await loadRoadmapProgress()
 
-      if (nodes.length === 0) {
-        showEmptyAtlasState()
-        return true
-      }
-
       const routedNode = await applyRouteFromLocation({ canonicalize: true })
       renderAll()
-      hideAtlasStatus()
+
+      if (activePublicSection === 'team' && nodes.length === 0) {
+        showEmptyAtlasState()
+      } else {
+        hideAtlasStatus()
+      }
 
       requestAnimationFrame(() => {
         if (routedNode) centerOnNode(routedNode)
-        else fitView()
+        else if (activePublicSection === 'team' && nodes.length) fitView()
       })
 
       return true
@@ -10154,252 +9626,52 @@ async function redo() {
   await refreshHistoryButtons()
 }
 
-// Loads the complete atlas state and rebuilds the client-side model
+// Loads only the global shell data that still exists in v97.
+// Nodes, graph taxonomy, attachments and roadmaps now live exclusively in Team Atlas.
 async function fetchAllData() {
-  console.log('fetchAllData START')
+  console.log('fetchAllData START · team-first shell')
 
-  const [
-    nodesResult,
-    edgesResult,
-    categoriesResult,
-    difficultiesResult,
-    tagsResult,
-    departmentsResult,
-    roadmapsResult,
-    roadmapStepsResult,
-    announcementsResult,
-    resourcesResult,
-    resourceDepartmentsResult,
-    nodeDepartmentsResult,
-    nodeTagsResult,
-    mediaResult,
-    filesResult,
-    codeResult,
-    referencesResult,
-    reviewStateResult,
-    tutorialResult
-  ] = await Promise.all([
-    supabase
-      .from('atlas_nodes')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('id', { ascending: true }),
+  const [departmentsResult, announcementsResult, tutorialResult] =
+    await Promise.all([
+      supabase
+        .from('atlas_departments')
+        .select('*')
+        .eq('project_id', PROJECT_ID)
+        .order('sort_order', { ascending: true })
+        .order('name', { ascending: true }),
 
-    supabase
-      .from('atlas_edges')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('source_id', { ascending: true })
-      .order('target_id', { ascending: true }),
+      supabase
+        .from('atlas_announcements')
+        .select('*')
+        .eq('project_id', PROJECT_ID)
+        .order('is_pinned', { ascending: false })
+        .order('published_at', { ascending: false }),
 
-    supabase
-      .from('atlas_categories')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('sort_order', { ascending: true })
-      .order('name', { ascending: true }),
+      supabase
+        .from('atlas_project_tutorials')
+        .select('content')
+        .eq('project_id', PROJECT_ID)
+        .maybeSingle()
+    ])
 
-    supabase
-      .from('atlas_difficulties')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('rank', { ascending: true })
-      .order('name', { ascending: true }),
+  if (departmentsResult.error) throw departmentsResult.error
 
-    supabase
-      .from('atlas_tags')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('sort_order', { ascending: true })
-      .order('name', { ascending: true }),
-
-    supabase
-      .from('atlas_departments')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('sort_order', { ascending: true })
-      .order('name', { ascending: true }),
-
-    supabase
-      .from('atlas_roadmaps')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('sort_order', { ascending: true })
-      .order('title', { ascending: true }),
-
-    supabase
-      .from('atlas_roadmap_steps')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('roadmap_id', { ascending: true })
-      .order('position', { ascending: true }),
-
-    supabase
-      .from('atlas_announcements')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('is_pinned', { ascending: false })
-      .order('published_at', { ascending: false }),
-
-    supabase
-      .from('atlas_resources')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('is_featured', { ascending: false })
-      .order('sort_order', { ascending: true })
-      .order('title', { ascending: true }),
-
-    supabase
-      .from('atlas_resource_departments')
-      .select('resource_id, department_id')
-      .eq('project_id', PROJECT_ID),
-
-    supabase
-      .from('atlas_node_departments')
-      .select('node_id, department_id')
-      .eq('project_id', PROJECT_ID),
-
-    supabase.from('atlas_node_tags').select('node_id, tag_id').eq('project_id', PROJECT_ID),
-
-    supabase
-      .from('atlas_node_media')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('node_id', { ascending: true })
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true }),
-
-    supabase
-      .from('atlas_node_files')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('node_id', { ascending: true })
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true }),
-
-    supabase
-      .from('atlas_node_code_snippets')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .order('node_id', { ascending: true })
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true }),
-
-    supabase
-      .from('atlas_document_references')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .eq('node_scope', 'public')
-      .order('public_node_id', { ascending: true })
-      .order('is_primary', { ascending: false })
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true }),
-
-    supabase
-      .from('atlas_document_review_state')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .eq('node_scope', 'public'),
-
-    supabase
-      .from('atlas_project_tutorials')
-      .select('content')
-      .eq('project_id', PROJECT_ID)
-      .maybeSingle()
-  ])
-
-  // Core graph/taxonomy datasets must succeed; auxiliary modules fail soft so
-  // a temporary issue in Roadmaps, Resources, media, etc. cannot blank the map.
-  for (const result of [
-    nodesResult,
-    edgesResult,
-    categoriesResult,
-    difficultiesResult,
-    tagsResult,
-    departmentsResult,
-    nodeDepartmentsResult,
-    nodeTagsResult
-  ]) {
-    if (result.error) throw result.error
+  if (announcementsResult.error) {
+    console.warn(
+      '[Atlas] Announcements unavailable; continuing with the Team workspace.',
+      announcementsResult.error
+    )
   }
-
-  const optionalRows = (result, label) => {
-    if (result?.error) {
-      console.warn(`[Atlas] Optional dataset unavailable: ${label}`, result.error)
-      return []
-    }
-
-    return result?.data || []
-  }
-
-  const roadmapRows = optionalRows(roadmapsResult, 'roadmaps')
-  const roadmapStepRows = optionalRows(roadmapStepsResult, 'roadmap steps')
-  const announcementRows = optionalRows(announcementsResult, 'announcements')
-  const resourceRows = optionalRows(resourcesResult, 'resources')
-  const resourceDepartmentRows = optionalRows(
-    resourceDepartmentsResult,
-    'resource departments'
-  )
-  const mediaRows = optionalRows(mediaResult, 'node media')
-  const fileRows = optionalRows(filesResult, 'node files')
-  const codeRows = optionalRows(codeResult, 'code snippets')
-  const referenceRows = optionalRows(referencesResult, 'document references')
-  const reviewRows = optionalRows(reviewStateResult, 'document review state')
 
   if (tutorialResult?.error) {
-    console.warn('[Atlas] Tutorial unavailable; using bundled fallback.', tutorialResult.error)
+    console.warn(
+      '[Atlas] Tutorial unavailable; using bundled fallback.',
+      tutorialResult.error
+    )
   }
 
-  publicCategories = categoriesResult.data || []
-  publicDifficulties = difficultiesResult.data || []
-  publicTaxonomyTags = tagsResult.data || []
   departments = departmentsResult.data || []
-
-  syncActiveNodeCollection()
-  tutorialContent = tutorialResult?.error
-    ? DEFAULT_TUTORIAL_CONTENT
-    : tutorialResult.data?.content || DEFAULT_TUTORIAL_CONTENT
-
-  const roadmapStepsByRoadmap = new Map()
-  for (const row of roadmapStepRows) {
-    const roadmapId = Number(row.roadmap_id)
-    if (!roadmapStepsByRoadmap.has(roadmapId)) {
-      roadmapStepsByRoadmap.set(roadmapId, [])
-    }
-
-    roadmapStepsByRoadmap.get(roadmapId).push({
-      id: Number(row.id),
-      nodeId: Number(row.node_id),
-      position: Number(row.position || 0),
-      note: row.note || '',
-      isOptional: row.is_optional === true
-    })
-  }
-
-  roadmaps = roadmapRows.map((row) => ({
-    id: Number(row.id),
-    title: row.title || '',
-    slug: row.slug || '',
-    description: row.description || '',
-    departmentId: Number(row.department_id),
-    isActive: row.is_active !== false,
-    sortOrder: Number(row.sort_order || 0),
-    createdAt: row.created_at || null,
-    updatedAt: row.updated_at || null,
-    steps: roadmapStepsByRoadmap.get(Number(row.id)) || []
-  }))
-
-  const resourceDepartmentsByResource = new Map()
-  for (const row of resourceDepartmentRows) {
-    const resourceId = Number(row.resource_id)
-    if (!resourceDepartmentsByResource.has(resourceId)) {
-      resourceDepartmentsByResource.set(resourceId, [])
-    }
-
-    resourceDepartmentsByResource.get(resourceId).push(Number(row.department_id))
-  }
-
-  announcements = announcementRows.map((row) => ({
+  announcements = (announcementsResult.data || []).map((row) => ({
     id: Number(row.id),
     title: row.title || '',
     summary: row.summary || '',
@@ -10410,240 +9682,34 @@ async function fetchAllData() {
     isImportant: row.is_important === true,
     isPublished: row.is_published !== false,
     publishedAt: row.published_at || null,
-    relatedNodeId: row.related_node_id == null ? null : Number(row.related_node_id),
+    relatedNodeId: null,
     createdAt: row.created_at || null,
     updatedAt: row.updated_at || null
   }))
 
-  resources = resourceRows.map((row) => ({
-    id: Number(row.id),
-    title: row.title || '',
-    description: row.description || '',
-    url: row.url || '',
-    sourceName: row.source_name || '',
-    resourceType: row.resource_type || '',
-    isFeatured: row.is_featured === true,
-    isActive: row.is_active !== false,
-    sortOrder: Number(row.sort_order || 0),
-    relatedNodeId: row.related_node_id == null ? null : Number(row.related_node_id),
-    departmentIds: resourceDepartmentsByResource.get(Number(row.id)) || [],
-    createdAt: row.created_at || null,
-    updatedAt: row.updated_at || null
-  }))
+  tutorialContent = tutorialResult?.error
+    ? DEFAULT_TUTORIAL_CONTENT
+    : tutorialResult.data?.content || DEFAULT_TUTORIAL_CONTENT
 
-  normalizeTaxonomyState()
-  normalizeDepartmentState()
-
-  const nodesData = nodesResult.data || []
-  const edgesData = edgesResult.data || []
-  const nodeDepartmentsData = nodeDepartmentsResult.data || []
-  const nodeTagsData = nodeTagsResult.data || []
-  const mediaData = mediaRows
-  const filesData = fileRows
-  const codeData = codeRows
-
-  if (nodesData.length === 0) {
-    publicNodes = []
-    syncActiveNodeCollection()
-    selectedId = nodes[0]?.id ?? null
-    selectedEdge = null
-    selectedEdgePointIndex = null
-    detailOpen = false
-    renderAll()
-    await refreshHistoryButtons()
-    console.log('fetchAllData END', { nodesCount: 0 })
-    return
-  }
-
-  const edgesBySource = new Map()
-  for (const edge of edgesData) {
-    const sourceId = Number(edge.source_id)
-    if (!edgesBySource.has(sourceId)) edgesBySource.set(sourceId, [])
-
-    edgesBySource.get(sourceId).push({
-      targetId: Number(edge.target_id),
-      label: edge.label || 'relație',
-      controlPoints: normalizeEdgeControlPoints(edge.control_points, edge.control_x, edge.control_y)
-    })
-  }
-
-  const departmentsByNode = new Map()
-  for (const row of nodeDepartmentsData) {
-    const nodeId = Number(row.node_id)
-    if (!departmentsByNode.has(nodeId)) departmentsByNode.set(nodeId, [])
-    departmentsByNode.get(nodeId).push(Number(row.department_id))
-  }
-
-  const tagsByNode = new Map()
-  for (const row of nodeTagsData) {
-    const nodeId = Number(row.node_id)
-    if (!tagsByNode.has(nodeId)) tagsByNode.set(nodeId, [])
-    tagsByNode.get(nodeId).push(Number(row.tag_id))
-  }
-
-  const mediaByNode = new Map()
-  for (const row of mediaData) {
-    const nodeId = Number(row.node_id)
-    if (!mediaByNode.has(nodeId)) mediaByNode.set(nodeId, [])
-
-    mediaByNode.get(nodeId).push({
-      id: Number(row.id),
-      nodeId,
-      mediaType: row.media_type,
-      storagePath: row.storage_path || null,
-      externalUrl: row.external_url || null,
-      mimeType: row.mime_type || '',
-      fileSize: Number(row.file_size || 0),
-      title: row.title || '',
-      caption: row.caption || '',
-      sortOrder: Number(row.sort_order || 0),
-      createdAt: row.created_at || null
-    })
-  }
-
-  const filesByNode = new Map()
-  for (const row of filesData) {
-    const nodeId = Number(row.node_id)
-    if (!filesByNode.has(nodeId)) filesByNode.set(nodeId, [])
-
-    filesByNode.get(nodeId).push({
-      id: Number(row.id),
-      nodeId,
-      storagePath: row.storage_path,
-      originalName: row.original_name || 'fișier',
-      relativePath: row.relative_path || '',
-      mimeType: row.mime_type || '',
-      fileSize: Number(row.file_size || 0),
-      title: row.title || '',
-      description: row.description || '',
-      sortOrder: Number(row.sort_order || 0),
-      createdAt: row.created_at || null,
-      updatedAt: row.updated_at || null
-    })
-  }
-
-  const codeByNode = new Map()
-  for (const row of codeData) {
-    const nodeId = Number(row.node_id)
-    if (!codeByNode.has(nodeId)) codeByNode.set(nodeId, [])
-
-    codeByNode.get(nodeId).push({
-      id: Number(row.id),
-      nodeId,
-      language: row.language || 'text',
-      title: row.title || '',
-      description: row.description || '',
-      code: row.code || '',
-      sortOrder: Number(row.sort_order || 0),
-      createdAt: row.created_at || null,
-      updatedAt: row.updated_at || null
-    })
-  }
-
-  const referencesByPublicNode = new Map()
-
-  for (const row of referenceRows) {
-    const nodeId = Number(row.public_node_id)
-
-    if (!referencesByPublicNode.has(nodeId)) {
-      referencesByPublicNode.set(nodeId, [])
-    }
-
-    referencesByPublicNode.get(nodeId).push({
-      id: Number(row.id),
-      nodeScope: 'public',
-      publicNodeId: nodeId,
-      teamId: null,
-      teamNodeId: null,
-      title: row.title || '',
-      url: row.url || '',
-      sourceType: row.source_type || 'other',
-      note: row.note || '',
-      isPrimary: row.is_primary === true,
-      sortOrder: Number(row.sort_order || 0),
-      createdAt: row.created_at || null,
-      updatedAt: row.updated_at || null
-    })
-  }
-
-  const reviewByPublicNode = new Map()
-
-  for (const row of reviewRows) {
-    reviewByPublicNode.set(Number(row.public_node_id), {
-      id: Number(row.id),
-      nodeScope: 'public',
-      status: row.review_status || 'needs_review',
-      lastReviewedAt: row.last_reviewed_at || null,
-      reviewNote: row.review_note || '',
-      updatedAt: row.updated_at || null
-    })
-  }
-
-  publicNodes = nodesData.map((node) => ({
-    id: Number(node.id),
-    isTeamNode: false,
-    teamId: null,
-    title: node.title,
-    legacyTag: node.tag,
-    categoryId: node.category_id == null ? null : Number(node.category_id),
-    difficultyId: node.difficulty_id == null ? null : Number(node.difficulty_id),
-    departmentIds: departmentsByNode.get(Number(node.id)) || [],
-    tagIds: tagsByNode.get(Number(node.id)) || [],
-    x: Number(node.x),
-    y: Number(node.y),
-    width: node.width == null ? null : Number(node.width),
-    height: node.height == null ? null : Number(node.height),
-    content: node.content,
-    contentFormat: node.content_format || 'plain',
-    links: edgesBySource.get(Number(node.id)) || [],
-    media: mediaByNode.get(Number(node.id)) || [],
-    files: filesByNode.get(Number(node.id)) || [],
-    codeSnippets: codeByNode.get(Number(node.id)) || [],
-    references: referencesByPublicNode.get(Number(node.id)) || [],
-    reviewState: reviewByPublicNode.get(Number(node.id)) || null,
-    createdAt: node.created_at || null,
-    updatedAt: node.updated_at || null
-  }))
+  // Legacy global datasets deliberately stay out of the active runtime.
+  // Their Supabase tables are not deleted by v97; this is a non-destructive product migration.
+  publicNodes = []
+  publicCategories = []
+  publicDifficulties = []
+  publicTaxonomyTags = []
+  roadmaps = []
+  resources = []
+  roadmapProgress = new Set()
 
   syncActiveNodeCollection()
-  ensureNodePositions()
-  normalizeSelectionAfterFilters()
-
-  if (selectedId == null) {
-    selectedId = getVisibleNodes()[0]?.id ?? nodes[0]?.id ?? null
-  }
-
-  if (selectedEdge) {
-    const stillExists = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
-
-    if (!stillExists) {
-      selectedEdge = null
-      selectedEdgePointIndex = null
-    } else {
-      const pointCount = normalizeEdgeControlPoints(stillExists.link.controlPoints).length
-
-      if (
-        !Number.isInteger(selectedEdgePointIndex) ||
-        selectedEdgePointIndex < 0 ||
-        selectedEdgePointIndex >= pointCount
-      ) {
-        selectedEdgePointIndex = null
-      }
-    }
-  }
-
-  saveCachedNodes()
+  normalizeDepartmentState()
   renderAll()
   await refreshHistoryButtons()
 
-  console.log('fetchAllData END', {
-    nodesCount: nodes.length,
-    categoriesCount: categories.length,
-    difficultiesCount: difficulties.length,
-    tagsCount: taxonomyTags.length,
-    mediaCount: mediaData.length,
-    fileCount: filesData.length,
-    codeSnippetCount: codeData.length
+  console.log('fetchAllData END · team-first shell', {
+    departmentsCount: departments.length,
+    announcementsCount: announcements.length,
+    teamNodesCount: teamNodes.length
   })
 }
 
@@ -11657,9 +10723,7 @@ async function saveLayoutChanges({ quiet = false } = {}) {
 function renderLayoutEditorState() {
   if (!layoutEditorBar || !layoutEditModeBtn) return
 
-  const mapSection =
-    activePublicSection === 'explore' ||
-    activePublicSection === 'team'
+  const mapSection = activePublicSection === 'team'
 
   const available = Boolean(
     editorMode &&
@@ -11881,9 +10945,6 @@ function renderEditorContext() {
     editorHistorySection.hidden = !active || (!layoutEditMode && (!canEdit || isTeamAtlasMode()))
   }
 
-  if (editorAdminSection) {
-    editorAdminSection.hidden = !(canEdit && editorMode && !isTeamAtlasMode())
-  }
 }
 
 // Authentication, permissions and Editor Mode
@@ -11896,8 +10957,18 @@ function updateAuthUI() {
   }
 
   const currentAtlasEditable = canEditCurrentAtlas()
+  const editorAvailable = canUseEditorModeAnywhere()
   const editorActive = currentAtlasEditable && editorMode
-  const publicAdminEditorActive = canEdit && editorMode && !isTeamAtlasMode()
+  const publicAdminEditorActive = canEdit && editorMode
+  const teamTaxonomyEditorActive = Boolean(
+    editorMode && isTeamAtlasMode() && canManageTeamTaxonomy()
+  )
+  const teamRoadmapEditorActive = Boolean(
+    editorMode && isTeamAtlasMode() && canManageRoadmapScope('team')
+  )
+  const teamSetupEditorActive = Boolean(
+    editorMode && isTeamAtlasMode() && canManageCurrentTeam()
+  )
 
   if (!currentUser) {
     authStatusBox.innerHTML = 'Neautentificat. Atlasul este în Reader Mode.'
@@ -11928,7 +10999,6 @@ function updateAuthUI() {
 
   if (!canUseEditorModeAnywhere() && editorMode) {
     editorMode = false
-    localStorage.setItem(CACHE_KEYS.editorMode, '0')
   }
 
   const editorBlocked = isAtlasLoading || !editorActive
@@ -11937,17 +11007,40 @@ function updateAuthUI() {
   const selectedNodeEditable = Boolean(selected && canEditNode(selected))
   const hasNodes = nodes.length > 0
 
-  editorModeBtn.hidden = !currentAtlasEditable
-  editorModeBtn.textContent = editorMode ? 'Exit editor' : 'Editor mode'
-  editorModeBtn.classList.toggle('active', editorMode && currentAtlasEditable)
+  editorModeBtn.hidden = !editorAvailable
+  editorModeBtn.textContent = editorMode ? 'Editor ✓' : 'Editor'
+  editorModeBtn.classList.toggle('active', editorMode && editorAvailable)
 
   editorToolsSection.hidden = !editorActive
   renderEditorContext()
-  taxonomyManagerBtn.disabled = !publicAdminEditorActive || isAtlasLoading
-  publicContentManagerBtn.disabled = !publicAdminEditorActive || isAtlasLoading
-  roadmapManagerBtn.disabled = !publicAdminEditorActive || isAtlasLoading
+
+  if (taxonomyManagerBtn) {
+    taxonomyManagerBtn.hidden = !teamTaxonomyEditorActive
+    taxonomyManagerBtn.disabled = !teamTaxonomyEditorActive || isAtlasLoading
+  }
+
+  if (roadmapManagerBtn) {
+    roadmapManagerBtn.hidden = !teamRoadmapEditorActive
+    roadmapManagerBtn.disabled = !teamRoadmapEditorActive || isAtlasLoading
+  }
+
+  if (publicContentManagerBtn) {
+    publicContentManagerBtn.hidden = !publicAdminEditorActive
+    publicContentManagerBtn.disabled = !publicAdminEditorActive || isAtlasLoading
+  }
+
   if (teamSetupBtn) {
-    teamSetupBtn.disabled = !publicAdminEditorActive || isAtlasLoading
+    teamSetupBtn.hidden = !teamSetupEditorActive
+    teamSetupBtn.disabled = !teamSetupEditorActive || isAtlasLoading
+  }
+
+  if (editorAdminSection) {
+    editorAdminSection.hidden = !(
+      teamTaxonomyEditorActive ||
+      teamRoadmapEditorActive ||
+      publicAdminEditorActive ||
+      teamSetupEditorActive
+    )
   }
 
   mediaManagerBtn.disabled =
@@ -12000,13 +11093,6 @@ function updateAuthUI() {
     !canManageRoadmapScope(roadmapManagerScope)
   ) {
     closeRoadmapManager()
-  }
-
-  if (
-    isDocumentationHealthOpen() &&
-    !canOpenDocumentationHealth()
-  ) {
-    closeDocumentationHealth()
   }
 
   if (isRevisionHistoryOpen()) {
@@ -12161,7 +11247,7 @@ function requireAuth() {
     alert(
       isTeamAtlasMode()
         ? 'Doar Team Leader, Department Coordinator, Mentor sau Platform Admin poate modifica Team Atlas.'
-        : 'Doar editorii aprobați pot modifica atlasul public.'
+        : 'Editor Mode este disponibil în spațiul echipei.'
     )
     return false
   }
@@ -12193,6 +11279,10 @@ async function refreshSession() {
   await loadRoadmapProgress()
   await loadTeamContext()
   await loadBookmarks()
+
+  if (localStorage.getItem(CACHE_KEYS.editorMode) === '1' && canUseEditorModeAnywhere()) {
+    editorMode = true
+  }
 
   updateAuthUI()
   maybeOpenPendingTeamInvite()
@@ -12894,16 +11984,9 @@ function renderNodes() {
     el.setAttribute('aria-label', `Deschide documentația: ${node.title}`)
     el.dataset.nodeId = String(node.id)
 
-    const healthIssues = qualityLensIssues(node)
-
     el.className = [
       'node',
       node.id === selectedId ? 'active' : '',
-      qualityLensEnabled && canOpenDocumentationHealth()
-        ? healthIssues.length > 0
-          ? 'quality-attention'
-          : 'quality-clean'
-        : '',
       layoutEditMode && canEditNode(node)
         ? 'layout-editable'
         : ''
@@ -12932,14 +12015,6 @@ function renderNodes() {
           <span class="pill category-pill">${escapeHtml(nodeCategoryName(node))}</span>
           <span class="pill difficulty-pill">${escapeHtml(nodeDifficultyName(node))}</span>
         </div>
-        ${
-          qualityLensEnabled &&
-          canOpenDocumentationHealth()
-            ? healthIssues.length > 0
-              ? `<span class="node-health-badge">⚠ ${healthIssues.length}</span>`
-              : '<span class="node-health-badge clean">✓</span>'
-            : ''
-        }
         ${node.id === selectedId ? `<span class="open-mark">${canEditNode(node) && editorMode && layoutEditMode ? '2× open' : 'open'}</span>` : ''}
       </div>
       <h3 class="node-title">${escapeHtml(node.title)}</h3>
@@ -13457,6 +12532,7 @@ function renderMediaManager() {
         <div class="media-manager-actions">
           <button class="btn" type="button" data-media-move="-1" ${index === 0 ? 'disabled' : ''}>↑</button>
           <button class="btn" type="button" data-media-move="1" ${index === items.length - 1 ? 'disabled' : ''}>↓</button>
+          <button class="btn manager-insert-btn" type="button" data-media-insert ${canInsertInlineAttachment(node) ? '' : 'hidden'}>Inserează aici</button>
           <button class="btn primary" type="button" data-media-save>Salvează textul</button>
           <button class="btn danger" type="button" data-media-delete>Șterge</button>
         </div>
@@ -13465,6 +12541,13 @@ function renderMediaManager() {
   `
     )
     .join('')
+
+  mediaManagerList.querySelectorAll('[data-media-insert]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const card = button.closest('[data-media-id]')
+      if (insertInlineEmbed('media', Number(card.dataset.mediaId))) closeMediaManager()
+    })
+  })
 
   mediaManagerList.querySelectorAll('[data-media-save]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -13855,6 +12938,7 @@ function renderFileManager() {
             <div class="file-manager-actions">
               <button class="btn" type="button" data-file-move="-1" data-base-disabled="${index === 0 ? 'true' : 'false'}" ${index === 0 ? 'disabled' : ''}>↑</button>
               <button class="btn" type="button" data-file-move="1" data-base-disabled="${index === items.length - 1 ? 'true' : 'false'}" ${index === items.length - 1 ? 'disabled' : ''}>↓</button>
+              <button class="btn manager-insert-btn" type="button" data-file-insert ${canInsertInlineAttachment(node) ? '' : 'hidden'}>Inserează aici</button>
               <button class="btn primary" type="button" data-file-save>Salvează textul</button>
               <button class="btn danger" type="button" data-file-delete>Șterge</button>
             </div>
@@ -13863,6 +12947,13 @@ function renderFileManager() {
       `
     })
     .join('')
+
+  fileManagerList.querySelectorAll('[data-file-insert]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const card = button.closest('[data-file-id]')
+      if (insertInlineEmbed('file', Number(card.dataset.fileId))) closeFileManager()
+    })
+  })
 
   fileManagerList.querySelectorAll('[data-file-save]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -14404,6 +13495,7 @@ function renderCodeManager() {
       <div class="code-manager-actions">
         <button class="btn" type="button" data-code-move="-1" ${index === 0 ? 'disabled' : ''}>↑</button>
         <button class="btn" type="button" data-code-move="1" ${index === items.length - 1 ? 'disabled' : ''}>↓</button>
+        <button class="btn manager-insert-btn" type="button" data-code-insert ${canInsertInlineAttachment(node) ? '' : 'hidden'}>Inserează aici</button>
         <button class="btn primary" type="button" data-code-save>Salvează snippet-ul</button>
         <button class="btn danger" type="button" data-code-delete>Șterge</button>
       </div>
@@ -14411,6 +13503,13 @@ function renderCodeManager() {
   `
     )
     .join('')
+
+  codeManagerList.querySelectorAll('[data-code-insert]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const card = button.closest('[data-code-id]')
+      if (insertInlineEmbed('code', Number(card.dataset.codeId))) closeCodeManager()
+    })
+  })
 
   codeManagerList.querySelectorAll('[data-code-save]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -15757,675 +14856,6 @@ async function restoreRevision(revisionId) {
   }
 }
 
-const DOCUMENT_HEALTH_ISSUES = {
-  not_reviewed: {
-    label: 'Not reviewed',
-    className: 'review',
-    weight: 7
-  },
-  needs_review: {
-    label: 'Needs review',
-    className: 'review',
-    weight: 10
-  },
-  missing_sources: {
-    label: 'Missing sources',
-    className: '',
-    weight: 6
-  },
-  no_primary_source: {
-    label: 'No primary source',
-    className: '',
-    weight: 3
-  },
-  stale: {
-    label: 'Stale',
-    className: '',
-    weight: 5
-  },
-  thin_content: {
-    label: 'Thin content',
-    className: '',
-    weight: 4
-  },
-  orphan: {
-    label: 'Orphaned',
-    className: '',
-    weight: 4
-  },
-  no_tags: {
-    label: 'No tags',
-    className: '',
-    weight: 2
-  },
-  source_newer: {
-    label: 'Public source newer',
-    className: 'source-newer',
-    weight: 8
-  }
-}
-
-function canOpenDocumentationHealth() {
-  if (!editorMode) return false
-
-  if (isTeamAtlasMode()) {
-    return teamAtlasEditableDepartments().length > 0
-  }
-
-  return Boolean(canEdit)
-}
-
-function healthScopeLabel() {
-  if (isTeamAtlasMode()) {
-    const team = currentTeamRecord()
-
-    return team?.teamNumber
-      ? `${team.name} #${team.teamNumber}`
-      : team?.name || 'Team Atlas'
-  }
-
-  return 'Public Atlas'
-}
-
-function healthEditableNodes() {
-  if (isTeamAtlasMode()) {
-    return teamNodes.filter((node) => canEditNode(node))
-  }
-
-  return publicNodes
-}
-
-function healthNodeDate(node) {
-  const candidates = [
-    node?.updatedAt,
-    node?.reviewState?.lastReviewedAt,
-    node?.reviewState?.updatedAt
-  ]
-    .map((value) => {
-      const timestamp = new Date(value || 0).getTime()
-      return Number.isFinite(timestamp) ? timestamp : 0
-    })
-    .filter((timestamp) => timestamp > 0)
-
-  return candidates.length > 0
-    ? Math.max(...candidates)
-    : 0
-}
-
-function isHealthNodeStale(node) {
-  const timestamp = healthNodeDate(node)
-
-  if (!timestamp) return true
-
-  return (
-    Date.now() - timestamp >
-    Number(healthStaleDays) * 24 * 60 * 60 * 1000
-  )
-}
-
-function healthInboundCount(node) {
-  if (!node) return 0
-
-  return nodes.reduce((count, source) => {
-    return (
-      count +
-      (source.links || []).filter(
-        (link) =>
-          Number(link.targetId) === Number(node.id)
-      ).length
-    )
-  }, 0)
-}
-
-function publicSourceNewerThanTeamNode(node) {
-  if (!node?.isTeamNode || !node.sourcePublicNodeId) return false
-
-  const source = publicNodes.find(
-    (candidate) => Number(candidate.id) === Number(node.sourcePublicNodeId)
-  )
-
-  if (!source?.updatedAt) return false
-
-  const sourceTime = new Date(source.updatedAt).getTime()
-  const baselineTime = new Date(
-    node.sourceSnapshot?.public_updated_at ||
-      node.sourceSyncedAt ||
-      node.sourceImportedAt ||
-      0
-  ).getTime()
-
-  if (!Number.isFinite(sourceTime) || !Number.isFinite(baselineTime)) return false
-
-  return sourceTime > baselineTime + 60 * 1000
-}
-
-function documentHealthIssues(node) {
-  if (!node) return []
-
-  const issues = []
-  const review = node.reviewState
-  const references = node.references || []
-  const contentLength =
-    nodeContentPlainText(node).trim().length
-
-  if (!review) {
-    issues.push('not_reviewed')
-  } else if (review.status === 'needs_review') {
-    issues.push('needs_review')
-  }
-
-  if (references.length === 0) {
-    issues.push('missing_sources')
-  } else if (
-    !references.some(
-      (reference) => reference.isPrimary === true
-    )
-  ) {
-    issues.push('no_primary_source')
-  }
-
-  if (isHealthNodeStale(node)) {
-    issues.push('stale')
-  }
-
-  if (contentLength < 350) {
-    issues.push('thin_content')
-  }
-
-  if (
-    (node.links || []).length === 0 &&
-    healthInboundCount(node) === 0
-  ) {
-    issues.push('orphan')
-  }
-
-  if ((node.tagIds || []).length === 0) {
-    issues.push('no_tags')
-  }
-
-  if (publicSourceNewerThanTeamNode(node)) {
-    issues.push('source_newer')
-  }
-
-  return issues
-}
-
-function documentHealthWeight(node) {
-  return documentHealthIssues(node).reduce(
-    (total, issue) =>
-      total +
-      Number(
-        DOCUMENT_HEALTH_ISSUES[issue]?.weight || 0
-      ),
-    0
-  )
-}
-
-function healthDepartmentsForScope() {
-  if (isTeamAtlasMode()) {
-    return teamAtlasEditableDepartments()
-  }
-
-  return departments
-    .filter((department) => department.is_active !== false)
-    .sort(
-      (a, b) =>
-        Number(a.sort_order || 0) -
-        Number(b.sort_order || 0)
-    )
-}
-
-function nodeMatchesHealthDepartment(node) {
-  if (
-    healthDepartmentFilter === 'all' ||
-    !healthDepartmentFilter
-  ) {
-    return true
-  }
-
-  return nodeDepartmentIds(node).includes(
-    Number(healthDepartmentFilter)
-  )
-}
-
-function nodeMatchesHealthIssue(node) {
-  const issues = documentHealthIssues(node)
-
-  if (healthIssueFilter === 'all') return true
-
-  if (healthIssueFilter === 'attention') {
-    return issues.length > 0
-  }
-
-  return issues.includes(healthIssueFilter)
-}
-
-function filteredHealthNodes() {
-  return healthEditableNodes()
-    .filter(nodeMatchesHealthDepartment)
-    .filter(nodeMatchesHealthIssue)
-    .sort((a, b) => {
-      const weightDifference =
-        documentHealthWeight(b) -
-        documentHealthWeight(a)
-
-      if (weightDifference !== 0) {
-        return weightDifference
-      }
-
-      const aTime = healthNodeDate(a)
-      const bTime = healthNodeDate(b)
-
-      if (aTime !== bTime) return aTime - bTime
-
-      return String(a.title || '').localeCompare(
-        String(b.title || ''),
-        'ro',
-        { sensitivity: 'base' }
-      )
-    })
-}
-
-function healthSummaryStats() {
-  const items = healthEditableNodes()
-    .filter(nodeMatchesHealthDepartment)
-
-  const issueSets = items.map((node) =>
-    new Set(documentHealthIssues(node))
-  )
-
-  return {
-    total: items.length,
-    attention: issueSets.filter(
-      (set) => set.size > 0
-    ).length,
-    review: issueSets.filter(
-      (set) =>
-        set.has('not_reviewed') ||
-        set.has('needs_review')
-    ).length,
-    sources: issueSets.filter(
-      (set) => set.has('missing_sources')
-    ).length,
-    stale: issueSets.filter(
-      (set) => set.has('stale')
-    ).length,
-    sourceNewer: issueSets.filter(
-      (set) => set.has('source_newer')
-    ).length
-  }
-}
-
-function qualityLensIssues(node) {
-  if (
-    !qualityLensEnabled ||
-    !canOpenDocumentationHealth()
-  ) {
-    return []
-  }
-
-  return documentHealthIssues(node)
-}
-
-function renderHealthToolState() {
-  if (!documentationHealthBtn) return
-
-  const visible = canOpenDocumentationHealth()
-
-  documentationHealthBtn.hidden = !visible
-
-  if (!visible) return
-
-  const attentionCount = healthEditableNodes().filter(
-    (node) => documentHealthIssues(node).length > 0
-  ).length
-
-  documentationHealthBtn.textContent =
-    attentionCount > 0
-      ? `◈ Health · ${attentionCount}`
-      : '◇ Health'
-}
-
-function populateHealthDepartmentFilter() {
-  const departmentsForScope =
-    healthDepartmentsForScope()
-
-  const requested = String(
-    healthDepartmentFilter || 'all'
-  )
-
-  documentationHealthDepartmentInput.innerHTML = [
-    '<option value="all">All editable departments</option>',
-    ...departmentsForScope.map(
-      (department) =>
-        `<option value="${Number(
-          department.id
-        )}">${escapeHtmlText(
-          department.name
-        )}</option>`
-    )
-  ].join('')
-
-  if (
-    requested !== 'all' &&
-    departmentsForScope.some(
-      (department) =>
-        String(department.id) === requested
-    )
-  ) {
-    documentationHealthDepartmentInput.value =
-      requested
-  } else {
-    healthDepartmentFilter = 'all'
-    documentationHealthDepartmentInput.value =
-      'all'
-  }
-}
-
-function renderHealthIssueBadges(node) {
-  const issues = documentHealthIssues(node)
-
-  if (issues.length === 0) {
-    return `
-      <span class="documentation-health-clean">
-        No current flags
-      </span>
-    `
-  }
-
-  return issues
-    .map((issue) => {
-      const definition =
-        DOCUMENT_HEALTH_ISSUES[issue]
-
-      return `
-        <span
-          class="documentation-health-issue ${
-            definition?.className || ''
-          }"
-        >
-          ${escapeHtmlText(
-            definition?.label || issue
-          )}
-        </span>
-      `
-    })
-    .join('')
-}
-
-function healthNodeMeta(node) {
-  const references = node.references || []
-  const primaryCount = references.filter(
-    (reference) => reference.isPrimary
-  ).length
-
-  const lastTouch = healthNodeDate(node)
-
-  const updatedCopy = lastTouch
-    ? formatPublicDate(
-        new Date(lastTouch).toISOString()
-      )
-    : 'unknown'
-
-  return [
-    nodeCategoryName(node),
-    nodeDifficultyName(node),
-    `${references.length} sources`,
-    `${primaryCount} primary`,
-    `last touch ${updatedCopy}`
-  ].join(' · ')
-}
-
-function renderDocumentationHealth() {
-  if (!isDocumentationHealthOpen()) return
-
-  const scope = healthScopeLabel()
-
-  documentationHealthTitle.textContent =
-    `Documentation Health · ${scope}`
-
-  populateHealthDepartmentFilter()
-
-  documentationHealthIssueInput.value =
-    healthIssueFilter
-
-  documentationHealthStaleInput.value =
-    String(healthStaleDays)
-
-  documentationQualityLensInput.checked =
-    qualityLensEnabled
-
-  const stats = healthSummaryStats()
-
-  documentationHealthSummary.innerHTML = [
-    ['Docs', stats.total],
-    ['Needs attention', stats.attention],
-    ['Review queue', stats.review],
-    ['Missing sources', stats.sources],
-    [`Stale > ${healthStaleDays}d`, stats.stale],
-    ['Source newer', stats.sourceNewer]
-  ]
-    .map(
-      ([label, value]) => `
-        <div class="documentation-health-stat">
-          <strong>${Number(value)}</strong>
-          <span>${escapeHtmlText(label)}</span>
-        </div>
-      `
-    )
-    .join('')
-
-  const items = filteredHealthNodes()
-
-  documentationHealthStatus.innerHTML = `
-    <strong>${items.length}</strong>
-    ${
-      items.length === 1
-        ? 'document'
-        : 'documents'
-    }
-    · ${escapeHtmlText(scope)}
-    · stale threshold ${Number(healthStaleDays)} days
-  `
-
-  if (items.length === 0) {
-    documentationHealthResults.innerHTML = `
-      <div class="documentation-health-empty">
-        Niciun document nu corespunde filtrului curent.
-      </div>
-    `
-    return
-  }
-
-  documentationHealthResults.innerHTML = items
-    .map((node) => {
-      const issues = documentHealthIssues(node)
-
-      return `
-        <article
-          class="documentation-health-row ${
-            issues.length ? 'has-issues' : ''
-          }"
-        >
-          <div>
-            <div class="documentation-health-row-title">
-              <strong>${escapeHtmlText(node.title)}</strong>
-
-              ${
-                node.isTeamNode
-                  ? '<span class="document-reference-badge">Team</span>'
-                  : '<span class="document-reference-badge">Public</span>'
-              }
-            </div>
-
-            <div class="documentation-health-row-meta">
-              ${escapeHtmlText(healthNodeMeta(node))}
-            </div>
-
-            <div class="documentation-health-issues">
-              ${renderHealthIssueBadges(node)}
-            </div>
-          </div>
-
-          <div class="documentation-health-actions">
-            ${
-              issues.includes('source_newer')
-                ? `
-                  <button
-                    class="taxonomy-mini-btn"
-                    type="button"
-                    data-health-public-source="${Number(
-                      node.id
-                    )}"
-                  >
-                    Public source
-                  </button>
-                `
-                : ''
-            }
-
-            <button
-              class="taxonomy-mini-btn"
-              type="button"
-              data-health-meta="${Number(node.id)}"
-            >
-              Sources / review
-            </button>
-
-            <button
-              class="taxonomy-mini-btn"
-              type="button"
-              data-health-open="${Number(node.id)}"
-            >
-              Open
-            </button>
-          </div>
-        </article>
-      `
-    })
-    .join('')
-}
-
-function isDocumentationHealthOpen() {
-  return Boolean(
-    documentationHealthBackdrop?.classList.contains(
-      'open'
-    )
-  )
-}
-
-function openDocumentationHealth() {
-  if (!canOpenDocumentationHealth()) {
-    alert(
-      'Documentation Health este disponibil în Editor Mode pentru documentele pe care le poți edita.'
-    )
-    return
-  }
-
-  healthIssueFilter = 'attention'
-
-  if (
-    activeDepartmentId != null &&
-    healthDepartmentsForScope().some(
-      (department) =>
-        Number(department.id) ===
-        Number(activeDepartmentId)
-    )
-  ) {
-    healthDepartmentFilter =
-      String(activeDepartmentId)
-  } else {
-    healthDepartmentFilter = 'all'
-  }
-
-  documentationHealthBackdrop.classList.add(
-    'open'
-  )
-
-  renderDocumentationHealth()
-}
-
-function closeDocumentationHealth() {
-  documentationHealthBackdrop?.classList.remove(
-    'open'
-  )
-}
-
-function openHealthNode(nodeId) {
-  const node = findNode(nodeId)
-  if (!node) return
-
-  closeDocumentationHealth()
-
-  activateDepartmentForNode(node, {
-    persist: true
-  })
-
-  clearFiltersForDeepLink()
-
-  selectedId = node.id
-  clearEdgeSelection()
-  detailOpen = true
-
-  renderAll()
-  setNodeRoute(node, { push: true })
-
-  requestAnimationFrame(() =>
-    centerOnNode(node)
-  )
-}
-
-function openHealthPublicSource(teamNodeId) {
-  const teamNode = teamNodes.find(
-    (node) =>
-      Number(node.id) === Number(teamNodeId)
-  )
-
-  if (!teamNode?.sourcePublicNodeId) return
-
-  closeDocumentationHealth()
-  openPublicSourceFromTeamNode(teamNode)
-}
-
-function healthReportText() {
-  const scope = healthScopeLabel()
-  const stats = healthSummaryStats()
-  const items = filteredHealthNodes()
-
-  const lines = [
-    `FTC Programming Atlas — Documentation Health`,
-    `Scope: ${scope}`,
-    `Stale threshold: ${healthStaleDays} days`,
-    ``,
-    `Docs: ${stats.total}`,
-    `Needs attention: ${stats.attention}`,
-    `Review queue: ${stats.review}`,
-    `Missing sources: ${stats.sources}`,
-    `Stale: ${stats.stale}`,
-    `Public source newer: ${stats.sourceNewer}`,
-    ``,
-    `Current filter: ${healthIssueFilter}`,
-    `Results: ${items.length}`,
-    ``
-  ]
-
-  for (const node of items) {
-    const labels = documentHealthIssues(node)
-      .map(
-        (issue) =>
-          DOCUMENT_HEALTH_ISSUES[issue]?.label ||
-          issue
-      )
-      .join(', ')
-
-    lines.push(
-      `- ${node.title}${labels ? ` — ${labels}` : ''}`
-    )
-  }
-
-  return lines.join('\n')
-}
-
 function referenceTypeLabel(value) {
   const labels = {
     official: 'Official',
@@ -17394,9 +15824,6 @@ function renderDetailPanel() {
             <summary aria-label="Mai mult" title="Mai mult">•••</summary>
             <div class="detail-action-menu-list">
               <button class="btn" id="detailHistoryBtn" type="button">Istoric versiuni</button>
-              <button class="btn" id="detailImportTeamBtn" type="button">Importă în Team Atlas</button>
-              <button class="btn" id="detailCompareSourceBtn" type="button">Compară sursa publică</button>
-              <button class="btn" id="detailPublicSourceBtn" type="button">Deschide sursa publică</button>
               <button class="btn" id="detailCopyTeamLinkBtn" type="button">Copiază link-ul privat</button>
               <button class="btn danger" id="detailDeleteBtn" type="button">Șterge nodul</button>
             </div>
@@ -17428,7 +15855,6 @@ function renderDetailPanel() {
                   : ''
               }
 
-              ${sourceSyncFact(node)}
               ${renderDocumentReviewFact(node)}
 
               ${
@@ -17455,9 +15881,6 @@ function renderDetailPanel() {
 
         ${renderDocumentReferences(node)}
         ${renderDocumentConnections(node)}
-        ${renderNodeCodeSnippets(node)}
-        ${renderNodeMediaGallery(node)}
-        ${renderNodeFiles(node)}
       </div>
     </div>
   `
@@ -17470,9 +15893,9 @@ function renderDetailPanel() {
 
   const detailBookmarkBtn = document.getElementById('detailBookmarkBtn')
   const detailHistoryBtn = document.getElementById('detailHistoryBtn')
-  const detailImportTeamBtn = document.getElementById('detailImportTeamBtn')
-  const detailCompareSourceBtn = document.getElementById('detailCompareSourceBtn')
-  const detailPublicSourceBtn = document.getElementById('detailPublicSourceBtn')
+  const detailImportTeamBtn = null
+  const detailCompareSourceBtn = null
+  const detailPublicSourceBtn = null
   const detailCopyTeamLinkBtn = document.getElementById('detailCopyTeamLinkBtn')
   const detailAddRelationBtn = document.getElementById('detailAddRelationBtn')
   const detailEditBtn = document.getElementById('detailEditBtn')
@@ -17481,18 +15904,6 @@ function renderDetailPanel() {
   const detailMoreMenu = document.getElementById('detailMoreMenu')
 
   detailHistoryBtn.hidden = !nodeEditorActions
-  detailImportTeamBtn.hidden = !canImportPublicNodeToTeam(node)
-  detailCompareSourceBtn.hidden = !(node.isTeamNode && node.sourcePublicNodeId)
-  detailPublicSourceBtn.hidden = !(node.isTeamNode && node.sourcePublicNodeId)
-  detailCopyTeamLinkBtn.hidden = !node.isTeamNode
-  detailAddRelationBtn.hidden = !nodeEditorActions
-  detailEditBtn.hidden = !nodeEditorActions
-  detailDeleteBtn.hidden = !nodeEditorActions
-
-  detailHistoryBtn.disabled = !nodeEditorActions
-  detailImportTeamBtn.disabled = !canImportPublicNodeToTeam(node)
-  detailCompareSourceBtn.disabled = !(node.isTeamNode && node.sourcePublicNodeId)
-  detailPublicSourceBtn.disabled = !(node.isTeamNode && node.sourcePublicNodeId)
   detailCopyTeamLinkBtn.disabled = !node.isTeamNode
   detailAddRelationBtn.disabled = !nodeEditorActions
   detailEditBtn.disabled = !nodeEditorActions
@@ -17500,9 +15911,6 @@ function renderDetailPanel() {
 
   const advancedActions = [
     detailHistoryBtn,
-    detailImportTeamBtn,
-    detailCompareSourceBtn,
-    detailPublicSourceBtn,
     detailCopyTeamLinkBtn,
     detailDeleteBtn
   ]
@@ -17523,18 +15931,6 @@ function renderDetailPanel() {
     })
   })
 
-  detailImportTeamBtn.addEventListener('click', () => {
-    detailMoreMenu.removeAttribute('open')
-    openTeamImport(node.id)
-  })
-  detailCompareSourceBtn.addEventListener('click', () => {
-    detailMoreMenu.removeAttribute('open')
-    openSourceCompare(node.id)
-  })
-  detailPublicSourceBtn.addEventListener('click', () => {
-    detailMoreMenu.removeAttribute('open')
-    openPublicSourceFromTeamNode(node)
-  })
   detailCopyTeamLinkBtn.addEventListener('click', () =>
     copyTeamNodeLink(node, detailCopyTeamLinkBtn)
   )
@@ -17642,7 +16038,6 @@ function renderAll() {
 
   renderSelectedStrip()
   renderModeStrip()
-  renderHealthToolState()
   renderLayoutEditorState()
   renderEditorContext()
   renderLinks()
@@ -17650,9 +16045,6 @@ function renderAll() {
   renderDetailPanel()
   updateAuthUI()
 
-  if (isDocumentationHealthOpen()) {
-    renderDocumentationHealth()
-  }
 
   if (isTaxonomyManagerOpen()) {
     renderTaxonomyManager()
@@ -17829,7 +16221,8 @@ function openEdit(id) {
   setRichEditorHtml(
     node.contentFormat === 'html'
       ? node.content
-      : plainTextToRichHtml(node.content)
+      : plainTextToRichHtml(node.content),
+    node
   )
   openModal('node')
   titleInput.focus()
@@ -18924,137 +17317,6 @@ revisionHistoryPreview?.addEventListener(
   }
 )
 
-documentationHealthBtn?.addEventListener(
-  'click',
-  openDocumentationHealth
-)
-
-closeDocumentationHealthBtn?.addEventListener(
-  'click',
-  closeDocumentationHealth
-)
-
-closeDocumentationHealthFooterBtn?.addEventListener(
-  'click',
-  closeDocumentationHealth
-)
-
-documentationHealthBackdrop?.addEventListener(
-  'click',
-  (event) => {
-    if (event.target === documentationHealthBackdrop) {
-      closeDocumentationHealth()
-    }
-  }
-)
-
-documentationHealthIssueInput?.addEventListener(
-  'change',
-  () => {
-    healthIssueFilter =
-      documentationHealthIssueInput.value
-
-    renderDocumentationHealth()
-  }
-)
-
-documentationHealthDepartmentInput?.addEventListener(
-  'change',
-  () => {
-    healthDepartmentFilter =
-      documentationHealthDepartmentInput.value
-
-    renderDocumentationHealth()
-  }
-)
-
-documentationHealthStaleInput?.addEventListener(
-  'change',
-  () => {
-    const next = Number(
-      documentationHealthStaleInput.value
-    )
-
-    healthStaleDays = [90, 180, 365].includes(next)
-      ? next
-      : 180
-
-    localStorage.setItem(
-      CACHE_KEYS.healthStaleDays,
-      String(healthStaleDays)
-    )
-
-    renderAll()
-  }
-)
-
-documentationQualityLensInput?.addEventListener(
-  'change',
-  () => {
-    qualityLensEnabled =
-      documentationQualityLensInput.checked
-
-    localStorage.setItem(
-      CACHE_KEYS.qualityLens,
-      qualityLensEnabled ? '1' : '0'
-    )
-
-    renderAll()
-  }
-)
-
-documentationHealthResults?.addEventListener(
-  'click',
-  (event) => {
-    const openButton = event.target.closest?.(
-      '[data-health-open]'
-    )
-
-    if (openButton) {
-      openHealthNode(
-        Number(openButton.dataset.healthOpen)
-      )
-      return
-    }
-
-    const metaButton = event.target.closest?.(
-      '[data-health-meta]'
-    )
-
-    if (metaButton) {
-      const nodeId =
-        Number(metaButton.dataset.healthMeta)
-
-      closeDocumentationHealth()
-      openDocumentationMetaManager(nodeId)
-      return
-    }
-
-    const sourceButton = event.target.closest?.(
-      '[data-health-public-source]'
-    )
-
-    if (sourceButton) {
-      openHealthPublicSource(
-        Number(
-          sourceButton.dataset.healthPublicSource
-        )
-      )
-    }
-  }
-)
-
-copyDocumentationHealthReportBtn?.addEventListener(
-  'click',
-  () => {
-    copyTextToClipboard(
-      healthReportText(),
-      copyDocumentationHealthReportBtn,
-      'Copied'
-    )
-  }
-)
-
 closeDocumentationMetaBtn?.addEventListener(
   'click',
   closeDocumentationMetaManager
@@ -19334,21 +17596,7 @@ confirmTeamImportBtn?.addEventListener('click', () => {
   })
 })
 
-teamAtlasIndexBtn?.addEventListener('click', () => {
-  selectPublicSection(
-    activePublicSection === 'team-index'
-      ? 'team'
-      : 'team-index'
-  )
-})
 
-teamAtlasRoadmapsBtn?.addEventListener('click', () => {
-  selectPublicSection(
-    activePublicSection === 'team-roadmaps'
-      ? 'team'
-      : 'team-roadmaps'
-  )
-})
 
 teamAtlasTaxonomyBtn?.addEventListener('click', () => {
   openTaxonomyManager('category')
@@ -19429,7 +17677,7 @@ saveTeamSetupBtn?.addEventListener('click', () => {
 })
 
 roadmapManagerBtn?.addEventListener('click', () => {
-  openRoadmapManager('public').catch((error) => {
+  openRoadmapManager('team').catch((error) => {
     console.error('Open roadmap manager failed:', error)
   })
 })
@@ -19650,7 +17898,7 @@ publicHubPanel?.addEventListener('click', (event) => {
 
   const roadmapManagerTrigger = event.target.closest?.('[data-open-roadmap-manager]')
   if (roadmapManagerTrigger) {
-    openRoadmapManager('public').catch((error) => {
+    openRoadmapManager('team').catch((error) => {
       console.error('Open roadmap manager failed:', error)
     })
     return
@@ -20049,8 +18297,6 @@ window.addEventListener('keydown', (event) => {
       closeSourceCompare()
     } else if (revisionHistoryBackdrop?.classList.contains('open')) {
       closeRevisionHistory()
-    } else if (documentationHealthBackdrop?.classList.contains('open')) {
-      closeDocumentationHealth()
     } else if (documentationMetaBackdrop?.classList.contains('open')) {
       closeDocumentationMetaManager()
     } else if (documentationFinderBackdrop?.classList.contains('open')) {
@@ -20201,7 +18447,6 @@ supabase.auth.onAuthStateChange((event, session) => {
 
     if (editorMode) {
       editorMode = false
-      localStorage.setItem(CACHE_KEYS.editorMode, '0')
     }
 
     roadmapProgress = new Set()
@@ -20224,10 +18469,9 @@ supabase.auth.onAuthStateChange((event, session) => {
 
     if (
       activePublicSection === 'team' ||
-      activePublicSection === 'team-index' ||
       activePublicSection === 'team-roadmaps'
     ) {
-      activePublicSection = 'explore'
+      activePublicSection = 'announcements'
       localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
     }
 
@@ -20250,6 +18494,10 @@ supabase.auth.onAuthStateChange((event, session) => {
       await loadRoadmapProgress()
       await loadTeamContext()
       await loadBookmarks()
+
+      if (localStorage.getItem(CACHE_KEYS.editorMode) === '1' && canUseEditorModeAnywhere()) {
+        editorMode = true
+      }
 
       const routedNode = await applyRouteFromLocation({
         canonicalize: true
@@ -20301,18 +18549,14 @@ window.atlasDebug = {
   openTeamSetup,
   openTeamMembersManager,
   openTeamOnboarding,
-  openTeamIndex: () => selectPublicSection('team-index'),
   openQuickFind: openDocumentationFinder,
   openSavedDocs: openDocumentationLibrary,
   openDocumentationMeta: () =>
     openDocumentationMetaManager(selectedId),
-  openDocumentationHealth,
   openRevisionHistory: () =>
     openRevisionHistory(selectedId),
   openSourceCompare: () =>
     openSourceCompare(selectedId),
-  openPublicIndex: () =>
-    selectPublicSection('index'),
   refreshSession,
   deleteNodeRemote,
   deleteEdgeRemote,
