@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v103 · FULL NAV COLLAPSE + I18N COMPLETION')
+console.log('ATLAS SCRIPT LOADED v104 · NATIVE CLIENT REFRESH')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'

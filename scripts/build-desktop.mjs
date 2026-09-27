@@ -1,0 +1,48 @@
+import { copyFile, mkdir, stat } from 'node:fs/promises'
+import { spawnSync } from 'node:child_process'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { NATIVE_VERSION } from './native-meta.mjs'
+
+const target = (process.argv[2] || 'nsis').toLowerCase()
+if (!['nsis', 'portable'].includes(target)) {
+  throw new Error('Usage: node scripts/build-desktop.mjs [nsis|portable]')
+}
+
+const scriptDirectory = dirname(fileURLToPath(import.meta.url))
+const root = join(scriptDirectory, '..')
+const binary = join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder')
+
+try {
+  await stat(binary)
+} catch {
+  throw new Error('electron-builder is not installed. Run npm ci first.')
+}
+
+const artifactName = target === 'portable'
+  ? `FTC-Programming-Atlas-${NATIVE_VERSION}-x64-Portable.exe`
+  : `FTC-Programming-Atlas-${NATIVE_VERSION}-x64.exe`
+
+const args = [
+  '--win', target,
+  '--x64',
+  `-c.win.artifactName=${artifactName}`
+]
+
+const result = spawnSync(binary, args, {
+  cwd: root,
+  stdio: 'inherit',
+  shell: process.platform === 'win32'
+})
+
+if (result.status !== 0) {
+  process.exit(result.status ?? 1)
+}
+
+const source = join(root, 'dist-desktop', artifactName)
+await stat(source)
+const downloads = join(root, 'downloads')
+await mkdir(downloads, { recursive: true })
+const destination = join(downloads, artifactName)
+await copyFile(source, destination)
+console.log(`Windows ${target} build ready: ${destination}`)

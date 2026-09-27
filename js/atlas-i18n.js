@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v103 · full navigation collapse + roadmap/team admin/role-preview i18n
+// v104 · native client refresh
 //
 // Source language: Romanian
 // Secondary language: English
@@ -1896,7 +1896,7 @@ function installEnglishDialogTranslation() {
   ['Ex: Localization Basics', 'Example: Localization Basics']
 ].forEach(([source, target]) => ATTRIBUTE_EN.set(source, target))
 
-// v103 · remaining Team Roadmaps / Team Admin / Role Preview bilingual coverage.
+// v104 · remaining Team Roadmaps / Team Admin / Role Preview bilingual coverage.
 ;[
   ['Navigare', 'Navigation'],
   ['Arată navigarea', 'Show navigation'],

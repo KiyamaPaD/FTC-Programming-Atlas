@@ -1,8 +1,8 @@
 {
   "name": "ftc-programming-atlas",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "FTC Programming Atlas web and native mobile application",
+  "description": "FTC Programming Atlas — Team-first FTC documentation for web, Android, and Windows",
   "scripts": {
     "release:check": "node scripts/release-check.mjs && npm run mobile:build",
     "mobile:build": "node scripts/build-mobile-web.mjs",
@@ -13,7 +13,7 @@
     "android:assets": "npx @capacitor/assets generate --android --iconBackgroundColor=\"#000000\" --iconBackgroundColorDark=\"#000000\" --splashBackgroundColor=\"#000000\" --splashBackgroundColorDark=\"#000000\"",
     "android:open": "npm run mobile:sync && npx cap open android",
     "android:run": "npm run mobile:sync && npx cap run android",
-    "android:apk": "npm run mobile:sync && cd android && gradlew.bat assembleDebug",
+    "android:apk": "npm run native:sync && node scripts/build-android.mjs release",
     "ios:init": "npm run mobile:build && npx cap add ios && npm run ios:assets",
     "ios:add": "npm run mobile:build && npx cap add ios",
     "ios:assets": "npx @capacitor/assets generate --ios --iconBackgroundColor=\"#000000\" --iconBackgroundColorDark=\"#000000\" --splashBackgroundColor=\"#000000\" --splashBackgroundColorDark=\"#000000\"",
@@ -23,8 +23,12 @@
     "ios:run": "npm run ios:sync && npx cap run ios",
     "desktop:dev": "npm run mobile:build && electron .",
     "desktop:pack": "npm run mobile:build && electron-builder --win dir",
-    "desktop:exe": "npm run mobile:build && electron-builder --win nsis",
-    "desktop:portable": "npm run mobile:build && electron-builder --win portable"
+    "desktop:exe": "npm run mobile:build && node scripts/build-desktop.mjs nsis",
+    "desktop:portable": "npm run mobile:build && node scripts/build-desktop.mjs portable",
+    "native:sync": "npm run mobile:build && node scripts/sync-native-web.mjs",
+    "native:check": "node scripts/native-check.mjs",
+    "android:apk:debug": "npm run native:sync && node scripts/build-android.mjs debug",
+    "native:release": "npm run native:sync && npm run native:check"
   },
   "dependencies": {
     "@capacitor/android": "8.5.2",
@@ -63,12 +67,6 @@
           "arch": [
             "x64"
           ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
         }
       ],
       "artifactName": "FTC-Programming-Atlas-${version}-${arch}.${ext}"
@@ -79,7 +77,12 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "FTC Programming Atlas",
-      "deleteAppDataOnUninstall": false
-    }
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
+    },
+    "copyright": "FTC Programming Atlas",
+    "artifactName": "FTC-Programming-Atlas-${version}-${arch}.${ext}"
   }
 }

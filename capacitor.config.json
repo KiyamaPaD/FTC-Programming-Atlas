@@ -3,7 +3,7 @@
   "appName": "FTC Programming Atlas",
   "webDir": "www",
   "backgroundColor": "#000000",
-  "loggingBehavior": "debug",
+  "loggingBehavior": "production",
   "android": {
     "backgroundColor": "#000000",
     "zoomEnabled": false

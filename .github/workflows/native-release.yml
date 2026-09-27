@@ -1,0 +1,90 @@
+name: Native release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v2.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows x64 installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FTC-Programming-Atlas-Windows-2.0.0
+          path: downloads/FTC-Programming-Atlas-2.0.0-x64.exe
+          if-no-files-found: error
+
+  android:
+    name: Android signed APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - name: Configure Android signing
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$STORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "Android signing secrets are missing."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/ftc-atlas-release.jks
+          cat > android/keystore.properties <<EOF2
+          storeFile=ftc-atlas-release.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF2
+      - run: chmod +x android/gradlew
+      - run: npm run android:apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FTC-Programming-Atlas-Android-2.0.0
+          path: downloads/FTC-Programming-Atlas-2.0.0.apk
+          if-no-files-found: error
+
+  github-release:
+    name: Publish GitHub release assets
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [windows, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: FTC-Programming-Atlas-*
+          merge-multiple: true
+          path: release-assets
+      - name: Publish v2.0.0 assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || \
+            gh release create "${GITHUB_REF_NAME}" --title "FTC Programming Atlas 2.0.0" --generate-notes
+          gh release upload "${GITHUB_REF_NAME}" release-assets/* --clobber

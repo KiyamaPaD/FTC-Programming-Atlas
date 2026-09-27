@@ -23,6 +23,11 @@ protocol.registerSchemesAsPrivileged([
 ])
 
 const APP_ORIGIN = 'atlas://app'
+
+app.setName('FTC Programming Atlas')
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.ftcprogrammingatlas.desktop')
+}
 let mainWindow = null
 
 function isSafeRelativePath(value) {
@@ -81,10 +86,11 @@ function openExternal(value) {
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
+    title: 'FTC Programming Atlas',
     width: 1440,
     height: 920,
-    minWidth: 960,
-    minHeight: 640,
+    minWidth: 900,
+    minHeight: 620,
     backgroundColor: '#000000',
     autoHideMenuBar: true,
     show: false,
