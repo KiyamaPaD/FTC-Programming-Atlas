@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v100 · Full English UI + Team UX / role preview polish
+// v101 · Team requests + read-only tutorial + public cleanup
 //
 // Source language: Romanian
 // Secondary language: English
@@ -328,6 +328,30 @@ const UI_EN = new Map(Object.entries({
     'Create the first team or edit the current team.',
   'Echipă nouă':
     'New team',
+  'Solicită echipă':
+    'Request a team',
+  'Cerere în așteptare':
+    'Request pending',
+  'Cererea ajunge la Platform Admin pentru aprobare.':
+    'The request goes to a Platform Admin for approval.',
+  'După aprobare devii Team Leader și poți invita singur membrii echipei.':
+    'After approval, you become Team Leader and can invite your own members.',
+  'Trimite cererea':
+    'Send request',
+  'Se trimite cererea...':
+    'Sending request...',
+  'Cereri de echipă':
+    'Team requests',
+  'Nicio cerere în așteptare.':
+    'No pending requests.',
+  'Respinge':
+    'Reject',
+  '+ Creează direct':
+    '+ Create directly',
+  'Creare directă de Platform Admin.':
+    'Direct creation by Platform Admin.',
+  'Creezi direct o echipă și devii Team Leader temporar pentru configurarea inițială.':
+    'You are creating a team directly and temporarily become Team Leader for initial setup.',
   'Creezi o echipă nouă în Team Atlas. Vei deveni Team Leader pentru această echipă.':
     'You are creating a new team in Team Atlas. You will become Team Leader for this team.',
   'Completează datele noii echipe.':
@@ -1583,6 +1607,7 @@ function installEnglishDialogTranslation() {
   ['Nu există încă roadmaps în acest scope.', 'There are no roadmaps in this scope yet.'],
   ['Nu există membri.', 'There are no members.'],
   ['Nu există invitații pending.', 'There are no pending invitations.'],
+  ['FTC Programming Atlas · se încarcă...', 'FTC Programming Atlas · loading...'],
   ['Se încarcă...', 'Loading...'],
   ['Invitația nu a putut fi procesată.', 'The invitation could not be processed.'],
   ['Invitația nu a putut fi revocată.', 'The invitation could not be revoked.'],

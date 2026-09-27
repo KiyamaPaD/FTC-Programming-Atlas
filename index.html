@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=100" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=101" />
   <style>
     :root {
       --bg: #000000;
@@ -8163,6 +8163,51 @@
   .team-admin-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
   .team-admin-actions .btn { min-height: 32px; padding: 6px 9px; font-size: .66rem; }
 
+  .team-request-panel {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid rgba(177,76,255,.12);
+    border-radius: 11px;
+    background: rgba(177,76,255,.035);
+  }
+  .team-request-panel[hidden] { display: none !important; }
+  .team-request-status { color: #938b99; font-size: .67rem; line-height: 1.45; }
+  .team-request-queue {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 11px;
+    border: 1px solid rgba(255,190,70,.15);
+    border-radius: 12px;
+    background: rgba(255,190,70,.025);
+  }
+  .team-request-queue[hidden] { display: none !important; }
+  .team-request-queue-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .team-request-queue-head strong { color: #eee9f1; font-size: .78rem; }
+  .team-request-queue-list { display: grid; gap: 7px; }
+  .team-request-card {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border: 1px solid rgba(255,255,255,.055);
+    border-radius: 10px;
+    background: rgba(255,255,255,.016);
+  }
+  .team-request-card-copy { min-width: 0; display: grid; gap: 4px; }
+  .team-request-card-copy strong { color: #eee9f1; font-size: .76rem; }
+  .team-request-card-copy span { color: #87818b; font-size: .64rem; line-height: 1.45; }
+  .team-request-card-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+  .team-request-card-actions .btn { min-height: 31px; padding: 5px 8px; font-size: .63rem; }
+
+  @media (max-width: 720px) {
+    .team-request-card { grid-template-columns: 1fr; }
+    .team-request-card-actions { justify-content: stretch; }
+    .team-request-card-actions .btn { flex: 1 1 auto; }
+  }
+
   .role-preview-banner {
     display: flex;
     align-items: center;
@@ -8637,6 +8682,15 @@
                 <span class="team-invites-count" id="teamInvitesCount">0</span>
               </div>
               <div id="teamInvitesList"></div>
+            </div>
+
+            <div class="team-request-panel" id="teamRequestPanel" hidden>
+              <div class="team-invites-title">
+                <strong>Echipă nouă</strong>
+                <span class="team-invites-count" id="teamRequestBadge">request</span>
+              </div>
+              <div class="team-request-status" id="teamRequestStatus"></div>
+              <button class="btn primary" id="requestTeamBtn" type="button">Solicită echipă</button>
             </div>
           </div>
 
@@ -9172,8 +9226,15 @@
       <div class="team-admin-body">
         <div class="team-admin-toolbar">
           <div class="count-strip" id="teamAdminSummary"></div>
-          <button class="btn primary" id="teamAdminNewTeamBtn" type="button" hidden>+ Echipă</button>
+          <button class="btn primary" id="teamAdminNewTeamBtn" type="button" hidden>+ Creează direct</button>
         </div>
+        <section class="team-request-queue" id="teamAdminRequests" hidden>
+          <div class="team-request-queue-head">
+            <strong>Cereri de echipă</strong>
+            <span class="team-admin-badge" id="teamAdminRequestCount">0 pending</span>
+          </div>
+          <div class="team-request-queue-list" id="teamAdminRequestList"></div>
+        </section>
         <div class="team-admin-list" id="teamAdminList"></div>
         <div class="count-strip" id="teamAdminStatus"></div>
       </div>
@@ -9637,8 +9698,8 @@
     <div class="modal team-setup-modal compact-modal admin-modal">
       <div class="modal-head">
         <div>
-          <h3>Team settings</h3>
-          <p>Nume, număr FTC, descriere și departamente.</p>
+          <h3 id="teamSetupTitle">Team settings</h3>
+          <p id="teamSetupSubtitle">Nume, număr FTC, descriere și departamente.</p>
         </div>
         <button class="icon-btn" id="closeTeamSetupBtn" aria-label="Close">✕</button>
       </div>
@@ -9680,7 +9741,7 @@
           </div>
         </details>
 
-        <div class="field">
+        <div class="field" id="teamSetupDepartmentsField">
           <label>Departamente active</label>
           <div class="team-setup-departments" id="teamSetupDepartmentPicker"></div>
         </div>
@@ -9925,24 +9986,6 @@
     </div>
   </div>
 
-  <div class="intro-screen" id="introScreen">
-    <div class="intro-box">
-      <div class="intro-line one"></div>
-      <div class="intro-line two"></div>
-      <div class="intro-kicker">FTC docs / map / onboarding</div>
-      <h1>Un site unde documentația nu stă în foldere de pe Google Docs.</h1>
-      <p>
-        Fiecare nod e un subiect real din programarea FTC. De la TeleOp și PID până la pathing,
-        debugging. Dai click pe orice nod și ți se deschide explicația completă,
-        clară și lungă.
-      </p>
-      <div class="intro-actions">
-        <button class="intro-enter" id="enterBtn">Intră în atlas</button>
-        <span class="intro-hint">sau apasă orice tastă / click oriunde</span>
-      </div>
-    </div>
-  </div>
-
   <div
     class="network-status-pill"
     id="networkStatusPill"
@@ -9967,7 +10010,7 @@
       ></div>
 
       <div class="atlas-status-kicker" id="atlasStatusKicker" hidden></div>
-      <h2 id="atlasStatusTitle">Se încarcă...</h2>
+      <h2 id="atlasStatusTitle">FTC Programming Atlas · se încarcă...</h2>
       <p id="atlasStatusMessage" hidden></p>
 
       <div class="atlas-status-actions">
@@ -9983,6 +10026,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=100"></script>
+  <script type="module" src="/js/atlas-script.js?v=101"></script>
 </body>
 </html>

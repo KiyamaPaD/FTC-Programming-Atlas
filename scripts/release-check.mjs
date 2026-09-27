@@ -52,7 +52,7 @@ async function main() {
     'atlas-script release marker is stale'
   )
   assert(
-    i18n.includes(`v${RELEASE} · Full English UI`),
+    i18n.includes(`// v${RELEASE}`),
     'atlas-i18n release marker is stale'
   )
   assert(
@@ -178,9 +178,11 @@ async function main() {
     'legacy global graph/resources runtime is still active'
   )
   assert(
-    index.includes('<h2 id="atlasStatusTitle">Se încarcă...</h2>') &&
-      index.includes('id="atlasStatusMessage" hidden'),
-    'loading screen is not the compact one-line version'
+    index.includes('<h2 id="atlasStatusTitle">FTC Programming Atlas · se încarcă...</h2>') &&
+      index.includes('id="atlasStatusMessage" hidden') &&
+      !index.includes('id="introScreen"') &&
+      !appScript.includes('dismissIntro'),
+    'v101 loading shell still contains the legacy intro screen'
   )
   assert(
     index.includes('id="teamAtlasPrimary" data-ui-section="team-atlas"') &&
@@ -258,8 +260,28 @@ async function main() {
 
   assert(
     appScript.includes('1. Team Atlas\n\nAtlasul este documentația internă a echipei.') &&
-      appScript.includes("modalTitle.textContent = 'Cum folosești Atlasul'"),
-    'team-first tutorial is missing or stale'
+      appScript.includes("modalTitle.textContent = 'Cum folosești Atlasul'") &&
+      appScript.includes("contentInput.readOnly = true") &&
+      !appScript.includes("atlas_update_tutorial") &&
+      !appScript.includes("saveTutorial()") &&
+      !appScript.includes(".from('atlas_project_tutorials')"),
+    'v101 tutorial is not immutable / bundled-only'
+  )
+
+  assert(
+    index.includes('id="requestTeamBtn"') &&
+      index.includes('id="teamAdminRequests"') &&
+      appScript.includes("atlas_team_request_create") &&
+      appScript.includes("atlas_team_request_review") &&
+      appScript.includes('function renderTeamAdminRequests()'),
+    'v101 self-service team request flow is missing'
+  )
+
+  assert(
+    appScript.includes("PRIVATE_DEPARTMENT_KEYS = new Set(['politics'])") &&
+      appScript.includes('privateDepartmentIds') &&
+      appScript.includes('filter((row) => !privateDepartmentIds.has(Number(row.department_id)))'),
+    'v101 Politics privacy filter is missing'
   )
 
   assert(

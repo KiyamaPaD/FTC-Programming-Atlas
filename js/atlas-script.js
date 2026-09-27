@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v100 · TEAM UX + ROLE PREVIEW + DOCUMENT CLEANUP')
+console.log('ATLAS SCRIPT LOADED v101 · TEAM REQUESTS + READ-ONLY TUTORIAL + PUBLIC CLEANUP')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -33,7 +33,6 @@ const ALLOWED_MEDIA_MIME_TYPES = new Set([
 const CACHE_KEYS = {
   view: 'ftc_atlas_view_v1',
   panel: 'ftc_atlas_panel_v1',
-  intro: 'ftc_atlas_intro_v1',
   editorMode: 'ftc_atlas_editor_mode_v1',
   codeDrafts: 'ftc_atlas_code_drafts_v1',
   codeManagerOpen: 'ftc_atlas_code_manager_open_v1',
@@ -199,7 +198,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   }
 })
 
-// Default tutorial shown when no project-specific tutorial is stored
+// Bundled read-only product tutorial
 const DEFAULT_TUTORIAL_CONTENT = `1. Team Atlas
 
 Atlasul este documentația internă a echipei. Explore și Roadmaps lucrează pe Team Atlas, iar Announcements este singura zonă globală.
@@ -231,11 +230,15 @@ Editor Mode este disponibil doar conturilor cu drepturi de editare și rămâne 
 
 Activează Layout când vrei să muți sau să redimensionezi noduri. Modificările rămân locale până la Save și pot fi anulate cu Undo, Redo sau Discard.
 
-8. Administrare
+8. Echipe și acces
 
-Taxonomy gestionează categoriile, dificultățile și etichetele. Roadmaps gestionează traseele echipei. Teams & access gestionează echipele, membrii, rolurile și departamentele. Announcements gestionează mesajele globale.
+Orice cont autentificat poate trimite o cerere de echipă din Profil. Platform Admin aprobă cererea, iar solicitantul devine Team Leader și își invită singur membrii. Teams & access gestionează apoi echipa, membrii și rolurile.
 
-9. Acces
+9. Administrare
+
+Taxonomy gestionează categoriile, dificultățile și etichetele. Roadmaps gestionează traseele echipei. Announcements gestionează mesajele globale.
+
+10. Acces
 
 Team Member citește documentația. Coordinator editează departamentele atribuite. Team Leader gestionează accesul echipei. Mentor poate contribui la documentație. Platform Admin poate administra toate echipele și poate schimba Atlasul activ din Teams & access.`
 
@@ -312,7 +315,11 @@ let teamMemberDepartments = []
 let teamEnabledDepartments = []
 let teamInvites = []
 let teamManagerInvites = []
+let teamRequests = []
 let activeTeamId = null
+
+const PRIVATE_DEPARTMENT_KEYS = new Set(['politics'])
+let privateDepartmentIds = new Set()
 
 const PUBLIC_SECTIONS = new Set([
   'team',
@@ -366,13 +373,13 @@ let teamAdminRoadmapCounts = new Map()
 let teamImportSourceNodeId = null
 let teamImportMutationBusy = false
 let teamSetupCreateMode = false
+let teamSetupRequestMode = false
 let teamMembersMutationBusy = false
 let teamMemberEditingId = null
 let teamOnboardingMutationBusy = false
 let categoryFilterId = null
 let difficultyFilterId = null
 let tagFilterIds = new Set()
-let introDismissed = localStorage.getItem(CACHE_KEYS.intro) === '1'
 let relationMode = { active: false, sourceId: null }
 let modalMode = 'node'
 let relationDraft = { sourceId: null, targetId: null, label: '' }
@@ -515,6 +522,10 @@ const uiCollapsibles = Array.from(
 )
 const accountBtn = document.getElementById('accountBtn')
 const accountPanel = document.getElementById('accountPanel')
+const teamRequestPanel = document.getElementById('teamRequestPanel')
+const teamRequestBadge = document.getElementById('teamRequestBadge')
+const teamRequestStatus = document.getElementById('teamRequestStatus')
+const requestTeamBtn = document.getElementById('requestTeamBtn')
 const teamInvitesPanel = document.getElementById('teamInvitesPanel')
 const teamInvitesCount = document.getElementById('teamInvitesCount')
 const teamInvitesList = document.getElementById('teamInvitesList')
@@ -822,8 +833,6 @@ const closeModalBtn = document.getElementById('closeModalBtn')
 const cancelBtn = document.getElementById('cancelBtn')
 const saveBtn = document.getElementById('saveBtn')
 
-const introScreen = document.getElementById('introScreen')
-const enterBtn = document.getElementById('enterBtn')
 
 const atlasStatusOverlay = document.getElementById('atlasStatusOverlay')
 
@@ -1015,6 +1024,8 @@ const resetRoadmapEditorBtn = document.getElementById('resetRoadmapEditorBtn')
 const saveRoadmapBtn = document.getElementById('saveRoadmapBtn')
 
 const teamSetupBackdrop = document.getElementById('teamSetupBackdrop')
+const teamSetupTitle = document.getElementById('teamSetupTitle')
+const teamSetupSubtitle = document.getElementById('teamSetupSubtitle')
 const closeTeamSetupBtn = document.getElementById('closeTeamSetupBtn')
 const closeTeamSetupFooterBtn = document.getElementById('closeTeamSetupFooterBtn')
 const teamSetupCurrent = document.getElementById('teamSetupCurrent')
@@ -1023,6 +1034,7 @@ const teamNumberInput = document.getElementById('teamNumberInput')
 const teamDescriptionInput = document.getElementById('teamDescriptionInput')
 const teamDisplayNameInput = document.getElementById('teamDisplayNameInput')
 const teamSetupDepartmentPicker = document.getElementById('teamSetupDepartmentPicker')
+const teamSetupDepartmentsField = document.getElementById('teamSetupDepartmentsField')
 const teamSetupStatus = document.getElementById('teamSetupStatus')
 const newTeamSetupBtn = document.getElementById('newTeamSetupBtn')
 const saveTeamSetupBtn = document.getElementById('saveTeamSetupBtn')
@@ -1033,6 +1045,9 @@ const teamAdminSubtitle = document.getElementById('teamAdminSubtitle')
 const teamAdminSummary = document.getElementById('teamAdminSummary')
 const teamAdminNewTeamBtn = document.getElementById('teamAdminNewTeamBtn')
 const teamAdminList = document.getElementById('teamAdminList')
+const teamAdminRequests = document.getElementById('teamAdminRequests')
+const teamAdminRequestCount = document.getElementById('teamAdminRequestCount')
+const teamAdminRequestList = document.getElementById('teamAdminRequestList')
 const teamAdminStatus = document.getElementById('teamAdminStatus')
 
 const rolePreviewBackdrop = document.getElementById('rolePreviewBackdrop')
@@ -3870,7 +3885,9 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     })
   }
 
-  teamRoadmaps = (teamRoadmapsResult.data || []).map((row) => ({
+  teamRoadmaps = (teamRoadmapsResult.data || [])
+    .filter((row) => !privateDepartmentIds.has(Number(row.department_id)))
+    .map((row) => ({
     id: Number(row.id),
     teamId: Number(row.team_id),
     title: row.title || '',
@@ -3882,7 +3899,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     updatedAt: row.updated_at || null,
     steps:
       teamRoadmapStepsByRoadmap.get(Number(row.id)) || []
-  }))
+    }))
 
   teamRoadmapProgress = new Set(
     (teamRoadmapProgressResult.data || []).map((row) =>
@@ -4057,7 +4074,9 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     })
   }
 
-  teamNodes = (nodesResult.data || []).map((row) => ({
+  teamNodes = (nodesResult.data || [])
+    .filter((row) => !privateDepartmentIds.has(Number(row.department_id)))
+    .map((row) => ({
     id: Number(row.id),
     teamId: Number(row.team_id),
     isTeamNode: true,
@@ -4100,7 +4119,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
         ? row.source_snapshot
         : null,
     sourceSyncedAt: row.source_synced_at || null
-  }))
+    }))
 
   const team = currentTeamRecord()
   if (team && /infotronx/i.test(String(team.name || ''))) {
@@ -4329,6 +4348,7 @@ async function loadTeamContext({ rerender = false } = {}) {
   teamMemberDepartments = []
   teamEnabledDepartments = []
   teamInvites = []
+  teamRequests = []
   teamNodes = []
   teamCategories = []
   teamDifficulties = []
@@ -4346,7 +4366,7 @@ async function loadTeamContext({ rerender = false } = {}) {
 
   const normalizedEmail = String(currentUser.email || '').trim().toLowerCase()
 
-  const [ownMembershipResult, ownInvitesResult, adminTeamsResult] =
+  const [ownMembershipResult, ownInvitesResult, adminTeamsResult, teamRequestsResult] =
     await Promise.all([
       supabase
         .from('atlas_team_memberships')
@@ -4373,7 +4393,22 @@ async function loadTeamContext({ rerender = false } = {}) {
             .eq('project_id', PROJECT_ID)
             .eq('is_active', true)
             .order('name', { ascending: true })
-        : Promise.resolve({ data: [], error: null })
+        : Promise.resolve({ data: [], error: null }),
+
+      (canEdit
+        ? supabase
+            .from('atlas_team_requests')
+            .select('*')
+            .eq('project_id', PROJECT_ID)
+            .order('created_at', { ascending: false })
+            .limit(100)
+        : supabase
+            .from('atlas_team_requests')
+            .select('*')
+            .eq('project_id', PROJECT_ID)
+            .eq('requester_user_id', currentUser.id)
+            .order('created_at', { ascending: false })
+            .limit(20))
     ])
 
   if (ownMembershipResult.error) {
@@ -4387,6 +4422,27 @@ async function loadTeamContext({ rerender = false } = {}) {
   if (adminTeamsResult.error) {
     console.error('Admin team list load failed:', adminTeamsResult.error)
   }
+
+  if (teamRequestsResult.error) {
+    console.warn('Team requests unavailable:', teamRequestsResult.error)
+  }
+
+  teamRequests = (teamRequestsResult.data || []).map((row) => ({
+    id: Number(row.id),
+    requesterUserId: row.requester_user_id,
+    requesterEmail: row.requester_email || '',
+    requesterDisplayName: row.requester_display_name || '',
+    teamName: row.team_name || '',
+    teamNumber: row.team_number || '',
+    description: row.description || '',
+    status: row.status || 'pending',
+    adminNote: row.admin_note || '',
+    reviewedBy: row.reviewed_by || null,
+    reviewedAt: row.reviewed_at || null,
+    createdTeamId: row.created_team_id == null ? null : Number(row.created_team_id),
+    createdAt: row.created_at || null,
+    updatedAt: row.updated_at || null
+  }))
 
   const ownRows = ownMembershipResult.data || []
   const inviteRows = ownInvitesResult.data || []
@@ -5582,6 +5638,141 @@ function openPublicSourceFromTeamNode() {
   return false
 }
 
+function ownTeamRequests() {
+  if (!currentUser) return []
+
+  return teamRequests.filter(
+    (request) => request.requesterUserId === currentUser.id
+  )
+}
+
+function latestOwnTeamRequest() {
+  return ownTeamRequests()
+    .slice()
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0] || null
+}
+
+function pendingTeamRequests() {
+  if (!hasPlatformAdminPrivileges()) return []
+
+  return teamRequests
+    .filter((request) => request.status === 'pending')
+    .sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))
+}
+
+function renderTeamRequestAccount() {
+  if (!teamRequestPanel || !requestTeamBtn || !teamRequestStatus) return
+
+  teamRequestPanel.hidden = !currentUser
+  if (!currentUser) return
+
+  const latest = latestOwnTeamRequest()
+  const pending = latest?.status === 'pending' ? latest : null
+
+  if (pending) {
+    if (teamRequestBadge) teamRequestBadge.textContent = 'pending'
+    teamRequestStatus.textContent = `${pending.teamName}${pending.teamNumber ? ` #${pending.teamNumber}` : ''} · trimisă ${formatPublicDate(pending.createdAt) || 'recent'}`
+    requestTeamBtn.textContent = 'Cerere în așteptare'
+    requestTeamBtn.disabled = true
+    return
+  }
+
+  if (teamRequestBadge) teamRequestBadge.textContent = 'self-service'
+
+  if (latest?.status === 'rejected') {
+    teamRequestStatus.textContent = latest.adminNote
+      ? `Ultima cerere a fost respinsă: ${latest.adminNote}`
+      : 'Ultima cerere a fost respinsă. Poți trimite una nouă.'
+  } else if (latest?.status === 'approved') {
+    teamRequestStatus.textContent = 'Ultima cerere a fost aprobată. Poți solicita o altă echipă dacă ai nevoie.'
+  } else {
+    teamRequestStatus.textContent = 'Trimite cererea. Platform Admin o aprobă sau o respinge.'
+  }
+
+  requestTeamBtn.textContent = 'Solicită echipă'
+  requestTeamBtn.disabled = false
+}
+
+function renderTeamAdminRequests() {
+  if (!teamAdminRequests || !teamAdminRequestList || !teamAdminRequestCount) return
+
+  const requests = pendingTeamRequests()
+  const platformAdmin = hasPlatformAdminPrivileges()
+
+  teamAdminRequests.hidden = !platformAdmin
+  if (!platformAdmin) return
+
+  teamAdminRequestCount.textContent = `${requests.length} pending`
+
+  if (requests.length === 0) {
+    teamAdminRequestList.innerHTML = '<div class="public-content-manager-empty">Nicio cerere în așteptare.</div>'
+    return
+  }
+
+  teamAdminRequestList.innerHTML = requests
+    .map((request) => {
+      const title = request.teamNumber
+        ? `${request.teamName} #${request.teamNumber}`
+        : request.teamName
+      const requester = request.requesterDisplayName
+        ? `${request.requesterDisplayName} · ${request.requesterEmail}`
+        : request.requesterEmail
+
+      return `
+        <article class="team-request-card">
+          <div class="team-request-card-copy">
+            <strong>${escapeHtmlText(title)}</strong>
+            <span>${escapeHtmlText(requester || 'utilizator')} · ${escapeHtmlText(formatPublicDate(request.createdAt) || 'recent')}</span>
+            ${request.description ? `<span>${escapeHtmlText(request.description)}</span>` : ''}
+          </div>
+          <div class="team-request-card-actions">
+            <button class="btn primary" type="button" data-team-request-approve="${Number(request.id)}">Acceptă</button>
+            <button class="btn danger" type="button" data-team-request-reject="${Number(request.id)}">Respinge</button>
+          </div>
+        </article>
+      `
+    })
+    .join('')
+}
+
+async function reviewTeamRequest(requestId, action) {
+  if (!hasPlatformAdminPrivileges()) return
+
+  const normalizedAction = action === 'approve' ? 'approve' : 'reject'
+  let adminNote = ''
+
+  if (normalizedAction === 'reject') {
+    adminNote = window.prompt('Motivul respingerii (opțional):', '')?.trim() || ''
+  }
+
+  if (teamAdminStatus) {
+    teamAdminStatus.textContent = normalizedAction === 'approve'
+      ? 'Se creează echipa...'
+      : 'Se respinge cererea...'
+  }
+
+  const { data, error } = await supabase.rpc('atlas_team_request_review', {
+    p_project_id: PROJECT_ID,
+    p_request_id: Number(requestId),
+    p_action: normalizedAction,
+    p_admin_note: adminNote || null
+  })
+
+  if (error) throw error
+
+  await loadTeamContext()
+  const records = teamAdminRecords()
+  await loadTeamAdminCounts(records)
+  renderTeamAdminManager()
+  renderTeamRequestAccount()
+
+  if (teamAdminStatus) {
+    teamAdminStatus.textContent = normalizedAction === 'approve'
+      ? `Aprobat${data?.team_id ? ` · Team #${data.team_id}` : ''}.`
+      : 'Cerere respinsă.'
+  }
+}
+
 function isTeamAdminOpen() {
   return Boolean(teamAdminBackdrop?.classList.contains('open'))
 }
@@ -5671,10 +5862,13 @@ function renderTeamAdminManager() {
   }
 
   if (teamAdminSummary) {
+    const pendingCount = platformAdmin ? pendingTeamRequests().length : 0
     teamAdminSummary.innerHTML = platformAdmin
-      ? `<strong>${records.length} echipe</strong> · administrare platformă`
+      ? `<strong>${records.length} echipe</strong> · ${pendingCount} cereri pending`
       : '<strong>Echipa ta</strong> · settings & access'
   }
+
+  renderTeamAdminRequests()
 
   if (!teamAdminList) return
 
@@ -5944,8 +6138,8 @@ function isTeamSetupOpen() {
 function setTeamSetupBusy(nextValue) {
   teamSetupMutationBusy = Boolean(nextValue)
 
-  newTeamSetupBtn.disabled = teamSetupMutationBusy
-  saveTeamSetupBtn.disabled = teamSetupMutationBusy
+  if (newTeamSetupBtn) newTeamSetupBtn.disabled = teamSetupMutationBusy
+  if (saveTeamSetupBtn) saveTeamSetupBtn.disabled = teamSetupMutationBusy
 
   teamSetupDepartmentPicker?.querySelectorAll('input').forEach((input) => {
     input.disabled = teamSetupMutationBusy
@@ -5983,13 +6177,37 @@ function renderTeamSetupDepartmentPicker(selectedIds = []) {
     .join('')
 }
 
-function resetTeamSetupForm({ createMode = false } = {}) {
+function resetTeamSetupForm({ createMode = false, requestMode = false } = {}) {
   teamSetupCreateMode = Boolean(createMode)
+  teamSetupRequestMode = Boolean(requestMode)
 
   const team = currentTeamRecord()
   const membership = currentTeamMembership()
 
+  if (teamSetupRequestMode) {
+    if (teamSetupTitle) teamSetupTitle.textContent = 'Solicită echipă'
+    if (teamSetupSubtitle) teamSetupSubtitle.textContent = 'Cererea ajunge la Platform Admin pentru aprobare.'
+    teamSetupCurrent.textContent = 'După aprobare devii Team Leader și poți invita singur membrii echipei.'
+    teamNameInput.value = ''
+    teamNumberInput.value = ''
+    teamDescriptionInput.value = ''
+    teamDisplayNameInput.value = currentUser?.email ? currentUser.email.split('@')[0] : ''
+    if (teamSetupDepartmentsField) teamSetupDepartmentsField.hidden = true
+    if (newTeamSetupBtn) newTeamSetupBtn.hidden = true
+    if (saveTeamSetupBtn) saveTeamSetupBtn.textContent = 'Trimite cererea'
+    teamSetupStatus.textContent = ''
+    setTeamSetupBusy(false)
+    return
+  }
+
+  if (teamSetupDepartmentsField) teamSetupDepartmentsField.hidden = false
+  if (saveTeamSetupBtn) saveTeamSetupBtn.textContent = 'Salvează'
+
   if (!teamSetupCreateMode && team && (membership || canEdit)) {
+    if (teamSetupTitle) teamSetupTitle.textContent = 'Team settings'
+    if (teamSetupSubtitle) teamSetupSubtitle.textContent = 'Nume, număr FTC, descriere și departamente.'
+    if (newTeamSetupBtn) newTeamSetupBtn.hidden = !hasPlatformAdminPrivileges()
+
     const roleLabel = membership
       ? teamRoleLabel(membership.role)
       : 'Platform Admin'
@@ -6011,8 +6229,12 @@ function resetTeamSetupForm({ createMode = false } = {}) {
     renderTeamSetupDepartmentPicker(currentTeamDepartmentIds())
     teamSetupStatus.textContent = ''
   } else {
+    if (teamSetupTitle) teamSetupTitle.textContent = 'Creează echipă'
+    if (teamSetupSubtitle) teamSetupSubtitle.textContent = 'Creare directă de Platform Admin.'
+    if (newTeamSetupBtn) newTeamSetupBtn.hidden = true
+
     teamSetupCurrent.textContent =
-      'Creezi o echipă nouă în Team Atlas. Vei deveni Team Leader pentru această echipă.'
+      'Creezi direct o echipă și devii Team Leader temporar pentru configurarea inițială.'
 
     teamNameInput.value = ''
     teamNumberInput.value = ''
@@ -6032,7 +6254,7 @@ function resetTeamSetupForm({ createMode = false } = {}) {
   setTeamSetupBusy(false)
 }
 
-async function openTeamSetup({ createMode = false } = {}) {
+async function openTeamSetup({ createMode = false, requestMode = false } = {}) {
   if (!currentUser) {
     setAccountPanel(true)
     return
@@ -6040,11 +6262,23 @@ async function openTeamSetup({ createMode = false } = {}) {
 
   await loadTeamContext()
 
+  if (requestMode) {
+    const pending = latestOwnTeamRequest()
+    if (pending?.status === 'pending') {
+      alert('Ai deja o cerere de echipă în așteptare.')
+      return
+    }
+
+    teamSetupBackdrop.classList.add('open')
+    resetTeamSetupForm({ requestMode: true })
+    return
+  }
+
   const wantsCreate = Boolean(createMode || !currentTeamRecord())
 
   if (wantsCreate) {
     if (!(canEdit && editorMode)) {
-      alert('Crearea unei echipe noi este disponibilă momentan doar editorilor Atlas în Editor Mode.')
+      alert('Crearea directă este disponibilă doar Platform Admin-ului. Folosește „Solicită echipă”.')
       return
     }
   } else if (!canManageCurrentTeam()) {
@@ -6062,10 +6296,56 @@ async function openTeamSetup({ createMode = false } = {}) {
 function closeTeamSetup() {
   teamSetupBackdrop.classList.remove('open')
   teamSetupMutationBusy = false
+  teamSetupRequestMode = false
 }
 
 async function saveTeamSetup() {
   if (!currentUser || teamSetupMutationBusy) return
+
+  if (teamSetupRequestMode) {
+    const name = teamNameInput.value.trim()
+    const teamNumber = teamNumberInput.value.trim()
+    const description = teamDescriptionInput.value.trim()
+    const displayName = teamDisplayNameInput.value.trim()
+
+    if (name.length < 2) {
+      alert('Numele echipei trebuie să aibă cel puțin 2 caractere.')
+      return
+    }
+
+    if (displayName.length < 2) {
+      alert('Scrie numele tău pentru Team Atlas.')
+      return
+    }
+
+    setTeamSetupBusy(true)
+    teamSetupStatus.textContent = 'Se trimite cererea...'
+
+    try {
+      const { error } = await supabase.rpc('atlas_team_request_create', {
+        p_project_id: PROJECT_ID,
+        p_team_name: name,
+        p_team_number: teamNumber || null,
+        p_description: description,
+        p_display_name: displayName
+      })
+
+      if (error) throw error
+
+      await loadTeamContext()
+      closeTeamSetup()
+      renderAll()
+      setAccountPanel(true)
+    } catch (error) {
+      console.error('Team request failed:', error)
+      teamSetupStatus.textContent = error?.message || 'Cererea nu a putut fi trimisă.'
+      alert(error?.message || 'Cererea nu a putut fi trimisă.')
+    } finally {
+      setTeamSetupBusy(false)
+    }
+
+    return
+  }
 
   const wantsCreate = Boolean(teamSetupCreateMode || !currentTeamRecord())
 
@@ -6766,6 +7046,12 @@ function setAccountPanel(open) {
 
 function getDepartmentById(id) {
   return departments.find((item) => Number(item.id) === Number(id)) || null
+}
+
+function isPrivateDepartmentRecord(department) {
+  const slug = String(department?.slug || '').trim().toLowerCase()
+  const name = String(department?.name || '').trim().toLowerCase()
+  return PRIVATE_DEPARTMENT_KEYS.has(slug) || PRIVATE_DEPARTMENT_KEYS.has(name)
 }
 
 function getDepartmentBySlug(slug) {
@@ -8180,11 +8466,13 @@ function finderCandidateNodes() {
   if (!currentUser || activeTeamId == null) return []
 
   const teamName = currentTeamRecord()?.name || 'Team Atlas'
-  return teamNodes.map((node) => ({
+  return teamNodes
+    .filter((node) => !nodeDepartmentIds(node).some((id) => privateDepartmentIds.has(Number(id))))
+    .map((node) => ({
     node,
     scope: 'team',
     teamName
-  }))
+    }))
 }
 
 function finderScore(candidate, query) {
@@ -9465,7 +9753,7 @@ function showAtlasLoading(
 
   atlasStatusKicker.textContent = ''
 
-  atlasStatusTitle.textContent = 'Se încarcă...'
+  atlasStatusTitle.textContent = 'FTC Programming Atlas · se încarcă...'
 
   atlasStatusMessage.textContent = message
 
@@ -9815,7 +10103,7 @@ async function redo() {
 async function fetchAllData() {
   console.log('fetchAllData START · team-first shell')
 
-  const [departmentsResult, announcementsResult, tutorialResult] =
+  const [departmentsResult, announcementsResult] =
     await Promise.all([
       supabase
         .from('atlas_departments')
@@ -9829,13 +10117,7 @@ async function fetchAllData() {
         .select('*')
         .eq('project_id', PROJECT_ID)
         .order('is_pinned', { ascending: false })
-        .order('published_at', { ascending: false }),
-
-      supabase
-        .from('atlas_project_tutorials')
-        .select('content')
-        .eq('project_id', PROJECT_ID)
-        .maybeSingle()
+        .order('published_at', { ascending: false })
     ])
 
   if (departmentsResult.error) throw departmentsResult.error
@@ -9847,14 +10129,14 @@ async function fetchAllData() {
     )
   }
 
-  if (tutorialResult?.error) {
-    console.warn(
-      '[Atlas] Tutorial unavailable; using bundled fallback.',
-      tutorialResult.error
-    )
-  }
-
-  departments = departmentsResult.data || []
+  const departmentRows = departmentsResult.data || []
+  privateDepartmentIds = new Set(
+    departmentRows
+      .filter(isPrivateDepartmentRecord)
+      .map((department) => Number(department.id))
+      .filter(Number.isFinite)
+  )
+  departments = departmentRows.filter((department) => !isPrivateDepartmentRecord(department))
   announcements = (announcementsResult.data || []).map((row) => ({
     id: Number(row.id),
     title: row.title || '',
@@ -9871,9 +10153,7 @@ async function fetchAllData() {
     updatedAt: row.updated_at || null
   }))
 
-  tutorialContent = tutorialResult?.error
-    ? DEFAULT_TUTORIAL_CONTENT
-    : tutorialResult.data?.content || DEFAULT_TUTORIAL_CONTENT
+  tutorialContent = DEFAULT_TUTORIAL_CONTENT
 
   // Legacy global datasets deliberately stay out of the active runtime.
   // Their Supabase tables are kept as legacy data; this is a non-destructive product migration.
@@ -11147,6 +11427,7 @@ function renderEditorContext() {
 // Authentication, permissions and Editor Mode
 function updateAuthUI() {
   renderTeamInvites()
+  renderTeamRequestAccount()
 
   if (accountBtn) {
     accountBtn.textContent = currentUser ? 'Profil' : 'Cont'
@@ -11251,6 +11532,10 @@ function updateAuthUI() {
   if (teamSetupBtn) {
     teamSetupBtn.hidden = !teamSetupEditorActive
     teamSetupBtn.disabled = !teamSetupEditorActive || isAtlasLoading
+    const pendingCount = hasPlatformAdminPrivileges() ? pendingTeamRequests().length : 0
+    teamSetupBtn.textContent = pendingCount > 0
+      ? `Teams & access · ${pendingCount}`
+      : 'Teams & access'
   }
 
   const rolePreviewAvailable = Boolean(
@@ -16282,15 +16567,9 @@ function renderAll() {
   }
 }
 
-function canEditTutorial() {
-  return Boolean(hasPlatformAdminPrivileges() && editorMode)
-}
-
 function setModalModeUi(mode) {
   if (mode === 'node' || mode === 'relation') {
     saveBtn.textContent = 'Salvează'
-  } else if (mode === 'tutorial' && canEditTutorial()) {
-    saveBtn.textContent = 'Salvează tutorialul'
   } else {
     saveBtn.textContent = 'Închide'
   }
@@ -16299,39 +16578,16 @@ function setModalModeUi(mode) {
 function applyTutorialPermissions() {
   if (modalMode !== 'tutorial') return
 
-  const editable = canEditTutorial()
-
-  contentInput.readOnly = !editable
-  contentInput.setAttribute('aria-readonly', editable ? 'false' : 'true')
-
-  contentInputLabel.textContent = editable ? 'Conținut tutorial' : 'Tutorial — doar citire'
+  contentInput.readOnly = true
+  contentInput.setAttribute('aria-readonly', 'true')
+  contentInputLabel.textContent = 'Tutorial'
   setNodeContentEditorVisible(false)
-
   setModalModeUi('tutorial')
-}
-
-async function updateTutorialRemote(content) {
-  const { data, error } = await supabase.rpc('atlas_update_tutorial', {
-    p_project_id: PROJECT_ID,
-    p_content: content
-  })
-
-  if (error) throw error
-
-  const row = Array.isArray(data) ? data[0] : data
-
-  if (!row?.content) {
-    throw new Error('Tutorialul actualizat nu a fost returnat de Supabase.')
-  }
-
-  return row
 }
 
 function openTutorial() {
   modalTitle.textContent = 'Cum folosești Atlasul'
-  modalSubtitle.textContent = canEditTutorial()
-    ? 'Platform Admin · tutorial editabil'
-    : ''
+  modalSubtitle.textContent = ''
 
   nodeFields.style.display = 'none'
   nodeTagsField.style.display = 'none'
@@ -16506,40 +16762,8 @@ async function saveModal() {
     await saveNode()
   } else if (modalMode === 'relation') {
     await saveRelation()
-  } else if (modalMode === 'tutorial' && canEditTutorial()) {
-    await saveTutorial()
   } else {
     closeModal()
-  }
-}
-
-async function saveTutorial() {
-  if (!requireAuth()) return
-
-  const content = contentInput.value.trim()
-
-  if (!content) {
-    alert('Tutorialul nu poate fi gol.')
-    return
-  }
-
-  const previousText = saveBtn.textContent
-  saveBtn.disabled = true
-  saveBtn.textContent = 'Se salvează...'
-
-  try {
-    const updated = await updateTutorialRemote(content)
-    tutorialContent = updated.content
-    closeModal()
-  } catch (error) {
-    console.error('Save tutorial failed:', error)
-    alert(`Eroare la salvarea tutorialului: ${error?.message || 'necunoscută'}`)
-  } finally {
-    saveBtn.disabled = false
-
-    if (modalBackdrop.classList.contains('open')) {
-      saveBtn.textContent = previousText
-    }
   }
 }
 
@@ -17869,11 +18093,18 @@ teamSetupBackdrop?.addEventListener('click', (event) => {
 
 newTeamSetupBtn?.addEventListener('click', () => {
   if (teamSetupMutationBusy) return
-  resetTeamSetupForm({ createMode: true })
+  resetTeamSetupForm({ createMode: true, requestMode: false })
 })
 
 saveTeamSetupBtn?.addEventListener('click', () => {
   saveTeamSetup()
+})
+
+requestTeamBtn?.addEventListener('click', () => {
+  openTeamSetup({ requestMode: true }).catch((error) => {
+    console.error('Open team request failed:', error)
+    alert(error?.message || 'Cererea de echipă nu a putut fi deschisă.')
+  })
 })
 
 teamSetupBtn?.addEventListener('click', () => {
@@ -17903,6 +18134,29 @@ teamAdminNewTeamBtn?.addEventListener('click', () => {
   closeTeamAdminManager()
   openTeamSetup({ createMode: true }).catch((error) => {
     console.error('Open new team setup failed:', error)
+  })
+})
+
+teamAdminRequestList?.addEventListener('click', (event) => {
+  const approveButton = event.target.closest?.('[data-team-request-approve]')
+  const rejectButton = event.target.closest?.('[data-team-request-reject]')
+  const button = approveButton || rejectButton
+  if (!button) return
+
+  const requestId = Number(
+    approveButton?.dataset.teamRequestApprove || rejectButton?.dataset.teamRequestReject
+  )
+  if (!Number.isFinite(requestId)) return
+
+  const action = approveButton ? 'approve' : 'reject'
+  button.disabled = true
+
+  reviewTeamRequest(requestId, action).catch((error) => {
+    console.error('Team request review failed:', error)
+    if (teamAdminStatus) teamAdminStatus.textContent = error?.message || 'Cererea nu a putut fi procesată.'
+    alert(error?.message || 'Cererea nu a putut fi procesată.')
+  }).finally(() => {
+    button.disabled = false
   })
 })
 
@@ -18355,17 +18609,6 @@ modalBackdrop.addEventListener('click', (event) => {
   if (event.target === modalBackdrop) closeModal()
 })
 
-function dismissIntro() {
-  introScreen.classList.add('hidden')
-  localStorage.setItem(CACHE_KEYS.intro, '1')
-  introDismissed = true
-}
-
-introScreen.addEventListener('click', dismissIntro)
-enterBtn.addEventListener('click', (event) => {
-  event.stopPropagation()
-  dismissIntro()
-})
 retryLoadBtn.addEventListener('click', () => {
   loadAtlasWithUi().catch((error) => {
     console.error('Retry load failed:', error)
@@ -18530,8 +18773,7 @@ window.addEventListener('keydown', (event) => {
   }
 
   if (event.key === 'Escape') {
-    if (!introDismissed) dismissIntro()
-    else if (sourceCompareBackdrop?.classList.contains('open')) {
+    if (sourceCompareBackdrop?.classList.contains('open')) {
       closeSourceCompare()
     } else if (revisionHistoryBackdrop?.classList.contains('open')) {
       closeRevisionHistory()
@@ -18583,7 +18825,6 @@ window.addEventListener('keydown', (event) => {
     return
   }
 
-  if (!introDismissed) dismissIntro()
 })
 
 window.addEventListener('popstate', async () => {
@@ -18612,8 +18853,6 @@ if (isTouchLayout()) {
 } else {
   syncMobileChrome()
 }
-
-if (introDismissed) introScreen.classList.add('hidden')
 
 updateAtlasViewportHeight()
 
