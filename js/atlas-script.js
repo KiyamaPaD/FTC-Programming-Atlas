@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v101 · TEAM REQUESTS + READ-ONLY TUTORIAL + PUBLIC CLEANUP')
+console.log('ATLAS SCRIPT LOADED v102 · COLLAPSIBLE NAV + I18N + VIEW PERSISTENCE')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -37,7 +37,7 @@ const CACHE_KEYS = {
   codeDrafts: 'ftc_atlas_code_drafts_v1',
   codeManagerOpen: 'ftc_atlas_code_manager_open_v1',
   department: 'ftc_atlas_department_v1',
-  publicSection: 'ftc_atlas_public_section_v1',
+  publicSection: 'ftc_atlas_primary_section_v2',
   activeTeam: 'ftc_atlas_active_team_v1',
   pendingTeamInvite: 'ftc_atlas_pending_team_invite_v1',
   pendingTeamRoute: 'ftc_atlas_pending_team_route_v1',
@@ -1036,7 +1036,6 @@ const teamDisplayNameInput = document.getElementById('teamDisplayNameInput')
 const teamSetupDepartmentPicker = document.getElementById('teamSetupDepartmentPicker')
 const teamSetupDepartmentsField = document.getElementById('teamSetupDepartmentsField')
 const teamSetupStatus = document.getElementById('teamSetupStatus')
-const newTeamSetupBtn = document.getElementById('newTeamSetupBtn')
 const saveTeamSetupBtn = document.getElementById('saveTeamSetupBtn')
 
 const teamAdminBackdrop = document.getElementById('teamAdminBackdrop')
@@ -1312,7 +1311,6 @@ async function applyRouteFromLocation({ canonicalize = true } = {}) {
     if (!currentUser) {
       detailOpen = false
       activePublicSection = 'announcements'
-      localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
       syncActiveNodeCollection({ forceReset: true })
       setAccountPanel(true)
       updateDocumentSeo(null)
@@ -1382,7 +1380,6 @@ async function applyRouteFromLocation({ canonicalize = true } = {}) {
   // Public/global nodes are no longer part of the product surface.
   // Old public node URLs resolve back to the global announcements shell.
   activePublicSection = 'announcements'
-  localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
   syncActiveNodeCollection({ forceReset: true })
   detailOpen = false
   setHomeRoute({ push: false })
@@ -1953,7 +1950,7 @@ function resetPublicContentEditor() {
   publicContentManagerKind = 'announcements'
   publicContentEditingId = null
   deletePublicContentBtn.hidden = true
-  publicContentEditorTitle.textContent = 'Announcement nou'
+  publicContentEditorTitle.textContent = 'Anunț nou'
   publicContentEditorHint.textContent = ''
   announcementTitleInput.value = ''
   announcementCategoryInput.value = 'ftc'
@@ -1975,7 +1972,7 @@ function editPublicContentItem(id) {
 
   publicContentManagerKind = 'announcements'
   publicContentEditingId = numericId
-  publicContentEditorTitle.textContent = 'Editează announcement'
+  publicContentEditorTitle.textContent = 'Editează anunțul'
   publicContentEditorHint.textContent = ''
   announcementTitleInput.value = item.title || ''
   announcementCategoryInput.value = item.category || 'ftc'
@@ -2011,12 +2008,12 @@ function renderPublicContentManager() {
       new Date(a.publishedAt || a.createdAt || 0).getTime()
   )
 
-  publicContentManagerSummary.innerHTML = `<strong>${items.length}</strong> announcements · ${items.filter((item) => item.isPublished !== false).length} publicate`
+  publicContentManagerSummary.innerHTML = `<strong>${items.length}</strong> anunțuri · ${items.filter((item) => item.isPublished !== false).length} publicate`
 
   if (items.length === 0) {
     publicContentManagerList.innerHTML = `
       <div class="public-content-manager-empty">
-        Niciun announcement.
+        Niciun anunț.
       </div>
     `
   } else {
@@ -3000,7 +2997,7 @@ function renderRoadmapDraftSteps() {
           <div class="roadmap-editor-step-main">
             <strong>${escapeHtmlText(node?.title || `Node #${step.nodeId}`)}</strong>
             <span>
-              ${step.isOptional ? 'Optional' : 'Recommended'}
+              ${step.isOptional ? 'Opțional' : 'Recomandat'}
               ${step.note ? ` · ${escapeHtmlText(step.note)}` : ''}
             </span>
           </div>
@@ -3190,7 +3187,7 @@ function renderRoadmapManager() {
   }
 
   roadmapManagerSummary.innerHTML = `
-    <strong>${items.length} roadmaps</strong> · ${items.filter((item) => item.isActive !== false).length} active
+    <strong>${items.length} roadmap-uri</strong> · ${items.filter((item) => item.isActive !== false).length} active
   `
 
   if (items.length === 0) {
@@ -3202,7 +3199,7 @@ function renderRoadmapManager() {
       .map((roadmap) => {
         const department = getDepartmentById(roadmap.departmentId)
 
-        const visibility = roadmap.isActive !== false ? 'Active' : 'Draft'
+        const visibility = roadmap.isActive !== false ? 'Activ' : 'Draft'
 
         return `
           <article class="roadmap-manager-item ${
@@ -3214,7 +3211,7 @@ function renderRoadmapManager() {
                 ${escapeHtmlText(
                   department?.short_name || department?.name || '—'
                 )}
-                · ${(roadmap.steps || []).length} steps
+                · ${(roadmap.steps || []).length} pași
                 · ${visibility}
               </span>
             </div>
@@ -4142,8 +4139,8 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
 
 function teamRoleLabel(role) {
   const labels = {
-    team_member: 'Member',
-    department_coordinator: 'Coordinator',
+    team_member: 'Membru',
+    department_coordinator: 'Coordonator departament',
     team_leader: 'Team Leader',
     mentor: 'Mentor'
   }
@@ -4286,7 +4283,6 @@ function normalizeActiveTeam() {
       activePublicSection === 'team-roadmaps'
     ) {
       activePublicSection = 'announcements'
-      localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
     }
 
     syncActiveNodeCollection({ forceReset: true })
@@ -4576,16 +4572,16 @@ async function loadTeamContext({ rerender = false } = {}) {
   normalizeActiveTeam()
 
   if (activeTeamId != null) {
-    if (!PUBLIC_SECTIONS.has(activePublicSection)) {
-      activePublicSection = 'team'
-    }
+    const savedSection = localStorage.getItem(CACHE_KEYS.publicSection)
+    activePublicSection = PUBLIC_SECTIONS.has(savedSection)
+      ? savedSection
+      : 'team'
 
     await loadActiveTeamAtlasNodes()
   } else {
+    // Temporary global fallback. Do not overwrite the last explicit Team Atlas destination.
     activePublicSection = 'announcements'
   }
-
-  localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
 
   renderTeamInvites()
   maybeOpenPendingTeamInvite()
@@ -5097,8 +5093,8 @@ function renderTeamMembersManager() {
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
 
   teamMembersSummary.innerHTML = `
-    <strong>${members.filter((member) => member.status === 'active').length} active members</strong>
-    · ${pendingInvites.length} pending invites
+    <strong>${members.filter((member) => member.status === 'active').length} membri activi</strong>
+    · ${pendingInvites.length} invitații în așteptare
   `
 
   teamMembersManagerList.innerHTML =
@@ -5133,7 +5129,7 @@ function renderTeamMembersManager() {
                         ? ` · ${escapeHtmlText(departments.join(' · '))}`
                         : ''
                     }
-                    ${member.status !== 'active' ? ' · disabled' : ''}
+                    ${member.status !== 'active' ? ' · dezactivat' : ''}
                   </span>
                 </div>
 
@@ -5142,7 +5138,7 @@ function renderTeamMembersManager() {
                   type="button"
                   data-manage-team-member="${Number(member.id)}"
                 >
-                  Manage
+                  Gestionează
                 </button>
               </article>
             `
@@ -5189,7 +5185,7 @@ function renderTeamMembersManager() {
                     type="button"
                     data-copy-team-invite="${escapeHtmlText(invite.token)}"
                   >
-                    Copy
+                    Copiază
                   </button>
 
                   <button
@@ -5197,7 +5193,7 @@ function renderTeamMembersManager() {
                     type="button"
                     data-revoke-team-invite="${Number(invite.id)}"
                   >
-                    Revoke
+                    Revocă
                   </button>
                 </div>
               </article>
@@ -5670,7 +5666,7 @@ function renderTeamRequestAccount() {
   const pending = latest?.status === 'pending' ? latest : null
 
   if (pending) {
-    if (teamRequestBadge) teamRequestBadge.textContent = 'pending'
+    if (teamRequestBadge) teamRequestBadge.textContent = 'în așteptare'
     teamRequestStatus.textContent = `${pending.teamName}${pending.teamNumber ? ` #${pending.teamNumber}` : ''} · trimisă ${formatPublicDate(pending.createdAt) || 'recent'}`
     requestTeamBtn.textContent = 'Cerere în așteptare'
     requestTeamBtn.disabled = true
@@ -5702,7 +5698,7 @@ function renderTeamAdminRequests() {
   teamAdminRequests.hidden = !platformAdmin
   if (!platformAdmin) return
 
-  teamAdminRequestCount.textContent = `${requests.length} pending`
+  teamAdminRequestCount.textContent = `${requests.length} în așteptare`
 
   if (requests.length === 0) {
     teamAdminRequestList.innerHTML = '<div class="public-content-manager-empty">Nicio cerere în așteptare.</div>'
@@ -5864,8 +5860,8 @@ function renderTeamAdminManager() {
   if (teamAdminSummary) {
     const pendingCount = platformAdmin ? pendingTeamRequests().length : 0
     teamAdminSummary.innerHTML = platformAdmin
-      ? `<strong>${records.length} echipe</strong> · ${pendingCount} cereri pending`
-      : '<strong>Echipa ta</strong> · settings & access'
+      ? `<strong>${records.length} echipe</strong> · ${pendingCount} cereri în așteptare`
+      : '<strong>Echipa ta</strong> · setări și acces'
   }
 
   renderTeamAdminRequests()
@@ -5899,13 +5895,13 @@ function renderTeamAdminManager() {
           <div class="team-admin-copy">
             <div class="team-admin-title-row">
               <strong>${escapeHtmlText(title)}</strong>
-              ${isActiveAtlas ? '<span class="team-admin-badge">ACTIVE ATLAS</span>' : ''}
+              ${isActiveAtlas ? '<span class="team-admin-badge">ATLAS ACTIV</span>' : ''}
             </div>
             <div class="team-admin-meta">
-              <span>${nodesCount} nodes</span>
-              <span>· ${roadmapsCount} roadmaps</span>
-              <span>· ${membersCount} members</span>
-              <span>· ${departmentsCount} departments</span>
+              <span>${nodesCount} noduri</span>
+              <span>· ${roadmapsCount} roadmap-uri</span>
+              <span>· ${membersCount} membri</span>
+              <span>· ${departmentsCount} departamente</span>
               ${!platformAdmin ? `<span>· ${escapeHtmlText(role)}</span>` : ''}
             </div>
             <div class="team-admin-description">${escapeHtmlText(
@@ -5918,8 +5914,8 @@ function renderTeamAdminManager() {
                 ? `<button class="btn ${isActiveAtlas ? 'primary' : ''}" type="button" data-team-admin-atlas="${id}">${isActiveAtlas ? 'Atlas activ' : 'Deschide Atlas'}</button>`
                 : ''
             }
-            ${canSettings ? `<button class="btn" type="button" data-team-admin-settings="${id}">Settings</button>` : ''}
-            ${canMembers ? `<button class="btn" type="button" data-team-admin-members="${id}">Members</button>` : ''}
+            ${canSettings ? `<button class="btn" type="button" data-team-admin-settings="${id}">Setări</button>` : ''}
+            ${canMembers ? `<button class="btn" type="button" data-team-admin-members="${id}">Membri</button>` : ''}
           </div>
         </article>
       `
@@ -6138,7 +6134,6 @@ function isTeamSetupOpen() {
 function setTeamSetupBusy(nextValue) {
   teamSetupMutationBusy = Boolean(nextValue)
 
-  if (newTeamSetupBtn) newTeamSetupBtn.disabled = teamSetupMutationBusy
   if (saveTeamSetupBtn) saveTeamSetupBtn.disabled = teamSetupMutationBusy
 
   teamSetupDepartmentPicker?.querySelectorAll('input').forEach((input) => {
@@ -6193,7 +6188,6 @@ function resetTeamSetupForm({ createMode = false, requestMode = false } = {}) {
     teamDescriptionInput.value = ''
     teamDisplayNameInput.value = currentUser?.email ? currentUser.email.split('@')[0] : ''
     if (teamSetupDepartmentsField) teamSetupDepartmentsField.hidden = true
-    if (newTeamSetupBtn) newTeamSetupBtn.hidden = true
     if (saveTeamSetupBtn) saveTeamSetupBtn.textContent = 'Trimite cererea'
     teamSetupStatus.textContent = ''
     setTeamSetupBusy(false)
@@ -6204,9 +6198,8 @@ function resetTeamSetupForm({ createMode = false, requestMode = false } = {}) {
   if (saveTeamSetupBtn) saveTeamSetupBtn.textContent = 'Salvează'
 
   if (!teamSetupCreateMode && team && (membership || canEdit)) {
-    if (teamSetupTitle) teamSetupTitle.textContent = 'Team settings'
+    if (teamSetupTitle) teamSetupTitle.textContent = 'Setări echipă'
     if (teamSetupSubtitle) teamSetupSubtitle.textContent = 'Nume, număr FTC, descriere și departamente.'
-    if (newTeamSetupBtn) newTeamSetupBtn.hidden = !hasPlatformAdminPrivileges()
 
     const roleLabel = membership
       ? teamRoleLabel(membership.role)
@@ -6231,7 +6224,6 @@ function resetTeamSetupForm({ createMode = false, requestMode = false } = {}) {
   } else {
     if (teamSetupTitle) teamSetupTitle.textContent = 'Creează echipă'
     if (teamSetupSubtitle) teamSetupSubtitle.textContent = 'Creare directă de Platform Admin.'
-    if (newTeamSetupBtn) newTeamSetupBtn.hidden = true
 
     teamSetupCurrent.textContent =
       'Creezi direct o echipă și devii Team Leader temporar pentru configurarea inițială.'
@@ -6933,25 +6925,23 @@ function selectPublicSection(section) {
 function renderPublicShell() {
   if (!appRoot || !publicSectionTabs || !publicHubPanel) return
 
-  const isTeamMap = activePublicSection === 'team' && Boolean(currentTeamRecord())
-  const isTeamRoadmaps = activePublicSection === 'team-roadmaps' && Boolean(currentTeamRecord())
-  const isAnnouncements = activePublicSection === 'announcements' || !currentTeamRecord()
+  const currentTeam = currentTeamRecord()
+  const renderedSection = !currentTeam && activePublicSection !== 'announcements'
+    ? 'announcements'
+    : activePublicSection
+  const isTeamMap = renderedSection === 'team' && Boolean(currentTeam)
+  const isTeamRoadmaps = renderedSection === 'team-roadmaps' && Boolean(currentTeam)
+  const isAnnouncements = renderedSection === 'announcements' || !currentTeam
   const department = getDepartmentById(activeDepartmentId)
   const departmentName = department?.name || 'Team Atlas'
   const departmentSection = document.querySelector('[data-ui-section="departments"]')
 
-  if (!currentTeamRecord() && activePublicSection !== 'announcements') {
-    activePublicSection = 'announcements'
-    localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
-  }
-
   appRoot.classList.toggle('public-section-open', !isTeamMap)
-  appRoot.dataset.publicSection = activePublicSection
+  appRoot.dataset.publicSection = renderedSection
   atlasNavigation?.classList.toggle('global-section', isAnnouncements)
   if (departmentSection) departmentSection.hidden = !isTeamMap
   if (teamAtlasPrimary) teamAtlasPrimary.hidden = !currentTeamRecord()
 
-  const currentTeam = currentTeamRecord()
   if (currentTeam) {
     const teamName = currentTeam.teamNumber
       ? `${currentTeam.name} #${currentTeam.teamNumber}`
@@ -6967,13 +6957,13 @@ function renderPublicShell() {
     const section = button.dataset.publicSection
     const requiresTeam = section === 'team' || section === 'team-roadmaps'
     button.hidden = requiresTeam && !currentTeamRecord()
-    const selected = section === activePublicSection
+    const selected = section === renderedSection
     button.classList.toggle('active', selected)
     button.setAttribute('aria-selected', selected ? 'true' : 'false')
   })
 
   if (atlasNavigationEyebrow) {
-    atlasNavigationEyebrow.textContent = publicSectionEyebrow(activePublicSection)
+    atlasNavigationEyebrow.textContent = publicSectionEyebrow(renderedSection)
   }
 
   if (isTeamMap) {
@@ -11534,8 +11524,8 @@ function updateAuthUI() {
     teamSetupBtn.disabled = !teamSetupEditorActive || isAtlasLoading
     const pendingCount = hasPlatformAdminPrivileges() ? pendingTeamRequests().length : 0
     teamSetupBtn.textContent = pendingCount > 0
-      ? `Teams & access · ${pendingCount}`
-      : 'Teams & access'
+      ? `Echipe și acces · ${pendingCount}`
+      : 'Echipe și acces'
   }
 
   const rolePreviewAvailable = Boolean(
@@ -12837,6 +12827,8 @@ function renderNodes() {
 }
 
 function renderSelectedStrip() {
+  if (!selectedStrip) return
+
   if (selectedEdge) {
     const info = getEdgeInfo(selectedEdge.sourceId, selectedEdge.targetId)
     const target = info ? findNode(info.link.targetId) : null
@@ -12891,6 +12883,17 @@ function renderSelectedStrip() {
 }
 
 function renderModeStrip() {
+  if (!modeStrip) {
+    if (relationMode.active) {
+      relationBtn?.classList.add('active')
+      if (relationBtn) relationBtn.textContent = 'Anulează'
+    } else {
+      relationBtn?.classList.remove('active')
+      if (relationBtn) relationBtn.textContent = 'Adaugă relație'
+    }
+    return
+  }
+
   if (!relationMode.active) {
     relationBtn.classList.remove('active')
     relationBtn.textContent = 'Adaugă relație'
@@ -12921,7 +12924,6 @@ function renderModeStrip() {
   relationBtn.classList.add('active')
   relationBtn.textContent = 'Anulează'
   modeStrip.classList.add('show')
-  openUICollapseSection('status')
 
   if (!relationMode.sourceId) {
     modeStrip.innerHTML =
@@ -16544,9 +16546,11 @@ function renderAll() {
   const visibleCount = getVisibleNodes().length
   const departmentTotal = getDepartmentNodes().length
 
-  nodeCount.textContent = hasActiveFilters()
-    ? `${visibleCount} / ${departmentTotal}`
-    : String(departmentTotal)
+  if (nodeCount) {
+    nodeCount.textContent = hasActiveFilters()
+      ? `${visibleCount} / ${departmentTotal}`
+      : String(departmentTotal)
+  }
 
   renderSelectedStrip()
   renderModeStrip()
@@ -18091,11 +18095,6 @@ teamSetupBackdrop?.addEventListener('click', (event) => {
   }
 })
 
-newTeamSetupBtn?.addEventListener('click', () => {
-  if (teamSetupMutationBusy) return
-  resetTeamSetupForm({ createMode: true, requestMode: false })
-})
-
 saveTeamSetupBtn?.addEventListener('click', () => {
   saveTeamSetup()
 })
@@ -18953,7 +18952,6 @@ supabase.auth.onAuthStateChange((event, session) => {
       activePublicSection === 'team-roadmaps'
     ) {
       activePublicSection = 'announcements'
-      localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
     }
 
     if (teamNodeRouteFromLocation()) {

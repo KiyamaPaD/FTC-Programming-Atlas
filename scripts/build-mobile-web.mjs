@@ -17,8 +17,6 @@ const MOBILE_MARKER = `data-atlas-mobile="v${ATLAS_RELEASE}"`
 
 const rootFiles = [
   'index.html',
-  'privacy.html',
-  'privacy-en.html',
   'site.webmanifest',
   'favicon.ico',
   'favicon-48x48.png',
@@ -104,6 +102,9 @@ async function buildMobileWeb() {
   for (const directory of rootDirectories) {
     await copyFileOrDirectory(directory)
   }
+
+  // v102: privacy-policy surface was retired; do not ship its old helper.
+  await rm(join(outputRoot, 'js', 'privacy-language.js'), { force: true })
 
   const indexPath = join(outputRoot, 'index.html')
   const indexHtml = await readFile(indexPath, 'utf8')

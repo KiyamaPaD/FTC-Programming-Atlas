@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v101 · Team requests + read-only tutorial + public cleanup
+// v102 · collapsible navigation + full admin i18n + view persistence
 //
 // Source language: Romanian
 // Secondary language: English
@@ -77,7 +77,6 @@ const UI_EN = new Map(Object.entries({
   'Copiază link-ul privat': 'Copy private link',
   'Adaugă relație': 'Add relation',
   'Invitații': 'Invitations',
-  'Confidențialitate': 'Privacy',
   'Reset filtre': 'Reset filters',
   'Selecție': 'Selection',
   'Fișiere': 'Files',
@@ -760,8 +759,6 @@ const UI_EN = new Map(Object.entries({
     'Send magic link',
   'Adresa de email este folosită pentru autentificare și controlul accesului de editor.':
     'Your email address is used for authentication and editor access control.',
-  'Politica de confidențialitate':
-    'Privacy Policy',
   'Toate categoriile':
     'All categories',
   'Toate dificultățile':
@@ -1219,6 +1216,57 @@ function translateRuntimeText(value) {
 
   let match
 
+  match = text.match(/^Echipe și acces\s*·\s*(\d+)$/i)
+  if (match) return `Teams & access · ${match[1]}`
+
+  match = text.match(/^(\d+)\s+anunțuri\s*·\s*(\d+)\s+publicate$/i)
+  if (match) return `${match[1]} announcements · ${match[2]} published`
+
+  match = text.match(/^(\d+)\s+roadmap-uri\s*·\s*(\d+)\s+active$/i)
+  if (match) return `${match[1]} roadmaps · ${match[2]} active`
+
+  match = text.match(/^(\d+)\s+roadmap-uri$/i)
+  if (match) return `${match[1]} roadmaps`
+
+  match = text.match(/^(\d+)\s+pași$/i)
+  if (match) return `${match[1]} ${pluralizeEnglish(Number(match[1]), 'step')}`
+
+  match = text.match(/^(\d+)\s+membri activi$/i)
+  if (match) return `${match[1]} active ${pluralizeEnglish(Number(match[1]), 'member')}`
+
+  match = text.match(/^·\s*(\d+)\s+invitații în așteptare$/i)
+  if (match) return `· ${match[1]} pending ${pluralizeEnglish(Number(match[1]), 'invite')}`
+
+  match = text.match(/^(\d+)\s+membri$/i)
+  if (match) return `${match[1]} ${pluralizeEnglish(Number(match[1]), 'member')}`
+
+  match = text.match(/^(\d+)\s+departamente$/i)
+  if (match) return `${match[1]} ${pluralizeEnglish(Number(match[1]), 'department')}`
+
+  match = text.match(/^(\d+)\s+în așteptare$/i)
+  if (match) return `${match[1]} pending`
+
+  match = text.match(/^(\d+)\s+cereri în așteptare$/i)
+  if (match) return `${match[1]} pending ${pluralizeEnglish(Number(match[1]), 'request')}`
+
+  match = text.match(/^·\s*(\d+)\s+cereri în așteptare$/i)
+  if (match) return `· ${match[1]} pending ${pluralizeEnglish(Number(match[1]), 'request')}`
+
+  match = text.match(/^Revoci invitația pentru\s+(.+)\?$/i)
+  if (match) return `Revoke the invitation for ${match[1]}?`
+
+  match = text.match(/^Ultima cerere a fost respinsă:\s*(.+)$/i)
+  if (match) return `The last request was rejected: ${match[1]}`
+
+  match = text.match(/^Aprobat\s*·\s*Team #(.+)\.$/i)
+  if (match) return `Approved · Team #${match[1]}.`
+
+  match = text.match(/^·\s*expiră\s+(.+)$/i)
+  if (match) return `· expires ${match[1]}`
+
+  match = text.match(/^(.+)\s+·\s+trimisă\s+(.+)$/i)
+  if (match) return `${match[1]} · submitted ${match[2]}`
+
   match = text.match(/^(\d+)\s+(categorie|categorii|dificultate|dificultăți|etichetă|etichete)$/i)
   if (match) {
     const count = Number(match[1])
@@ -1491,6 +1539,20 @@ function translateRuntimeText(value) {
   match = text.match(/^Nod cod\s*·\s*(.+)$/i)
   if (match) return `Node code · ${match[1]}`
 
+  // Dynamic admin rows often combine role / department / status in one text node.
+  // Translate the stable UI fragments without touching user-authored names.
+  let composed = text
+    .replace(/\bCoordonator departament\b/g, 'Department Coordinator')
+    .replace(/\bMembru\b/g, 'Member')
+    .replace(/\bdezactivat\b/g, 'disabled')
+    .replace(/\bexpiră\s+/g, 'expires ')
+    .replace(/\b(\d+)\s+pași\b/g, (_, count) => `${count} ${pluralizeEnglish(Number(count), 'step')}`)
+    .replace(/\bOpțional\b/g, 'Optional')
+    .replace(/\bRecomandat\b/g, 'Recommended')
+    .replace(/\bActiv\b/g, 'Active')
+
+  if (composed !== text) return composed
+
   return text
 }
 
@@ -1639,6 +1701,172 @@ function installEnglishDialogTranslation() {
     'The first version will be created automatically at the next checkpoint.'],
   ['Versiunea selectată nu mai este disponibilă.', 'The selected version is no longer available.']
 ].forEach(([source, target]) => UI_EN.set(source, target))
+
+
+
+// v102 · complete bilingual coverage for the team-first admin surface.
+;[
+  ['Global', 'Global'],
+  ['Anunț nou', 'New announcement'],
+  ['Editează anunțul', 'Edit announcement'],
+  ['Niciun anunț.', 'No announcements.'],
+  ['Gestionează', 'Manage'],
+  ['Copiază', 'Copy'],
+  ['Revocă', 'Revoke'],
+  ['dezactivat', 'disabled'],
+  ['în așteptare', 'pending'],
+  ['Actualizări importante pentru toate echipele.', 'Important updates for all teams.'],
+  ['Administrează singurul conținut global al Atlasului.', 'Manage the Atlas\'s only global content.'],
+  ['Completează datele și publică atunci când este gata.', 'Complete the details and publish when it is ready.'],
+  ['Categorie', 'Category'],
+  ['Pe scurt, ce s-a schimbat?', 'In short, what changed?'],
+  ['Detaliile anunțului...', 'Announcement details...'],
+  ['Link sursă', 'Source link'],
+  ['Editează announcement', 'Edit announcement'],
+  ['Niciun announcement.', 'No announcements.'],
+  ['Fără titlu', 'Untitled'],
+  ['Link-ul sursă trebuie să fie un URL http:// sau https:// valid.', 'The source link must be a valid http:// or https:// URL.'],
+  ['Roadmap Manager', 'Roadmap Manager'],
+  ['Construiește trasee recomandate. Nodurile rămân mereu accesibile, indiferent de progres.', 'Build recommended paths. Nodes always remain accessible regardless of progress.'],
+  ['Ordine recomandată, fără unlock.', 'Recommended order, no unlock.'],
+  ['Roadmap nou', 'New roadmap'],
+  ['Editează roadmap', 'Edit roadmap'],
+  ['Alege departamentul și adaugă nodurile în ordinea recomandată.', 'Choose the department and add nodes in the recommended order.'],
+  ['Poți reordona pașii fără să blochezi accesul la niciun nod.', 'You can reorder the steps without blocking access to any node.'],
+  ['Ce recomandă acest roadmap și pentru cine?', 'What does this roadmap recommend, and for whom?'],
+  ['Pași recomandați', 'Recommended steps'],
+  ['Nod', 'Node'],
+  ['Notă scurtă', 'Short note'],
+  ['Opțional', 'Optional'],
+  ['Recomandat', 'Recommended'],
+  ['Opțional...', 'Optional...'],
+  ['+ Adaugă pas', '+ Add step'],
+  ['Activ', 'Active'],
+  ['Draft', 'Draft'],
+  ['Niciun roadmap.', 'No roadmaps.'],
+  ['Marchează ca finalizat', 'Mark as complete'],
+  ['Marchează ca nefinalizat', 'Mark as incomplete'],
+  ['Progresul este salvat în contul tău. Niciun nod nu este blocat.', 'Progress is saved to your account. No node is locked.'],
+  ['Scrie aici documentația completă.', 'Write the full documentation here.'],
+  ['Poți explica simplu conceptul, de ce e important, cum îl folosiți pe robot și ce greșeli apar cel mai des.', 'Explain the concept simply, why it matters, how you use it on the robot, and which mistakes happen most often.'],
+  ['Paste-ul este curățat automat.', 'Pasted content is cleaned automatically.'],
+  ['Teams & access', 'Teams & access'],
+  ['Echipe și acces', 'Teams & access'],
+  ['Vezi ca rol', 'View as role'],
+  ['Membri și acces', 'Members & access'],
+  ['Setări echipă', 'Team settings'],
+  ['Membru', 'Member'],
+  ['Coordonator departament', 'Department Coordinator'],
+  ['Fixat', 'Pinned'],
+  ['Administrează echipele, accesul și Atlasul activ.', 'Manage teams, access, and the active Atlas.'],
+  ['Platform Admin · echipe, acces și Atlas activ.', 'Platform Admin · teams, access, and active Atlas.'],
+  ['Setările și accesul echipei tale.', 'Your team settings and access.'],
+  ['Cereri de echipă', 'Team requests'],
+  ['Nicio cerere în așteptare.', 'No pending requests.'],
+  ['Acceptă', 'Approve'],
+  ['Respinge', 'Reject'],
+  ['Atlas activ', 'Active Atlas'],
+  ['ATLAS ACTIV', 'ACTIVE ATLAS'],
+  ['Deschide Atlas', 'Open Atlas'],
+  ['Setări', 'Settings'],
+  ['Membri', 'Members'],
+  ['Echipa ta', 'Your team'],
+  ['setări și acces', 'settings & access'],
+  ['Fără descriere.', 'No description.'],
+  ['Nu există echipe disponibile.', 'No teams are available.'],
+  ['Teams nu a putut fi încărcat.', 'Teams could not be loaded.'],
+  ['Motivul respingerii (opțional):', 'Rejection reason (optional):'],
+  ['Se creează echipa...', 'Creating team...'],
+  ['Cerere respinsă.', 'Request rejected.'],
+  ['Cerere în așteptare', 'Request pending'],
+  ['Ultima cerere a fost respinsă. Poți trimite una nouă.', 'The last request was rejected. You can submit a new one.'],
+  ['Ultima cerere a fost aprobată. Poți solicita o altă echipă dacă ai nevoie.', 'The last request was approved. You can request another team if needed.'],
+  ['Trimite cererea. Platform Admin o aprobă sau o respinge.', 'Submit the request. A Platform Admin will approve or reject it.'],
+  ['După aprobare devii Team Leader și poți invita singur membrii echipei.', 'After approval, you become Team Leader and can invite your team members yourself.'],
+  ['Team settings', 'Team settings'],
+  ['Nume, număr FTC, descriere și departamente.', 'Name, FTC number, description, and departments.'],
+  ['Nicio echipă selectată.', 'No team selected.'],
+  ['Numele echipei', 'Team name'],
+  ['FTC Team Number', 'FTC Team Number'],
+  ['Avansat', 'Advanced'],
+  ['Descriere', 'Description'],
+  ['Numele tău în Team Atlas', 'Your name in Team Atlas'],
+  ['Departamente active', 'Active departments'],
+  ['Solicită echipă', 'Request a team'],
+  ['Cererea ajunge la Platform Admin pentru aprobare.', 'The request is sent to a Platform Admin for approval.'],
+  ['Trimite cererea', 'Submit request'],
+  ['Creează echipă', 'Create team'],
+  ['Creare directă de Platform Admin.', 'Direct creation by Platform Admin.'],
+  ['Creezi direct o echipă și devii Team Leader temporar pentru configurarea inițială.', 'You are creating a team directly and temporarily become Team Leader for initial setup.'],
+  ['Ai deja o cerere de echipă în așteptare.', 'You already have a pending team request.'],
+  ['Crearea directă este disponibilă doar Platform Admin-ului. Folosește „Solicită echipă”.', 'Direct team creation is available only to Platform Admin. Use “Request a team”.'],
+  ['Doar Team Leader-ul sau un editor Atlas poate configura această echipă.', 'Only the Team Leader or an Atlas editor can configure this team.'],
+  ['Numele echipei trebuie să aibă cel puțin 2 caractere.', 'The team name must be at least 2 characters long.'],
+  ['Scrie numele tău pentru Team Atlas.', 'Enter your name for Team Atlas.'],
+  ['Cererea nu a putut fi trimisă.', 'The request could not be submitted.'],
+  ['Nu ai permisiunea de a configura această echipă.', 'You do not have permission to configure this team.'],
+  ['Scrie un nume de afișat în Team Atlas.', 'Enter a display name for Team Atlas.'],
+  ['Nu există o echipă activă pentru editare.', 'There is no active team to edit.'],
+  ['Members & access', 'Members & access'],
+  ['Roluri, departamente și invitații.', 'Roles, departments, and invitations.'],
+  ['Roluri active în Team Atlas', 'Active Team Atlas roles'],
+  ['Invitații pending', 'Pending invitations'],
+  ['Linkurile expiră automat', 'Links expire automatically'],
+  ['Invită un membru', 'Invite a member'],
+  ['Creează invitația și distribuie link-ul persoanei potrivite.', 'Create the invitation and share the link with the right person.'],
+  ['Nume afișat', 'Display name'],
+  ['Departamente', 'Departments'],
+  ['Atlas nu trimite email automat. Copiază link-ul invitației.', 'Atlas does not send email automatically. Copy the invite link.'],
+  ['Membru activ', 'Active member'],
+  ['Invitație nouă', 'New invitation'],
+  ['Creează invitația', 'Create invitation'],
+  ['Editează membrul', 'Edit member'],
+  ['Actualizează rolul, departamentele sau accesul în Team Space.', 'Update the role, departments, or access in Team Atlas.'],
+  ['Salvează membrul', 'Save member'],
+  ['Copiază link-ul invitației:', 'Copy the invitation link:'],
+  ['Un Department Coordinator trebuie să aibă cel puțin un departament.', 'A Department Coordinator must have at least one department.'],
+  ['Members & Invites nu a putut fi încărcat.', 'Members & Invites could not be loaded.'],
+  ['Invitație creată. Link-ul a fost copiat.', 'Invitation created. The link was copied.'],
+  ['Invitație revocată.', 'Invitation revoked.'],
+  ['Invitația nu a putut fi revocată.', 'The invitation could not be revoked.'],
+  ['Editor', 'Editor'],
+  ['Editor Mode', 'Editor Mode'],
+  ['Ajutor', 'Help'],
+  ['Rolul tău nu permite administrarea roadmap-urilor echipei.', 'Your role does not allow managing team roadmaps.'],
+  ['Se respinge cererea...', 'Rejecting request...'],
+  ['Poate edita noduri, relații, layout și roadmap-uri în toate departamentele echipei.', 'Can edit nodes, relationships, layout, and roadmaps across all team departments.'],
+  ['Poate administra Taxonomy, Team Settings, Members și invitațiile echipei.', 'Can manage Taxonomy, Team Settings, Members, and team invitations.'],
+  ['Nu poate vedea sau schimba alte echipe ca Platform Admin.', 'Cannot view or switch to other teams like a Platform Admin.'],
+  ['Poate edita documentația și layout-ul în toate departamentele echipei.', 'Can edit documentation and layout across all team departments.'],
+  ['Poate administra Taxonomy și roadmap-uri.', 'Can manage Taxonomy and roadmaps.'],
+  ['Nu poate schimba echipa activă și nu primește administrarea membrilor ca Platform Admin.', 'Cannot switch the active team and does not get Platform Admin member management.'],
+  ['Poate edita noduri, relații, layout și roadmap-uri doar în departamentul simulat.', 'Can edit nodes, relationships, layout, and roadmaps only in the simulated department.'],
+  ['Nu poate administra Taxonomy, Team Settings sau Members.', 'Cannot manage Taxonomy, Team Settings, or Members.'],
+  ['Vede numai zona echipei și departamentul la care are acces.', 'Can see only the team area and the department they can access.'],
+  ['Poate citi documentația, folosi roadmap-uri și biblioteca personală.', 'Can read documentation, use roadmaps, and use the personal library.'],
+  ['Nu poate activa Editor Mode și nu poate modifica noduri sau administrare.', 'Cannot enable Editor Mode or modify nodes or administration.'],
+  ['Vede numai echipa sa și departamentul simulat.', 'Can see only their team and the simulated department.'],
+  ['Role Preview este disponibil Platform Admin-ului pe un Team Atlas activ.', 'Role Preview is available to Platform Admin on an active Team Atlas.'],
+  ['Alege un departament pentru rolul simulat.', 'Choose a department for the simulated role.'],
+  ['Crearea unei echipe noi este disponibilă momentan doar editorilor Atlas în Editor Mode.', 'Creating a new team directly is currently available only to Atlas editors in Editor Mode.'],
+  ['Aprobat.', 'Approved.'],
+  ['Link copiat.', 'Link copied.']
+].forEach(([source, target]) => UI_EN.set(source, target))
+
+;[
+  ['Pe scurt, ce s-a schimbat?', 'In short, what changed?'],
+  ['Detaliile anunțului...', 'Announcement details...'],
+  ['Ce recomandă acest roadmap și pentru cine?', 'What does this roadmap recommend, and for whom?'],
+  ['Opțional...', 'Optional...'],
+  ['Scurtă descriere a echipei...', 'Short team description...'],
+  ['Ex: Cristi', 'Example: Cristi'],
+  ['Ex: InfotronX', 'Example: InfotronX'],
+  ['Ex: 19119', 'Example: 19119'],
+  ['Ex: Programming Foundations', 'Example: Programming Foundations'],
+  ['Ex: Game Manual v1.3', 'Example: Game Manual v1.3'],
+  ['Ex: Alex', 'Example: Alex'],
+  ['Ex: Localization Basics', 'Example: Localization Basics']
+].forEach(([source, target]) => ATTRIBUTE_EN.set(source, target))
 
 const CONTENT_SKIP_SELECTOR = [
   'script',
@@ -2907,16 +3135,6 @@ function installDynamicTranslationEditor() {
   })
 }
 
-function updateLanguageLinks() {
-  if (language !== 'en') return
-
-  document
-    .querySelectorAll('a[href="/privacy.html"], a[href="./privacy.html"]')
-    .forEach((link) => {
-      link.setAttribute('href', '/privacy-en.html')
-    })
-}
-
 function scheduleApply() {
   if (scanQueued) return
   scanQueued = true
@@ -2926,7 +3144,6 @@ function scheduleApply() {
 
     if (language === 'en') {
       translateStaticTree(document.body)
-      updateLanguageLinks()
       applyDynamicEntityTranslations()
     }
 
@@ -4224,7 +4441,6 @@ function init() {
 
   if (language === 'en') {
     translateStaticTree(document.body)
-    updateLanguageLinks()
   }
 
   startObserver()

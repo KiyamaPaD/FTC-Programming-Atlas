@@ -29,14 +29,16 @@ async function main() {
     i18n,
     mobileBuilder,
     edgeShell,
-    headers
+    headers,
+    redirects
   ] = await Promise.all([
     read('index.html'),
     read('js/atlas-script.js'),
     read('js/atlas-i18n.js'),
     read('scripts/build-mobile-web.mjs'),
     read('netlify/edge-functions/i18n-shell.js'),
-    read('_headers')
+    read('_headers'),
+    read('_redirects')
   ])
 
   assert(
@@ -182,7 +184,7 @@ async function main() {
       index.includes('id="atlasStatusMessage" hidden') &&
       !index.includes('id="introScreen"') &&
       !appScript.includes('dismissIntro'),
-    'v101 loading shell still contains the legacy intro screen'
+    'v102 loading shell still contains the legacy intro screen'
   )
   assert(
     index.includes('id="teamAtlasPrimary" data-ui-section="team-atlas"') &&
@@ -192,7 +194,7 @@ async function main() {
       index.includes('class="atlas-section-switcher"') &&
       index.includes('id="teamAdminBackdrop"') &&
       index.includes('id="teamAdminList"') &&
-      index.includes('Teams & access'),
+      index.includes('Echipe și acces'),
     'v100 collapsible Team Atlas / team identity hierarchy is missing'
   )
   assert(
@@ -206,7 +208,7 @@ async function main() {
   const editorTrigger = index.indexOf('id="editorModeBtn"')
   assert(
     navStart >= 0 && navEnd > navStart && editorTrigger > navStart && editorTrigger < navEnd &&
-      index.includes('class="navigation-editor-zone"') &&
+      index.includes('navigation-editor-zone') &&
       index.includes('id="editorModeState"') &&
       index.includes('.editor-mode-trigger {\n    position: static;'),
     'Editor Mode is not embedded in the navigation workspace'
@@ -265,7 +267,7 @@ async function main() {
       !appScript.includes("atlas_update_tutorial") &&
       !appScript.includes("saveTutorial()") &&
       !appScript.includes(".from('atlas_project_tutorials')"),
-    'v101 tutorial is not immutable / bundled-only'
+    'v102 tutorial is not immutable / bundled-only'
   )
 
   assert(
@@ -274,14 +276,58 @@ async function main() {
       appScript.includes("atlas_team_request_create") &&
       appScript.includes("atlas_team_request_review") &&
       appScript.includes('function renderTeamAdminRequests()'),
-    'v101 self-service team request flow is missing'
+    'v102 self-service team request flow is missing'
   )
 
   assert(
     appScript.includes("PRIVATE_DEPARTMENT_KEYS = new Set(['politics'])") &&
       appScript.includes('privateDepartmentIds') &&
       appScript.includes('filter((row) => !privateDepartmentIds.has(Number(row.department_id)))'),
-    'v101 Politics privacy filter is missing'
+    'v102 Politics privacy filter is missing'
+  )
+
+  assert(
+    index.includes('data-ui-section="team-atlas"') &&
+      index.includes('data-ui-section="global"') &&
+      index.includes('data-ui-section="departments"') &&
+      index.includes('data-ui-section="editor-zone"'),
+    'v102 navigation zones are not fully collapsible'
+  )
+  assert(
+    !index.includes('id="statusSection"') &&
+      !index.includes('>Status</span>'),
+    'Quick Panel Status section still exists'
+  )
+  assert(
+    appScript.includes("publicSection: 'ftc_atlas_primary_section_v2'") &&
+      appScript.includes("activePublicSection = PUBLIC_SECTIONS.has(savedSection)") &&
+      appScript.includes("? savedSection\n      : 'team'"),
+    'v102 primary-section persistence / Explore default is missing'
+  )
+  assert(
+    i18n.includes('Actualizări importante pentru toate echipele.') &&
+      i18n.includes('Scrie aici documentația completă.') &&
+      i18n.includes('Paste-ul este curățat automat.') &&
+      i18n.includes('Echipe și acces') &&
+      i18n.includes('Membri și acces') &&
+      i18n.includes('Setări echipă') &&
+      i18n.includes('Ce recomandă acest roadmap și pentru cine?'),
+    'v102 RO/EN admin coverage is incomplete'
+  )
+  assert(
+    !index.includes('id="newTeamSetupBtn"'),
+    'redundant New Team control still exists inside Team settings'
+  )
+  assert(
+    !index.toLowerCase().includes('privacy.html') &&
+      !i18n.toLowerCase().includes('privacy.html') &&
+      !mobileBuilder.includes("'privacy.html'") &&
+      /\/privacy\.html\s+\/\s+301!/.test(redirects) &&
+      /\/privacy-en\.html\s+\/\s+301!/.test(redirects) &&
+      /\/privacy\s+\/\s+301!/.test(redirects) &&
+      /\/privacy-en\s+\/\s+301!/.test(redirects) &&
+      mobileBuilder.includes("rm(join(outputRoot, 'js', 'privacy-language.js')"),
+    'privacy-policy surface is still publicly exposed'
   )
 
   assert(

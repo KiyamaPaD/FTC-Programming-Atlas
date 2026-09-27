@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=101" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=102" />
   <style>
     :root {
       --bg: #000000;
@@ -353,24 +353,6 @@
     .relation-label-input:focus {
       border-color: rgba(255, 77, 109, 0.44);
       background: rgba(255,255,255,0.05);
-    }
-
-    .privacy-login-note {
-      margin: 8px 2px 0;
-      color: var(--muted);
-      font-size: 0.72rem;
-      line-height: 1.45;
-    }
-
-    .privacy-login-note a {
-      color: #d5a9ff;
-      font-weight: 650;
-      text-decoration: none;
-    }
-
-    .privacy-login-note a:hover {
-      color: #f0dfff;
-      text-decoration: underline;
     }
 
 .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -3644,19 +3626,6 @@
     white-space: nowrap;
   }
 
-  .team-privacy-note {
-    margin-top: 18px;
-    padding: 10px 12px;
-    border: 1px solid rgba(177, 76, 255, 0.12);
-    border-radius: 12px;
-    background: rgba(177, 76, 255, 0.025);
-    color: #8f8994;
-    font-size: 0.72rem;
-    line-height: 1.55;
-  }
-
-
-
 
   .documentation-meta-modal {
     width: min(920px, 100%);
@@ -6604,10 +6573,6 @@
     margin-top: 7px;
   }
 
-  .privacy-login-note {
-    margin-top: 6px;
-  }
-
   .editor-tools-section {
     margin-top: 3px;
     padding-top: 3px;
@@ -8418,6 +8383,15 @@
     }
   }
 
+
+  /* v102 — fully collapsible navigation rail */
+  .global-nav-collapse { margin: 0; }
+  .global-nav-collapse > .ui-collapse-body { padding-top: 7px; }
+  .navigation-editor-zone { padding-top: 0; }
+  .navigation-editor-zone > summary { min-height: 42px; }
+  .navigation-editor-body { display: grid; gap: 7px; }
+  .navigation-editor-zone:not([open]) .editor-dock { display: none; }
+  .navigation-editor-zone:not([open]) .editor-mode-trigger { display: none; }
 </style>
 </head>
 <body>
@@ -8486,10 +8460,18 @@
           </div>
         </details>
 
-        <button class="announcements-nav-button" type="button" role="tab" data-public-section="announcements">
-          <span>Announcements</span>
-          <span class="announcements-nav-badge">GLOBAL</span>
-        </button>
+        <details class="ui-collapse nav-collapse global-nav-collapse" data-ui-section="global" open>
+          <summary>
+            <span>Global</span>
+            <strong class="ui-collapse-meta">Announcements</strong>
+          </summary>
+          <div class="ui-collapse-body">
+            <button class="announcements-nav-button" type="button" role="tab" data-public-section="announcements">
+              <span>Announcements</span>
+              <span class="announcements-nav-badge">GLOBAL</span>
+            </button>
+          </div>
+        </details>
       </div>
 
       <details class="ui-collapse nav-collapse" data-ui-section="departments" open>
@@ -8506,18 +8488,22 @@
         </div>
       </details>
 
-      <div class="navigation-editor-zone" hidden>
-        <button
-          class="editor-mode-trigger topbar-editor-btn"
-          id="editorModeBtn"
-          type="button"
-          hidden
-          aria-controls="editorDock"
-        >
-          <span>Editor Mode</span>
-          <span class="editor-mode-state" id="editorModeState">Off</span>
-        </button>
-        <aside class="editor-dock" id="editorDock">
+      <details class="ui-collapse nav-collapse navigation-editor-zone" data-ui-section="editor-zone" hidden open>
+        <summary>
+          <span>Editor</span>
+          <strong class="ui-collapse-meta" id="editorModeState">Off</strong>
+        </summary>
+        <div class="ui-collapse-body navigation-editor-body">
+          <button
+            class="editor-mode-trigger topbar-editor-btn"
+            id="editorModeBtn"
+            type="button"
+            hidden
+            aria-controls="editorDock"
+          >
+            <span>Editor Mode</span>
+          </button>
+          <aside class="editor-dock" id="editorDock">
           <div class="role-preview-banner" id="rolePreviewBanner" hidden>
             <span id="rolePreviewBannerText">Preview rol</span>
             <button class="btn" id="exitRolePreviewBtn" type="button">Ieși din preview</button>
@@ -8612,15 +8598,15 @@
                   <button class="btn" id="taxonomyManagerBtn" type="button">Taxonomy</button>
                   <button class="btn" id="publicContentManagerBtn" type="button">Announcements</button>
                   <button class="btn" id="roadmapManagerBtn" type="button">Roadmaps</button>
-                  <button class="btn" id="teamSetupBtn" type="button">Teams & access</button>
-                  <button class="btn" id="rolePreviewBtn" type="button">View as role</button>
+                  <button class="btn" id="teamSetupBtn" type="button">Echipe și acces</button>
+                  <button class="btn" id="rolePreviewBtn" type="button">Vezi ca rol</button>
                 </div>
               </details>
             </div>
           </details>
-        </aside>
-
-      </div>
+          </aside>
+        </div>
+      </details>
     </nav>
 
     <main class="map-surface" id="mapSurface">
@@ -8672,10 +8658,6 @@
               />
               <button class="btn" id="verifyOtpBtn" type="button">Verifică</button>
             </div>
-            <p class="privacy-login-note">
-              <a href="/privacy.html">Confidențialitate</a>
-            </p>
-
             <div class="team-invites-panel" id="teamInvitesPanel" hidden>
               <div class="team-invites-title">
                 <strong>Invitații</strong>
@@ -8759,17 +8741,6 @@
           </details>
 
 
-
-          <details class="ui-collapse tool-collapse" id="statusSection" data-ui-section="status">
-            <summary>
-              <span>Status</span>
-              <span class="ui-collapse-meta"><strong id="nodeCount">0</strong> noduri</span>
-            </summary>
-            <div class="ui-collapse-body compact-grid">
-              <div class="selected-strip" id="selectedStrip">Niciun nod selectat.</div>
-              <div class="mode-strip" id="modeStrip"></div>
-            </div>
-          </details>
 
           <details class="ui-collapse tool-collapse" data-ui-section="help">
             <summary><span>Ajutor</span><span class="ui-collapse-meta">?</span></summary>
@@ -9217,7 +9188,7 @@
     <div class="modal team-admin-modal compact-modal admin-modal">
       <div class="modal-head">
         <div>
-          <h3>Teams & access</h3>
+          <h3>Echipe și acces</h3>
           <p id="teamAdminSubtitle">Administrează echipele, accesul și Atlasul activ.</p>
         </div>
         <button class="icon-btn" id="closeTeamAdminBtn" aria-label="Close">✕</button>
@@ -9231,7 +9202,7 @@
         <section class="team-request-queue" id="teamAdminRequests" hidden>
           <div class="team-request-queue-head">
             <strong>Cereri de echipă</strong>
-            <span class="team-admin-badge" id="teamAdminRequestCount">0 pending</span>
+            <span class="team-admin-badge" id="teamAdminRequestCount">0 în așteptare</span>
           </div>
           <div class="team-request-queue-list" id="teamAdminRequestList"></div>
         </section>
@@ -9245,7 +9216,7 @@
     <div class="modal role-preview-modal compact-modal admin-modal">
       <div class="modal-head">
         <div>
-          <h3>View as role</h3>
+          <h3>Vezi ca rol</h3>
           <p>Simulează interfața și permisiunile pe Atlasul activ.</p>
         </div>
         <button class="icon-btn" id="closeRolePreviewBtn" aria-label="Close">✕</button>
@@ -9258,8 +9229,8 @@
             <select id="rolePreviewRoleInput">
               <option value="team_leader">Team Leader</option>
               <option value="mentor">Mentor</option>
-              <option value="department_coordinator">Department Coordinator</option>
-              <option value="team_member">Team Member</option>
+              <option value="department_coordinator">Coordonator departament</option>
+              <option value="team_member">Membru</option>
             </select>
           </div>
           <div class="field" id="rolePreviewDepartmentField" hidden>
@@ -9281,7 +9252,7 @@
     <div class="modal team-members-modal compact-modal admin-modal">
       <div class="modal-head">
         <div>
-          <h3>Members & access</h3>
+          <h3>Membri și acces</h3>
           <p>Roluri, departamente și invitații.</p>
         </div>
         <button class="icon-btn" id="closeTeamMembersBtn" aria-label="Close">✕</button>
@@ -9335,8 +9306,8 @@
               <div class="field">
                 <label for="teamInviteRoleInput">Rol</label>
                 <select id="teamInviteRoleInput">
-                  <option value="team_member">Team Member</option>
-                  <option value="department_coordinator">Department Coordinator</option>
+                  <option value="team_member">Membru</option>
+                  <option value="department_coordinator">Coordonator departament</option>
                   <option value="team_leader">Team Leader</option>
                   <option value="mentor">Mentor</option>
                 </select>
@@ -9356,8 +9327,8 @@
               <div class="field">
                 <label for="teamMemberRoleInput">Rol</label>
                 <select id="teamMemberRoleInput">
-                  <option value="team_member">Team Member</option>
-                  <option value="department_coordinator">Department Coordinator</option>
+                  <option value="team_member">Membru</option>
+                  <option value="department_coordinator">Coordonator departament</option>
                   <option value="team_leader">Team Leader</option>
                   <option value="mentor">Mentor</option>
                 </select>
@@ -9698,7 +9669,7 @@
     <div class="modal team-setup-modal compact-modal admin-modal">
       <div class="modal-head">
         <div>
-          <h3 id="teamSetupTitle">Team settings</h3>
+          <h3 id="teamSetupTitle">Setări echipă</h3>
           <p id="teamSetupSubtitle">Nume, număr FTC, descriere și departamente.</p>
         </div>
         <button class="icon-btn" id="closeTeamSetupBtn" aria-label="Close">✕</button>
@@ -9749,7 +9720,6 @@
         <div class="count-strip" id="teamSetupStatus"></div>
 
         <div class="team-setup-actions">
-          <button class="btn" id="newTeamSetupBtn" type="button">Echipă nouă</button>
           <button class="btn primary" id="saveTeamSetupBtn" type="button">Salvează</button>
         </div>
       </div>
@@ -9960,7 +9930,7 @@
                   </div>
                   <div class="public-content-toggle-grid">
                     <label><input id="announcementPublishedInput" type="checkbox" checked /> Publicat</label>
-                    <label><input id="announcementPinnedInput" type="checkbox" /> Pinned</label>
+                    <label><input id="announcementPinnedInput" type="checkbox" /> Fixat</label>
                     <label><input id="announcementImportantInput" type="checkbox" /> Important</label>
                   </div>
                 </div>
@@ -10026,6 +9996,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=101"></script>
+  <script type="module" src="/js/atlas-script.js?v=102"></script>
 </body>
 </html>

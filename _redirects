@@ -1,1 +1,6 @@
-/node/*    /index.html    200
+/privacy.html          /    301!
+/privacy-en.html       /    301!
+/privacy               /    301!
+/privacy-en            /    301!
+/js/privacy-language.js /   301!
+/node/*                /index.html    200
