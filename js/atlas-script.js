@@ -10028,7 +10028,12 @@ function overlapsAny(nodeId, x, y, width = null, height = null) {
     height ?? nodeHeight(node)
   )
 
-  return nodes.some(
+  // Collision checks are scoped to the active department. Nodes from other
+  // departments are intentionally absent from this canvas and must not leave
+  // invisible hitboxes that block move/resize/create operations. Search and
+  // taxonomy filters are deliberately ignored so hidden nodes from the SAME
+  // department still reserve their layout space.
+  return getDepartmentNodes().some(
     (other) => Number(other.id) !== Number(nodeId) && rectsOverlap(rect, nodeRect(other))
   )
 }
