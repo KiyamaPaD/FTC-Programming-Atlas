@@ -1,6 +1,7 @@
 import { copyFile, mkdir, stat } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
 import { dirname, join } from 'node:path'
+import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { NATIVE_VERSION } from './native-meta.mjs'
 
@@ -11,10 +12,10 @@ if (!['nsis', 'portable'].includes(target)) {
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const root = join(scriptDirectory, '..')
-const binary = join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder')
-
+const require = createRequire(import.meta.url)
+let electronBuilderCli
 try {
-  await stat(binary)
+  electronBuilderCli = require.resolve('electron-builder/out/cli/cli.js')
 } catch {
   throw new Error('electron-builder is not installed. Run npm ci first.')
 }
@@ -29,10 +30,10 @@ const args = [
   `-c.win.artifactName=${artifactName}`
 ]
 
-const result = spawnSync(binary, args, {
+const result = spawnSync(process.execPath, [electronBuilderCli, ...args], {
   cwd: root,
   stdio: 'inherit',
-  shell: process.platform === 'win32'
+  shell: false
 })
 
 if (result.status !== 0) {

@@ -97,6 +97,13 @@ async function main() {
       index.includes('.floating-tools.collapsed'),
     'mobile navigation / Quick Panel shell is missing'
   )
+  assert(
+    index.includes('native-auth-bootstrap-hotfix') &&
+      index.includes('.app.native-auth-required.public-section-open .floating-tools') &&
+      appScript.includes("'native-auth-required'") &&
+      appScript.includes('setAccountPanel(true)'),
+    'native first-run authentication bootstrap is missing'
+  )
   const htmlIds = [...index.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1])
   const duplicateIds = htmlIds.filter((id, position) => htmlIds.indexOf(id) !== position)
   assert(duplicateIds.length === 0, `duplicate HTML ids: ${[...new Set(duplicateIds)].join(', ')}`)

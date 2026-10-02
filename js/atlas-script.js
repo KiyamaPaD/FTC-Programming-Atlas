@@ -706,6 +706,7 @@ function isNativeAtlasApp() {
 }
 
 const nativeAtlasApp = isNativeAtlasApp()
+let nativeAuthPromptShown = false
 
 function readUICollapseState() {
   try {
@@ -11441,6 +11442,19 @@ function renderEditorContext() {
 
 // Authentication, permissions and Editor Mode
 function updateAuthUI() {
+  const nativeAuthRequired = Boolean(nativeAtlasApp && !currentUser)
+  document.querySelector('.app')?.classList.toggle(
+    'native-auth-required',
+    nativeAuthRequired
+  )
+
+  if (nativeAuthRequired && !nativeAuthPromptShown) {
+    nativeAuthPromptShown = true
+    setAccountPanel(true)
+  } else if (!nativeAuthRequired) {
+    nativeAuthPromptShown = false
+  }
+
   renderTeamInvites()
   renderTeamRequestAccount()
 

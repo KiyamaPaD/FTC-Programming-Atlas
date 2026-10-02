@@ -2551,12 +2551,28 @@
     pointer-events: none;
   }
 
-  .app.public-section-open .floating-tools,
+  /* Keep Quick Panel available in every main section, including Global /
+     Announcements and for guests. Only map-specific detail surfaces disappear
+     while a public/global section is open. */
   .app.public-section-open .detail-panel,
   .app.public-section-open .empty-panel {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
+  }
+
+  .app.public-section-open .floating-tools {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* On desktop reserve the same right-side lane used by Quick Panel so Global
+     pages do not render underneath it. */
+  @media (min-width: 921px) and (pointer: fine) {
+    .app.public-section-open .public-hub-panel {
+      right: 354px;
+    }
   }
 
   .account-trigger {
@@ -7679,8 +7695,10 @@
       background: rgba(10,9,13,.98);
     }
 
+    /* Quick Panel is also reachable from public/global pages on mobile and
+       when the visitor is not authenticated. */
     .app.public-section-open .mobile-quick-btn {
-      display: none;
+      display: inline-flex;
     }
 
     .public-hub-panel,
@@ -8456,6 +8474,23 @@
       max-height: 52px;
     }
     .atlas-navigation.rail-collapsed + .map-surface + .public-hub-panel { left: 8px; }
+  }
+</style>
+
+<style id="native-auth-bootstrap-hotfix">
+  /* Compatibility fallback for native clients. The main stylesheet now keeps
+     Quick Panel reachable on Global / Announcements for everyone, including
+     unauthenticated browser visitors. */
+  .app.native-auth-required.public-section-open .floating-tools {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .app.native-auth-required.public-section-open .mobile-quick-btn {
+      display: inline-flex;
+    }
   }
 </style>
 </head>
