@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v104 · native client refresh
+// v105 · programming department collision fix
 //
 // Source language: Romanian
 // Secondary language: English

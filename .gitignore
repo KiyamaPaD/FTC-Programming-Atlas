@@ -32,4 +32,4 @@ dist-desktop/
 
 # Generated Capacitor plugin build state
 android/capacitor-cordova-android-plugins/build/
-downloads/FTC-Programming-Atlas-2.0.0-x64.exe
+downloads/*.exe
