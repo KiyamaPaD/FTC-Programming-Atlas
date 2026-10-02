@@ -7469,6 +7469,54 @@
     justify-content: flex-end;
   }
 
+  .programming-node-size-tools {
+    width: 100%;
+    display: grid;
+    gap: 7px;
+    padding: 8px 0 2px;
+    border-top: 1px solid rgba(255,255,255,.045);
+  }
+
+  .programming-node-size-tools[hidden] { display: none !important; }
+
+  .programming-node-size-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: rgba(255,255,255,.66);
+    font-size: .7rem;
+  }
+
+  .programming-node-size-head strong {
+    color: #f2eaff;
+    font-size: .72rem;
+  }
+
+  .programming-node-size-actions {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .programming-node-size-actions .btn {
+    min-width: 0;
+    padding-inline: 7px;
+  }
+
+  .node.programming-layout-editable .node-resize-handle.east {
+    right: 2px;
+  }
+
+  .node.programming-layout-editable .node-resize-handle.south {
+    bottom: 2px;
+  }
+
+  .node.programming-layout-editable .node-resize-handle.southeast {
+    right: 2px;
+    bottom: 2px;
+  }
+
   .editor-history-section[hidden],
   #editorAdminSection[hidden] { display: none !important; }
 
@@ -8684,6 +8732,19 @@
                 <div class="layout-editor-copy">
                   <strong id="layoutEditorModeLabel">LAYOUT</strong>
                   <span id="layoutEditorStatus">Editare activă</span>
+                </div>
+                <div class="programming-node-size-tools" id="programmingNodeSizeTools" hidden>
+                  <div class="programming-node-size-head">
+                    <strong>Dimensiune nod</strong>
+                    <span id="programmingNodeSizeValue">—</span>
+                  </div>
+                  <div class="programming-node-size-actions">
+                    <button class="btn" id="programmingNodeWidthDownBtn" type="button" title="Micșorează lățimea">W −</button>
+                    <button class="btn" id="programmingNodeWidthUpBtn" type="button" title="Mărește lățimea">W +</button>
+                    <button class="btn" id="programmingNodeHeightDownBtn" type="button" title="Micșorează înălțimea">H −</button>
+                    <button class="btn" id="programmingNodeHeightUpBtn" type="button" title="Mărește înălțimea">H +</button>
+                    <button class="btn" id="programmingNodeAutoSizeBtn" type="button" title="Revino la dimensiunea implicită">Auto</button>
+                  </div>
                 </div>
                 <div class="layout-editor-actions">
                   <span class="layout-unsaved-count" id="layoutUnsavedCount">0 changes</span>

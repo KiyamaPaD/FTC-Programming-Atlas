@@ -480,6 +480,13 @@ const layoutEditModeBtn = document.getElementById('layoutEditModeBtn')
 const layoutUnsavedCount = document.getElementById('layoutUnsavedCount')
 const discardLayoutBtn = document.getElementById('discardLayoutBtn')
 const saveLayoutBtn = document.getElementById('saveLayoutBtn')
+const programmingNodeSizeTools = document.getElementById('programmingNodeSizeTools')
+const programmingNodeSizeValue = document.getElementById('programmingNodeSizeValue')
+const programmingNodeWidthDownBtn = document.getElementById('programmingNodeWidthDownBtn')
+const programmingNodeWidthUpBtn = document.getElementById('programmingNodeWidthUpBtn')
+const programmingNodeHeightDownBtn = document.getElementById('programmingNodeHeightDownBtn')
+const programmingNodeHeightUpBtn = document.getElementById('programmingNodeHeightUpBtn')
+const programmingNodeAutoSizeBtn = document.getElementById('programmingNodeAutoSizeBtn')
 
 const editorToolsSection = document.getElementById('editorToolsSection')
 const editorContextMeta = document.getElementById('editorContextMeta')
@@ -11232,6 +11239,40 @@ function renderLayoutEditorState() {
   saveLayoutBtn.disabled = layoutSaveBusy || count === 0
   saveLayoutBtn.textContent = layoutSaveBusy ? 'Saving...' : 'Save'
 
+  const selectedLayoutNode = selectedNode()
+  const activeDepartment = getDepartmentById(activeDepartmentId)
+  const programmingSizeToolsVisible = Boolean(
+    available &&
+    layoutEditMode &&
+    activeDepartment?.slug === 'programming' &&
+    selectedLayoutNode &&
+    !selectedEdge &&
+    canEditNode(selectedLayoutNode)
+  )
+
+  if (programmingNodeSizeTools) {
+    programmingNodeSizeTools.hidden = !programmingSizeToolsVisible
+  }
+
+  if (programmingNodeSizeValue) {
+    if (programmingSizeToolsVisible) {
+      const selectedSize = nodeSize(selectedLayoutNode)
+      programmingNodeSizeValue.textContent = `${Math.round(selectedSize.width)} × ${Math.round(selectedSize.height)} px`
+    } else {
+      programmingNodeSizeValue.textContent = '—'
+    }
+  }
+
+  ;[
+    programmingNodeWidthDownBtn,
+    programmingNodeWidthUpBtn,
+    programmingNodeHeightDownBtn,
+    programmingNodeHeightUpBtn,
+    programmingNodeAutoSizeBtn
+  ].forEach((button) => {
+    if (button) button.disabled = !programmingSizeToolsVisible || layoutSaveBusy
+  })
+
   editorPrimaryActions?.classList.toggle('layout-active', layoutEditMode)
   if (createBtn) createBtn.hidden = layoutEditMode
   if (relationBtn) relationBtn.hidden = layoutEditMode
@@ -12533,6 +12574,11 @@ function renderNodes() {
       node.id === selectedId ? 'active' : '',
       layoutEditMode && canEditNode(node)
         ? 'layout-editable'
+        : '',
+      layoutEditMode &&
+      canEditNode(node) &&
+      getDepartmentById(activeDepartmentId)?.slug === 'programming'
+        ? 'programming-layout-editable'
         : ''
     ]
       .filter(Boolean)
@@ -17523,6 +17569,37 @@ saveLayoutBtn?.addEventListener(
     })
   }
 )
+
+
+programmingNodeWidthDownBtn?.addEventListener('click', () => {
+  resizeSelectedNode(-24, 0).catch((error) => {
+    alert(error.message || 'Lățimea nodului nu a putut fi modificată.')
+  })
+})
+
+programmingNodeWidthUpBtn?.addEventListener('click', () => {
+  resizeSelectedNode(24, 0).catch((error) => {
+    alert(error.message || 'Lățimea nodului nu a putut fi modificată.')
+  })
+})
+
+programmingNodeHeightDownBtn?.addEventListener('click', () => {
+  resizeSelectedNode(0, -24).catch((error) => {
+    alert(error.message || 'Înălțimea nodului nu a putut fi modificată.')
+  })
+})
+
+programmingNodeHeightUpBtn?.addEventListener('click', () => {
+  resizeSelectedNode(0, 24).catch((error) => {
+    alert(error.message || 'Înălțimea nodului nu a putut fi modificată.')
+  })
+})
+
+programmingNodeAutoSizeBtn?.addEventListener('click', () => {
+  resetSelectedNodeSize().catch((error) => {
+    alert(error.message || 'Dimensiunea nodului nu a putut fi resetată.')
+  })
+})
 
 
 taxonomyManagerBtn.addEventListener('click', () => {
