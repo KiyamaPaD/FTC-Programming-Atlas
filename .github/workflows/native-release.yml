@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - 'v2.1.0'
+      - 'v2.1.1'
 
 permissions:
   contents: write
@@ -23,8 +23,8 @@ jobs:
       - run: npm run desktop:exe
       - uses: actions/upload-artifact@v4
         with:
-          name: FTC-Programming-Atlas-Windows-2.1.0
-          path: downloads/FTC-Programming-Atlas-2.1.0-x64.exe
+          name: FTC-Programming-Atlas-Windows-2.1.1
+          path: downloads/FTC-Programming-Atlas-2.1.1-x64.exe
           if-no-files-found: error
 
   android:
@@ -66,8 +66,8 @@ jobs:
       - run: npm run android:apk
       - uses: actions/upload-artifact@v4
         with:
-          name: FTC-Programming-Atlas-Android-2.1.0
-          path: downloads/FTC-Programming-Atlas-2.1.0.apk
+          name: FTC-Programming-Atlas-Android-2.1.1
+          path: downloads/FTC-Programming-Atlas-2.1.1.apk
           if-no-files-found: error
 
   github-release:
@@ -81,10 +81,10 @@ jobs:
           pattern: FTC-Programming-Atlas-*
           merge-multiple: true
           path: release-assets
-      - name: Publish v2.1.0 assets
+      - name: Publish v2.1.1 assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || \
-            gh release create "${GITHUB_REF_NAME}" --title "FTC Programming Atlas 2.1.0" --generate-notes
+            gh release create "${GITHUB_REF_NAME}" --title "FTC Programming Atlas 2.1.1" --generate-notes
           gh release upload "${GITHUB_REF_NAME}" release-assets/* --clobber

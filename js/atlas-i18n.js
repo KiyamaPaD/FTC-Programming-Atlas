@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v105 · programming department collision fix
+// v106 · auth OTP / token verification fix
 //
 // Source language: Romanian
 // Secondary language: English
@@ -1183,6 +1183,9 @@ for (const [source, target] of ATTRIBUTE_EN_V53) {
 
 ;[
   ['Verifică codul', 'Verify code'],
+  ['Trimite cod / link', 'Send code / link'],
+  ['Email trimis. Deschide linkul primit sau introdu codul / tokenul în câmpul de verificare.', 'Email sent. Open the link you received or enter the code / token in the verification field.'],
+  ['Introdu email-ul și codul / tokenul primit pe email.', 'Enter your email and the code / token received by email.'],
   ['Email trimis. Introdu în aplicație codul OTP primit pe email.', 'Email sent. Enter the OTP code from the email in the app.'],
   ['Introdu email-ul și codul OTP primit pe email.', 'Enter your email and the OTP code from the email.'],
   ['Autentificare reușită.', 'Signed in successfully.'],
@@ -1191,7 +1194,8 @@ for (const [source, target] of ATTRIBUTE_EN_V53) {
 ].forEach(([source, target]) => UI_EN.set(source, target))
 
 ;[
-  ['Cod OTP...', 'OTP code...']
+  ['Cod OTP...', 'OTP code...'],
+  ['Cod OTP / token...', 'OTP code / token...']
 ].forEach(([source, target]) => ATTRIBUTE_EN.set(source, target))
 
 const TAXONOMY_WORDS_EN = {

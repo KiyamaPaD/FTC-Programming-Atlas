@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v105 · NATIVE CLIENT REFRESH')
+console.log('ATLAS SCRIPT LOADED v106 · AUTH OTP WEB FIX')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -832,7 +832,7 @@ initializeUICollapsibles()
 initializeNavigationRailCollapse()
 
 if (authOtpRow) {
-  authOtpRow.hidden = !nativeAtlasApp
+  authOtpRow.hidden = false
 }
 
 const modalBackdrop = document.getElementById('modalBackdrop')
@@ -11509,6 +11509,10 @@ function updateAuthUI() {
     accountBtn.title = currentUser?.email || 'Login'
   }
 
+  if (authOtpRow) {
+    authOtpRow.hidden = Boolean(currentUser)
+  }
+
   const currentAtlasEditable = canEditCurrentAtlas()
   const editorAvailable = canUseEditorModeAnywhere()
   const globalAnnouncementsEditorActive = Boolean(
@@ -11898,29 +11902,46 @@ async function sendMagicLink() {
 
   if (error) throw error
 
-  if (nativeAtlasApp) {
-    alert('Email trimis. Introdu în aplicație codul OTP primit pe email.')
-    authOtpInput?.focus()
-    return
+  if (authOtpRow) authOtpRow.hidden = false
+  authOtpInput?.focus()
+  alert('Email trimis. Deschide linkul primit sau introdu codul / tokenul în câmpul de verificare.')
+}
+
+function normalizeEmailAuthToken(rawValue) {
+  const raw = String(rawValue || '').trim()
+  if (!raw) return { token: '', tokenHash: '' }
+
+  try {
+    const parsed = new URL(raw)
+    const tokenHash = parsed.searchParams.get('token_hash') || ''
+    const token = parsed.searchParams.get('token') || ''
+    if (tokenHash || token) return { token, tokenHash }
+  } catch {
+    // Not a URL; continue with the pasted code/token as-is.
   }
 
-  alert('Magic link trimis.')
+  if (/^\d{6,10}$/.test(raw)) {
+    return { token: raw, tokenHash: '' }
+  }
+
+  return { token: '', tokenHash: raw }
 }
 
 async function verifyEmailOtp() {
   const email = authEmailInput.value.trim()
-  const token = authOtpInput?.value.trim() || ''
+  const rawToken = authOtpInput?.value.trim() || ''
+  const { token, tokenHash } = normalizeEmailAuthToken(rawToken)
 
-  if (!email || !/^\d{6,10}$/.test(token)) {
-    alert('Introdu email-ul și codul OTP primit pe email.')
+  if (!email || (!token && !tokenHash)) {
+    alert('Introdu email-ul și codul / tokenul primit pe email.')
     return
   }
 
-  const { data, error } = await supabase.auth.verifyOtp({
-    email,
-    token,
-    type: 'email'
-  })
+  const verifyParams = token
+    ? { email, token, type: 'email' }
+    : { token_hash: tokenHash, type: 'email' }
+
+  const { data, error } = await supabase.auth.verifyOtp(verifyParams)
 
   if (error) throw error
 

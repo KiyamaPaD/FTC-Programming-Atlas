@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=105" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=106" />
   <style>
     :root {
       --bg: #000000;
@@ -8813,7 +8813,7 @@
             <div class="count-strip" id="authStatusBox">Neautentificat.</div>
             <input id="authEmailInput" class="search-input" placeholder="Email..." />
             <div class="btn-row">
-              <button class="btn primary" id="loginBtn">Magic link</button>
+              <button class="btn primary" id="loginBtn">Trimite cod / link</button>
               <button class="btn" id="logoutBtn">Logout</button>
             </div>
 
@@ -8821,11 +8821,10 @@
               <input
                 id="authOtpInput"
                 class="search-input"
-                inputmode="numeric"
+                inputmode="text"
                 autocomplete="one-time-code"
-                maxlength="10"
-                pattern="[0-9]{6,10}"
-                placeholder="Cod OTP..."
+                maxlength="512"
+                placeholder="Cod OTP / token..."
               />
               <button class="btn" id="verifyOtpBtn" type="button">Verifică</button>
             </div>
@@ -10167,6 +10166,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=105"></script>
+  <script type="module" src="/js/atlas-script.js?v=106"></script>
 </body>
 </html>

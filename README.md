@@ -6,7 +6,7 @@
 
 **An interactive, node-based documentation platform for FTC programming and long-term team knowledge.**
 
-[Live Website](https://ftcprogrammingatlas.com) · [Android v2.1.0](./downloads/FTC-Programming-Atlas-2.1.0.apk?raw=1) · [Windows v2.1.0](https://github.com/KiyamaPaD/FTC-Programming-Atlas/releases/tag/v2.1.0) · [InfotronX #19119](https://itx.infoel.ro)
+[Live Website](https://ftcprogrammingatlas.com) · [Android v2.1.1](./downloads/FTC-Programming-Atlas-2.1.1.apk?raw=1) · [Windows v2.1.1](https://github.com/KiyamaPaD/FTC-Programming-Atlas/releases/tag/v2.1.1) · [InfotronX #19119](https://itx.infoel.ro)
 
 </div>
 
@@ -48,7 +48,7 @@ The Android app uses the same Supabase backend as the public website, so documen
 
 ### Download
 
-**[Download FTC Programming Atlas v2.1.0 for Android](./downloads/FTC-Programming-Atlas-2.1.0.apk?raw=1)**
+**[Download FTC Programming Atlas v2.1.1 for Android](./downloads/FTC-Programming-Atlas-2.1.1.apk?raw=1)**
 
 The v2 Android app packages the current Team-first Atlas UI and uses the same Supabase project as the website. Build artifacts are produced from the current `www/` bundle, so the APK no longer carries the legacy v52 interface.
 
@@ -88,7 +88,7 @@ The desktop app uses the same Supabase backend as the website and Android app, s
 
 ### Download
 
-**[FTC Programming Atlas v2.1.0 for Windows (x64)](https://github.com/KiyamaPaD/FTC-Programming-Atlas/releases/tag/v2.1.0)**
+**[FTC Programming Atlas v2.1.1 for Windows (x64)](https://github.com/KiyamaPaD/FTC-Programming-Atlas/releases/tag/v2.1.1)**
 
 The Windows build is distributed as an installer. It creates Start Menu and Desktop shortcuts and keeps the application installed like a normal Windows app.
 
@@ -575,7 +575,7 @@ FTC-Programming-Atlas/
 │   └── splash.png
 │
 ├── downloads/
-│   └── FTC-Programming-Atlas-2.1.0.apk
+│   └── FTC-Programming-Atlas-2.1.1.apk
 │
 ├── img/
 │   ├── FTCProgrammingAtlasLogo.png
