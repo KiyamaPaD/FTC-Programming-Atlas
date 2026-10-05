@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v111 · PARTIAL GRAPH RENDERING')
+console.log('ATLAS SCRIPT LOADED v112 · RAF CAMERA + LIGHTER EDGES')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -393,8 +393,35 @@ function loadView() {
   }
 }
 
+let viewSaveTimer = null
+let viewApplyFrame = null
+
+function saveViewNow() {
+  try {
+    localStorage.setItem(CACHE_KEYS.view, JSON.stringify(view))
+  } catch (error) {
+    console.warn('[Atlas view] position could not be saved:', error)
+  }
+}
+
 function saveView() {
-  localStorage.setItem(CACHE_KEYS.view, JSON.stringify(view))
+  if (viewSaveTimer != null) {
+    clearTimeout(viewSaveTimer)
+  }
+
+  viewSaveTimer = window.setTimeout(() => {
+    viewSaveTimer = null
+    saveViewNow()
+  }, 180)
+}
+
+function flushViewSave() {
+  if (viewSaveTimer != null) {
+    clearTimeout(viewSaveTimer)
+    viewSaveTimer = null
+  }
+
+  saveViewNow()
 }
 
 // Runtime application state
@@ -542,6 +569,7 @@ const VIEWPORT_RENDER_SCALE_DELTA = 0.06
 const VIEWPORT_RENDER_DEBOUNCE_MS = 90
 let viewportGraphTimer = null
 let lastViewportGraphState = null
+let searchRenderTimer = null
 
 let edgeClickState = { key: null, time: 0 }
 let editorNodeClickState = { nodeId: null, time: 0 }
@@ -10413,7 +10441,13 @@ function ensureWorldCapacityForNodes(items = nodes) {
 syncWorldDimensions()
 
 function applyView() {
-  world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`
+  if (viewApplyFrame == null) {
+    viewApplyFrame = requestAnimationFrame(() => {
+      viewApplyFrame = null
+      world.style.transform = `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`
+    })
+  }
+
   saveView()
   scheduleViewportGraphRender()
 }
@@ -13021,13 +13055,15 @@ function renderLinks() {
       const glowWidth = edgeSelected ? 8 : 6
       const duration = edgeSelected ? 1.05 : highlight ? 1.3 : 1.8
 
-      const glowPath = lowMotion
-        ? ''
-        : `<path class="edge-glow" d="${geometry.pathD}" fill="none" stroke="${glowColor}" stroke-width="${glowWidth}" stroke-linecap="round" />`
+      const animateFlow = !lowMotion && highlight
 
-      const flowStyle = lowMotion
-        ? 'filter: none;'
-        : `animation: circuitFlow ${duration}s linear infinite, circuitPulse 2s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(177,76,255,0.28));`
+      const glowPath = animateFlow
+        ? `<path class="edge-glow" d="${geometry.pathD}" fill="none" stroke="${glowColor}" stroke-width="${glowWidth}" stroke-linecap="round" />`
+        : ''
+
+      const flowStyle = animateFlow
+        ? `animation: circuitFlow ${duration}s linear infinite, circuitPulse 2s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(177,76,255,0.28));`
+        : 'animation: none; filter: none;'
 
       const editorControl =
         edgeSelected && canEditCurrentAtlas() && editorMode && layoutEditMode
@@ -19330,7 +19366,15 @@ logoutBtn.addEventListener('click', () => {
 
 searchInput.addEventListener('input', (event) => {
   searchQuery = event.target.value
-  renderGraphInteractionState({ normalize: true })
+
+  if (searchRenderTimer != null) {
+    clearTimeout(searchRenderTimer)
+  }
+
+  searchRenderTimer = window.setTimeout(() => {
+    searchRenderTimer = null
+    renderGraphInteractionState({ normalize: true })
+  }, 70)
 })
 
 categoryFilter.addEventListener('change', (event) => {
@@ -19716,6 +19760,8 @@ window.addEventListener('popstate', async () => {
 })
 
 window.addEventListener('beforeunload', (event) => {
+  flushViewSave()
+
   if (!hasUnsavedLayoutChanges()) return
   event.preventDefault()
   event.returnValue = ''
