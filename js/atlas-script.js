@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v107 · OPEN WORKSPACE + LAZY NODE ASSETS')
+console.log('ATLAS SCRIPT LOADED v108 · TOPBAR EDITOR LAUNCHER')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -428,6 +428,7 @@ const navigationRailCollapseBtn = document.getElementById('navigationRailCollaps
 const mobileNavBtn = document.getElementById('mobileNavBtn')
 const mobileQuickBtn = document.getElementById('mobileQuickBtn')
 const mobileAccountBtn = document.getElementById('mobileAccountBtn')
+const mobileEditorBtn = document.getElementById('mobileEditorBtn')
 const mobileShellBackdrop = document.getElementById('mobileShellBackdrop')
 const publicSectionTabs = document.getElementById('publicSectionTabs')
 const teamAtlasPrimary = document.getElementById('teamAtlasPrimary')
@@ -11645,6 +11646,23 @@ function updateAuthUI() {
   if (navigationEditorZone) navigationEditorZone.hidden = !editorAvailable && !previewActive
   editorModeBtn.classList.toggle('active', editorMode && editorAvailable && previewCanEdit)
   editorModeBtn.setAttribute('aria-pressed', editorMode && editorAvailable && previewCanEdit ? 'true' : 'false')
+
+  if (mobileEditorBtn) {
+    const topbarEditorAvailable = editorAvailable && previewCanEdit
+    mobileEditorBtn.hidden = !topbarEditorAvailable
+    mobileEditorBtn.disabled = isAtlasLoading || !topbarEditorAvailable
+    mobileEditorBtn.classList.toggle('active', editorMode && topbarEditorAvailable)
+    mobileEditorBtn.setAttribute(
+      'aria-pressed',
+      editorMode && topbarEditorAvailable ? 'true' : 'false'
+    )
+    mobileEditorBtn.setAttribute(
+      'aria-label',
+      editorMode ? 'Dezactivează Editor Mode' : 'Activează Editor Mode'
+    )
+    mobileEditorBtn.title = editorMode ? 'Editor Mode · activ' : 'Editor Mode'
+  }
+
   if (editorModeState) editorModeState.textContent = editorMode ? 'On' : 'Off'
 
   if (rolePreviewBanner) {
@@ -17667,12 +17685,39 @@ resetViewBtn.addEventListener('click', () => {
   fitView()
 })
 tutorialBtn.addEventListener('click', openTutorial)
+
+async function toggleEditorModeFromShell({ openEditorNavigation = false } = {}) {
+  if (editorMode && !(await confirmUnsavedLayoutBeforeLeaving())) return
+
+  const nextEditorMode = !editorMode
+  setEditorMode(nextEditorMode)
+
+  if (nextEditorMode && openEditorNavigation && editorMode) {
+    setMobileNavigationOpen(true)
+    openUICollapseSection('editor-zone')
+    openUICollapseSection('editor')
+
+    requestAnimationFrame(() => {
+      navigationEditorZone?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest'
+      })
+    })
+  }
+}
+
 editorModeBtn.addEventListener('click', () => {
-  ;(async () => {
-    if (editorMode && !(await confirmUnsavedLayoutBeforeLeaving())) return
-    setEditorMode(!editorMode)
-  })().catch((error) => {
+  toggleEditorModeFromShell().catch((error) => {
     console.error('Editor mode toggle failed:', error)
+    alert(error.message || 'Editor Mode nu a putut fi schimbat.')
+  })
+})
+
+mobileEditorBtn?.addEventListener('click', (event) => {
+  event.stopPropagation()
+
+  toggleEditorModeFromShell({ openEditorNavigation: true }).catch((error) => {
+    console.error('Topbar Editor Mode toggle failed:', error)
     alert(error.message || 'Editor Mode nu a putut fi schimbat.')
   })
 })
@@ -18753,7 +18798,8 @@ document.addEventListener('click', (event) => {
   if (
     accountPanel.contains(target) ||
     accountBtn?.contains(target) ||
-    mobileAccountBtn?.contains(target)
+    mobileAccountBtn?.contains(target) ||
+    mobileEditorBtn?.contains(target)
   ) return
 
   setAccountPanel(false)
