@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v112 · RAF CAMERA + LIGHTER EDGES')
+console.log('ATLAS SCRIPT LOADED v113 · LEAN TEAM QUERIES')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -4032,14 +4032,14 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   ] = await Promise.all([
     supabase
       .from('atlas_team_nodes')
-      .select('*')
+      .select('id, team_id, department_id, title, tag, team_category_id, team_difficulty_id, team_tag_ids, x, y, width, height, content, content_format, created_at, updated_at, source_public_node_id, source_imported_at, source_snapshot, source_synced_at')
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
       .order('id', { ascending: true }),
 
     supabase
       .from('atlas_team_edges')
-      .select('*')
+      .select('source_id, target_id, label, control_points, control_x, control_y')
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
       .order('source_id', { ascending: true })
@@ -4047,7 +4047,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
 
     supabase
       .from('atlas_team_categories')
-      .select('*')
+      .select('id, name, slug, description, sort_order, is_active')
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
       .order('sort_order', { ascending: true })
@@ -4055,7 +4055,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
 
     supabase
       .from('atlas_team_difficulties')
-      .select('*')
+      .select('id, name, slug, description, rank, is_active')
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
       .order('rank', { ascending: true })
@@ -4063,7 +4063,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
 
     supabase
       .from('atlas_team_tags')
-      .select('*')
+      .select('id, name, slug, description, sort_order, is_active')
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
       .order('sort_order', { ascending: true })
@@ -4071,7 +4071,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
 
     supabase
       .from('atlas_team_roadmaps')
-      .select('*')
+      .select('id, team_id, title, description, department_id, is_active, sort_order, created_at, updated_at')
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
       .order('sort_order', { ascending: true })
@@ -4079,7 +4079,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
 
     supabase
       .from('atlas_team_roadmap_steps')
-      .select('*')
+      .select('id, roadmap_id, node_id, position, note, is_optional')
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
       .order('roadmap_id', { ascending: true })
@@ -4094,7 +4094,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
 
     supabase
       .from('atlas_document_references')
-      .select('*')
+      .select('id, team_id, team_node_id, title, url, source_type, note, is_primary, sort_order, created_at, updated_at')
       .eq('project_id', PROJECT_ID)
       .eq('node_scope', 'team')
       .eq('team_id', Number(activeTeamId))
@@ -4105,7 +4105,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
 
     supabase
       .from('atlas_document_review_state')
-      .select('*')
+      .select('id, team_node_id, review_status, last_reviewed_at, review_note, updated_at')
       .eq('project_id', PROJECT_ID)
       .eq('node_scope', 'team')
       .eq('team_id', Number(activeTeamId))
