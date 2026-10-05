@@ -317,9 +317,17 @@ function saveCachedNodes() {
   const key = teamSnapshotKey()
   if (!key || !Array.isArray(teamNodes) || teamNodes.length === 0) return
 
+  const cachedNodes = teamNodes.map((node) => ({
+    ...node,
+    media: [],
+    files: [],
+    codeSnippets: [],
+    attachmentsLoaded: false
+  }))
+
   writeJsonCache(key, {
     savedAt: Date.now(),
-    teamNodes,
+    teamNodes: cachedNodes,
     teamCategories,
     teamDifficulties,
     teamTaxonomyTags,
@@ -528,10 +536,11 @@ let codeDraftSaveTimer = null
 const teamNodeAttachmentLoads = new Map()
 const nodePlainTextCache = new WeakMap()
 
-const VIEWPORT_CULL_MARGIN = 900
+const VIEWPORT_CULL_MARGIN = 1600
 const VIEWPORT_RENDER_DISTANCE = 260
 const VIEWPORT_RENDER_SCALE_DELTA = 0.06
-let viewportGraphFrame = null
+const VIEWPORT_RENDER_DEBOUNCE_MS = 90
+let viewportGraphTimer = null
 let lastViewportGraphState = null
 
 let edgeClickState = { key: null, time: 0 }
@@ -7794,7 +7803,6 @@ function renderViewportGraph() {
 
 function scheduleViewportGraphRender({ force = false } = {}) {
   if (editorMode && layoutEditMode) return
-  if (viewportGraphFrame != null) return
 
   const next = graphViewportState()
   const previous = lastViewportGraphState
@@ -7814,10 +7822,14 @@ function scheduleViewportGraphRender({ force = false } = {}) {
     }
   }
 
-  viewportGraphFrame = requestAnimationFrame(() => {
-    viewportGraphFrame = null
+  if (viewportGraphTimer != null) {
+    clearTimeout(viewportGraphTimer)
+  }
+
+  viewportGraphTimer = window.setTimeout(() => {
+    viewportGraphTimer = null
     renderViewportGraph()
-  })
+  }, force ? 0 : VIEWPORT_RENDER_DEBOUNCE_MS)
 }
 
 function hasActiveFilters() {
