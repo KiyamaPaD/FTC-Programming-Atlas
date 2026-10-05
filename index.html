@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=106" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=107" />
   <style>
     :root {
       --bg: #000000;
@@ -8541,6 +8541,238 @@
     }
   }
 </style>
+
+<style id="atlas-shell-v107">
+  /* =======================================================================
+     v107 — open workspace + two-launcher shell
+     The map stays visually clean. Navigation and Quick Panel are drawers
+     opened only through the two buttons in the top bar.
+     ======================================================================= */
+
+  :root {
+    --world-width: 12000px;
+    --world-height: 8000px;
+  }
+
+  .mobile-topbar-actions {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+
+  .mobile-shell-btn {
+    width: 40px;
+    height: 40px;
+    display: grid !important;
+    place-items: center;
+    border: 1px solid rgba(177, 76, 255, 0.18);
+    border-radius: 11px;
+    background: rgba(9, 8, 12, 0.88);
+    color: #ece7f0;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 820;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(12px);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-shell-btn:hover,
+  .mobile-shell-btn[aria-expanded="true"] {
+    color: #fff;
+    border-color: rgba(205, 112, 255, 0.42);
+    background: rgba(177, 76, 255, 0.12);
+  }
+
+  .mobile-shell-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 46;
+    display: block;
+    border: 0;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.46);
+    backdrop-filter: blur(3px);
+    opacity: 1;
+    touch-action: none;
+  }
+
+  .mobile-shell-backdrop[hidden] {
+    display: none !important;
+  }
+
+  .atlas-navigation {
+    z-index: 50 !important;
+    top: 76px !important;
+    left: 14px !important;
+    right: auto !important;
+    bottom: 14px !important;
+    width: min(360px, calc(100vw - 28px)) !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    transform: translateX(calc(-100% - 34px)) !important;
+    opacity: 0 !important;
+    visibility: hidden;
+    pointer-events: none !important;
+    transition:
+      transform 180ms ease,
+      opacity 150ms ease,
+      visibility 150ms ease !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .atlas-navigation.mobile-open {
+    transform: translateX(0) !important;
+    opacity: 1 !important;
+    visibility: visible;
+    pointer-events: auto !important;
+  }
+
+  .atlas-navigation.rail-collapsed {
+    width: min(360px, calc(100vw - 28px)) !important;
+    padding: 12px !important;
+  }
+
+  .atlas-navigation.rail-collapsed > :not(.navigation-rail-head) {
+    display: block !important;
+  }
+
+  .navigation-rail-toggle {
+    display: grid !important;
+    place-items: center;
+  }
+
+  .floating-tools {
+    z-index: 52 !important;
+    top: 76px !important;
+    right: 14px !important;
+    bottom: 14px !important;
+    left: auto !important;
+    width: min(390px, calc(100vw - 28px)) !important;
+    max-width: none !important;
+    max-height: none !important;
+    transform: translateX(0) !important;
+    opacity: 1 !important;
+    visibility: visible;
+    pointer-events: auto !important;
+    transition:
+      transform 180ms ease,
+      opacity 150ms ease,
+      visibility 150ms ease !important;
+  }
+
+  .floating-tools.collapsed {
+    transform: translateX(calc(100% + 34px)) !important;
+    opacity: 0 !important;
+    visibility: hidden;
+    pointer-events: none !important;
+  }
+
+  .tools-shell {
+    height: 100%;
+    max-height: 100% !important;
+  }
+
+  .app.public-section-open .floating-tools.collapsed {
+    transform: translateX(calc(100% + 34px)) !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  .app.public-section-open .public-hub-panel,
+  .public-hub-panel {
+    top: 82px !important;
+    right: 18px !important;
+    bottom: 18px !important;
+    left: 18px !important;
+  }
+
+  .world {
+    overflow: visible;
+  }
+
+  .world-grid {
+    width: var(--world-width);
+    height: var(--world-height);
+  }
+
+  @media (max-width: 920px), (pointer: coarse) {
+    .topbar {
+      top: max(8px, env(safe-area-inset-top)) !important;
+      left: 8px !important;
+      right: 8px !important;
+      min-height: 50px;
+    }
+
+    .atlas-navigation {
+      top: calc(max(8px, env(safe-area-inset-top)) + 58px) !important;
+      left: 8px !important;
+      right: auto !important;
+      bottom: max(20px, env(safe-area-inset-bottom)) !important;
+      width: min(360px, calc(100vw - 16px)) !important;
+      border-radius: 18px !important;
+    }
+
+    .floating-tools {
+      top: calc(max(8px, env(safe-area-inset-top)) + 58px) !important;
+      right: 8px !important;
+      bottom: max(20px, env(safe-area-inset-bottom)) !important;
+      left: auto !important;
+      width: min(370px, calc(100vw - 16px)) !important;
+      max-height: none !important;
+      transform: translateX(0) !important;
+    }
+
+    .floating-tools.collapsed,
+    .app.public-section-open .floating-tools.collapsed {
+      transform: translateX(calc(100% + 22px)) !important;
+    }
+
+    .tools-shell {
+      max-height: 100% !important;
+      border-radius: 18px !important;
+      box-shadow: -20px 0 54px rgba(0, 0, 0, 0.56) !important;
+    }
+
+    .tools-shell::before {
+      display: none !important;
+    }
+
+    .tools-body {
+      padding-bottom: max(18px, env(safe-area-inset-bottom)) !important;
+    }
+
+    .public-hub-panel,
+    .app.public-section-open .public-hub-panel {
+      top: calc(max(8px, env(safe-area-inset-top)) + 66px) !important;
+      right: 8px !important;
+      bottom: max(20px, env(safe-area-inset-bottom)) !important;
+      left: 8px !important;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .topbar-team-link {
+      display: none !important;
+    }
+
+    .topbar > strong {
+      font-size: 0.8rem;
+    }
+
+    .mobile-shell-btn {
+      width: 38px;
+      height: 38px;
+    }
+  }
+</style>
+
 </head>
 <body>
   <div class="noise"></div>
@@ -8578,7 +8810,7 @@
           aria-label="Deschide Quick Panel"
           aria-expanded="false"
           aria-controls="toolPanel"
-        >⌕</button>
+        >⚡</button>
       </div>
     </div>
 
@@ -10166,6 +10398,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=106"></script>
+  <script type="module" src="/js/atlas-script.js?v=107"></script>
 </body>
 </html>
