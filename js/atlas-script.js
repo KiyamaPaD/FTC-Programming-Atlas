@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v110 · CACHE + VIEWPORT RENDER PERFORMANCE')
+console.log('ATLAS SCRIPT LOADED v111 · PARTIAL GRAPH RENDERING')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -1649,7 +1649,7 @@ function openNodeDetail(nodeId, { pushHistory = true } = {}) {
   clearEdgeSelection()
   detailOpen = true
   setNodeRoute(node, { push: pushHistory })
-  renderAll()
+  renderGraphInteractionState()
 
   if (node.isTeamNode && !node.attachmentsLoaded) {
     loadTeamNodeAttachments(node)
@@ -1672,7 +1672,7 @@ function openNodeDetail(nodeId, { pushHistory = true } = {}) {
 function closeNodeDetail({ pushHistory = true } = {}) {
   detailOpen = false
   setHomeRoute({ push: pushHistory })
-  renderAll()
+  renderGraphInteractionState()
 }
 
 function getEdgeInfo(sourceId, targetId) {
@@ -1786,7 +1786,7 @@ function handleNodeTap(nodeId) {
       editorNodeClickState = { nodeId: numericNodeId, time: now }
       detailOpen = false
       updateDocumentSeo(null)
-      renderAll()
+      renderGraphInteractionState()
       return
     }
 
@@ -1805,7 +1805,7 @@ function selectEdge(sourceId, targetId) {
     selectedEdgePointIndex = null
     selectedId = Number(sourceId)
     detailOpen = false
-    renderAll()
+    renderGraphInteractionState()
   })().catch((error) => {
     console.error('Edge selection failed:', error)
     alert(error.message || 'Muchia nu a putut fi selectată.')
@@ -9564,8 +9564,8 @@ function renderTaxonomyControls() {
       if (tagFilterIds.has(id)) tagFilterIds.delete(id)
       else tagFilterIds.add(id)
 
-      normalizeSelectionAfterFilters()
-      renderAll()
+      renderTaxonomyControls()
+      renderGraphInteractionState({ normalize: true })
       requestAnimationFrame(fitView)
     })
   })
@@ -11641,7 +11641,7 @@ function undoLayoutChange() {
   if (!action) return
   layoutRedoStack.push(action)
   applyLayoutActionState(action, 'before')
-  renderAll()
+  renderGraphInteractionState()
   refreshHistoryButtons()
 }
 
@@ -11650,7 +11650,7 @@ function redoLayoutChange() {
   if (!action) return
   layoutUndoStack.push(action)
   applyLayoutActionState(action, 'after')
-  renderAll()
+  renderGraphInteractionState()
   refreshHistoryButtons()
 }
 
@@ -11681,7 +11681,7 @@ function discardLayoutChanges() {
   }
 
   clearLayoutDraftState()
-  renderAll()
+  renderGraphInteractionState()
 }
 
 async function saveLayoutChanges({ quiet = false } = {}) {
@@ -11725,7 +11725,7 @@ async function saveLayoutChanges({ quiet = false } = {}) {
 
     clearLayoutDraftState()
     saveCachedNodes()
-    renderAll()
+    renderGraphInteractionState()
     return true
   } catch (error) {
     layoutSaveBusy = false
@@ -11832,7 +11832,8 @@ function setLayoutEditMode(nextValue) {
     layoutRedoStack = []
   }
 
-  renderAll()
+  renderGraphInteractionState()
+  updateAuthUI()
   refreshHistoryButtons()
   return true
 }
@@ -11873,7 +11874,7 @@ async function nudgeSelectedNode(dx, dy) {
   const after = layoutNodeGeometry(node)
   queueLayoutNodeDraft(node, before)
   recordLayoutAction({ type: 'node', nodeId: Number(node.id), before, after })
-  renderAll()
+  renderGraphInteractionState()
 }
 
 async function resizeSelectedNode(deltaWidth, deltaHeight) {
@@ -11912,7 +11913,7 @@ async function resizeSelectedNode(deltaWidth, deltaHeight) {
   const after = layoutNodeGeometry(node)
   queueLayoutNodeDraft(node, before)
   recordLayoutAction({ type: 'node', nodeId: Number(node.id), before, after })
-  renderAll()
+  renderGraphInteractionState()
 }
 
 async function resetSelectedNodeSize() {
@@ -11937,7 +11938,7 @@ async function resetSelectedNodeSize() {
   const after = layoutNodeGeometry(node)
   queueLayoutNodeDraft(node, before)
   recordLayoutAction({ type: 'node', nodeId: Number(node.id), before, after })
-  renderAll()
+  renderGraphInteractionState()
 }
 
 
@@ -12781,7 +12782,7 @@ function startEdgeControlDrag(event, sourceId, targetId, pointIndex) {
     const currentInfo = getEdgeInfo(state.sourceId, state.targetId)
 
     if (!currentInfo || !state.moved) {
-      renderAll()
+      renderGraphInteractionState()
       return
     }
 
@@ -12807,7 +12808,7 @@ function startEdgeControlDrag(event, sourceId, targetId, pointIndex) {
       after
     })
 
-    renderAll()
+    renderGraphInteractionState()
   }
 
   document.addEventListener('pointermove', onMove, { passive: false })
@@ -13305,7 +13306,7 @@ function renderNodes() {
       }
 
       if (!canEditNode(node) || !editorMode || !layoutEditMode || interactionMode !== 'drag') {
-        renderAll()
+        renderGraphInteractionState()
         return
       }
 
@@ -13322,7 +13323,7 @@ function renderNodes() {
       if (!changed) {
         selectedId = node.id
         clearEdgeSelection()
-        renderAll()
+        renderGraphInteractionState()
         return
       }
 
@@ -13343,7 +13344,7 @@ function renderNodes() {
 
       selectedId = node.id
       clearEdgeSelection()
-      renderAll()
+      renderGraphInteractionState()
     }
 
     // Keep a real href for crawlers, new-tab actions and accessibility while
@@ -13462,7 +13463,7 @@ function renderNodes() {
           if (!changed || invalid) {
             node.width = originalWidth
             node.height = originalHeight
-            renderAll()
+            renderGraphInteractionState()
             return
           }
 
@@ -13486,7 +13487,7 @@ function renderNodes() {
             after
           })
 
-          renderAll()
+          renderGraphInteractionState()
         }
 
         document.addEventListener('pointermove', onResizeMove, { passive: false })
@@ -17240,13 +17241,7 @@ function renderDetailPanel() {
   })
 }
 
-function renderAll() {
-  syncActiveNodeCollection()
-  normalizeSelectionAfterFilters()
-  renderTaxonomyControls()
-  renderDepartmentNavigation()
-  renderPublicShell()
-
+function updateGraphCountUi() {
   const visibleCount = getVisibleNodes().length
   const departmentTotal = getDepartmentNodes().length
 
@@ -17255,6 +17250,41 @@ function renderAll() {
       ? `${visibleCount} / ${departmentTotal}`
       : String(departmentTotal)
   }
+
+  if (clearFiltersBtn) {
+    clearFiltersBtn.hidden = !hasActiveFilters()
+  }
+}
+
+function renderGraphInteractionState({
+  normalize = false,
+  detail = true,
+  counts = true
+} = {}) {
+  if (normalize) normalizeSelectionAfterFilters()
+  if (counts) updateGraphCountUi()
+
+  renderSelectedStrip()
+  renderModeStrip()
+  renderLayoutEditorState()
+  renderEditorContext()
+  renderLinks()
+  renderNodes()
+
+  if (detail) {
+    renderDetailPanel()
+  }
+
+  rememberViewportGraphState()
+}
+
+function renderAll() {
+  syncActiveNodeCollection()
+  normalizeSelectionAfterFilters()
+  renderTaxonomyControls()
+  renderDepartmentNavigation()
+  renderPublicShell()
+  updateGraphCountUi()
 
   renderSelectedStrip()
   renderModeStrip()
@@ -17265,7 +17295,6 @@ function renderAll() {
   renderDetailPanel()
   updateAuthUI()
   rememberViewportGraphState()
-
 
   if (isTaxonomyManagerOpen()) {
     renderTaxonomyManager()
@@ -17872,12 +17901,12 @@ function activateRelationMode(sourceId = selectedId || null) {
   if (!requireAuth()) return
   relationMode = { active: true, sourceId: sourceId || null }
   detailOpen = false
-  renderAll()
+  renderGraphInteractionState()
 }
 
 function deactivateRelationMode(renderNow = true) {
   relationMode = { active: false, sourceId: null }
-  if (renderNow) renderAll()
+  if (renderNow) renderGraphInteractionState()
 }
 
 function handleRelationNodeClick(targetId) {
@@ -17889,14 +17918,14 @@ function handleRelationNodeClick(targetId) {
     relationMode.sourceId = targetId
     selectedId = targetId
     clearEdgeSelection()
-    renderAll()
+    renderGraphInteractionState()
     return
   }
 
   if (Number(sourceId) === Number(targetId)) {
     selectedId = sourceId
     clearEdgeSelection()
-    renderAll()
+    renderGraphInteractionState()
     return
   }
 
@@ -17913,14 +17942,14 @@ function handleRelationNodeClick(targetId) {
 
   if (relationIndex === -1) {
     detailOpen = false
-    renderAll()
+    renderGraphInteractionState()
     openRelationCreate(sourceId, targetId)
     return
   }
 
   detailOpen = true
   setNodeRoute(source, { push: false })
-  renderAll()
+  renderGraphInteractionState()
   openRelationEdit(sourceId, relationIndex)
 }
 
@@ -19301,21 +19330,18 @@ logoutBtn.addEventListener('click', () => {
 
 searchInput.addEventListener('input', (event) => {
   searchQuery = event.target.value
-  normalizeSelectionAfterFilters()
-  renderAll()
+  renderGraphInteractionState({ normalize: true })
 })
 
 categoryFilter.addEventListener('change', (event) => {
   categoryFilterId = event.target.value ? Number(event.target.value) : null
-  normalizeSelectionAfterFilters()
-  renderAll()
+  renderGraphInteractionState({ normalize: true })
   requestAnimationFrame(fitView)
 })
 
 difficultyFilter.addEventListener('change', (event) => {
   difficultyFilterId = event.target.value ? Number(event.target.value) : null
-  normalizeSelectionAfterFilters()
-  renderAll()
+  renderGraphInteractionState({ normalize: true })
   requestAnimationFrame(fitView)
 })
 
@@ -19325,8 +19351,8 @@ clearFiltersBtn.addEventListener('click', () => {
   categoryFilterId = null
   difficultyFilterId = null
   tagFilterIds = new Set()
-  normalizeSelectionAfterFilters()
-  renderAll()
+  renderTaxonomyControls()
+  renderGraphInteractionState({ normalize: true })
   requestAnimationFrame(fitView)
 })
 
