@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v120 · PARTIAL RENDER PHASE 2')
+console.log('ATLAS SCRIPT LOADED v121 · OPT-IN PERFORMANCE PROFILER')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -46,6 +46,109 @@ const CACHE_KEYS = {
   uiSections: 'ftc_atlas_ui_sections_v1',
   navigationRail: 'ftc_atlas_navigation_rail_v1',
   shellSnapshot: 'ftc_atlas_shell_snapshot_v1'
+}
+
+const ATLAS_PERF_ENABLED =
+  new URLSearchParams(window.location.search).get('atlasPerf') === '1'
+const atlasPerfSamples = []
+
+function atlasPerfNow() {
+  return ATLAS_PERF_ENABLED ? performance.now() : 0
+}
+
+function atlasPerfRecord(label, startedAt, meta = {}) {
+  if (!ATLAS_PERF_ENABLED || !startedAt) return
+
+  const duration = performance.now() - startedAt
+  const sample = {
+    label,
+    duration: Number(duration.toFixed(2)),
+    at: Number(performance.now().toFixed(2)),
+    ...meta
+  }
+
+  atlasPerfSamples.push(sample)
+  console.debug('[Atlas perf]', label, `${sample.duration}ms`, meta)
+}
+
+function atlasPerfSummary() {
+  const grouped = new Map()
+
+  for (const sample of atlasPerfSamples) {
+    const bucket = grouped.get(sample.label) || {
+      label: sample.label,
+      count: 0,
+      totalMs: 0,
+      maxMs: 0
+    }
+
+    bucket.count += 1
+    bucket.totalMs += Number(sample.duration || 0)
+    bucket.maxMs = Math.max(bucket.maxMs, Number(sample.duration || 0))
+    grouped.set(sample.label, bucket)
+  }
+
+  return [...grouped.values()]
+    .map((bucket) => ({
+      label: bucket.label,
+      count: bucket.count,
+      totalMs: Number(bucket.totalMs.toFixed(2)),
+      avgMs: Number((bucket.totalMs / bucket.count).toFixed(2)),
+      maxMs: Number(bucket.maxMs.toFixed(2))
+    }))
+    .sort((a, b) => b.totalMs - a.totalMs)
+}
+
+function atlasPerfNetworkSummary() {
+  const entries = performance
+    .getEntriesByType('resource')
+    .filter((entry) =>
+      String(entry.name || '').includes('sznohntrlyynbhdigdgb.supabase.co')
+    )
+
+  return {
+    requestCount: entries.length,
+    totalDurationMs: Number(
+      entries.reduce((sum, entry) => sum + Number(entry.duration || 0), 0).toFixed(2)
+    ),
+    transferBytes: entries.reduce(
+      (sum, entry) => sum + Number(entry.transferSize || 0),
+      0
+    ),
+    encodedBodyBytes: entries.reduce(
+      (sum, entry) => sum + Number(entry.encodedBodySize || 0),
+      0
+    )
+  }
+}
+
+function atlasPerfReport() {
+  const navigation = performance.getEntriesByType('navigation')[0]
+  const summary = atlasPerfSummary()
+  const network = atlasPerfNetworkSummary()
+  const report = {
+    enabled: ATLAS_PERF_ENABLED,
+    samples: atlasPerfSamples.slice(),
+    summary,
+    network,
+    navigation: navigation
+      ? {
+          domContentLoadedMs: Number(
+            navigation.domContentLoadedEventEnd.toFixed(2)
+          ),
+          loadEventMs: Number(navigation.loadEventEnd.toFixed(2)),
+          transferBytes: Number(navigation.transferSize || 0)
+        }
+      : null
+  }
+
+  console.group('[Atlas perf] report')
+  console.table(summary)
+  console.table([network])
+  if (report.navigation) console.table([report.navigation])
+  console.groupEnd()
+
+  return report
 }
 
 const initialTeamInviteToken = new URLSearchParams(window.location.search).get('teamInvite')
@@ -4128,6 +4231,7 @@ function populateTeamNodeDepartmentSelect(selectedId = null) {
 }
 
 async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
+  const perfStartedAt = atlasPerfNow()
   teamNodes = []
   teamCategories = []
   teamDifficulties = []
@@ -4429,6 +4533,12 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   }
 
   syncActiveNodeCollection({ forceReset })
+  atlasPerfRecord('team.bootstrap', perfStartedAt, {
+    teamId: Number(activeTeamId),
+    nodes: teamNodes.length,
+    edges: (edgesResult.data || []).length,
+    roadmaps: teamRoadmaps.length
+  })
 }
 
 async function loadTeamNodeContent(node, { force = false } = {}) {
@@ -4441,6 +4551,15 @@ async function loadTeamNodeContent(node, { force = false } = {}) {
   if (node.contentLoaded && !force) return node
 
   if (!force && hydrateCachedTeamNodeContent(node)) {
+    if (ATLAS_PERF_ENABLED) {
+      atlasPerfSamples.push({
+        label: 'node.content.cache-hit',
+        duration: 0,
+        at: Number(performance.now().toFixed(2)),
+        teamId,
+        nodeId
+      })
+    }
     return node
   }
 
@@ -4452,6 +4571,7 @@ async function loadTeamNodeContent(node, { force = false } = {}) {
 
   const task = (async () => {
     node.contentLoadError = null
+    const perfStartedAt = atlasPerfNow()
 
     const { data, error } = await supabase
       .from('atlas_team_nodes')
@@ -4473,6 +4593,11 @@ async function loadTeamNodeContent(node, { force = false } = {}) {
     node.contentLoadError = null
 
     cacheTeamNodeContent(node)
+    atlasPerfRecord('node.content.fetch', perfStartedAt, {
+      teamId,
+      nodeId,
+      contentChars: node.content.length
+    })
     return node
   })()
 
@@ -4532,6 +4657,7 @@ async function loadTeamNodeAttachments(node, { force = false } = {}) {
   }
 
   const task = (async () => {
+    const perfStartedAt = atlasPerfNow()
     const [codeResult, mediaResult, filesResult] = await Promise.all([
       supabase
         .from('atlas_team_node_code_snippets')
@@ -4650,6 +4776,13 @@ async function loadTeamNodeAttachments(node, { force = false } = {}) {
     node.files = files
     node.attachmentsLoaded = true
 
+    atlasPerfRecord('node.attachments.fetch', perfStartedAt, {
+      teamId,
+      nodeId,
+      code: codeSnippets.length,
+      media: media.length,
+      files: files.length
+    })
     return node
   })()
 
@@ -9246,6 +9379,7 @@ function finderResultPreview(source, row = null) {
 }
 
 async function searchTeamDocumentationServer(query) {
+  const perfStartedAt = atlasPerfNow()
   if (!currentUser || activeTeamId == null) return []
 
   const normalized = normalizeFinderQuery(query)
@@ -9386,7 +9520,7 @@ async function searchTeamDocumentationServer(query) {
     addHit(row.node_id, 'file', row)
   }
 
-  return [...hitMap.values()]
+  const results = [...hitMap.values()]
     .map((candidate) => {
       const title = String(candidate.node.title || '').toLowerCase()
 
@@ -9411,6 +9545,13 @@ async function searchTeamDocumentationServer(query) {
       )
     })
     .slice(0, 40)
+
+  atlasPerfRecord('quick-find.server', perfStartedAt, {
+    teamId,
+    queryLength: normalized.length,
+    results: results.length
+  })
+  return results
 }
 
 function scheduleDocumentationFinderSearch(query) {
@@ -10823,6 +10964,7 @@ function hideAtlasStatus() {
 }
 
 async function loadAtlasWithUi() {
+  const perfStartedAt = atlasPerfNow()
   if (atlasLoadPromise) {
     return atlasLoadPromise
   }
@@ -10848,6 +10990,11 @@ async function loadAtlasWithUi() {
         else if (activePublicSection === 'team' && nodes.length) fitView()
       })
 
+      atlasPerfRecord('boot.atlas-ready', perfStartedAt, {
+        section: activePublicSection,
+        nodes: nodes.length,
+        routedNode: Boolean(routedNode)
+      })
       return true
     } catch (error) {
       console.error('Atlas initial load failed:', error)
@@ -12931,6 +13078,7 @@ function requireAuth() {
 }
 
 async function refreshSession() {
+  const perfStartedAt = atlasPerfNow()
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
 
   if (sessionError) {
@@ -12957,6 +13105,11 @@ async function refreshSession() {
   updateAuthUI()
   maybeOpenPendingTeamInvite()
   await refreshHistoryButtons()
+  atlasPerfRecord('boot.session-context', perfStartedAt, {
+    authenticated: Boolean(currentUser),
+    teamId: activeTeamId == null ? null : Number(activeTeamId),
+    nodes: teamNodes.length
+  })
 }
 
 const CANONICAL_URL = 'https://ftcprogrammingatlas.com/'
@@ -17794,6 +17947,7 @@ function renderGraphInteractionState({
   detail = true,
   counts = true
 } = {}) {
+  const perfStartedAt = atlasPerfNow()
   if (normalize) normalizeSelectionAfterFilters()
   if (counts) updateGraphCountUi()
 
@@ -17809,16 +17963,26 @@ function renderGraphInteractionState({
   }
 
   rememberViewportGraphState()
+  atlasPerfRecord('render.graph-partial', perfStartedAt, {
+    nodes: nodes.length,
+    detail,
+    counts
+  })
 }
 
 function renderMapNavigationState({ normalize = true } = {}) {
+  const perfStartedAt = atlasPerfNow()
   renderTaxonomyControls()
   renderDepartmentNavigation()
   renderPublicShell()
   renderGraphInteractionState({ normalize })
+  atlasPerfRecord('render.map-navigation', perfStartedAt, {
+    nodes: nodes.length
+  })
 }
 
 function renderAll() {
+  const perfStartedAt = atlasPerfNow()
   syncActiveNodeCollection()
   normalizeSelectionAfterFilters()
   renderTaxonomyControls()
@@ -17843,6 +18007,11 @@ function renderAll() {
   if (isFileManagerOpen()) {
     renderFileManager()
   }
+
+  atlasPerfRecord('render.full', perfStartedAt, {
+    nodes: nodes.length,
+    section: activePublicSection
+  })
 }
 
 function setModalModeUi(mode) {
@@ -20456,6 +20625,15 @@ supabase.auth.onAuthStateChange((event, session) => {
 
 // Development diagnostics exposed in the browser console
 window.atlasDebug = {
+  performance: {
+    enabled: ATLAS_PERF_ENABLED,
+    clear: () => {
+      atlasPerfSamples.length = 0
+      performance.clearResourceTimings()
+    },
+    report: atlasPerfReport,
+    samples: () => atlasPerfSamples.slice()
+  },
   getState: () => ({
     canEdit,
     email: currentUser?.email ?? null,
