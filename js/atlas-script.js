@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v108 · TOPBAR EDITOR LAUNCHER')
+console.log('ATLAS SCRIPT LOADED v109 · SEPARATE SHELL TABS + TEAM DRAWER')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -429,7 +429,17 @@ const mobileNavBtn = document.getElementById('mobileNavBtn')
 const mobileQuickBtn = document.getElementById('mobileQuickBtn')
 const mobileAccountBtn = document.getElementById('mobileAccountBtn')
 const mobileEditorBtn = document.getElementById('mobileEditorBtn')
+const mobileTeamBtn = document.getElementById('mobileTeamBtn')
 const mobileShellBackdrop = document.getElementById('mobileShellBackdrop')
+const profileDrawer = document.getElementById('profileDrawer')
+const profileDrawerBody = document.getElementById('profileDrawerBody')
+const closeProfileDrawerBtn = document.getElementById('closeProfileDrawerBtn')
+const editorDrawer = document.getElementById('editorDrawer')
+const editorDrawerBody = document.getElementById('editorDrawerBody')
+const closeEditorDrawerBtn = document.getElementById('closeEditorDrawerBtn')
+const teamDrawer = document.getElementById('teamDrawer')
+const teamDrawerBody = document.getElementById('teamDrawerBody')
+const closeTeamDrawerBtn = document.getElementById('closeTeamDrawerBtn')
 const publicSectionTabs = document.getElementById('publicSectionTabs')
 const teamAtlasPrimary = document.getElementById('teamAtlasPrimary')
 const publicHubPanel = document.getElementById('publicHubPanel')
@@ -775,27 +785,107 @@ function openUICollapseSection(key) {
 }
 
 
+function isProfileDrawerOpen() {
+  return Boolean(profileDrawer?.classList.contains('open'))
+}
+
+function isEditorDrawerOpen() {
+  return Boolean(editorDrawer?.classList.contains('open'))
+}
+
+function isTeamDrawerOpen() {
+  return Boolean(teamDrawer?.classList.contains('open'))
+}
+
+function closeStandaloneShellDrawers({ except = null } = {}) {
+  if (except !== 'profile') profileDrawer?.classList.remove('open')
+  if (except !== 'editor') editorDrawer?.classList.remove('open')
+  if (except !== 'team') teamDrawer?.classList.remove('open')
+
+  if (except !== 'profile' && accountPanel) {
+    accountPanel.hidden = true
+    accountBtn?.classList.remove('active')
+    accountBtn?.setAttribute('aria-expanded', 'false')
+  }
+}
+
 function syncMobileChrome() {
   if (!atlasNavigation || !toolPanel) return
 
   const navigationOpen = Boolean(mobileNavigationOpen)
   const quickPanelOpen = !toolPanel.classList.contains('collapsed')
+  const profileOpen = isProfileDrawerOpen()
+  const editorOpen = isEditorDrawerOpen()
+  const teamOpen = isTeamDrawerOpen()
+  const anyOpen = navigationOpen || quickPanelOpen || profileOpen || editorOpen || teamOpen
 
   atlasNavigation.classList.toggle('mobile-open', navigationOpen)
   mobileNavBtn?.setAttribute('aria-expanded', navigationOpen ? 'true' : 'false')
   mobileQuickBtn?.setAttribute('aria-expanded', quickPanelOpen ? 'true' : 'false')
-  appRoot?.classList.toggle('shell-panel-open', navigationOpen || quickPanelOpen)
+  mobileAccountBtn?.setAttribute('aria-expanded', profileOpen ? 'true' : 'false')
+  mobileEditorBtn?.setAttribute('aria-expanded', editorOpen ? 'true' : 'false')
+  mobileTeamBtn?.setAttribute('aria-expanded', teamOpen ? 'true' : 'false')
+  appRoot?.classList.toggle('shell-panel-open', anyOpen)
 
   if (mobileShellBackdrop) {
-    mobileShellBackdrop.hidden = !(navigationOpen || quickPanelOpen)
+    mobileShellBackdrop.hidden = !anyOpen
   }
 }
 
 function setMobileNavigationOpen(open) {
   mobileNavigationOpen = Boolean(open)
 
-  if (mobileNavigationOpen && !toolPanel.classList.contains('collapsed')) {
+  if (mobileNavigationOpen) {
     togglePanel(true, { persist: false })
+    closeStandaloneShellDrawers()
+  }
+
+  syncMobileChrome()
+}
+
+function setProfileDrawerOpen(open) {
+  const shouldOpen = Boolean(open)
+
+  if (shouldOpen) {
+    mobileNavigationOpen = false
+    togglePanel(true, { persist: false })
+    closeStandaloneShellDrawers({ except: 'profile' })
+    profileDrawer?.classList.add('open')
+    if (accountPanel) accountPanel.hidden = false
+  } else {
+    profileDrawer?.classList.remove('open')
+    if (accountPanel) accountPanel.hidden = true
+  }
+
+  syncMobileChrome()
+}
+
+function setEditorDrawerOpen(open) {
+  const shouldOpen = Boolean(open)
+
+  if (shouldOpen) {
+    mobileNavigationOpen = false
+    togglePanel(true, { persist: false })
+    closeStandaloneShellDrawers({ except: 'editor' })
+    editorDrawer?.classList.add('open')
+  } else {
+    editorDrawer?.classList.remove('open')
+  }
+
+  syncMobileChrome()
+}
+
+function setTeamDrawerOpen(open) {
+  const shouldOpen = Boolean(open)
+
+  if (shouldOpen) {
+    mobileNavigationOpen = false
+    togglePanel(true, { persist: false })
+    closeStandaloneShellDrawers({ except: 'team' })
+    renderTeamDrawer()
+    teamDrawer?.classList.add('open')
+  } else {
+    teamDrawer?.classList.remove('open')
   }
 
   syncMobileChrome()
@@ -803,6 +893,7 @@ function setMobileNavigationOpen(open) {
 
 function closeMobileChrome({ collapsePanel = true } = {}) {
   mobileNavigationOpen = false
+  closeStandaloneShellDrawers()
 
   if (
     collapsePanel &&
@@ -815,6 +906,23 @@ function closeMobileChrome({ collapsePanel = true } = {}) {
   syncMobileChrome()
 }
 
+function mountStandaloneShellPanels() {
+  if (profileDrawerBody && accountPanel && accountPanel.parentElement !== profileDrawerBody) {
+    profileDrawerBody.appendChild(accountPanel)
+    accountPanel.hidden = true
+  }
+
+  if (
+    editorDrawerBody &&
+    navigationEditorZone &&
+    navigationEditorZone.parentElement !== editorDrawerBody
+  ) {
+    navigationEditorZone.open = true
+    editorDrawerBody.appendChild(navigationEditorZone)
+  }
+}
+
+mountStandaloneShellPanels()
 initializeUICollapsibles()
 initializeNavigationRailCollapse()
 
@@ -4227,6 +4335,139 @@ function currentTeamMembers() {
   )
 }
 
+function teamMemberDepartmentNames(membership) {
+  return membershipDepartmentIds(membership.id)
+    .map((id) => getDepartmentById(id)?.short_name || getDepartmentById(id)?.name)
+    .filter(Boolean)
+}
+
+function renderTeamDrawer() {
+  if (!teamDrawerBody) return
+
+  if (!currentUser) {
+    teamDrawerBody.innerHTML = `
+      <article class="team-empty-card">
+        <strong>Autentifică-te pentru Team Atlas.</strong>
+        <span>După login poți vedea echipa, rolul tău și membrii.</span>
+      </article>
+    `
+    return
+  }
+
+  const team = currentTeamRecord()
+  const membership = currentTeamMembership()
+  const memberships = ownActiveTeamMemberships()
+
+  if (!team || !membership) {
+    const pendingInvites = teamInvites.filter((invite) => invite.status === 'pending').length
+    const pendingRequest = latestOwnTeamRequest()?.status === 'pending'
+
+    teamDrawerBody.innerHTML = `
+      <article class="team-empty-card">
+        <span class="team-drawer-kicker">Team Atlas</span>
+        <strong>Nu ești într-o echipă activă.</strong>
+        <span>${pendingInvites ? `${pendingInvites} invitații în așteptare.` : 'Poți accepta o invitație sau solicita o echipă.'}</span>
+        <div class="team-drawer-actions">
+          <button class="btn primary" type="button" data-team-request>Solicită echipă</button>
+          ${pendingRequest ? '<span class="team-department-chip">Cerere în așteptare</span>' : ''}
+        </div>
+      </article>
+    `
+    return
+  }
+
+  const ownDepartments = teamMemberDepartmentNames(membership)
+  const teamLabel = team.teamNumber
+    ? `${team.name} #${team.teamNumber}`
+    : team.name
+
+  const roleWeight = {
+    team_leader: 0,
+    mentor: 1,
+    department_coordinator: 2,
+    team_member: 3
+  }
+
+  const members = currentTeamMembers()
+    .slice()
+    .sort((a, b) => {
+      const roleDiff = (roleWeight[a.role] ?? 9) - (roleWeight[b.role] ?? 9)
+      if (roleDiff !== 0) return roleDiff
+      return String(a.displayName || '').localeCompare(String(b.displayName || ''), 'ro', {
+        sensitivity: 'base'
+      })
+    })
+
+  const switcher = memberships.length > 1
+    ? `
+      <div>
+        <span class="team-drawer-kicker">Schimbă echipa</span>
+        <div class="team-switcher">
+          ${memberships.map((item) => {
+            const record = teamRecords.find((candidate) => Number(candidate.id) === Number(item.teamId))
+            const label = record?.teamNumber
+              ? `${record.name} #${record.teamNumber}`
+              : record?.name || 'FTC Team'
+
+            return `
+              <button
+                class="btn ${Number(item.teamId) === Number(activeTeamId) ? 'primary' : ''}"
+                type="button"
+                data-team-select="${Number(item.teamId)}"
+              >${escapeHtmlText(label)}</button>
+            `
+          }).join('')}
+        </div>
+      </div>
+    `
+    : ''
+
+  teamDrawerBody.innerHTML = `
+    <article class="team-overview-card">
+      <span class="team-drawer-kicker">Echipa activă</span>
+      <h3>${escapeHtmlText(teamLabel)}</h3>
+      ${team.description ? `<p>${escapeHtml(team.description)}</p>` : ''}
+      <div class="team-department-chips">
+        <span class="team-department-chip">${escapeHtmlText(teamRoleLabel(membership.role))}</span>
+        ${ownDepartments.map((name) => `<span class="team-department-chip">${escapeHtmlText(name)}</span>`).join('')}
+      </div>
+      <div class="team-drawer-actions">
+        <button class="btn primary" type="button" data-team-action="explore">Explore</button>
+        <button class="btn" type="button" data-team-action="roadmaps">Roadmaps</button>
+        <button class="btn" type="button" data-team-action="refresh">Refresh</button>
+        ${canManageTeamMembers() ? '<button class="btn" type="button" data-team-action="members">Members & Invites</button>' : ''}
+        ${canManageCurrentTeam() ? '<button class="btn" type="button" data-team-action="settings">Team Settings</button>' : ''}
+      </div>
+    </article>
+
+    ${switcher}
+
+    <div>
+      <span class="team-drawer-kicker">Membri · ${members.length}</span>
+      <div class="team-member-list">
+        ${members.map((member) => {
+          const departmentsForMember = teamMemberDepartmentNames(member)
+          const displayName = member.displayName || (member.userId === currentUser.id ? 'Tu' : 'Membru')
+
+          return `
+            <article class="team-member-card">
+              <div class="team-member-main">
+                <strong>${escapeHtmlText(displayName)}${member.userId === currentUser.id ? ' · tu' : ''}</strong>
+                <div class="team-department-chips">
+                  ${departmentsForMember.length
+                    ? departmentsForMember.map((name) => `<span class="team-department-chip">${escapeHtmlText(name)}</span>`).join('')
+                    : '<span class="team-department-chip">All / nespecificat</span>'}
+                </div>
+              </div>
+              <span class="team-member-role">${escapeHtmlText(teamRoleLabel(member.role))}</span>
+            </article>
+          `
+        }).join('')}
+      </div>
+    </div>
+  `
+}
+
 function membershipDepartmentIds(membershipId) {
   return teamMemberDepartments
     .filter((row) => Number(row.membershipId) === Number(membershipId))
@@ -7071,15 +7312,9 @@ function setAccountPanel(open) {
   if (!accountPanel || !accountBtn) return
 
   const shouldOpen = Boolean(open)
-
-  accountPanel.hidden = !shouldOpen
   accountBtn.classList.toggle('active', shouldOpen)
   accountBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false')
-  mobileAccountBtn?.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false')
-
-  if (shouldOpen && toolPanel?.classList.contains('collapsed')) {
-    togglePanel(false)
-  }
+  setProfileDrawerOpen(shouldOpen)
 }
 
 function getDepartmentById(id) {
@@ -11580,6 +11815,16 @@ function updateAuthUI() {
     mobileAccountBtn.dataset.authenticated = currentUser ? '1' : '0'
   }
 
+  if (mobileTeamBtn) {
+    mobileTeamBtn.hidden = !currentUser
+    mobileTeamBtn.disabled = isAtlasLoading || !currentUser
+    mobileTeamBtn.title = currentTeamRecord()
+      ? teamNameById(activeTeamId)
+      : 'Team'
+  }
+
+  renderTeamDrawer()
+
   if (authOtpRow) {
     authOtpRow.hidden = Boolean(currentUser)
   }
@@ -11653,14 +11898,10 @@ function updateAuthUI() {
     mobileEditorBtn.disabled = isAtlasLoading || !topbarEditorAvailable
     mobileEditorBtn.classList.toggle('active', editorMode && topbarEditorAvailable)
     mobileEditorBtn.setAttribute(
-      'aria-pressed',
-      editorMode && topbarEditorAvailable ? 'true' : 'false'
-    )
-    mobileEditorBtn.setAttribute(
       'aria-label',
-      editorMode ? 'Dezactivează Editor Mode' : 'Activează Editor Mode'
+      editorMode ? 'Deschide Editor · activ' : 'Deschide Editor'
     )
-    mobileEditorBtn.title = editorMode ? 'Editor Mode · activ' : 'Editor Mode'
+    mobileEditorBtn.title = editorMode ? 'Editor · Mode activ' : 'Editor'
   }
 
   if (editorModeState) editorModeState.textContent = editorMode ? 'On' : 'Off'
@@ -17715,11 +17956,7 @@ editorModeBtn.addEventListener('click', () => {
 
 mobileEditorBtn?.addEventListener('click', (event) => {
   event.stopPropagation()
-
-  toggleEditorModeFromShell({ openEditorNavigation: true }).catch((error) => {
-    console.error('Topbar Editor Mode toggle failed:', error)
-    alert(error.message || 'Editor Mode nu a putut fi schimbat.')
-  })
+  setEditorDrawerOpen(!isEditorDrawerOpen())
 })
 
 layoutEditModeBtn?.addEventListener(
@@ -18797,9 +19034,11 @@ document.addEventListener('click', (event) => {
   if (!(target instanceof Node)) return
   if (
     accountPanel.contains(target) ||
+    profileDrawer?.contains(target) ||
     accountBtn?.contains(target) ||
     mobileAccountBtn?.contains(target) ||
-    mobileEditorBtn?.contains(target)
+    mobileEditorBtn?.contains(target) ||
+    mobileTeamBtn?.contains(target)
   ) return
 
   setAccountPanel(false)
@@ -18868,6 +19107,7 @@ function togglePanel(force, { persist = true } = {}) {
 
   if (!collapsed) {
     mobileNavigationOpen = false
+    closeStandaloneShellDrawers()
   }
 
   toolPanel.classList.toggle('collapsed', collapsed)
@@ -18877,11 +19117,10 @@ function togglePanel(force, { persist = true } = {}) {
     collapsed ? 'Arată Quick Panel' : 'Ascunde Quick Panel'
   )
 
-  if (collapsed && accountPanel) {
+  if (collapsed && accountPanel && !isProfileDrawerOpen()) {
     accountPanel.hidden = true
     accountBtn?.classList.remove('active')
     accountBtn?.setAttribute('aria-expanded', 'false')
-    mobileAccountBtn?.setAttribute('aria-expanded', 'false')
   }
 
   if (persist) {
@@ -18902,6 +19141,67 @@ mobileNavBtn?.addEventListener('click', () => {
 mobileQuickBtn?.addEventListener('click', () => {
   const shouldOpen = toolPanel.classList.contains('collapsed')
   togglePanel(shouldOpen ? false : true, { persist: false })
+})
+
+mobileTeamBtn?.addEventListener('click', (event) => {
+  event.stopPropagation()
+  setTeamDrawerOpen(!isTeamDrawerOpen())
+})
+
+closeProfileDrawerBtn?.addEventListener('click', () => setAccountPanel(false))
+closeEditorDrawerBtn?.addEventListener('click', () => setEditorDrawerOpen(false))
+closeTeamDrawerBtn?.addEventListener('click', () => setTeamDrawerOpen(false))
+
+teamDrawerBody?.addEventListener('click', (event) => {
+  const button = event.target instanceof Element
+    ? event.target.closest('button')
+    : null
+  if (!button) return
+
+  const teamId = Number(button.dataset.teamSelect)
+  if (Number.isFinite(teamId)) {
+    selectActiveTeam(teamId)
+      .then(() => {
+        renderTeamDrawer()
+        setTeamDrawerOpen(true)
+      })
+      .catch((error) => {
+        console.error('Team switch failed:', error)
+        alert(error?.message || 'Echipa nu a putut fi schimbată.')
+      })
+    return
+  }
+
+  if (button.hasAttribute('data-team-request')) {
+    openTeamSetup({ requestMode: true }).catch((error) => {
+      console.error('Team request open failed:', error)
+    })
+    return
+  }
+
+  const action = button.dataset.teamAction
+
+  if (action === 'explore') {
+    selectPublicSection('team')
+    setTeamDrawerOpen(false)
+  } else if (action === 'roadmaps') {
+    selectPublicSection('team-roadmaps')
+    setTeamDrawerOpen(false)
+  } else if (action === 'refresh') {
+    loadTeamContext({ rerender: true })
+      .then(() => renderTeamDrawer())
+      .catch((error) => {
+        console.error('Team refresh failed:', error)
+      })
+  } else if (action === 'members') {
+    openTeamMembersManager().catch((error) => {
+      console.error('Members manager open failed:', error)
+    })
+  } else if (action === 'settings') {
+    openTeamSetup().catch((error) => {
+      console.error('Team settings open failed:', error)
+    })
+  }
 })
 
 mobileShellBackdrop?.addEventListener('click', () => {
