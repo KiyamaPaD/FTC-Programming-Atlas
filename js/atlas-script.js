@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v116 · LAZY NODE CONTENT')
+console.log('ATLAS SCRIPT LOADED v117 · SERVER SIDE QUICK FIND')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -603,6 +603,10 @@ let teamRoadmapProgressMutationKeys = new Set()
 let bookmarkRows = []
 let bookmarkKeys = new Set()
 let finderResultsCache = []
+let finderSearchTimer = null
+let finderSearchSequence = 0
+let finderLastQuery = ''
+let finderSearching = false
 let finderSelectedIndex = 0
 
 let documentationMetaTarget = null
@@ -9151,33 +9155,15 @@ function rememberRecentNode(node) {
   }
 }
 
-function documentSearchText(node) {
+function finderMetadataText(node) {
   if (!node) return ''
 
   return [
     node.title,
-    nodeContentPlainText(node),
     nodeCategoryName(node),
     nodeDifficultyName(node),
     ...nodeDepartmentNames(node),
     ...nodeTagNames(node),
-    ...(node.media || []).flatMap((media) => [
-      media.title || '',
-      media.caption || ''
-    ]),
-    ...(node.files || []).flatMap((file) => [
-      file.title || '',
-      file.description || '',
-      file.originalName || '',
-      file.relativePath || '',
-      file.mimeType || ''
-    ]),
-    ...(node.codeSnippets || []).flatMap((snippet) => [
-      snippet.title || '',
-      snippet.description || '',
-      snippet.language || '',
-      snippet.code || ''
-    ]),
     ...(node.references || []).flatMap((reference) => [
       reference.title || '',
       reference.url || '',
@@ -9194,103 +9180,230 @@ function finderCandidateNodes() {
   if (!currentUser || activeTeamId == null) return []
 
   const teamName = currentTeamRecord()?.name || 'Team Atlas'
+
   return teamNodes
-    .filter((node) => !nodeDepartmentIds(node).some((id) => privateDepartmentIds.has(Number(id))))
+    .filter(
+      (node) =>
+        !nodeDepartmentIds(node).some((id) =>
+          privateDepartmentIds.has(Number(id))
+        )
+    )
     .map((node) => ({
-    node,
-    scope: 'team',
-    teamName
+      node,
+      scope: 'team',
+      teamName
     }))
 }
 
-function finderScore(candidate, query) {
-  const node = candidate.node
-  const q = String(query || '').trim().toLowerCase()
-
-  if (!q) return 0
-
-  const terms = q.split(/\s+/).filter(Boolean)
-  const title = String(node.title || '').toLowerCase()
-  const taxonomy = [
-    nodeCategoryName(node),
-    nodeDifficultyName(node),
-    ...nodeDepartmentNames(node),
-    ...nodeTagNames(node)
-  ]
-    .join(' ')
-    .toLowerCase()
-
-  const full = documentSearchText(node).toLowerCase()
-
-  if (!terms.every((term) => full.includes(term))) {
-    return -1
-  }
-
-  let score = 0
-
-  if (title === q) score += 180
-  if (title.startsWith(q)) score += 120
-  if (title.includes(q)) score += 80
-
-  for (const term of terms) {
-    if (title.startsWith(term)) score += 35
-    else if (title.includes(term)) score += 24
-
-    if (taxonomy.includes(term)) score += 14
-    if (full.includes(term)) score += 4
-  }
-
-
-  return score
+function normalizeFinderQuery(query) {
+  return String(query || '')
+    .trim()
+    .replace(/[%_,()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .slice(0, 120)
 }
 
-function finderExcerpt(node, query) {
-  const text = documentSearchText(node)
-  if (!text) return 'Documentație fără preview text.'
-
-  const q = String(query || '').trim().toLowerCase()
-  const lower = text.toLowerCase()
-  const index = q ? lower.indexOf(q) : -1
-
-  const start = index >= 0
-    ? Math.max(0, index - 90)
-    : 0
-
-  const excerpt = text.slice(start, start + 240).trim()
-
-  return `${start > 0 ? '…' : ''}${excerpt}${
-    start + 240 < text.length ? '…' : ''
-  }`
+function finderIlikePattern(query) {
+  const normalized = normalizeFinderQuery(query)
+  return normalized ? `%${normalized}%` : ''
 }
 
-function renderDocumentationFinder() {
-  if (!isDocumentationFinderOpen()) return
-
-  const query = documentationFinderInput.value.trim()
-  const scope = 'team'
-
-  if (!query) {
-    finderResultsCache = []
-    finderSelectedIndex = 0
-    documentationFinderSummary.textContent =
-      'Scrie ceva pentru a căuta în titluri, taxonomy, surse și documentația deja încărcată.'
-
-    documentationFinderResults.innerHTML = `
-      <div class="documentation-finder-empty">
-        Quick Find caută în metadata Atlas și în documentația deja încărcată.
-        Căutarea server-side în tot conținutul va rămâne separată de bootstrap-ul hărții.
-      </div>
-    `
-    return
+function finderSourcePriority(source) {
+  const weights = {
+    title: 120,
+    metadata: 72,
+    documentation: 58,
+    code: 50,
+    media: 34,
+    file: 34
   }
 
-  finderResultsCache = finderCandidateNodes()
-    .filter((candidate) => scope === 'all' || candidate.scope === scope)
-    .map((candidate) => ({
+  return weights[source] || 20
+}
+
+function finderResultPreview(source, row = null) {
+  if (source === 'documentation') {
+    return 'Match găsit în documentația completă a nodului.'
+  }
+
+  if (source === 'code') {
+    const title = row?.title || row?.language || 'snippet'
+    return `Code snippet · ${title}`
+  }
+
+  if (source === 'media') {
+    const title = row?.title || row?.caption || 'media'
+    return `Media · ${title}`
+  }
+
+  if (source === 'file') {
+    const title =
+      row?.title ||
+      row?.original_name ||
+      row?.relative_path ||
+      'fișier'
+    return `Fișier · ${title}`
+  }
+
+  return ''
+}
+
+async function searchTeamDocumentationServer(query) {
+  if (!currentUser || activeTeamId == null) return []
+
+  const normalized = normalizeFinderQuery(query)
+  const pattern = finderIlikePattern(normalized)
+
+  if (!pattern) return []
+
+  const teamId = Number(activeTeamId)
+  const localById = new Map(
+    finderCandidateNodes().map((candidate) => [
+      Number(candidate.node.id),
+      candidate
+    ])
+  )
+
+  const hitMap = new Map()
+
+  function addHit(nodeId, source, row = null) {
+    const numericNodeId = Number(nodeId)
+    const candidate = localById.get(numericNodeId)
+    if (!candidate) return
+
+    const existing = hitMap.get(numericNodeId) || {
       ...candidate,
-      score: finderScore(candidate, query)
-    }))
-    .filter((candidate) => candidate.score >= 0)
+      score: 0,
+      sources: new Set(),
+      preview: ''
+    }
+
+    existing.sources.add(source)
+    existing.score += finderSourcePriority(source)
+
+    const preview = finderResultPreview(source, row)
+    if (preview && !existing.preview) {
+      existing.preview = preview
+    }
+
+    hitMap.set(numericNodeId, existing)
+  }
+
+  // Local metadata is instant and costs no network request.
+  const lower = normalized.toLowerCase()
+
+  for (const candidate of localById.values()) {
+    const metadata = finderMetadataText(candidate.node).toLowerCase()
+
+    if (metadata.includes(lower)) {
+      const title = String(candidate.node.title || '').toLowerCase()
+      addHit(
+        candidate.node.id,
+        title.includes(lower) ? 'title' : 'metadata'
+      )
+    }
+  }
+
+  const requests = [
+    supabase
+      .from('atlas_team_nodes')
+      .select('id, title')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', teamId)
+      .or(`title.ilike.${pattern},content.ilike.${pattern}`)
+      .limit(80),
+
+    supabase
+      .from('atlas_team_node_code_snippets')
+      .select('node_id, title, description, language')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', teamId)
+      .or(
+        `title.ilike.${pattern},description.ilike.${pattern},code.ilike.${pattern}`
+      )
+      .limit(80),
+
+    supabase
+      .from('atlas_team_node_media')
+      .select('node_id, title, caption, media_type')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', teamId)
+      .or(`title.ilike.${pattern},caption.ilike.${pattern}`)
+      .limit(80),
+
+    supabase
+      .from('atlas_team_node_files')
+      .select('node_id, title, description, original_name, relative_path, mime_type')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', teamId)
+      .or(
+        `title.ilike.${pattern},description.ilike.${pattern},original_name.ilike.${pattern},relative_path.ilike.${pattern},mime_type.ilike.${pattern}`
+      )
+      .limit(80)
+  ]
+
+  const [nodesResult, codeResult, mediaResult, filesResult] =
+    await Promise.all(requests)
+
+  const optionalResults = [
+    ['nodes', nodesResult],
+    ['code', codeResult],
+    ['media', mediaResult],
+    ['files', filesResult]
+  ]
+
+  optionalResults.forEach(([label, result]) => {
+    if (!result?.error) return
+    console.warn(`Quick Find ${label} search unavailable:`, result.error)
+    result.data = []
+  })
+
+  for (const row of nodesResult.data || []) {
+    const node = localById.get(Number(row.id))?.node
+    const titleMatches = String(row.title || '')
+      .toLowerCase()
+      .includes(lower)
+
+    addHit(row.id, titleMatches ? 'title' : 'documentation', row)
+
+    if (node?.contentLoaded) {
+      const loadedText = nodeContentPlainText(node).toLowerCase()
+      if (loadedText.includes(lower)) {
+        const hit = hitMap.get(Number(row.id))
+        if (hit && !hit.preview) {
+          hit.preview = 'Match în documentația încărcată.'
+        }
+      }
+    }
+  }
+
+  for (const row of codeResult.data || []) {
+    addHit(row.node_id, 'code', row)
+  }
+
+  for (const row of mediaResult.data || []) {
+    addHit(row.node_id, 'media', row)
+  }
+
+  for (const row of filesResult.data || []) {
+    addHit(row.node_id, 'file', row)
+  }
+
+  return [...hitMap.values()]
+    .map((candidate) => {
+      const title = String(candidate.node.title || '').toLowerCase()
+
+      if (title === lower) candidate.score += 220
+      else if (title.startsWith(lower)) candidate.score += 140
+      else if (title.includes(lower)) candidate.score += 90
+
+      candidate.preview =
+        candidate.preview ||
+        finderMetadataText(candidate.node).slice(0, 240) ||
+        'Document FTC Atlas.'
+
+      return candidate
+    })
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score
 
@@ -9301,9 +9414,110 @@ function renderDocumentationFinder() {
       )
     })
     .slice(0, 40)
+}
+
+function scheduleDocumentationFinderSearch(query) {
+  if (finderSearchTimer != null) {
+    clearTimeout(finderSearchTimer)
+  }
+
+  const normalized = normalizeFinderQuery(query)
+  const sequence = ++finderSearchSequence
+
+  finderSearching = true
+  documentationFinderSummary.textContent = 'Caut în Team Atlas...'
+  documentationFinderResults.innerHTML = `
+    <div class="documentation-finder-empty">
+      Search server-side în documentație, cod, media și fișiere...
+    </div>
+  `
+
+  finderSearchTimer = window.setTimeout(async () => {
+    finderSearchTimer = null
+
+    try {
+      const results = await searchTeamDocumentationServer(normalized)
+
+      if (
+        sequence !== finderSearchSequence ||
+        normalized !== finderLastQuery
+      ) {
+        return
+      }
+
+      finderResultsCache = results
+      finderSelectedIndex = 0
+      finderSearching = false
+      renderDocumentationFinder()
+    } catch (error) {
+      if (sequence !== finderSearchSequence) return
+
+      finderResultsCache = []
+      finderSearching = false
+      console.error('Quick Find server search failed:', error)
+      documentationFinderSummary.textContent = 'Search indisponibil temporar.'
+      documentationFinderResults.innerHTML = `
+        <div class="documentation-finder-empty">
+          Quick Find nu a putut interoga Supabase. Încearcă din nou.
+        </div>
+      `
+    }
+  }, 220)
+}
+
+function finderExcerpt(candidate) {
+  const preview = String(candidate?.preview || '').trim()
+  if (preview) return preview
+
+  const metadata = finderMetadataText(candidate?.node)
+  return metadata || 'Document FTC Atlas.'
+}
+
+function renderDocumentationFinder() {
+  if (!isDocumentationFinderOpen()) return
+
+  const query = documentationFinderInput.value.trim()
+  const normalized = normalizeFinderQuery(query)
+
+  if (!normalized) {
+    if (finderSearchTimer != null) {
+      clearTimeout(finderSearchTimer)
+      finderSearchTimer = null
+    }
+
+    finderSearchSequence += 1
+    finderLastQuery = ''
+    finderSearching = false
+    finderResultsCache = []
+    finderSelectedIndex = 0
+
+    documentationFinderSummary.textContent =
+      'Scrie ceva pentru a căuta server-side în Team Atlas.'
+
+    documentationFinderResults.innerHTML = `
+      <div class="documentation-finder-empty">
+        Quick Find caută fără să descarce toate documentele pe device:
+        titluri, documentație, code snippets, media și fișiere.
+      </div>
+    `
+    return
+  }
+
+  if (normalized !== finderLastQuery) {
+    finderLastQuery = normalized
+    finderResultsCache = []
+    finderSelectedIndex = 0
+    scheduleDocumentationFinderSearch(normalized)
+    return
+  }
+
+  if (finderSearching) return
 
   if (finderSelectedIndex >= finderResultsCache.length) {
-    finderSelectedIndex = Math.max(0, finderResultsCache.length - 1)
+    finderSelectedIndex = Math.max(
+      0,
+      finderResultsCache.length - 1
+    )
   }
 
   documentationFinderSummary.textContent =
@@ -9324,6 +9538,14 @@ function renderDocumentationFinder() {
     .map((candidate, index) => {
       const node = candidate.node
       const scopeLabel = candidate.teamName || 'Team Atlas'
+      const sourceLabel = [...candidate.sources]
+        .map((source) => {
+          if (source === 'documentation') return 'doc'
+          if (source === 'metadata') return 'metadata'
+          if (source === 'title') return 'title'
+          return source
+        })
+        .join(' · ')
 
       return `
         <button
@@ -9354,10 +9576,15 @@ function renderDocumentationFinder() {
                   )}</span>`
                 : ''
             }
+            ${
+              sourceLabel
+                ? `<span>·</span><span>${escapeHtmlText(sourceLabel)}</span>`
+                : ''
+            }
           </div>
 
           <div class="documentation-finder-result-excerpt">
-            ${escapeHtmlText(finderExcerpt(node, query))}
+            ${escapeHtmlText(finderExcerpt(candidate))}
           </div>
         </button>
       `
@@ -9365,7 +9592,9 @@ function renderDocumentationFinder() {
     .join('')
 
   documentationFinderResults
-    .querySelector(`[data-finder-result="${finderSelectedIndex}"]`)
+    .querySelector(
+      `[data-finder-result="${finderSelectedIndex}"]`
+    )
     ?.scrollIntoView({ block: 'nearest' })
 }
 
@@ -9391,6 +9620,15 @@ function openDocumentationFinder() {
 
 function closeDocumentationFinder() {
   documentationFinderBackdrop?.classList.remove('open')
+
+  if (finderSearchTimer != null) {
+    clearTimeout(finderSearchTimer)
+    finderSearchTimer = null
+  }
+
+  finderSearchSequence += 1
+  finderSearching = false
+  finderLastQuery = ''
   finderResultsCache = []
   finderSelectedIndex = 0
 }
