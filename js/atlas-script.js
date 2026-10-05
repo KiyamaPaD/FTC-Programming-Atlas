@@ -427,6 +427,7 @@ const atlasNavigation = document.getElementById('atlasNavigation')
 const navigationRailCollapseBtn = document.getElementById('navigationRailCollapseBtn')
 const mobileNavBtn = document.getElementById('mobileNavBtn')
 const mobileQuickBtn = document.getElementById('mobileQuickBtn')
+const mobileAccountBtn = document.getElementById('mobileAccountBtn')
 const mobileShellBackdrop = document.getElementById('mobileShellBackdrop')
 const publicSectionTabs = document.getElementById('publicSectionTabs')
 const teamAtlasPrimary = document.getElementById('teamAtlasPrimary')
@@ -7073,6 +7074,7 @@ function setAccountPanel(open) {
   accountPanel.hidden = !shouldOpen
   accountBtn.classList.toggle('active', shouldOpen)
   accountBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false')
+  mobileAccountBtn?.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false')
 
   if (shouldOpen && toolPanel?.classList.contains('collapsed')) {
     togglePanel(false)
@@ -11566,6 +11568,15 @@ function updateAuthUI() {
   if (accountBtn) {
     accountBtn.textContent = currentUser ? 'Profil' : 'Cont'
     accountBtn.title = currentUser?.email || 'Login'
+  }
+
+  if (mobileAccountBtn) {
+    mobileAccountBtn.title = currentUser?.email || 'Login'
+    mobileAccountBtn.setAttribute(
+      'aria-label',
+      currentUser ? 'Deschide profilul' : 'Deschide autentificarea'
+    )
+    mobileAccountBtn.dataset.authenticated = currentUser ? '1' : '0'
   }
 
   if (authOtpRow) {
@@ -18719,12 +18730,31 @@ accountBtn?.addEventListener('click', (event) => {
   setAccountPanel(accountPanel?.hidden !== false)
 })
 
+mobileAccountBtn?.addEventListener('click', (event) => {
+  event.stopPropagation()
+
+  const shouldOpen = accountPanel?.hidden !== false
+  setAccountPanel(shouldOpen)
+
+  if (shouldOpen) {
+    requestAnimationFrame(() => {
+      if (!currentUser) {
+        authEmailInput?.focus()
+      }
+    })
+  }
+})
+
 document.addEventListener('click', (event) => {
   if (!accountPanel || accountPanel.hidden) return
 
   const target = event.target
   if (!(target instanceof Node)) return
-  if (accountPanel.contains(target) || accountBtn?.contains(target)) return
+  if (
+    accountPanel.contains(target) ||
+    accountBtn?.contains(target) ||
+    mobileAccountBtn?.contains(target)
+  ) return
 
   setAccountPanel(false)
 })
@@ -18805,6 +18835,7 @@ function togglePanel(force, { persist = true } = {}) {
     accountPanel.hidden = true
     accountBtn?.classList.remove('active')
     accountBtn?.setAttribute('aria-expanded', 'false')
+    mobileAccountBtn?.setAttribute('aria-expanded', 'false')
   }
 
   if (persist) {
