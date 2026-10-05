@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v113 · LEAN TEAM QUERIES')
+console.log('ATLAS SCRIPT LOADED v114 · SHELL STATE CLEANUP')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -952,9 +952,20 @@ function isTeamDrawerOpen() {
 }
 
 function closeStandaloneShellDrawers({ except = null } = {}) {
-  if (except !== 'profile') profileDrawer?.classList.remove('open')
-  if (except !== 'editor') editorDrawer?.classList.remove('open')
-  if (except !== 'team') teamDrawer?.classList.remove('open')
+  if (except !== 'profile') {
+    profileDrawer?.classList.remove('open')
+    mobileAccountBtn?.classList.remove('shell-open')
+  }
+
+  if (except !== 'editor') {
+    editorDrawer?.classList.remove('open')
+    mobileEditorBtn?.classList.remove('shell-open')
+  }
+
+  if (except !== 'team') {
+    teamDrawer?.classList.remove('open')
+    mobileTeamBtn?.classList.remove('shell-open')
+  }
 
   if (except !== 'profile' && accountPanel) {
     accountPanel.hidden = true
@@ -979,11 +990,28 @@ function syncMobileChrome() {
   mobileAccountBtn?.setAttribute('aria-expanded', profileOpen ? 'true' : 'false')
   mobileEditorBtn?.setAttribute('aria-expanded', editorOpen ? 'true' : 'false')
   mobileTeamBtn?.setAttribute('aria-expanded', teamOpen ? 'true' : 'false')
+
+  // A launcher looks selected only when its own drawer is actually open.
+  mobileAccountBtn?.classList.toggle('shell-open', profileOpen)
+  mobileEditorBtn?.classList.remove('active')
+  mobileEditorBtn?.classList.toggle('shell-open', editorOpen)
+  mobileTeamBtn?.classList.toggle('shell-open', teamOpen)
+
   appRoot?.classList.toggle('shell-panel-open', anyOpen)
 
   if (mobileShellBackdrop) {
     mobileShellBackdrop.hidden = !anyOpen
   }
+}
+
+function hasOpenShellPanel() {
+  return Boolean(
+    mobileNavigationOpen ||
+    (toolPanel && !toolPanel.classList.contains('collapsed')) ||
+    isProfileDrawerOpen() ||
+    isEditorDrawerOpen() ||
+    isTeamDrawerOpen()
+  )
 }
 
 function setMobileNavigationOpen(open) {
@@ -12085,6 +12113,10 @@ function updateAuthUI() {
   if (mobileTeamBtn) {
     mobileTeamBtn.hidden = !currentUser
     mobileTeamBtn.disabled = isAtlasLoading || !currentUser
+
+    if (!currentUser && isTeamDrawerOpen()) {
+      setTeamDrawerOpen(false)
+    }
     mobileTeamBtn.title = currentTeamRecord()
       ? teamNameById(activeTeamId)
       : 'Team'
@@ -12163,10 +12195,16 @@ function updateAuthUI() {
     const topbarEditorAvailable = editorAvailable && previewCanEdit
     mobileEditorBtn.hidden = !topbarEditorAvailable
     mobileEditorBtn.disabled = isAtlasLoading || !topbarEditorAvailable
-    mobileEditorBtn.classList.toggle('active', editorMode && topbarEditorAvailable)
+
+    if (!topbarEditorAvailable && isEditorDrawerOpen()) {
+      setEditorDrawerOpen(false)
+    }
+    mobileEditorBtn.classList.remove('active')
+    mobileEditorBtn.dataset.modeActive =
+      editorMode && topbarEditorAvailable ? '1' : '0'
     mobileEditorBtn.setAttribute(
       'aria-label',
-      editorMode ? 'Deschide Editor · activ' : 'Deschide Editor'
+      editorMode ? 'Deschide Editor · Editor Mode activ' : 'Deschide Editor'
     )
     mobileEditorBtn.title = editorMode ? 'Editor · Mode activ' : 'Editor'
   }
@@ -19313,7 +19351,7 @@ accountBtn?.addEventListener('click', (event) => {
 mobileAccountBtn?.addEventListener('click', (event) => {
   event.stopPropagation()
 
-  const shouldOpen = accountPanel?.hidden !== false
+  const shouldOpen = !isProfileDrawerOpen()
   setAccountPanel(shouldOpen)
 
   if (shouldOpen) {
@@ -19594,6 +19632,12 @@ async function refreshHistoryButtons() {
 
 
 window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !isAnyModalOpen() && hasOpenShellPanel()) {
+    event.preventDefault()
+    closeMobileChrome()
+    return
+  }
+
   const tag = document.activeElement?.tagName
   const isTyping =
     tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable
