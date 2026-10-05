@@ -8588,6 +8588,11 @@
     background: rgba(177, 76, 255, 0.12);
   }
 
+  .mobile-account-btn[data-authenticated="1"] {
+    border-color: rgba(205, 112, 255, 0.48);
+    background: rgba(177, 76, 255, 0.14);
+  }
+
   .mobile-shell-backdrop {
     position: fixed;
     inset: 0;
@@ -8811,6 +8816,15 @@
           aria-expanded="false"
           aria-controls="toolPanel"
         >⚡</button>
+        <button
+          class="mobile-shell-btn mobile-account-btn"
+          id="mobileAccountBtn"
+          type="button"
+          aria-label="Deschide profilul sau autentificarea"
+          aria-expanded="false"
+          aria-controls="accountPanel"
+          title="Profil / Login"
+        >👤</button>
       </div>
     </div>
 
