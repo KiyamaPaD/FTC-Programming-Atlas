@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v114 · SHELL STATE CLEANUP')
+console.log('ATLAS SCRIPT LOADED v115 · SHELL STATE + TOUCH HOVER FIX')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
