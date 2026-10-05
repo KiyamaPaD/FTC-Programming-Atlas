@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v106 · AUTH OTP WEB FIX')
+console.log('ATLAS SCRIPT LOADED v107 · OPEN WORKSPACE + LAZY NODE ASSETS')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -68,8 +68,11 @@ if (INITIAL_TEAM_ROUTE_MATCH) {
 
 const DEFAULT_VIEW = { x: -120, y: -80, scale: 1 }
 
-const WORLD_WIDTH = 2600
-const WORLD_HEIGHT = 1800
+let WORLD_WIDTH = 12000
+let WORLD_HEIGHT = 8000
+const WORLD_GROWTH_WIDTH = 6000
+const WORLD_GROWTH_HEIGHT = 4000
+const WORLD_EDGE_BUFFER = 1400
 const NODE_WIDTH = 230
 const NODE_HEIGHT = 118
 const NODE_GAP = 28
@@ -412,6 +415,7 @@ let fileMutationBusy = false
 let codeManagerNodeId = null
 let codeMutationBusy = false
 let codeDraftSaveTimer = null
+const teamNodeAttachmentLoads = new Map()
 
 let edgeClickState = { key: null, time: 0 }
 let editorNodeClickState = { nodeId: null, time: 0 }
@@ -423,6 +427,7 @@ const atlasNavigation = document.getElementById('atlasNavigation')
 const navigationRailCollapseBtn = document.getElementById('navigationRailCollapseBtn')
 const mobileNavBtn = document.getElementById('mobileNavBtn')
 const mobileQuickBtn = document.getElementById('mobileQuickBtn')
+const mobileAccountBtn = document.getElementById('mobileAccountBtn')
 const mobileShellBackdrop = document.getElementById('mobileShellBackdrop')
 const publicSectionTabs = document.getElementById('publicSectionTabs')
 const teamAtlasPrimary = document.getElementById('teamAtlasPrimary')
@@ -746,26 +751,17 @@ function initializeUICollapsibles() {
   })
 }
 
-function setNavigationRailCollapsed(collapsed, { persist = true } = {}) {
+function setNavigationRailCollapsed() {
   if (!atlasNavigation || !navigationRailCollapseBtn) return
 
-  const next = Boolean(collapsed)
-  atlasNavigation.classList.toggle('rail-collapsed', next)
-  navigationRailCollapseBtn.textContent = next ? '+' : '–'
-  navigationRailCollapseBtn.setAttribute('aria-expanded', next ? 'false' : 'true')
-  navigationRailCollapseBtn.setAttribute(
-    'aria-label',
-    next ? 'Arată navigarea' : 'Ascunde navigarea'
-  )
-
-  if (persist) {
-    localStorage.setItem(CACHE_KEYS.navigationRail, next ? '1' : '0')
-  }
+  atlasNavigation.classList.remove('rail-collapsed')
+  navigationRailCollapseBtn.textContent = '✕'
+  navigationRailCollapseBtn.setAttribute('aria-expanded', 'true')
+  navigationRailCollapseBtn.setAttribute('aria-label', 'Închide navigarea')
 }
 
 function initializeNavigationRailCollapse() {
-  const collapsed = localStorage.getItem(CACHE_KEYS.navigationRail) === '1'
-  setNavigationRailCollapsed(collapsed, { persist: false })
+  setNavigationRailCollapsed(false, { persist: false })
 }
 
 function openUICollapseSection(key) {
@@ -781,16 +777,13 @@ function openUICollapseSection(key) {
 function syncMobileChrome() {
   if (!atlasNavigation || !toolPanel) return
 
-  const mobile = isTouchLayout()
-  const navigationOpen = mobile && mobileNavigationOpen
-  const quickPanelOpen =
-    mobile &&
-    !toolPanel.classList.contains('collapsed') &&
-    !appRoot?.classList.contains('public-section-open')
+  const navigationOpen = Boolean(mobileNavigationOpen)
+  const quickPanelOpen = !toolPanel.classList.contains('collapsed')
 
   atlasNavigation.classList.toggle('mobile-open', navigationOpen)
   mobileNavBtn?.setAttribute('aria-expanded', navigationOpen ? 'true' : 'false')
   mobileQuickBtn?.setAttribute('aria-expanded', quickPanelOpen ? 'true' : 'false')
+  appRoot?.classList.toggle('shell-panel-open', navigationOpen || quickPanelOpen)
 
   if (mobileShellBackdrop) {
     mobileShellBackdrop.hidden = !(navigationOpen || quickPanelOpen)
@@ -798,12 +791,6 @@ function syncMobileChrome() {
 }
 
 function setMobileNavigationOpen(open) {
-  if (!isTouchLayout()) {
-    mobileNavigationOpen = false
-    syncMobileChrome()
-    return
-  }
-
   mobileNavigationOpen = Boolean(open)
 
   if (mobileNavigationOpen && !toolPanel.classList.contains('collapsed')) {
@@ -818,7 +805,6 @@ function closeMobileChrome({ collapsePanel = true } = {}) {
 
   if (
     collapsePanel &&
-    isTouchLayout() &&
     toolPanel &&
     !toolPanel.classList.contains('collapsed')
   ) {
@@ -1429,6 +1415,22 @@ function openNodeDetail(nodeId, { pushHistory = true } = {}) {
   detailOpen = true
   setNodeRoute(node, { push: pushHistory })
   renderAll()
+
+  if (node.isTeamNode && !node.attachmentsLoaded) {
+    loadTeamNodeAttachments(node)
+      .then((loadedNode) => {
+        if (
+          detailOpen &&
+          Number(selectedId) === Number(loadedNode.id)
+        ) {
+          renderDetailPanel()
+        }
+      })
+      .catch((error) => {
+        console.warn('Node attachments could not be loaded:', error)
+      })
+  }
+
   return true
 }
 
@@ -3744,6 +3746,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   teamTaxonomyTags = []
   teamRoadmaps = []
   teamRoadmapProgress = new Set()
+  teamNodeAttachmentLoads.clear()
 
   if (!currentUser || activeTeamId == null) {
     syncActiveNodeCollection({ forceReset })
@@ -3753,9 +3756,6 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   const [
     nodesResult,
     edgesResult,
-    codeResult,
-    mediaResult,
-    filesResult,
     teamCategoriesResult,
     teamDifficultiesResult,
     teamTagsResult,
@@ -3779,30 +3779,6 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
       .eq('team_id', Number(activeTeamId))
       .order('source_id', { ascending: true })
       .order('target_id', { ascending: true }),
-
-    supabase
-      .from('atlas_team_node_code_snippets')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .eq('team_id', Number(activeTeamId))
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true }),
-
-    supabase
-      .from('atlas_team_node_media')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .eq('team_id', Number(activeTeamId))
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true }),
-
-    supabase
-      .from('atlas_team_node_files')
-      .select('*')
-      .eq('project_id', PROJECT_ID)
-      .eq('team_id', Number(activeTeamId))
-      .order('sort_order', { ascending: true })
-      .order('id', { ascending: true }),
 
     supabase
       .from('atlas_team_categories')
@@ -3874,9 +3850,6 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
 
   const optionalTeamResults = [
     ['edges', edgesResult],
-    ['code', codeResult],
-    ['media', mediaResult],
-    ['files', filesResult],
     ['categories', teamCategoriesResult],
     ['difficulties', teamDifficultiesResult],
     ['tags', teamTagsResult],
@@ -3918,17 +3891,16 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   teamRoadmaps = (teamRoadmapsResult.data || [])
     .filter((row) => !privateDepartmentIds.has(Number(row.department_id)))
     .map((row) => ({
-    id: Number(row.id),
-    teamId: Number(row.team_id),
-    title: row.title || '',
-    description: row.description || '',
-    departmentId: Number(row.department_id),
-    isActive: row.is_active !== false,
-    sortOrder: Number(row.sort_order || 0),
-    createdAt: row.created_at || null,
-    updatedAt: row.updated_at || null,
-    steps:
-      teamRoadmapStepsByRoadmap.get(Number(row.id)) || []
+      id: Number(row.id),
+      teamId: Number(row.team_id),
+      title: row.title || '',
+      description: row.description || '',
+      departmentId: Number(row.department_id),
+      isActive: row.is_active !== false,
+      sortOrder: Number(row.sort_order || 0),
+      createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null,
+      steps: teamRoadmapStepsByRoadmap.get(Number(row.id)) || []
     }))
 
   teamRoadmapProgress = new Set(
@@ -3954,114 +3926,6 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
         edge.control_x,
         edge.control_y
       )
-    })
-  }
-
-  const mediaByNode = new Map()
-
-  for (const row of mediaResult.data || []) {
-    const nodeId = Number(row.node_id)
-
-    if (!mediaByNode.has(nodeId)) {
-      mediaByNode.set(nodeId, [])
-    }
-
-    mediaByNode.get(nodeId).push({
-      id: Number(row.id),
-      nodeId,
-      teamId: Number(row.team_id),
-      isTeamMedia: true,
-      mediaType: row.media_type || 'image',
-      storagePath: row.storage_path || null,
-      externalUrl: row.external_url || null,
-      mimeType: row.mime_type || '',
-      fileSize: Number(row.file_size || 0),
-      title: row.title || '',
-      caption: row.caption || '',
-      sortOrder: Number(row.sort_order || 0),
-      signedUrl: null,
-      createdAt: row.created_at || null,
-      updatedAt: row.updated_at || null
-    })
-  }
-
-  const filesByNode = new Map()
-
-  for (const row of filesResult.data || []) {
-    const nodeId = Number(row.node_id)
-
-    if (!filesByNode.has(nodeId)) {
-      filesByNode.set(nodeId, [])
-    }
-
-    filesByNode.get(nodeId).push({
-      id: Number(row.id),
-      nodeId,
-      teamId: Number(row.team_id),
-      isTeamFile: true,
-      storagePath: row.storage_path || '',
-      originalName: row.original_name || 'fișier',
-      relativePath: row.relative_path || '',
-      mimeType: row.mime_type || '',
-      fileSize: Number(row.file_size || 0),
-      title: row.title || '',
-      description: row.description || '',
-      sortOrder: Number(row.sort_order || 0),
-      signedUrl: null,
-      createdAt: row.created_at || null,
-      updatedAt: row.updated_at || null
-    })
-  }
-
-  const signTasks = []
-
-  for (const items of mediaByNode.values()) {
-    for (const item of items) {
-      if (!item.storagePath) continue
-
-      signTasks.push(
-        createTeamSignedUrl(TEAM_MEDIA_BUCKET, item.storagePath).then((url) => {
-          item.signedUrl = url
-        })
-      )
-    }
-  }
-
-  for (const items of filesByNode.values()) {
-    for (const item of items) {
-      if (!item.storagePath) continue
-
-      signTasks.push(
-        createTeamSignedUrl(TEAM_FILE_BUCKET, item.storagePath).then((url) => {
-          item.signedUrl = url
-        })
-      )
-    }
-  }
-
-  await Promise.all(signTasks)
-
-  const codeByNode = new Map()
-
-  for (const row of codeResult.data || []) {
-    const nodeId = Number(row.node_id)
-
-    if (!codeByNode.has(nodeId)) {
-      codeByNode.set(nodeId, [])
-    }
-
-    codeByNode.get(nodeId).push({
-      id: Number(row.id),
-      nodeId,
-      teamId: Number(row.team_id),
-      isTeamCode: true,
-      language: row.language || 'text',
-      title: row.title || '',
-      description: row.description || '',
-      code: row.code || '',
-      sortOrder: Number(row.sort_order || 0),
-      createdAt: row.created_at || null,
-      updatedAt: row.updated_at || null
     })
   }
 
@@ -4107,49 +3971,52 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   teamNodes = (nodesResult.data || [])
     .filter((row) => !privateDepartmentIds.has(Number(row.department_id)))
     .map((row) => ({
-    id: Number(row.id),
-    teamId: Number(row.team_id),
-    isTeamNode: true,
-    title: row.title || '',
-    legacyTag: row.tag || '',
-    categoryId:
-      row.team_category_id == null ? null : Number(row.team_category_id),
-    difficultyId:
-      row.team_difficulty_id == null
-        ? null
-        : Number(row.team_difficulty_id),
-    departmentId:
-      row.department_id == null ? null : Number(row.department_id),
-    departmentIds:
-      row.department_id == null ? [] : [Number(row.department_id)],
-    tagIds: Array.isArray(row.team_tag_ids)
-      ? row.team_tag_ids.map(Number)
-      : [],
-    x: Number(row.x),
-    y: Number(row.y),
-    width: row.width == null ? null : Number(row.width),
-    height: row.height == null ? null : Number(row.height),
-    content: row.content || '',
-    contentFormat: row.content_format || 'html',
-    links: edgesBySource.get(Number(row.id)) || [],
-    media: mediaByNode.get(Number(row.id)) || [],
-    files: filesByNode.get(Number(row.id)) || [],
-    codeSnippets: codeByNode.get(Number(row.id)) || [],
-    references: referencesByTeamNode.get(Number(row.id)) || [],
-    reviewState: reviewByTeamNode.get(Number(row.id)) || null,
-    createdAt: row.created_at || null,
-    updatedAt: row.updated_at || null,
-    sourcePublicNodeId:
-      row.source_public_node_id == null
-        ? null
-        : Number(row.source_public_node_id),
-    sourceImportedAt: row.source_imported_at || null,
-    sourceSnapshot:
-      row.source_snapshot && typeof row.source_snapshot === 'object'
-        ? row.source_snapshot
-        : null,
-    sourceSyncedAt: row.source_synced_at || null
+      id: Number(row.id),
+      teamId: Number(row.team_id),
+      isTeamNode: true,
+      title: row.title || '',
+      legacyTag: row.tag || '',
+      categoryId:
+        row.team_category_id == null ? null : Number(row.team_category_id),
+      difficultyId:
+        row.team_difficulty_id == null
+          ? null
+          : Number(row.team_difficulty_id),
+      departmentId:
+        row.department_id == null ? null : Number(row.department_id),
+      departmentIds:
+        row.department_id == null ? [] : [Number(row.department_id)],
+      tagIds: Array.isArray(row.team_tag_ids)
+        ? row.team_tag_ids.map(Number)
+        : [],
+      x: Number(row.x),
+      y: Number(row.y),
+      width: row.width == null ? null : Number(row.width),
+      height: row.height == null ? null : Number(row.height),
+      content: row.content || '',
+      contentFormat: row.content_format || 'html',
+      links: edgesBySource.get(Number(row.id)) || [],
+      media: [],
+      files: [],
+      codeSnippets: [],
+      attachmentsLoaded: false,
+      references: referencesByTeamNode.get(Number(row.id)) || [],
+      reviewState: reviewByTeamNode.get(Number(row.id)) || null,
+      createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null,
+      sourcePublicNodeId:
+        row.source_public_node_id == null
+          ? null
+          : Number(row.source_public_node_id),
+      sourceImportedAt: row.source_imported_at || null,
+      sourceSnapshot:
+        row.source_snapshot && typeof row.source_snapshot === 'object'
+          ? row.source_snapshot
+          : null,
+      sourceSyncedAt: row.source_synced_at || null
     }))
+
+  ensureWorldCapacityForNodes(teamNodes)
 
   const team = currentTeamRecord()
   if (team && /infotronx/i.test(String(team.name || ''))) {
@@ -4168,6 +4035,152 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   }
 
   syncActiveNodeCollection({ forceReset })
+}
+
+async function loadTeamNodeAttachments(node, { force = false } = {}) {
+  if (!node?.isTeamNode) return node
+
+  const teamId = Number(node.teamId || activeTeamId)
+  const nodeId = Number(node.id)
+
+  if (!Number.isFinite(teamId) || !Number.isFinite(nodeId)) return node
+  if (node.attachmentsLoaded && !force) return node
+
+  const cacheKey = `${teamId}:${nodeId}`
+
+  if (!force && teamNodeAttachmentLoads.has(cacheKey)) {
+    return teamNodeAttachmentLoads.get(cacheKey)
+  }
+
+  const task = (async () => {
+    const [codeResult, mediaResult, filesResult] = await Promise.all([
+      supabase
+        .from('atlas_team_node_code_snippets')
+        .select('*')
+        .eq('project_id', PROJECT_ID)
+        .eq('team_id', teamId)
+        .eq('node_id', nodeId)
+        .order('sort_order', { ascending: true })
+        .order('id', { ascending: true }),
+
+      supabase
+        .from('atlas_team_node_media')
+        .select('*')
+        .eq('project_id', PROJECT_ID)
+        .eq('team_id', teamId)
+        .eq('node_id', nodeId)
+        .order('sort_order', { ascending: true })
+        .order('id', { ascending: true }),
+
+      supabase
+        .from('atlas_team_node_files')
+        .select('*')
+        .eq('project_id', PROJECT_ID)
+        .eq('team_id', teamId)
+        .eq('node_id', nodeId)
+        .order('sort_order', { ascending: true })
+        .order('id', { ascending: true })
+    ])
+
+    const resultEntries = [
+      ['code', codeResult],
+      ['media', mediaResult],
+      ['files', filesResult]
+    ]
+
+    resultEntries.forEach(([label, result]) => {
+      if (!result?.error) return
+      console.warn(`Node ${nodeId} ${label} unavailable:`, result.error)
+      result.data = []
+    })
+
+    const codeSnippets = (codeResult.data || []).map((row) => ({
+      id: Number(row.id),
+      nodeId,
+      teamId,
+      isTeamCode: true,
+      language: row.language || 'text',
+      title: row.title || '',
+      description: row.description || '',
+      code: row.code || '',
+      sortOrder: Number(row.sort_order || 0),
+      createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null
+    }))
+
+    const media = (mediaResult.data || []).map((row) => ({
+      id: Number(row.id),
+      nodeId,
+      teamId,
+      isTeamMedia: true,
+      mediaType: row.media_type || 'image',
+      storagePath: row.storage_path || null,
+      externalUrl: row.external_url || null,
+      mimeType: row.mime_type || '',
+      fileSize: Number(row.file_size || 0),
+      title: row.title || '',
+      caption: row.caption || '',
+      sortOrder: Number(row.sort_order || 0),
+      signedUrl: null,
+      createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null
+    }))
+
+    const files = (filesResult.data || []).map((row) => ({
+      id: Number(row.id),
+      nodeId,
+      teamId,
+      isTeamFile: true,
+      storagePath: row.storage_path || '',
+      originalName: row.original_name || 'fișier',
+      relativePath: row.relative_path || '',
+      mimeType: row.mime_type || '',
+      fileSize: Number(row.file_size || 0),
+      title: row.title || '',
+      description: row.description || '',
+      sortOrder: Number(row.sort_order || 0),
+      signedUrl: null,
+      createdAt: row.created_at || null,
+      updatedAt: row.updated_at || null
+    }))
+
+    const signTasks = []
+
+    for (const item of media) {
+      if (!item.storagePath) continue
+      signTasks.push(
+        createTeamSignedUrl(TEAM_MEDIA_BUCKET, item.storagePath).then((url) => {
+          item.signedUrl = url
+        })
+      )
+    }
+
+    for (const item of files) {
+      if (!item.storagePath) continue
+      signTasks.push(
+        createTeamSignedUrl(TEAM_FILE_BUCKET, item.storagePath).then((url) => {
+          item.signedUrl = url
+        })
+      )
+    }
+
+    await Promise.all(signTasks)
+
+    node.codeSnippets = codeSnippets
+    node.media = media
+    node.files = files
+    node.attachmentsLoaded = true
+
+    return node
+  })()
+
+  teamNodeAttachmentLoads.set(cacheKey, task)
+
+  try {
+    return await task
+  } finally {
+    teamNodeAttachmentLoads.delete(cacheKey)
+  }
 }
 
 function teamRoleLabel(role) {
@@ -7061,6 +7074,7 @@ function setAccountPanel(open) {
   accountPanel.hidden = !shouldOpen
   accountBtn.classList.toggle('active', shouldOpen)
   accountBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false')
+  mobileAccountBtn?.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false')
 
   if (shouldOpen && toolPanel?.classList.contains('collapsed')) {
     togglePanel(false)
@@ -9892,6 +9906,46 @@ function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max)
 }
 
+function syncWorldDimensions() {
+  document.documentElement.style.setProperty('--world-width', `${WORLD_WIDTH}px`)
+  document.documentElement.style.setProperty('--world-height', `${WORLD_HEIGHT}px`)
+}
+
+function ensureWorldCapacity(x, y, width = 0, height = 0) {
+  const safeX = Math.max(0, Number(x) || 0)
+  const safeY = Math.max(0, Number(y) || 0)
+  const safeWidth = Math.max(0, Number(width) || 0)
+  const safeHeight = Math.max(0, Number(height) || 0)
+
+  const requiredWidth = safeX + safeWidth + WORLD_EDGE_BUFFER
+  const requiredHeight = safeY + safeHeight + WORLD_EDGE_BUFFER
+  let changed = false
+
+  while (requiredWidth > WORLD_WIDTH) {
+    WORLD_WIDTH += WORLD_GROWTH_WIDTH
+    changed = true
+  }
+
+  while (requiredHeight > WORLD_HEIGHT) {
+    WORLD_HEIGHT += WORLD_GROWTH_HEIGHT
+    changed = true
+  }
+
+  if (changed) syncWorldDimensions()
+  return changed
+}
+
+function ensureWorldCapacityForNodes(items = nodes) {
+  for (const node of items || []) {
+    const { width, height } = nodeSize(node)
+    ensureWorldCapacity(node.x, node.y, width, height)
+  }
+
+  syncWorldDimensions()
+}
+
+syncWorldDimensions()
+
 function applyView() {
   world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`
   saveView()
@@ -10043,10 +10097,9 @@ function findNearestFreeSpot(nodeId, desiredX, desiredY) {
   const node = findNode(nodeId)
   const { width, height } = nodeSize(node)
 
-  const maxX = WORLD_WIDTH - width - 20
-  const maxY = WORLD_HEIGHT - height - 20
-  const startX = clamp(desiredX, 20, maxX)
-  const startY = clamp(desiredY, 20, maxY)
+  const startX = Math.max(20, Number(desiredX) || 20)
+  const startY = Math.max(20, Number(desiredY) || 20)
+  ensureWorldCapacity(startX, startY, width, height)
 
   if (!overlapsAny(nodeId, startX, startY, width, height)) {
     return { x: startX, y: startY }
@@ -10059,13 +10112,18 @@ function findNearestFreeSpot(nodeId, desiredX, desiredY) {
     for (const dxStep of steps) {
       for (const dyStep of steps) {
         if (Math.abs(dxStep) !== radius && Math.abs(dyStep) !== radius) continue
-        const x = clamp(startX + dxStep * radiusStep, 20, maxX)
-        const y = clamp(startY + dyStep * radiusStep, 20, maxY)
-        if (!overlapsAny(nodeId, x, y, width, height)) return { x, y }
+        const x = Math.max(20, startX + dxStep * radiusStep)
+        const y = Math.max(20, startY + dyStep * radiusStep)
+
+        if (!overlapsAny(nodeId, x, y, width, height)) {
+          ensureWorldCapacity(x, y, width, height)
+          return { x, y }
+        }
       }
     }
   }
 
+  ensureWorldCapacity(startX, startY, width, height)
   return { x: startX, y: startY }
 }
 
@@ -11334,8 +11392,9 @@ async function nudgeSelectedNode(dx, dy) {
   const before = layoutNodeGeometry(node)
   const { width, height } = nodeSize(node)
 
-  const desiredX = clamp(node.x + dx, 20, WORLD_WIDTH - width - 20)
-  const desiredY = clamp(node.y + dy, 20, WORLD_HEIGHT - height - 20)
+  const desiredX = Math.max(20, node.x + dx)
+  const desiredY = Math.max(20, node.y + dy)
+  ensureWorldCapacity(desiredX, desiredY, width, height)
   const free = findNearestFreeSpot(node.id, desiredX, desiredY)
 
   if (Number(free.x) === Number(node.x) && Number(free.y) === Number(node.y)) return
@@ -11361,14 +11420,16 @@ async function resizeSelectedNode(deltaWidth, deltaHeight) {
   const nextWidth = clamp(
     current.width + deltaWidth,
     NODE_MIN_WIDTH,
-    Math.min(NODE_MAX_WIDTH, WORLD_WIDTH - node.x - 20)
+    NODE_MAX_WIDTH
   )
 
   const nextHeight = clamp(
     current.height + deltaHeight,
     NODE_MIN_HEIGHT,
-    Math.min(NODE_MAX_HEIGHT, WORLD_HEIGHT - node.y - 20)
+    NODE_MAX_HEIGHT
   )
+
+  ensureWorldCapacity(node.x, node.y, nextWidth, nextHeight)
 
   if (nextWidth === current.width && nextHeight === current.height) return
 
@@ -11507,6 +11568,15 @@ function updateAuthUI() {
   if (accountBtn) {
     accountBtn.textContent = currentUser ? 'Profil' : 'Cont'
     accountBtn.title = currentUser?.email || 'Login'
+  }
+
+  if (mobileAccountBtn) {
+    mobileAccountBtn.title = currentUser?.email || 'Login'
+    mobileAccountBtn.setAttribute(
+      'aria-label',
+      currentUser ? 'Deschide profilul' : 'Deschide autentificarea'
+    )
+    mobileAccountBtn.dataset.authenticated = currentUser ? '1' : '0'
   }
 
   if (authOtpRow) {
@@ -12144,10 +12214,10 @@ function getEdgeGeometry(source, target, link) {
 }
 
 function edgeWorldPoint(clientX, clientY) {
-  return {
-    x: clamp((clientX - view.x) / view.scale, 0, WORLD_WIDTH),
-    y: clamp((clientY - view.y) / view.scale, 0, WORLD_HEIGHT)
-  }
+  const x = Math.max(0, (clientX - view.x) / view.scale)
+  const y = Math.max(0, (clientY - view.y) / view.scale)
+  ensureWorldCapacity(x, y)
+  return { x, y }
 }
 
 function startEdgeControlDrag(event, sourceId, targetId, pointIndex) {
@@ -12711,8 +12781,9 @@ function renderNodes() {
 
       const dx = rawDx / view.scale
       const dy = rawDy / view.scale
-      const nextX = clamp(startNodeX + dx, 20, WORLD_WIDTH - nodeWidthValue - 20)
-      const nextY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - nodeHeightValue - 20)
+      const nextX = Math.max(20, startNodeX + dx)
+      const nextY = Math.max(20, startNodeY + dy)
+      ensureWorldCapacity(nextX, nextY, nodeWidthValue, nodeHeightValue)
 
       el.style.left = `${nextX}px`
       el.style.top = `${nextY}px`
@@ -12750,9 +12821,9 @@ function renderNodes() {
       const dx = (event.clientX - startClientX) / view.scale
       const dy = (event.clientY - startClientY) / view.scale
 
-      const desiredX = clamp(startNodeX + dx, 20, WORLD_WIDTH - nodeWidthValue - 20)
-
-      const desiredY = clamp(startNodeY + dy, 20, WORLD_HEIGHT - nodeHeightValue - 20)
+      const desiredX = Math.max(20, startNodeX + dx)
+      const desiredY = Math.max(20, startNodeY + dy)
+      ensureWorldCapacity(desiredX, desiredY, nodeWidthValue, nodeHeightValue)
 
       const free = findNearestFreeSpot(node.id, desiredX, desiredY)
       const changed = Number(free.x) !== Number(node.x) || Number(free.y) !== Number(node.y)
@@ -13094,7 +13165,17 @@ function openMediaManager(nodeId = selectedId) {
     return
   }
 
-  mediaManagerNodeId = Number(node.id)
+    if (node.isTeamNode && !node.attachmentsLoaded) {
+    loadTeamNodeAttachments(node)
+      .then(() => openMediaManager(nodeId))
+      .catch((error) => {
+        console.error('openMediaManager attachment load failed:', error)
+        alert(error?.message || 'Atașamentele nodului nu au putut fi încărcate.')
+      })
+    return
+  }
+
+mediaManagerNodeId = Number(node.id)
   resetMediaCreateForms()
   mediaManagerBackdrop.classList.add('open')
   renderMediaManager()
@@ -13493,7 +13574,17 @@ function openFileManager(nodeId = selectedId) {
     return
   }
 
-  fileManagerNodeId = Number(node.id)
+    if (node.isTeamNode && !node.attachmentsLoaded) {
+    loadTeamNodeAttachments(node)
+      .then(() => openFileManager(nodeId))
+      .catch((error) => {
+        console.error('openFileManager attachment load failed:', error)
+        alert(error?.message || 'Atașamentele nodului nu au putut fi încărcate.')
+      })
+    return
+  }
+
+fileManagerNodeId = Number(node.id)
   resetFileUploadInputs()
   fileManagerBackdrop.classList.add('open')
   renderFileManager()
@@ -14029,7 +14120,17 @@ function openCodeManager(nodeId = selectedId) {
     return
   }
 
-  codeManagerNodeId = Number(node.id)
+    if (node.isTeamNode && !node.attachmentsLoaded) {
+    loadTeamNodeAttachments(node)
+      .then(() => openCodeManager(nodeId))
+      .catch((error) => {
+        console.error('openCodeManager attachment load failed:', error)
+        alert(error?.message || 'Atașamentele nodului nu au putut fi încărcate.')
+      })
+    return
+  }
+
+codeManagerNodeId = Number(node.id)
   resetCodeCreateForm()
 
   localStorage.setItem(CACHE_KEYS.codeManagerOpen, String(codeManagerNodeId))
@@ -16465,6 +16566,7 @@ function renderDetailPanel() {
     <div class="detail-content">
       <div class="detail-main-column">
         <div class="info-card detail-document-card">
+          ${node.isTeamNode && !node.attachmentsLoaded ? '<div class="document-disclosure-empty">Se încarcă exemplele de cod și media acestui nod...</div>' : ''}
           ${renderNodeDocumentation(node)}
         </div>
 
@@ -16923,10 +17025,15 @@ async function saveNode() {
       const tempId = Date.now()
       const { width: nodeWidth, height: nodeHeight } = getNodeMetrics()
 
+      const viewportCenterX =
+        (window.innerWidth / 2 - view.x) / view.scale - nodeWidth / 2
+      const viewportCenterY =
+        (window.innerHeight / 2 - view.y) / view.scale - nodeHeight / 2
+
       const startPos = findNearestFreeSpot(
         tempId,
-        WORLD_WIDTH * 0.5 - nodeWidth / 2,
-        WORLD_HEIGHT * 0.5 - nodeHeight / 2
+        Math.max(20, viewportCenterX),
+        Math.max(20, viewportCenterY)
       )
 
       const inserted = await createNodeRemote({
@@ -16977,7 +17084,8 @@ async function saveNode() {
         links: [],
         media: [],
         files: [],
-        codeSnippets: []
+        codeSnippets: [],
+        attachmentsLoaded: true
       }
 
       nodes.push(newNode)
@@ -18622,12 +18730,31 @@ accountBtn?.addEventListener('click', (event) => {
   setAccountPanel(accountPanel?.hidden !== false)
 })
 
+mobileAccountBtn?.addEventListener('click', (event) => {
+  event.stopPropagation()
+
+  const shouldOpen = accountPanel?.hidden !== false
+  setAccountPanel(shouldOpen)
+
+  if (shouldOpen) {
+    requestAnimationFrame(() => {
+      if (!currentUser) {
+        authEmailInput?.focus()
+      }
+    })
+  }
+})
+
 document.addEventListener('click', (event) => {
   if (!accountPanel || accountPanel.hidden) return
 
   const target = event.target
   if (!(target instanceof Node)) return
-  if (accountPanel.contains(target) || accountBtn?.contains(target)) return
+  if (
+    accountPanel.contains(target) ||
+    accountBtn?.contains(target) ||
+    mobileAccountBtn?.contains(target)
+  ) return
 
   setAccountPanel(false)
 })
@@ -18693,7 +18820,7 @@ collapseBtn.addEventListener('click', (event) => {
 function togglePanel(force, { persist = true } = {}) {
   const collapsed = typeof force === 'boolean' ? force : !toolPanel.classList.contains('collapsed')
 
-  if (!collapsed && isTouchLayout()) {
+  if (!collapsed) {
     mobileNavigationOpen = false
   }
 
@@ -18708,6 +18835,7 @@ function togglePanel(force, { persist = true } = {}) {
     accountPanel.hidden = true
     accountBtn?.classList.remove('active')
     accountBtn?.setAttribute('aria-expanded', 'false')
+    mobileAccountBtn?.setAttribute('aria-expanded', 'false')
   }
 
   if (persist) {
@@ -18718,7 +18846,7 @@ function togglePanel(force, { persist = true } = {}) {
 }
 
 navigationRailCollapseBtn?.addEventListener('click', () => {
-  setNavigationRailCollapsed(!atlasNavigation?.classList.contains('rail-collapsed'))
+  setMobileNavigationOpen(false)
 })
 
 mobileNavBtn?.addEventListener('click', () => {
@@ -18726,7 +18854,6 @@ mobileNavBtn?.addEventListener('click', () => {
 })
 
 mobileQuickBtn?.addEventListener('click', () => {
-  if (!isTouchLayout()) return
   const shouldOpen = toolPanel.classList.contains('collapsed')
   togglePanel(shouldOpen ? false : true, { persist: false })
 })
@@ -18736,7 +18863,6 @@ mobileShellBackdrop?.addEventListener('click', () => {
 })
 
 atlasNavigation?.addEventListener('click', (event) => {
-  if (!isTouchLayout()) return
   const action = event.target instanceof Element
     ? event.target.closest('button, a')
     : null
@@ -18990,15 +19116,9 @@ window.addEventListener('beforeunload', (event) => {
   event.returnValue = ''
 })
 
-const savedPanelState = localStorage.getItem(CACHE_KEYS.panel)
-
-if (isTouchLayout()) {
-  togglePanel(true, { persist: false })
-} else if (savedPanelState === '1') {
-  togglePanel(true, { persist: false })
-} else {
-  syncMobileChrome()
-}
+mobileNavigationOpen = false
+togglePanel(true, { persist: false })
+syncMobileChrome()
 
 updateAtlasViewportHeight()
 
@@ -19013,14 +19133,7 @@ window.addEventListener('resize', () => {
 
   if (touchLayout !== lastTouchLayout) {
     mobileNavigationOpen = false
-
-    if (touchLayout) {
-      togglePanel(true, { persist: false })
-    } else {
-      const desktopCollapsed = localStorage.getItem(CACHE_KEYS.panel) === '1'
-      togglePanel(desktopCollapsed, { persist: false })
-    }
-
+    togglePanel(true, { persist: false })
     lastTouchLayout = touchLayout
   } else {
     syncMobileChrome()
