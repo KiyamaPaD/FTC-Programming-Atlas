@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=107" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=108" />
   <style>
     :root {
       --bg: #000000;
@@ -8593,6 +8593,17 @@
     background: rgba(177, 76, 255, 0.14);
   }
 
+  .mobile-editor-btn.active,
+  .mobile-editor-btn[aria-pressed="true"] {
+    color: #fff;
+    border-color: rgba(205, 112, 255, 0.62);
+    background: rgba(177, 76, 255, 0.20);
+    box-shadow:
+      0 8px 24px rgba(0, 0, 0, 0.28),
+      0 0 0 1px rgba(177, 76, 255, 0.10),
+      0 0 20px rgba(177, 76, 255, 0.16);
+  }
+
   .mobile-shell-backdrop {
     position: fixed;
     inset: 0;
@@ -8825,6 +8836,15 @@
           aria-controls="accountPanel"
           title="Profil / Login"
         >👤</button>
+        <button
+          class="mobile-shell-btn mobile-editor-btn"
+          id="mobileEditorBtn"
+          type="button"
+          aria-label="Activează Editor Mode"
+          aria-pressed="false"
+          title="Editor Mode"
+          hidden
+        >✎</button>
       </div>
     </div>
 
@@ -10412,6 +10432,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=107"></script>
+  <script type="module" src="/js/atlas-script.js?v=108"></script>
 </body>
 </html>
