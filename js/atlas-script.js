@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v118 · FAST DOCUMENT OPEN')
+console.log('ATLAS SCRIPT LOADED v119 · QUERY SLIM + INDEX AUDIT')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -4538,7 +4538,7 @@ async function loadTeamNodeAttachments(node, { force = false } = {}) {
     const [codeResult, mediaResult, filesResult] = await Promise.all([
       supabase
         .from('atlas_team_node_code_snippets')
-        .select('*')
+        .select('id, language, title, description, code, sort_order, created_at, updated_at')
         .eq('project_id', PROJECT_ID)
         .eq('team_id', teamId)
         .eq('node_id', nodeId)
@@ -4547,7 +4547,7 @@ async function loadTeamNodeAttachments(node, { force = false } = {}) {
 
       supabase
         .from('atlas_team_node_media')
-        .select('*')
+        .select('id, media_type, storage_path, external_url, mime_type, file_size, title, caption, sort_order, created_at, updated_at')
         .eq('project_id', PROJECT_ID)
         .eq('team_id', teamId)
         .eq('node_id', nodeId)
@@ -4556,7 +4556,7 @@ async function loadTeamNodeAttachments(node, { force = false } = {}) {
 
       supabase
         .from('atlas_team_node_files')
-        .select('*')
+        .select('id, storage_path, original_name, relative_path, mime_type, file_size, title, description, sort_order, created_at, updated_at')
         .eq('project_id', PROJECT_ID)
         .eq('team_id', teamId)
         .eq('node_id', nodeId)
@@ -5027,7 +5027,7 @@ async function loadTeamContext({ rerender = false } = {}) {
     await Promise.all([
       supabase
         .from('atlas_team_memberships')
-        .select('*')
+        .select('team_id')
         .eq('project_id', PROJECT_ID)
         .eq('user_id', currentUser.id)
         .eq('status', 'active'),
@@ -5035,7 +5035,7 @@ async function loadTeamContext({ rerender = false } = {}) {
       normalizedEmail
         ? supabase
             .from('atlas_team_invites')
-            .select('*')
+            .select('id, team_id, email, display_name, role, department_ids, token, status, expires_at, created_at')
             .eq('project_id', PROJECT_ID)
             .eq('email', normalizedEmail)
             .eq('status', 'pending')
@@ -5046,7 +5046,7 @@ async function loadTeamContext({ rerender = false } = {}) {
       canEdit
         ? supabase
             .from('atlas_teams')
-            .select('*')
+            .select('id')
             .eq('project_id', PROJECT_ID)
             .eq('is_active', true)
             .order('name', { ascending: true })
@@ -5055,13 +5055,13 @@ async function loadTeamContext({ rerender = false } = {}) {
       (canEdit
         ? supabase
             .from('atlas_team_requests')
-            .select('*')
+            .select('id, requester_user_id, requester_email, requester_display_name, team_name, team_number, description, status, admin_note, reviewed_by, reviewed_at, created_team_id, created_at, updated_at')
             .eq('project_id', PROJECT_ID)
             .order('created_at', { ascending: false })
             .limit(100)
         : supabase
             .from('atlas_team_requests')
-            .select('*')
+            .select('id, requester_user_id, requester_email, requester_display_name, team_name, team_number, description, status, admin_note, reviewed_by, reviewed_at, created_team_id, created_at, updated_at')
             .eq('project_id', PROJECT_ID)
             .eq('requester_user_id', currentUser.id)
             .order('created_at', { ascending: false })
@@ -5138,7 +5138,7 @@ async function loadTeamContext({ rerender = false } = {}) {
   ] = await Promise.all([
     supabase
       .from('atlas_teams')
-      .select('*')
+      .select('id, name, team_number, slug, description, is_active, created_at, updated_at')
       .eq('project_id', PROJECT_ID)
       .in('id', teamIds)
       .eq('is_active', true),
@@ -5146,7 +5146,7 @@ async function loadTeamContext({ rerender = false } = {}) {
     membershipTeamIdsUnique.length > 0
       ? supabase
           .from('atlas_team_memberships')
-          .select('*')
+          .select('id, team_id, user_id, display_name, role, status, onboarding_completed_at, joined_at, created_at')
           .eq('project_id', PROJECT_ID)
           .in('team_id', membershipTeamIdsUnique)
       : Promise.resolve({ data: [], error: null }),
@@ -5896,7 +5896,7 @@ async function loadTeamManagerInvites() {
 
   const { data, error } = await supabase
     .from('atlas_team_invites')
-    .select('*')
+    .select('id, team_id, email, display_name, role, department_ids, token, status, expires_at, created_at')
     .eq('project_id', PROJECT_ID)
     .eq('team_id', Number(activeTeamId))
     .order('created_at', { ascending: false })
@@ -11171,14 +11171,14 @@ async function fetchAllData() {
     await Promise.all([
       supabase
         .from('atlas_departments')
-        .select('*')
+        .select('id, name, short_name, slug, is_active, sort_order')
         .eq('project_id', PROJECT_ID)
         .order('sort_order', { ascending: true })
         .order('name', { ascending: true }),
 
       supabase
         .from('atlas_announcements')
-        .select('*')
+        .select('id, title, summary, content, category, source_url, is_pinned, is_important, is_published, published_at, created_at, updated_at')
         .eq('project_id', PROJECT_ID)
         .order('is_pinned', { ascending: false })
         .order('published_at', { ascending: false })
