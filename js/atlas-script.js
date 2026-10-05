@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v117 · SERVER SIDE QUICK FIND')
+console.log('ATLAS SCRIPT LOADED v118 · FAST DOCUMENT OPEN')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -9824,13 +9824,23 @@ async function openDocumentationReference(reference) {
     return false
   }
 
+  const previousTeamId = Number(activeTeamId)
+  const switchingTeam =
+    previousTeamId !== teamId ||
+    !Array.isArray(teamNodes) ||
+    teamNodes.length === 0
+
   activeTeamId = teamId
   localStorage.setItem(CACHE_KEYS.activeTeam, String(activeTeamId))
 
   activePublicSection = 'team'
   localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
 
-  await loadActiveTeamAtlasNodes({ forceReset: true })
+  if (switchingTeam) {
+    await loadActiveTeamAtlasNodes({ forceReset: true })
+  } else {
+    syncActiveNodeCollection()
+  }
 
   const node = teamNodes.find(
     (candidate) =>
@@ -9838,8 +9848,32 @@ async function openDocumentationReference(reference) {
   )
 
   if (!node) {
-    alert('Documentul Team Atlas nu mai este disponibil.')
-    return false
+    // Metadata may have changed since the current snapshot. Retry once.
+    await loadActiveTeamAtlasNodes({ forceReset: true })
+
+    const refreshedNode = teamNodes.find(
+      (candidate) =>
+        Number(candidate.id) === Number(reference.nodeId)
+    )
+
+    if (!refreshedNode) {
+      alert('Documentul Team Atlas nu mai este disponibil.')
+      return false
+    }
+
+    activateDepartmentForNode(refreshedNode, { persist: true })
+    clearFiltersForDeepLink()
+
+    selectedId = refreshedNode.id
+    clearEdgeSelection()
+    detailOpen = true
+
+    renderAll()
+    setNodeRoute(refreshedNode, { push: true })
+    queueTeamNodeDetailHydration(refreshedNode)
+
+    requestAnimationFrame(() => centerOnNode(refreshedNode))
+    return true
   }
 
   activateDepartmentForNode(node, { persist: true })
@@ -9849,13 +9883,21 @@ async function openDocumentationReference(reference) {
   clearEdgeSelection()
   detailOpen = true
 
-  renderAll()
+  if (switchingTeam) {
+    renderAll()
+  } else {
+    renderPublicShell()
+    renderDepartmentNavigation()
+    renderTaxonomyControls()
+    renderGraphInteractionState({ normalize: true })
+  }
+
   setNodeRoute(node, { push: true })
+  queueTeamNodeDetailHydration(node)
 
   requestAnimationFrame(() => centerOnNode(node))
   return true
 }
-
 async function openFinderResult(index = finderSelectedIndex) {
   const result = finderResultsCache[Number(index)]
   if (!result) return
