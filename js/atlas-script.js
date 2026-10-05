@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v109 · SEPARATE SHELL TABS + TEAM DRAWER')
+console.log('ATLAS SCRIPT LOADED v110 · CACHE + VIEWPORT RENDER PERFORMANCE')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -44,7 +44,8 @@ const CACHE_KEYS = {
   recentDocs: 'ftc_atlas_recent_docs_v1',
   localBookmarks: 'ftc_atlas_local_bookmarks_v1',
   uiSections: 'ftc_atlas_ui_sections_v1',
-  navigationRail: 'ftc_atlas_navigation_rail_v1'
+  navigationRail: 'ftc_atlas_navigation_rail_v1',
+  shellSnapshot: 'ftc_atlas_shell_snapshot_v1'
 }
 
 const initialTeamInviteToken = new URLSearchParams(window.location.search).get('teamInvite')
@@ -246,8 +247,117 @@ Taxonomy gestionează categoriile, dificultățile și etichetele. Roadmaps gest
 
 Team Member citește documentația. Coordinator editează departamentele atribuite. Team Leader gestionează accesul echipei. Mentor poate contribui la documentație. Platform Admin poate administra toate echipele și poate schimba Atlasul activ din Teams & access.`
 
-// Compatibility hook retained for earlier local-cache versions
-function saveCachedNodes() {}
+const ATLAS_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
+
+function teamSnapshotKey(teamId = activeTeamId, userId = currentUser?.id) {
+  if (!userId || teamId == null) return ''
+  return `ftc_atlas_team_snapshot_v1:${PROJECT_ID}:${userId}:${Number(teamId)}`
+}
+
+function readJsonCache(key) {
+  if (!key) return null
+
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw)
+    const savedAt = Number(parsed?.savedAt || 0)
+
+    if (!savedAt || Date.now() - savedAt > ATLAS_CACHE_MAX_AGE_MS) {
+      localStorage.removeItem(key)
+      return null
+    }
+
+    return parsed
+  } catch (error) {
+    console.warn('[Atlas cache] invalid cache entry:', error)
+    return null
+  }
+}
+
+function writeJsonCache(key, value) {
+  if (!key) return
+
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (error) {
+    console.warn('[Atlas cache] snapshot could not be saved:', error)
+  }
+}
+
+function saveShellSnapshot() {
+  writeJsonCache(CACHE_KEYS.shellSnapshot, {
+    savedAt: Date.now(),
+    departments,
+    announcements
+  })
+}
+
+function hydrateShellSnapshot() {
+  const cached = readJsonCache(CACHE_KEYS.shellSnapshot)
+  if (!cached) return false
+
+  const departmentRows = Array.isArray(cached.departments) ? cached.departments : []
+  privateDepartmentIds = new Set(
+    departmentRows
+      .filter(isPrivateDepartmentRecord)
+      .map((department) => Number(department.id))
+      .filter(Number.isFinite)
+  )
+
+  departments = departmentRows.filter((department) => !isPrivateDepartmentRecord(department))
+  announcements = Array.isArray(cached.announcements) ? cached.announcements : []
+
+  normalizeDepartmentState()
+  return departments.length > 0 || announcements.length > 0
+}
+
+function saveCachedNodes() {
+  const key = teamSnapshotKey()
+  if (!key || !Array.isArray(teamNodes) || teamNodes.length === 0) return
+
+  writeJsonCache(key, {
+    savedAt: Date.now(),
+    teamNodes,
+    teamCategories,
+    teamDifficulties,
+    teamTaxonomyTags,
+    teamRoadmaps,
+    teamRoadmapProgress: [...teamRoadmapProgress]
+  })
+}
+
+function hydrateCachedTeamSnapshot() {
+  const cached = readJsonCache(teamSnapshotKey())
+  if (!cached || !Array.isArray(cached.teamNodes)) return false
+
+  teamNodes = cached.teamNodes.map((node) => ({
+    ...node,
+    links: Array.isArray(node.links) ? node.links : [],
+    media: [],
+    files: [],
+    codeSnippets: [],
+    attachmentsLoaded: false
+  }))
+
+  teamCategories = Array.isArray(cached.teamCategories) ? cached.teamCategories : []
+  teamDifficulties = Array.isArray(cached.teamDifficulties) ? cached.teamDifficulties : []
+  teamTaxonomyTags = Array.isArray(cached.teamTaxonomyTags) ? cached.teamTaxonomyTags : []
+  teamRoadmaps = Array.isArray(cached.teamRoadmaps) ? cached.teamRoadmaps : []
+  teamRoadmapProgress = new Set(
+    Array.isArray(cached.teamRoadmapProgress) ? cached.teamRoadmapProgress : []
+  )
+
+  ensureWorldCapacityForNodes(teamNodes)
+  syncActiveNodeCollection({ forceReset: true })
+
+  requestAnimationFrame(() => {
+    renderAll()
+  })
+
+  return true
+}
 
 // Persisted map view state
 function loadView() {
@@ -416,6 +526,13 @@ let codeManagerNodeId = null
 let codeMutationBusy = false
 let codeDraftSaveTimer = null
 const teamNodeAttachmentLoads = new Map()
+const nodePlainTextCache = new WeakMap()
+
+const VIEWPORT_CULL_MARGIN = 900
+const VIEWPORT_RENDER_DISTANCE = 260
+const VIEWPORT_RENDER_SCALE_DELTA = 0.06
+let viewportGraphFrame = null
+let lastViewportGraphState = null
 
 let edgeClickState = { key: null, time: 0 }
 let editorNodeClickState = { nodeId: null, time: 0 }
@@ -3862,6 +3979,8 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     return
   }
 
+  hydrateCachedTeamSnapshot()
+
   const [
     nodesResult,
     edgesResult,
@@ -4126,6 +4245,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     }))
 
   ensureWorldCapacityForNodes(teamNodes)
+  saveCachedNodes()
 
   const team = currentTeamRecord()
   if (team && /infotronx/i.test(String(team.name || ''))) {
@@ -7613,6 +7733,93 @@ function getVisibleNodeIdSet() {
   return new Set(getVisibleNodes().map((node) => Number(node.id)))
 }
 
+function currentWorldViewport(margin = VIEWPORT_CULL_MARGIN) {
+  const scale = Math.max(view.scale, 0.001)
+  const left = (-view.x) / scale - margin
+  const top = (-view.y) / scale - margin
+  const right = (window.innerWidth - view.x) / scale + margin
+  const bottom = (window.innerHeight - view.y) / scale + margin
+
+  return { left, top, right, bottom }
+}
+
+function getRenderableNodes() {
+  const visible = getVisibleNodes()
+
+  if (editorMode && layoutEditMode) {
+    return visible
+  }
+
+  const viewport = currentWorldViewport()
+
+  return visible.filter((node) => {
+    if (Number(node.id) === Number(selectedId)) return true
+
+    const { width, height } = nodeSize(node)
+    const right = node.x + width
+    const bottom = node.y + height
+
+    return !(
+      right < viewport.left ||
+      node.x > viewport.right ||
+      bottom < viewport.top ||
+      node.y > viewport.bottom
+    )
+  })
+}
+
+function getRenderableNodeIdSet() {
+  return new Set(getRenderableNodes().map((node) => Number(node.id)))
+}
+
+function graphViewportState() {
+  const scale = Math.max(view.scale, 0.001)
+
+  return {
+    centerX: (window.innerWidth / 2 - view.x) / scale,
+    centerY: (window.innerHeight / 2 - view.y) / scale,
+    scale
+  }
+}
+
+function rememberViewportGraphState() {
+  lastViewportGraphState = graphViewportState()
+}
+
+function renderViewportGraph() {
+  renderLinks()
+  renderNodes()
+  rememberViewportGraphState()
+}
+
+function scheduleViewportGraphRender({ force = false } = {}) {
+  if (editorMode && layoutEditMode) return
+  if (viewportGraphFrame != null) return
+
+  const next = graphViewportState()
+  const previous = lastViewportGraphState
+
+  if (!force && previous) {
+    const distance = Math.hypot(
+      next.centerX - previous.centerX,
+      next.centerY - previous.centerY
+    )
+    const scaleDelta = Math.abs(next.scale - previous.scale)
+
+    if (
+      distance < VIEWPORT_RENDER_DISTANCE &&
+      scaleDelta < VIEWPORT_RENDER_SCALE_DELTA
+    ) {
+      return
+    }
+  }
+
+  viewportGraphFrame = requestAnimationFrame(() => {
+    viewportGraphFrame = null
+    renderViewportGraph()
+  })
+}
+
 function hasActiveFilters() {
   return Boolean(
     searchQuery.trim() ||
@@ -7807,9 +8014,20 @@ function richHtmlToPlainText(value) {
 function nodeContentPlainText(node) {
   if (!node) return ''
 
-  return node.contentFormat === 'html'
-    ? richHtmlToPlainText(node.content)
-    : String(node.content || '')
+  const source = String(node.content || '')
+  const format = node.contentFormat || 'html'
+  const cached = nodePlainTextCache.get(node)
+
+  if (cached && cached.source === source && cached.format === format) {
+    return cached.text
+  }
+
+  const text = format === 'html'
+    ? richHtmlToPlainText(source)
+    : source
+
+  nodePlainTextCache.set(node, { source, format, text })
+  return text
 }
 
 function inlineEmbedItem(node, type, id) {
@@ -10185,6 +10403,7 @@ syncWorldDimensions()
 function applyView() {
   world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})`
   saveView()
+  scheduleViewportGraphRender()
 }
 
 function setScale(nextScale, clientX = window.innerWidth / 2, clientY = window.innerHeight / 2) {
@@ -10489,6 +10708,7 @@ async function fetchAllData() {
 
   syncActiveNodeCollection()
   normalizeDepartmentState()
+  saveShellSnapshot()
   renderAll()
   await refreshHistoryButtons()
 
@@ -12738,8 +12958,8 @@ function renderLinks() {
   linkLayer.setAttribute('height', WORLD_HEIGHT)
 
   const parts = []
-  const lowMotion = prefersReducedMotion()
-  const visibleIds = getVisibleNodeIdSet()
+  const lowMotion = prefersReducedMotion() || isTouchLayout()
+  const visibleIds = getRenderableNodeIdSet()
   const controlRadius = isTouchLayout() ? 14 : 10
   const controlCoreRadius = isTouchLayout() ? 5 : 4
 
@@ -12913,7 +13133,7 @@ function renderLinks() {
 
 function renderNodes() {
   nodeLayer.innerHTML = ''
-  const orderedNodes = getVisibleNodes().sort((a, b) =>
+  const orderedNodes = getRenderableNodes().sort((a, b) =>
     a.id === selectedId ? 1 : b.id === selectedId ? -1 : 0
   )
 
@@ -17032,6 +17252,7 @@ function renderAll() {
   renderNodes()
   renderDetailPanel()
   updateAuthUI()
+  rememberViewportGraphState()
 
 
   if (isTaxonomyManagerOpen()) {
@@ -19485,7 +19706,7 @@ window.addEventListener('resize', () => {
     syncMobileChrome()
   }
 
-  renderAll()
+  scheduleViewportGraphRender({ force: true })
   applyView()
 })
 
@@ -19651,6 +19872,7 @@ window.atlasDebug = {
 // Application bootstrap
 initRichTextEditor()
 setNodeContentEditorVisible(true)
+hydrateShellSnapshot()
 ensureNodePositions()
 applyView()
 renderAll()
