@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v119 · QUERY SLIM + INDEX AUDIT')
+console.log('ATLAS SCRIPT LOADED v120 · PARTIAL RENDER PHASE 2')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -2006,9 +2006,6 @@ async function deleteSelectedEdge() {
   if (!ok) return
 
   await removeRelation(info.source.id, info.index)
-  selectedEdge = null
-  selectedEdgePointIndex = null
-  renderAll()
 }
 
 // Taxonomy lookup, filtering and search
@@ -2793,7 +2790,7 @@ async function toggleTeamRoadmapProgress(roadmapId, nodeId) {
       teamRoadmapProgress.add(key)
     }
 
-    renderAll()
+    renderPublicShell()
   } catch (error) {
     console.error('Team roadmap progress update failed:', error)
     alert(error?.message || 'Progresul Team Atlas nu a putut fi salvat.')
@@ -2996,7 +2993,7 @@ function openTeamRoadmapNode(nodeId) {
   clearEdgeSelection()
   detailOpen = true
 
-  renderAll()
+  renderMapNavigationState()
   setNodeRoute(node, { push: true })
 
   requestAnimationFrame(() => centerOnNode(node))
@@ -3811,7 +3808,7 @@ async function saveRoadmap() {
 
     resetRoadmapEditor()
     renderRoadmapManager()
-    renderAll()
+    renderPublicShell()
 
     roadmapEditorStatus.textContent = 'Salvat.'
   } catch (error) {
@@ -3868,7 +3865,7 @@ async function deleteRoadmap() {
 
     resetRoadmapEditor()
     renderRoadmapManager()
-    renderAll()
+    renderPublicShell()
 
     roadmapEditorStatus.textContent = 'Șters.'
   } catch (error) {
@@ -7527,7 +7524,7 @@ function openTeamIndexNode(nodeId) {
   clearEdgeSelection()
   detailOpen = true
 
-  renderAll()
+  renderMapNavigationState()
   setNodeRoute(node, { push: true })
 
   requestAnimationFrame(() => centerOnNode(node))
@@ -7801,8 +7798,8 @@ function selectDepartment(id) {
   activeDepartmentId = Number(department.id)
   localStorage.setItem(CACHE_KEYS.department, department.slug)
 
-  normalizeSelectionAfterFilters()
-  renderAll()
+  renderDepartmentNavigation()
+  renderGraphInteractionState({ normalize: true })
 
   if (activePublicSection === 'team') {
     requestAnimationFrame(fitView)
@@ -9090,7 +9087,7 @@ async function toggleNodeBookmark(node) {
   if (error) throw error
 
   await loadBookmarks()
-  renderAll()
+  renderDetailPanel()
 }
 
 function recentDocs() {
@@ -9800,8 +9797,7 @@ async function removeBookmarkRow(row) {
   if (error) throw error
 
   await loadBookmarks()
-  renderDocumentationLibrary()
-  renderAll()
+  renderDetailPanel()
 }
 
 async function openDocumentationReference(reference) {
@@ -9886,10 +9882,7 @@ async function openDocumentationReference(reference) {
   if (switchingTeam) {
     renderAll()
   } else {
-    renderPublicShell()
-    renderDepartmentNavigation()
-    renderTaxonomyControls()
-    renderGraphInteractionState({ normalize: true })
+    renderMapNavigationState()
   }
 
   setNodeRoute(node, { push: true })
@@ -13417,7 +13410,7 @@ async function addEdgeControlPoint() {
     after: after.map((point) => ({ ...point }))
   })
 
-  renderAll()
+  renderGraphInteractionState({ detail: false, counts: false })
 }
 
 async function removeSelectedEdgeControlPoint() {
@@ -13456,7 +13449,7 @@ async function removeSelectedEdgeControlPoint() {
     after: after.map((point) => ({ ...point }))
   })
 
-  renderAll()
+  renderGraphInteractionState({ detail: false, counts: false })
 }
 
 async function resetEdgeControl(sourceId, targetId) {
@@ -13481,7 +13474,7 @@ async function resetEdgeControl(sourceId, targetId) {
     after
   })
 
-  renderAll()
+  renderGraphInteractionState({ detail: false, counts: false })
 }
 
 
@@ -16859,7 +16852,7 @@ function openConnectedDocumentationNode(nodeId) {
   clearEdgeSelection()
   detailOpen = true
 
-  renderAll()
+  renderMapNavigationState()
   setNodeRoute(node, { push: true })
 
   requestAnimationFrame(() => centerOnNode(node))
@@ -17818,6 +17811,13 @@ function renderGraphInteractionState({
   rememberViewportGraphState()
 }
 
+function renderMapNavigationState({ normalize = true } = {}) {
+  renderTaxonomyControls()
+  renderDepartmentNavigation()
+  renderPublicShell()
+  renderGraphInteractionState({ normalize })
+}
+
 function renderAll() {
   syncActiveNodeCollection()
   normalizeSelectionAfterFilters()
@@ -18309,7 +18309,7 @@ async function saveRelation() {
     saveCachedNodes()
     closeModal()
     setNodeRoute(findNode(sourceId), { push: false })
-    renderAll()
+    renderGraphInteractionState()
 
     await refreshHistoryButtons()
   } catch (error) {
@@ -18455,7 +18455,7 @@ async function removeRelation(sourceId, relationIndex) {
     }
 
     saveCachedNodes()
-    renderAll()
+    renderGraphInteractionState()
 
     await refreshHistoryButtons()
   } catch (error) {
