@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v115 · SHELL STATE + TOUCH HOVER FIX')
+console.log('ATLAS SCRIPT LOADED v116 · LAZY NODE CONTENT')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -251,7 +251,7 @@ const ATLAS_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
 function teamSnapshotKey(teamId = activeTeamId, userId = currentUser?.id) {
   if (!userId || teamId == null) return ''
-  return `ftc_atlas_team_snapshot_v1:${PROJECT_ID}:${userId}:${Number(teamId)}`
+  return `ftc_atlas_team_snapshot_v2:${PROJECT_ID}:${userId}:${Number(teamId)}`
 }
 
 function readJsonCache(key) {
@@ -284,6 +284,108 @@ function writeJsonCache(key, value) {
   } catch (error) {
     console.warn('[Atlas cache] snapshot could not be saved:', error)
   }
+}
+
+const TEAM_NODE_CONTENT_CACHE_LIMIT = 24
+
+function teamNodeContentCacheKey(
+  teamId,
+  nodeId,
+  userId = currentUser?.id
+) {
+  if (!userId || teamId == null || nodeId == null) return ''
+
+  return `ftc_atlas_node_content_v1:${PROJECT_ID}:${userId}:${Number(teamId)}:${Number(nodeId)}`
+}
+
+function teamNodeContentCacheIndexKey(userId = currentUser?.id) {
+  if (!userId) return ''
+  return `ftc_atlas_node_content_index_v1:${PROJECT_ID}:${userId}`
+}
+
+function rememberNodeContentCacheKey(key) {
+  const indexKey = teamNodeContentCacheIndexKey()
+  if (!indexKey || !key) return
+
+  let entries = []
+
+  try {
+    const parsed = JSON.parse(localStorage.getItem(indexKey) || '[]')
+    entries = Array.isArray(parsed) ? parsed : []
+  } catch {
+    entries = []
+  }
+
+  const now = Date.now()
+  entries = [
+    { key, savedAt: now },
+    ...entries.filter((entry) => entry?.key && entry.key !== key)
+  ]
+
+  const keep = entries.slice(0, TEAM_NODE_CONTENT_CACHE_LIMIT)
+  const evicted = entries.slice(TEAM_NODE_CONTENT_CACHE_LIMIT)
+
+  evicted.forEach((entry) => {
+    try {
+      localStorage.removeItem(entry.key)
+    } catch {}
+  })
+
+  try {
+    localStorage.setItem(indexKey, JSON.stringify(keep))
+  } catch {}
+}
+
+function cacheTeamNodeContent(node) {
+  if (!node?.isTeamNode || !node.contentLoaded) return
+
+  const key = teamNodeContentCacheKey(node.teamId || activeTeamId, node.id)
+  if (!key) return
+
+  writeJsonCache(key, {
+    savedAt: Date.now(),
+    updatedAt: node.updatedAt || null,
+    content: String(node.content || ''),
+    contentFormat: node.contentFormat || 'html'
+  })
+
+  rememberNodeContentCacheKey(key)
+}
+
+function hydrateCachedTeamNodeContent(node) {
+  if (!node?.isTeamNode) return false
+
+  const key = teamNodeContentCacheKey(node.teamId || activeTeamId, node.id)
+  const cached = readJsonCache(key)
+
+  if (!cached) return false
+
+  const nodeVersion = String(node.updatedAt || '')
+  const cachedVersion = String(cached.updatedAt || '')
+
+  if (nodeVersion !== cachedVersion) {
+    try {
+      localStorage.removeItem(key)
+    } catch {}
+    return false
+  }
+
+  node.content = String(cached.content || '')
+  node.contentFormat = cached.contentFormat || node.contentFormat || 'html'
+  node.contentLoaded = true
+  node.contentLoadError = null
+  return true
+}
+
+function dropCachedTeamNodeContent(node) {
+  if (!node?.isTeamNode) return
+
+  const key = teamNodeContentCacheKey(node.teamId || activeTeamId, node.id)
+  if (!key) return
+
+  try {
+    localStorage.removeItem(key)
+  } catch {}
 }
 
 function saveShellSnapshot() {
@@ -319,6 +421,9 @@ function saveCachedNodes() {
 
   const cachedNodes = teamNodes.map((node) => ({
     ...node,
+    content: '',
+    contentLoaded: false,
+    contentLoadError: null,
     media: [],
     files: [],
     codeSnippets: [],
@@ -343,6 +448,9 @@ function hydrateCachedTeamSnapshot() {
   teamNodes = cached.teamNodes.map((node) => ({
     ...node,
     links: Array.isArray(node.links) ? node.links : [],
+    content: '',
+    contentLoaded: false,
+    contentLoadError: null,
     media: [],
     files: [],
     codeSnippets: [],
@@ -561,6 +669,7 @@ let codeManagerNodeId = null
 let codeMutationBusy = false
 let codeDraftSaveTimer = null
 const teamNodeAttachmentLoads = new Map()
+const teamNodeContentLoads = new Map()
 const nodePlainTextCache = new WeakMap()
 
 const VIEWPORT_CULL_MARGIN = 1600
@@ -1707,20 +1816,7 @@ function openNodeDetail(nodeId, { pushHistory = true } = {}) {
   setNodeRoute(node, { push: pushHistory })
   renderGraphInteractionState()
 
-  if (node.isTeamNode && !node.attachmentsLoaded) {
-    loadTeamNodeAttachments(node)
-      .then((loadedNode) => {
-        if (
-          detailOpen &&
-          Number(selectedId) === Number(loadedNode.id)
-        ) {
-          renderDetailPanel()
-        }
-      })
-      .catch((error) => {
-        console.warn('Node attachments could not be loaded:', error)
-      })
-  }
+  queueTeamNodeDetailHydration(node)
 
   return true
 }
@@ -4038,6 +4134,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   teamRoadmaps = []
   teamRoadmapProgress = new Set()
   teamNodeAttachmentLoads.clear()
+  teamNodeContentLoads.clear()
 
   if (!currentUser || activeTeamId == null) {
     syncActiveNodeCollection({ forceReset })
@@ -4060,7 +4157,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   ] = await Promise.all([
     supabase
       .from('atlas_team_nodes')
-      .select('id, team_id, department_id, title, tag, team_category_id, team_difficulty_id, team_tag_ids, x, y, width, height, content, content_format, created_at, updated_at, source_public_node_id, source_imported_at, source_snapshot, source_synced_at')
+      .select('id, team_id, department_id, title, tag, team_category_id, team_difficulty_id, team_tag_ids, x, y, width, height, content_format, created_at, updated_at, source_public_node_id, source_imported_at, source_snapshot, source_synced_at')
       .eq('project_id', PROJECT_ID)
       .eq('team_id', Number(activeTeamId))
       .order('id', { ascending: true }),
@@ -4286,8 +4383,10 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
       y: Number(row.y),
       width: row.width == null ? null : Number(row.width),
       height: row.height == null ? null : Number(row.height),
-      content: row.content || '',
+      content: '',
       contentFormat: row.content_format || 'html',
+      contentLoaded: false,
+      contentLoadError: null,
       links: edgesBySource.get(Number(row.id)) || [],
       media: [],
       files: [],
@@ -4329,6 +4428,91 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   }
 
   syncActiveNodeCollection({ forceReset })
+}
+
+async function loadTeamNodeContent(node, { force = false } = {}) {
+  if (!node?.isTeamNode) return node
+
+  const teamId = Number(node.teamId || activeTeamId)
+  const nodeId = Number(node.id)
+
+  if (!Number.isFinite(teamId) || !Number.isFinite(nodeId)) return node
+  if (node.contentLoaded && !force) return node
+
+  if (!force && hydrateCachedTeamNodeContent(node)) {
+    return node
+  }
+
+  const cacheKey = `${teamId}:${nodeId}`
+
+  if (!force && teamNodeContentLoads.has(cacheKey)) {
+    return teamNodeContentLoads.get(cacheKey)
+  }
+
+  const task = (async () => {
+    node.contentLoadError = null
+
+    const { data, error } = await supabase
+      .from('atlas_team_nodes')
+      .select('content, content_format, updated_at')
+      .eq('project_id', PROJECT_ID)
+      .eq('team_id', teamId)
+      .eq('id', nodeId)
+      .single()
+
+    if (error) {
+      node.contentLoadError = error?.message || 'Documentația nu a putut fi încărcată.'
+      throw error
+    }
+
+    node.content = String(data?.content || '')
+    node.contentFormat = data?.content_format || node.contentFormat || 'html'
+    node.updatedAt = data?.updated_at || node.updatedAt || null
+    node.contentLoaded = true
+    node.contentLoadError = null
+
+    cacheTeamNodeContent(node)
+    return node
+  })()
+
+  teamNodeContentLoads.set(cacheKey, task)
+
+  try {
+    return await task
+  } finally {
+    teamNodeContentLoads.delete(cacheKey)
+  }
+}
+
+function queueTeamNodeDetailHydration(node) {
+  if (!node?.isTeamNode) return
+
+  const rerenderIfCurrent = () => {
+    if (
+      detailOpen &&
+      Number(selectedId) === Number(node.id)
+    ) {
+      renderDetailPanel()
+    }
+  }
+
+  if (!node.contentLoaded) {
+    loadTeamNodeContent(node)
+      .then(rerenderIfCurrent)
+      .catch((error) => {
+        console.warn('Node content could not be loaded:', error)
+        rerenderIfCurrent()
+      })
+  }
+
+  if (!node.attachmentsLoaded) {
+    loadTeamNodeAttachments(node)
+      .then(rerenderIfCurrent)
+      .catch((error) => {
+        console.warn('Node attachments could not be loaded:', error)
+        rerenderIfCurrent()
+      })
+  }
 }
 
 async function loadTeamNodeAttachments(node, { force = false } = {}) {
@@ -7723,25 +7907,10 @@ function matchesSearch(node) {
   const q = searchQuery.trim().toLowerCase()
   const haystack = [
     node.title,
-    nodeContentPlainText(node),
     nodeCategoryName(node),
     nodeDifficultyName(node),
     ...nodeDepartmentNames(node),
     ...nodeTagNames(node),
-    ...(node.media || []).flatMap((media) => [media.title || '', media.caption || '']),
-    ...(node.files || []).flatMap((file) => [
-      file.title || '',
-      file.description || '',
-      file.originalName || '',
-      file.relativePath || '',
-      file.mimeType || ''
-    ]),
-    ...(node.codeSnippets || []).flatMap((snippet) => [
-      snippet.title || '',
-      snippet.description || '',
-      snippet.language || '',
-      snippet.code || ''
-    ]),
     ...(node.references || []).flatMap((reference) => [
       reference.title || '',
       reference.url || '',
@@ -9104,12 +9273,12 @@ function renderDocumentationFinder() {
     finderResultsCache = []
     finderSelectedIndex = 0
     documentationFinderSummary.textContent =
-      'Scrie ceva pentru a căuta în titluri, conținut, tag-uri, fișiere și code snippets.'
+      'Scrie ceva pentru a căuta în titluri, taxonomy, surse și documentația deja încărcată.'
 
     documentationFinderResults.innerHTML = `
       <div class="documentation-finder-empty">
-        Quick Find caută mai adânc decât lista vizibilă de pe hartă și poate
-        găsi text din documentație, code snippets, media și fișiere.
+        Quick Find caută în metadata Atlas și în documentația deja încărcată.
+        Căutarea server-side în tot conținutul va rămâne separată de bootstrap-ul hărții.
       </div>
     `
     return
@@ -17069,6 +17238,10 @@ function renderDetailPanel() {
   const tagNames = nodeTagNames(node)
   const nodeEditorActions = canEditNode(node) && editorMode
 
+  if (node.isTeamNode && (!node.contentLoaded || !node.attachmentsLoaded)) {
+    queueTeamNodeDetailHydration(node)
+  }
+
   const validRelations = (node.links || [])
     .map((link, index) => ({
       link,
@@ -17132,8 +17305,21 @@ function renderDetailPanel() {
     <div class="detail-content">
       <div class="detail-main-column">
         <div class="info-card detail-document-card">
-          ${node.isTeamNode && !node.attachmentsLoaded ? '<div class="document-disclosure-empty">Se încarcă exemplele de cod și media acestui nod...</div>' : ''}
-          ${renderNodeDocumentation(node)}
+          ${
+            node.isTeamNode && !node.contentLoaded
+              ? '<div class="document-disclosure-empty">Se încarcă documentația acestui nod...</div>'
+              : renderNodeDocumentation(node)
+          }
+          ${
+            node.contentLoadError
+              ? `<div class="document-disclosure-empty">Documentația nu a putut fi încărcată: ${escapeHtmlText(node.contentLoadError)}</div>`
+              : ''
+          }
+          ${
+            node.isTeamNode && !node.attachmentsLoaded
+              ? '<div class="document-disclosure-empty">Se încarcă exemplele de cod și media acestui nod...</div>'
+              : ''
+          }
         </div>
 
         <details class="document-disclosure" data-document-section="details">
@@ -17500,6 +17686,22 @@ function openEdit(id) {
     return
   }
 
+  if (
+    node.isTeamNode &&
+    (!node.contentLoaded || !node.attachmentsLoaded)
+  ) {
+    Promise.all([
+      loadTeamNodeContent(node),
+      loadTeamNodeAttachments(node)
+    ])
+      .then(() => openEdit(id))
+      .catch((error) => {
+        console.error('Node editor hydration failed:', error)
+        alert(error?.message || 'Documentația nodului nu a putut fi încărcată.')
+      })
+    return
+  }
+
   editingId = id
   modalTitle.textContent = 'Editează nod'
   modalSubtitle.textContent = ''
@@ -17680,7 +17882,11 @@ async function saveNode() {
         media: [],
         files: [],
         codeSnippets: [],
-        attachmentsLoaded: true
+        attachmentsLoaded: true,
+        contentLoaded: true,
+        contentLoadError: null,
+        createdAt: inserted.created_at || null,
+        updatedAt: inserted.updated_at || null
       }
 
       nodes.push(newNode)
@@ -17740,6 +17946,9 @@ async function saveNode() {
 
       node.content = updated.content
       node.contentFormat = updated.content_format || contentFormat
+      node.contentLoaded = true
+      node.contentLoadError = null
+      node.updatedAt = updated.updated_at || node.updatedAt || null
       node.x = Number(updated.x)
       node.y = Number(updated.y)
 
@@ -17749,6 +17958,12 @@ async function saveNode() {
     }
 
     detailOpen = true
+
+    const savedNode = selectedNode()
+    if (savedNode?.isTeamNode) {
+      cacheTeamNodeContent(savedNode)
+    }
+
     saveCachedNodes()
     closeModal()
     setNodeRoute(selectedNode(), { push: false })
@@ -17854,6 +18069,7 @@ async function deleteSelected() {
 
   try {
     await deleteNodeRemote(node.id)
+    dropCachedTeamNodeContent(node)
 
     const storedPaths = (node.media || []).map((media) => media.storagePath).filter(Boolean)
     const storedFilePaths = (node.files || []).map((file) => file.storagePath).filter(Boolean)
