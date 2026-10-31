@@ -8254,7 +8254,8 @@ const CODE_LANGUAGES = [
   ['json', 'JSON'],
   ['xml', 'XML'],
   ['bash', 'Bash / Terminal'],
-  ['text', 'Text simplu']
+  ['text', 'Text simplu'],
+  ['markdown', 'Markdown']
 ]
 
 function codeLanguageLabel(language) {
