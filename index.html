@@ -9040,6 +9040,9 @@
 </style>
 
 <style id="atlas-reading-v122">
+  /* Keep both launchers reachable above the drawer backdrop on every screen. */
+  .topbar { z-index: 58; }
+
   /* Native scrolling/zoom belongs to document panels; map gestures stay local. */
   .modal-backdrop, .modal-body, .media-manager-body, .code-manager-body,
   .taxonomy-manager-body, .tools-body, .detail-content, .public-hub-panel,
