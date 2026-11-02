@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=121" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=122" />
   <style>
     :root {
       --bg: #000000;
@@ -5475,7 +5475,7 @@
       align-items: stretch;
       justify-content: stretch;
       overflow: hidden;
-      touch-action: pan-y;
+      touch-action: pan-x pan-y pinch-zoom;
     }
 
     .modal-backdrop > .modal {
@@ -5535,7 +5535,7 @@
       overflow-x: hidden;
       padding: 14px;
       gap: 14px;
-      touch-action: pan-y;
+      touch-action: pan-x pan-y pinch-zoom;
       overscroll-behavior-y: auto;
       scroll-behavior: smooth;
       scroll-padding-top: 18px;
@@ -5582,7 +5582,7 @@
       min-height: 180px;
       max-height: none;
       overflow-y: auto;
-      touch-action: pan-y;
+      touch-action: pan-x pan-y pinch-zoom;
       overscroll-behavior: auto;
       -webkit-overflow-scrolling: touch;
     }
@@ -5597,7 +5597,7 @@
       max-height: 72dvh;
       overflow: auto;
       resize: vertical;
-      touch-action: pan-x pan-y;
+      touch-action: pan-x pan-y pinch-zoom;
       overscroll-behavior: auto;
       -webkit-overflow-scrolling: touch;
     }
@@ -5622,7 +5622,7 @@
     .tools-body,
     .detail-content {
       overscroll-behavior-y: auto;
-      touch-action: pan-y;
+      touch-action: pan-x pan-y pinch-zoom;
     }
   }
 
@@ -5847,7 +5847,7 @@
         14px
         14px
         max(28px, env(safe-area-inset-bottom));
-      touch-action: pan-y;
+      touch-action: pan-x pan-y pinch-zoom;
       overscroll-behavior-y: auto;
       -webkit-overflow-scrolling: touch;
     }
@@ -9039,6 +9039,90 @@
   }
 </style>
 
+<style id="atlas-reading-v122">
+  /* Native scrolling/zoom belongs to document panels; map gestures stay local. */
+  .modal-backdrop, .modal-body, .media-manager-body, .code-manager-body,
+  .taxonomy-manager-body, .tools-body, .detail-content, .public-hub-panel,
+  .shell-drawer-body, .atlas-navigation, .field textarea, .code-editor-input {
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+
+  .modal-body, .media-manager-body, .code-manager-body, .taxonomy-manager-body,
+  .tools-body, .detail-content, .public-hub-panel, .shell-drawer-body {
+    overflow-x: auto;
+  }
+
+  .detail-main-column, .detail-document-card, .doc-text, .atlas-inline-embed,
+  .code-snippet-card, .code-block-shell, .modal-body > *, .shell-drawer-body > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .document-table-scroll, .doc-text pre, .code-block-shell pre {
+    min-width: 0;
+    max-width: 100%;
+    overflow: auto;
+    touch-action: pan-x pan-y pinch-zoom;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .document-table-scroll { margin: 1rem 0; }
+  .document-table-scroll table { min-width: 32rem; width: 100%; border-collapse: collapse; }
+  .document-table-scroll th, .document-table-scroll td { padding: 10px; border: 1px solid #39343f; }
+  .document-table-scroll:focus-visible { outline: 2px solid #c78aff; outline-offset: 3px; }
+
+  .navigation-utilities { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 16px; }
+  .navigation-utilities .mobile-shell-btn {
+    display: flex !important;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    flex: 1 1 auto;
+    width: auto;
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: .78rem;
+  }
+  .mobile-shell-btn[hidden], .navigation-utilities .mobile-shell-btn[hidden] { display: none !important; }
+
+  .roadmap-disclosure { padding: 0; overflow: hidden; }
+  .roadmap-disclosure > summary { padding: 18px; list-style: none; cursor: pointer; }
+  .roadmap-disclosure > summary::-webkit-details-marker { display: none; }
+  .roadmap-disclosure > summary:focus-visible { outline: 2px solid #c78aff; outline-offset: -3px; }
+  .roadmap-disclosure .roadmap-card-head { align-items: center; }
+  .roadmap-disclosure h2 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .roadmap-disclosure .roadmap-card-description { margin: 0 18px 12px; }
+  .roadmap-disclosure .roadmap-steps { margin: 0; padding: 0 14px 14px; }
+  .roadmap-expand-mark { color: #c5bdcc; }
+  .roadmap-disclosure[open] .roadmap-expand-mark { transform: rotate(180deg); }
+  .roadmap-disclosure .roadmap-progress-fill { background: #4dcf93; }
+  .roadmap-step.is-read { background: rgba(77,207,147,.055); border-color: rgba(77,207,147,.3); }
+  .roadmap-step-node { min-height: 44px; overflow-wrap: anywhere; }
+
+  .node-read-control { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; color: #e9e5ed; font-weight: 650; }
+  .node-read-control input { margin: 0; width: 22px; height: 22px; flex-shrink: 0; accent-color: #4dcf93; cursor: pointer; }
+  .node-read-control input:disabled { cursor: wait; opacity: .5; }
+  .node-read-control input:focus-visible { outline: 2px solid #c78aff; outline-offset: 4px; }
+  .node-read-control.compact { padding: 0 8px; flex-direction: column; justify-content: center; gap: 4px; font-size: .65rem; }
+  .node-read-footer { padding: 16px 20px; border: 1px solid #39343f; border-radius: 14px; }
+  .node-read-footer.is-read { border-color: rgba(77,207,147,.6); background: rgba(77,207,147,.04); }
+  .node-read-footer p { margin: 6px 0 0; color: #b9b1c1; font-size: .8rem; line-height: 1.6; }
+  .node-read-status { color: #d6c6e0; font-size: .8rem; }
+  .node-read-status:empty { display: none; }
+  .read-status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .node.is-read { border-color: rgba(77,207,147,.75); background: linear-gradient(135deg, #10261e, #101117); }
+  .node.is-read.active { border-color: #d8b4ff; box-shadow: 0 0 0 2px #a65de4, 0 8px 28px rgba(0,0,0,.4); }
+  .node-read-badge { color: #a4efc9; background: #123523; border-radius: 5px; padding: 2px 5px; font-size: 10px; font-weight: 750; white-space: nowrap; }
+
+  @media (max-width: 520px) {
+    .roadmap-disclosure .roadmap-card-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+    .roadmap-disclosure .roadmap-progress-copy { grid-column: 1; }
+    .roadmap-expand-mark { grid-column: 2; grid-row: 1 / 3; }
+    .roadmap-step { gap: 6px; padding: 6px; }
+    .roadmap-step-index { min-width: 20px; }
+  }
+</style>
 </head>
 <body>
   <div class="noise"></div>
@@ -9077,35 +9161,7 @@
           aria-expanded="false"
           aria-controls="toolPanel"
         >⚡</button>
-        <button
-          class="mobile-shell-btn mobile-account-btn"
-          id="mobileAccountBtn"
-          type="button"
-          aria-label="Deschide profilul sau autentificarea"
-          aria-expanded="false"
-          aria-controls="profileDrawer"
-          title="Profil / Login"
-        >👤</button>
-        <button
-          class="mobile-shell-btn mobile-editor-btn"
-          id="mobileEditorBtn"
-          type="button"
-          aria-label="Deschide Editor"
-          aria-expanded="false"
-          aria-controls="editorDrawer"
-          title="Editor"
-          hidden
-        >✎</button>
-        <button
-          class="mobile-shell-btn mobile-team-btn"
-          id="mobileTeamBtn"
-          type="button"
-          aria-label="Deschide echipa"
-          aria-expanded="false"
-          aria-controls="teamDrawer"
-          title="Team"
-          hidden
-        >👥</button>
+
       </div>
     </div>
 
@@ -9160,6 +9216,37 @@
           aria-label="Ascunde navigarea"
           aria-expanded="true"
         >–</button>
+      </div>
+      <div class="navigation-utilities">
+        <button
+          class="mobile-shell-btn mobile-account-btn"
+          id="mobileAccountBtn"
+          type="button"
+          aria-label="Deschide profilul sau autentificarea"
+          aria-expanded="false"
+          aria-controls="profileDrawer"
+          title="Profil / Login"
+        ><span aria-hidden="true">👤</span><span>Profil</span></button>
+        <button
+          class="mobile-shell-btn mobile-editor-btn"
+          id="mobileEditorBtn"
+          type="button"
+          aria-label="Deschide Editor"
+          aria-expanded="false"
+          aria-controls="editorDrawer"
+          title="Editor"
+          hidden
+        ><span aria-hidden="true">✎</span><span>Editor</span></button>
+        <button
+          class="mobile-shell-btn mobile-team-btn"
+          id="mobileTeamBtn"
+          type="button"
+          aria-label="Deschide echipa"
+          aria-expanded="false"
+          aria-controls="teamDrawer"
+          title="Team"
+          hidden
+        ><span aria-hidden="true">👥</span><span>Echipă</span></button>
       </div>
       <div class="atlas-section-switcher" id="publicSectionTabs" role="tablist" aria-label="Navigare principală">
         <details class="team-atlas-primary" id="teamAtlasPrimary" data-ui-section="team-atlas" open>
@@ -10726,6 +10813,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=121"></script>
+  <script type="module" src="/js/atlas-script.js?v=122"></script>
 </body>
 </html>
