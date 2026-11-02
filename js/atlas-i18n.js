@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v106 · auth OTP / token verification fix
+// v122 · mobile reading and personal read markers
 //
 // Source language: Romanian
 // Secondary language: English
@@ -21,6 +21,18 @@ const SECONDARY_LANGUAGE = 'en'
 const SUPPORTED_LANGUAGES = new Set(['ro', 'en'])
 
 const UI_EN = new Map(Object.entries({
+  "Citit": "Read",
+  "Am citit acest nod": "I have read this node",
+  "✓ Citit": "\u2713 Read",
+  "Echipă": "Team",
+  "Tabel cu derulare orizontală": "Horizontally scrollable table",
+  "Se încarcă bifele…": "Loading read markers\u2026",
+  "Bifele nu au putut fi încărcate.": "Read markers could not be loaded.",
+  "Bifa nu a putut fi salvată. Încearcă din nou.": "The read marker could not be saved. Try again.",
+  "Reîncearcă": "Try again",
+  "Bifa este personală și apare în toate roadmap-urile acestui nod.": "Your read marker appears in every roadmap containing this node.",
+  "Deschide un traseu și bifează nodurile citite. Bifa se sincronizează cu documentația și harta.": "Open a roadmap and check the nodes you have read. Read markers are shared with the document and map.",
+
   'Navigare': 'Navigation',
   'Comenzi mobile': 'Mobile controls',
   'Deschide navigarea': 'Open navigation',
@@ -1244,6 +1256,12 @@ function translateRuntimeText(value) {
     }
     return `· ${roleLabels[match[1].toLowerCase()] || match[1]}`
   }
+
+  match = text.match(/^(\d+)\s*\/\s*(\d+)\s+citite$/i)
+  if (match) return `${match[1]} / ${match[2]} read`
+
+  match = text.match(/^Citit: (.+)$/)
+  if (match) return `Read: ${match[1]}`
 
   match = text.match(/^(\d+)\s*\/\s*(\d+)\s+finalizate$/i)
   if (match) return `${match[1]} / ${match[2]} completed`
@@ -4530,3 +4548,4 @@ if (document.readyState === 'loading') {
 } else {
   init()
 }
+
