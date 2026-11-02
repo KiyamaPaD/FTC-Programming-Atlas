@@ -5,6 +5,7 @@
   "description": "FTC Programming Atlas — Team-first FTC documentation for web, Android, and Windows",
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
+    "test": "node --test scripts/node-reads.test.mjs",
     "release:check": "node scripts/release-check.mjs && npm run mobile:build",
     "mobile:build": "node scripts/build-mobile-web.mjs",
     "mobile:doctor": "npx cap doctor",
@@ -87,3 +88,4 @@
     "artifactName": "FTC-Programming-Atlas-${version}-${arch}.${ext}"
   }
 }
+
