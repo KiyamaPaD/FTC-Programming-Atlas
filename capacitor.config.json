@@ -6,11 +6,11 @@
   "loggingBehavior": "production",
   "android": {
     "backgroundColor": "#000000",
-    "zoomEnabled": false
+    "zoomEnabled": true
   },
   "ios": {
     "backgroundColor": "#000000",
-    "zoomEnabled": false,
+    "zoomEnabled": true,
     "preferredContentMode": "mobile"
   }
 }
