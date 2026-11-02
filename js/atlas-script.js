@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
-console.log('ATLAS SCRIPT LOADED v121 · OPT-IN PERFORMANCE PROFILER')
+import { createNodeReadStore } from './atlas-node-reads.js?v=122'
+
+console.log('ATLAS SCRIPT LOADED v122 · MOBILE READING')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -201,6 +203,9 @@ function isTouchLayout() {
 let mobileFieldScrollTimer = null
 
 function updateAtlasViewportHeight() {
+  // Pinching changes the visual viewport, not the document layout. Keep the
+  // layout stable while zoomed; at scale 1 still accommodate the keyboard.
+  if (window.visualViewport && Math.abs(window.visualViewport.scale - 1) > 0.01) return
   const viewportHeight = window.visualViewport?.height || window.innerHeight
 
   if (!Number.isFinite(viewportHeight)) return
@@ -306,6 +311,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   }
 })
 
+const nodeReads = createNodeReadStore({ client: supabase, projectId: PROJECT_ID, onChange: refreshNodeReadUI })
+let teamAtlasLoadSequence = 0
+
 // Bundled read-only product tutorial
 const DEFAULT_TUTORIAL_CONTENT = `1. Team Atlas
 
@@ -320,15 +328,15 @@ Atlasul este documentația internă a echipei. Explore și Roadmaps lucrează pe
 
 3. Documentația unui nod
 
-Documentația se citește de sus în jos. Codul, imaginile, video-urile și fișierele pot fi inserate direct între paragrafe, exact unde sunt relevante.
+Documentația se citește de sus în jos. Codul, imaginile, video-urile și fișierele pot fi inserate direct între paragrafe, exact unde sunt relevante. La final poți bifa „Am citit acest nod”. Bifa este personală și poate fi debifată oricând.
 
 4. Roadmaps
 
-Roadmaps sunt trasee recomandate prin nodurile echipei. Nu blochează conținutul și nu schimbă accesul la noduri.
+Roadmaps sunt trasee recomandate prin nodurile echipei. Deschide un traseu pentru a vedea nodurile. Bifa „Citit” este comună documentului și tuturor traseelor lui. Nodurile citite și legăturile dintre două noduri citite sunt verzi. Toate nodurile rămân accesibile.
 
 5. Editor Mode
 
-Editor Mode este disponibil doar conturilor cu drepturi de editare și rămâne activ după refresh până îl oprești. Butonul Editor este separat de Quick Panel.
+Editor Mode este disponibil doar conturilor cu drepturi de editare și rămâne activ după refresh până îl oprești. Profil, Echipă și Editor se deschid din Navigare.
 
 6. Editarea documentației
 
@@ -540,7 +548,7 @@ function saveCachedNodes() {
     teamDifficulties,
     teamTaxonomyTags,
     teamRoadmaps,
-    teamRoadmapProgress: [...teamRoadmapProgress]
+    readNodeIds: nodeReads.ids()
   })
 }
 
@@ -564,9 +572,7 @@ function hydrateCachedTeamSnapshot() {
   teamDifficulties = Array.isArray(cached.teamDifficulties) ? cached.teamDifficulties : []
   teamTaxonomyTags = Array.isArray(cached.teamTaxonomyTags) ? cached.teamTaxonomyTags : []
   teamRoadmaps = Array.isArray(cached.teamRoadmaps) ? cached.teamRoadmaps : []
-  teamRoadmapProgress = new Set(
-    Array.isArray(cached.teamRoadmapProgress) ? cached.teamRoadmapProgress : []
-  )
+  nodeReads.reset({ userId: currentUser?.id, teamId: activeTeamId }, cached.readNodeIds || [])
 
   ensureWorldCapacityForNodes(teamNodes)
   syncActiveNodeCollection({ forceReset: true })
@@ -666,7 +672,7 @@ let roadmaps = []
 let roadmapProgress = new Set()
 
 let teamRoadmaps = []
-let teamRoadmapProgress = new Set()
+const openTeamRoadmaps = new Set()
 
 let teamMemberships = []
 let teamRecords = []
@@ -701,7 +707,6 @@ let roadmapManagerDraftSteps = []
 let roadmapManagerMutationBusy = false
 let roadmapManagerScope = 'team'
 let roadmapProgressMutationKeys = new Set()
-let teamRoadmapProgressMutationKeys = new Set()
 
 let bookmarkRows = []
 let bookmarkKeys = new Set()
@@ -2803,14 +2808,52 @@ async function deletePublicContentItem() {
 }
 
 
-function teamRoadmapProgressKey(roadmapId, nodeId) {
-  return `${Number(roadmapId)}:${Number(nodeId)}`
+function isTeamNodeRead(node) {
+  return Boolean(node?.isTeamNode && Number(node.teamId) === Number(activeTeamId) && nodeReads.has(node.id))
 }
 
-function isTeamRoadmapStepCompleted(roadmapId, nodeId) {
-  return teamRoadmapProgress.has(
-    teamRoadmapProgressKey(roadmapId, nodeId)
-  )
+function nodeReadStatusText() {
+  if (nodeReads.error === 'save') return 'Bifa nu a putut fi salvată. Încearcă din nou.'
+  if (nodeReads.error === 'load') return 'Bifele nu au putut fi încărcate.'
+  if (!nodeReads.ready) return 'Se încarcă bifele…'
+  return ''
+}
+
+function renderReadStatus() {
+  return `<div class="read-status-row"><p class="node-read-status" data-read-status role="status">${nodeReadStatusText()}</p><button class="btn" type="button" data-retry-node-reads ${nodeReads.error === 'load' ? '' : 'hidden'}>Reîncearcă</button></div>`
+}
+
+function renderNodeReadCheckbox(nodeId, title, compact = false) {
+  return `<label class="node-read-control ${compact ? 'compact' : ''}">
+    <input type="checkbox" data-node-read="${Number(nodeId)}" aria-label="${escapeHtmlText(`Citit: ${title}`)}" ${nodeReads.has(nodeId) ? 'checked' : ''} ${!nodeReads.ready || nodeReads.busy(nodeId) ? 'disabled' : ''}>
+    <span>${compact ? 'Citit' : 'Am citit acest nod'}</span>
+  </label>`
+}
+
+function refreshNodeReadUI({ kind } = {}) {
+  // Update controls in place: preserve document scroll, focus and open roadmaps.
+  document.querySelectorAll('[data-node-read]').forEach((input) => {
+    const id = Number(input.dataset.nodeRead)
+    input.checked = nodeReads.has(id)
+    input.disabled = !nodeReads.ready || nodeReads.busy(id)
+    input.setAttribute('aria-busy', nodeReads.busy(id) ? 'true' : 'false')
+    input.closest('.roadmap-step')?.classList.toggle('is-read', input.checked)
+    input.closest('.node-read-footer')?.classList.toggle('is-read', input.checked)
+  })
+  document.querySelectorAll('[data-read-status]').forEach((status) => { status.textContent = nodeReadStatusText() })
+  document.querySelectorAll('[data-retry-node-reads]').forEach((button) => { button.hidden = nodeReads.error !== 'load' })
+  document.querySelectorAll('[data-roadmap-read-count]').forEach((label) => {
+    const roadmap = teamRoadmaps.find((item) => item.id === Number(label.dataset.roadmapReadCount))
+    const stats = teamRoadmapProgressStats(roadmap)
+    label.textContent = `${stats.read} / ${stats.total} citite`
+    const fill = label.closest('.roadmap-card')?.querySelector('.roadmap-progress-fill')
+    if (fill) fill.style.width = `${stats.percent}%`
+  })
+  if (kind === 'changed' || kind === 'loaded') {
+    renderNodes()
+    renderLinks()
+    if (kind === 'changed') saveCachedNodes()
+  }
 }
 
 function visibleTeamRoadmaps() {
@@ -2835,71 +2878,9 @@ function visibleTeamRoadmaps() {
 }
 
 function teamRoadmapProgressStats(roadmap) {
-  const steps = Array.isArray(roadmap?.steps) ? roadmap.steps : []
-
-  const completed = steps.filter((step) =>
-    isTeamRoadmapStepCompleted(roadmap.id, step.nodeId)
-  ).length
-
-  return {
-    completed,
-    total: steps.length,
-    percent:
-      steps.length > 0
-        ? Math.round((completed / steps.length) * 100)
-        : 0
-  }
-}
-
-async function toggleTeamRoadmapProgress(roadmapId, nodeId) {
-  if (!currentUser || activeTeamId == null) {
-    setAccountPanel(true)
-    return
-  }
-
-  const key = teamRoadmapProgressKey(roadmapId, nodeId)
-
-  if (teamRoadmapProgressMutationKeys.has(key)) return
-
-  teamRoadmapProgressMutationKeys.add(key)
-
-  try {
-    if (teamRoadmapProgress.has(key)) {
-      const { error } = await supabase
-        .from('atlas_team_roadmap_progress')
-        .delete()
-        .eq('project_id', PROJECT_ID)
-        .eq('team_id', Number(activeTeamId))
-        .eq('roadmap_id', Number(roadmapId))
-        .eq('node_id', Number(nodeId))
-        .eq('user_id', currentUser.id)
-
-      if (error) throw error
-
-      teamRoadmapProgress.delete(key)
-    } else {
-      const { error } = await supabase
-        .from('atlas_team_roadmap_progress')
-        .insert({
-          project_id: PROJECT_ID,
-          team_id: Number(activeTeamId),
-          roadmap_id: Number(roadmapId),
-          node_id: Number(nodeId),
-          user_id: currentUser.id
-        })
-
-      if (error) throw error
-
-      teamRoadmapProgress.add(key)
-    }
-
-    renderPublicShell()
-  } catch (error) {
-    console.error('Team roadmap progress update failed:', error)
-    alert(error?.message || 'Progresul Team Atlas nu a putut fi salvat.')
-  } finally {
-    teamRoadmapProgressMutationKeys.delete(key)
-  }
+  const steps = (roadmap?.steps || []).filter((step) => teamNodes.some((node) => Number(node.id) === Number(step.nodeId)))
+  const read = steps.filter((step) => nodeReads.has(step.nodeId)).length
+  return { read, total: steps.length, percent: steps.length ? Math.round(read / steps.length * 100) : 0 }
 }
 
 function teamRoadmapManagerButton() {
@@ -2926,156 +2907,39 @@ function teamRoadmapManagerButton() {
 
 function renderTeamRoadmapCards() {
   const items = visibleTeamRoadmaps()
+  if (!items.length) return '<div class="public-hub-empty">Niciun roadmap în acest departament.</div>'
 
-  if (items.length === 0) {
-    return `
-      <div class="roadmap-list">
-        <article class="public-hub-card wide">
-          <span class="public-hub-card-label">Roadmap-uri echipă</span>
-          <h3>Niciun roadmap în acest departament.</h3>
-          <p>
-            Sunt trasee recomandate prin documentația echipei, nu task-uri.
-            Nu au deadline-uri și nu blochează niciun nod.
-          </p>
-          <div class="public-hub-empty">
-            Toată documentația rămâne accesibilă direct din hartă.
+  return `${renderReadStatus()}<div class="roadmap-list">
+    ${items.map((roadmap) => {
+      const stats = teamRoadmapProgressStats(roadmap)
+      return `<details class="roadmap-card roadmap-disclosure" data-roadmap-id="${Number(roadmap.id)}" data-roadmap-team-id="${Number(activeTeamId)}" ${openTeamRoadmaps.has(`${activeTeamId}:${roadmap.id}`) ? 'open' : ''}>
+        <summary>
+          <div class="roadmap-card-head">
+            <h2>${escapeHtmlText(roadmap.title)}</h2>
+            <span class="roadmap-progress-copy" data-roadmap-read-count="${Number(roadmap.id)}">${stats.read} / ${stats.total} citite</span>
+            <span class="roadmap-expand-mark" aria-hidden="true">⌄</span>
           </div>
-        </article>
-      </div>
-    `
-  }
-
-  return `
-    <div class="roadmap-list">
-      ${items
-        .map((roadmap) => {
-          const stats = teamRoadmapProgressStats(roadmap)
-          const department = getDepartmentById(roadmap.departmentId)
-
-          return `
-            <article class="roadmap-card">
-              <div class="roadmap-card-head">
-                <div class="roadmap-card-main">
-                  <span class="roadmap-card-label">${escapeHtmlText(
-                    department?.short_name ||
-                      department?.name ||
-                      'Roadmap echipă'
-                  )}</span>
-
-                  <h2>${escapeHtmlText(roadmap.title)}</h2>
-
-                  ${
-                    roadmap.description
-                      ? `<p class="roadmap-card-description">${escapeHtml(
-                          roadmap.description
-                        )}</p>`
-                      : ''
-                  }
-                </div>
-
-                <span class="roadmap-progress-copy">
-                  ${stats.completed} / ${stats.total} finalizate
-                </span>
+          <div class="roadmap-progress-track" aria-hidden="true"><div class="roadmap-progress-fill" style="width:${stats.percent}%"></div></div>
+        </summary>
+        ${roadmap.description ? `<p class="roadmap-card-description">${escapeHtmlText(roadmap.description)}</p>` : ''}
+        <div class="roadmap-steps">
+          ${(roadmap.steps || []).map((step, index) => {
+            const node = teamNodes.find((candidate) => Number(candidate.id) === Number(step.nodeId))
+            if (!node) return ''
+            return `<div class="roadmap-step ${nodeReads.has(node.id) ? 'is-read' : ''}">
+              ${renderNodeReadCheckbox(node.id, node.title, true)}
+              <div class="roadmap-step-main">
+                <button class="roadmap-step-node" type="button" data-team-roadmap-node-id="${Number(node.id)}">${escapeHtmlText(node.title)}</button>
+                ${step.isOptional ? '<span class="roadmap-step-optional">Opțional</span>' : ''}
+                ${step.note ? `<p class="roadmap-step-note">${escapeHtmlText(step.note)}</p>` : ''}
               </div>
-
-              <div class="roadmap-progress-track" aria-hidden="true">
-                <div
-                  class="roadmap-progress-fill"
-                  style="width:${stats.percent}%"
-                ></div>
-              </div>
-
-              <div class="roadmap-steps">
-                ${(roadmap.steps || [])
-                  .map((step, index) => {
-                    const node = teamNodes.find(
-                      (candidate) =>
-                        Number(candidate.id) === Number(step.nodeId)
-                    )
-
-                    if (!node) return ''
-
-                    const completed = isTeamRoadmapStepCompleted(
-                      roadmap.id,
-                      step.nodeId
-                    )
-
-                    const busy = teamRoadmapProgressMutationKeys.has(
-                      teamRoadmapProgressKey(
-                        roadmap.id,
-                        step.nodeId
-                      )
-                    )
-
-                    return `
-                      <div class="roadmap-step ${
-                        completed ? 'completed' : ''
-                      }">
-                        <button
-                          class="roadmap-step-check ${
-                            completed ? 'completed' : ''
-                          }"
-                          type="button"
-                          data-team-roadmap-progress-roadmap="${Number(
-                            roadmap.id
-                          )}"
-                          data-team-roadmap-progress-node="${Number(
-                            step.nodeId
-                          )}"
-                          aria-pressed="${completed ? 'true' : 'false'}"
-                          aria-label="${
-                            completed
-                              ? 'Marchează ca nefinalizat'
-                              : 'Marchează ca finalizat'
-                          }"
-                          ${busy ? 'disabled' : ''}
-                        >
-                          ${completed ? '✓' : ''}
-                        </button>
-
-                        <div class="roadmap-step-main">
-                          <button
-                            class="roadmap-step-node"
-                            type="button"
-                            data-team-roadmap-node-id="${Number(step.nodeId)}"
-                          >
-                            ${escapeHtmlText(node.title)}
-                          </button>
-
-                          ${
-                            step.isOptional
-                              ? '<span class="roadmap-step-optional">Opțional</span>'
-                              : ''
-                          }
-
-                          ${
-                            step.note
-                              ? `<p class="roadmap-step-note">${escapeHtml(
-                                  step.note
-                                )}</p>`
-                              : ''
-                          }
-                        </div>
-
-                        <span class="roadmap-step-index">
-                          ${String(index + 1).padStart(2, '0')}
-                        </span>
-                      </div>
-                    `
-                  })
-                  .join('')}
-              </div>
-
-              <div class="roadmap-card-foot">
-                <p>Progres personal · fără blocări · documentația rămâne liberă.</p>
-                <p>${stats.percent}%</p>
-              </div>
-            </article>
-          `
-        })
-        .join('')}
-    </div>
-  `
+              <span class="roadmap-step-index">${String(index + 1).padStart(2, '0')}</span>
+            </div>`
+          }).join('')}
+        </div>
+      </details>`
+    }).join('')}
+  </div>`
 }
 
 function openTeamRoadmapNode(nodeId) {
@@ -4232,12 +4096,15 @@ function populateTeamNodeDepartmentSelect(selectedId = null) {
 
 async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
   const perfStartedAt = atlasPerfNow()
+  const loadSequence = ++teamAtlasLoadSequence
+  const loadTeamId = activeTeamId
+  const loadUserId = currentUser?.id
   teamNodes = []
   teamCategories = []
   teamDifficulties = []
   teamTaxonomyTags = []
   teamRoadmaps = []
-  teamRoadmapProgress = new Set()
+  nodeReads.reset()
   teamNodeAttachmentLoads.clear()
   teamNodeContentLoads.clear()
 
@@ -4246,7 +4113,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     return
   }
 
-  hydrateCachedTeamSnapshot()
+  if (!hydrateCachedTeamSnapshot()) nodeReads.reset({ userId: loadUserId, teamId: loadTeamId })
 
   const [
     nodesResult,
@@ -4256,7 +4123,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     teamTagsResult,
     teamRoadmapsResult,
     teamRoadmapStepsResult,
-    teamRoadmapProgressResult,
+    nodeReadsResult,
     teamReferencesResult,
     teamReviewStateResult
   ] = await Promise.all([
@@ -4315,12 +4182,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
       .order('roadmap_id', { ascending: true })
       .order('position', { ascending: true }),
 
-    supabase
-      .from('atlas_team_roadmap_progress')
-      .select('roadmap_id, node_id')
-      .eq('project_id', PROJECT_ID)
-      .eq('team_id', Number(activeTeamId))
-      .eq('user_id', currentUser.id),
+    nodeReads.load().then(() => ({ error: null })).catch((error) => ({ error })),
 
     supabase
       .from('atlas_document_references')
@@ -4341,6 +4203,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
       .eq('team_id', Number(activeTeamId))
   ])
 
+  if (loadSequence !== teamAtlasLoadSequence || loadTeamId !== activeTeamId || loadUserId !== currentUser?.id) return
   if (nodesResult.error) throw nodesResult.error
 
   const optionalTeamResults = [
@@ -4350,7 +4213,7 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
     ['tags', teamTagsResult],
     ['roadmaps', teamRoadmapsResult],
     ['roadmap steps', teamRoadmapStepsResult],
-    ['roadmap progress', teamRoadmapProgressResult],
+    ['node reads', nodeReadsResult],
     ['references', teamReferencesResult],
     ['review state', teamReviewStateResult]
   ]
@@ -4397,12 +4260,6 @@ async function loadActiveTeamAtlasNodes({ forceReset = false } = {}) {
       updatedAt: row.updated_at || null,
       steps: teamRoadmapStepsByRoadmap.get(Number(row.id)) || []
     }))
-
-  teamRoadmapProgress = new Set(
-    (teamRoadmapProgressResult.data || []).map((row) =>
-      teamRoadmapProgressKey(row.roadmap_id, row.node_id)
-    )
-  )
 
   const edgesBySource = new Map()
 
@@ -5141,7 +4998,7 @@ async function loadTeamContext({ rerender = false } = {}) {
   teamDifficulties = []
   teamTaxonomyTags = []
   teamRoadmaps = []
-  teamRoadmapProgress = new Set()
+  nodeReads.reset()
 
   if (!currentUser) {
     activeTeamId = null
@@ -7776,7 +7633,7 @@ function renderPublicShell() {
       <div class="public-hub-inner">
         <p class="public-hub-kicker">${escapeHtml(roadmapKicker)}</p>
         <h1 class="public-hub-title">Roadmaps</h1>
-        <p class="public-hub-description">Parcursuri recomandate prin documentația echipei.</p>
+        <p class="public-hub-description">Deschide un traseu și bifează nodurile citite. Bifa se sincronizează cu documentația și harta.</p>
         ${teamRoadmapManagerButton()}
         ${renderTeamRoadmapCards()}
       </div>
@@ -8260,7 +8117,17 @@ const RICH_TEXT_ALLOWED_TAGS = new Set([
   'LI',
   'BLOCKQUOTE',
   'A',
-  'FONT'
+  'FONT',
+  'PRE',
+  'CODE',
+  'TABLE',
+  'CAPTION',
+  'THEAD',
+  'TBODY',
+  'TFOOT',
+  'TR',
+  'TH',
+  'TD'
 ])
 
 const RICH_TEXT_REMOVE_WITH_CONTENT = new Set([
@@ -8476,6 +8343,15 @@ function renderRichDocumentationWithEmbeds(node) {
     placeholder.replaceWith(shell.content.cloneNode(true))
   })
 
+  template.content.querySelectorAll('table').forEach((table) => {
+    const scroll = document.createElement('div')
+    scroll.className = 'document-table-scroll'
+    scroll.tabIndex = 0
+    scroll.setAttribute('role', 'region')
+    scroll.setAttribute('aria-label', 'Tabel cu derulare orizontală')
+    table.replaceWith(scroll)
+    scroll.append(table)
+  })
   return template.innerHTML.trim()
 }
 
@@ -13648,6 +13524,9 @@ function renderLinks() {
       <marker id="edgeArrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
         <path d="M0,0 L0,12 L10,6 z" fill="rgba(216,180,255,0.96)"></path>
       </marker>
+      <marker id="edgeArrowRead" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+        <path d="M0,0 L0,12 L10,6 z" fill="rgba(137,238,187,0.96)"></path>
+      </marker>
       <marker id="edgeArrowHot" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
         <path d="M0,0 L0,12 L10,6 z" fill="rgba(255,190,205,0.98)"></path>
       </marker>
@@ -13662,6 +13541,7 @@ function renderLinks() {
       if (!target || !visibleIds.has(Number(target.id))) return
 
       const edgeSelected = isEdgeSelected(source.id, target.id)
+      const edgeRead = isTeamNodeRead(source) && isTeamNodeRead(target)
       const highlight = edgeSelected || source.id === selectedId || target.id === selectedId
       const geometry = getEdgeGeometry(source, target, link)
       const rawLabel = link.label || 'relație'
@@ -13671,7 +13551,9 @@ function renderLinks() {
 
       const baseColor = edgeSelected
         ? 'rgba(255, 77, 109, 0.52)'
-        : highlight
+        : edgeRead
+          ? 'rgba(77, 207, 147, 0.56)'
+          : highlight
           ? 'rgba(205, 112, 255, 0.34)'
           : 'rgba(177, 76, 255, 0.24)'
 
@@ -13679,7 +13561,9 @@ function renderLinks() {
 
       const flowColor = edgeSelected
         ? 'rgba(255, 190, 205, 0.98)'
-        : highlight
+        : edgeRead
+          ? 'rgba(137, 238, 187, 0.96)'
+          : highlight
           ? 'rgba(236, 200, 255, 0.96)'
           : 'rgba(216, 180, 255, 0.92)'
 
@@ -13736,7 +13620,7 @@ function renderLinks() {
           : ''
 
       parts.push(`
-        <g class="edge-group ${edgeSelected ? 'selected' : ''}" data-edge-source="${source.id}" data-edge-target="${target.id}">
+        <g class="edge-group ${edgeSelected ? 'selected' : ''} ${edgeRead ? 'is-read' : ''}" data-edge-source="${source.id}" data-edge-target="${target.id}">
           ${glowPath}
           <path class="edge-base" d="${geometry.pathD}" fill="none" stroke="${baseColor}" stroke-width="${baseWidth}" stroke-linecap="round" />
           <path
@@ -13747,7 +13631,7 @@ function renderLinks() {
             stroke-width="${flowWidth}"
             stroke-linecap="round"
             stroke-dasharray="4 24"
-            marker-end="url(${edgeSelected ? '#edgeArrowHot' : '#edgeArrow'})"
+            marker-end="url(${edgeSelected ? '#edgeArrowHot' : edgeRead ? '#edgeArrowRead' : '#edgeArrow'})"
             style="${flowStyle}"
           />
           <g class="edge-label" transform="translate(${geometry.labelX}, ${geometry.labelY})">
@@ -13825,10 +13709,12 @@ function renderNodes() {
     el.href = nodeRoutePath(node)
     el.setAttribute('aria-label', `Deschide documentația: ${node.title}`)
     el.dataset.nodeId = String(node.id)
+    if (isTeamNodeRead(node)) el.setAttribute('aria-label', `Deschide documentația: ${node.title} · Citit`)
 
     el.className = [
       'node',
       node.id === selectedId ? 'active' : '',
+      isTeamNodeRead(node) ? 'is-read' : '',
       layoutEditMode && canEditNode(node)
         ? 'layout-editable'
         : '',
@@ -13862,7 +13748,7 @@ function renderNodes() {
           <span class="pill category-pill">${escapeHtml(nodeCategoryName(node))}</span>
           <span class="pill difficulty-pill">${escapeHtml(nodeDifficultyName(node))}</span>
         </div>
-        ${node.id === selectedId ? `<span class="open-mark">${canEditNode(node) && editorMode && layoutEditMode ? '2× open' : 'open'}</span>` : ''}
+        ${isTeamNodeRead(node) ? '<span class="node-read-badge">✓ Citit</span>' : node.id === selectedId ? `<span class="open-mark">${canEditNode(node) && editorMode && layoutEditMode ? '2× open' : 'open'}</span>` : ''}
       </div>
       <h3 class="node-title">${escapeHtml(node.title)}</h3>
       <p class="node-preview">${escapeHtml(nodeContentPlainText(node))}</p>
@@ -17787,6 +17673,11 @@ function renderDetailPanel() {
         </details>
 
         ${renderDocumentConnections(node)}
+        ${node.isTeamNode ? `<footer class="node-read-footer ${isTeamNodeRead(node) ? 'is-read' : ''}">
+          ${renderNodeReadCheckbox(node.id, node.title)}
+          <p>Bifa este personală și apare în toate roadmap-urile acestui nod.</p>
+          ${renderReadStatus()}
+        </footer>` : ''}
       </div>
     </div>
   `
@@ -17813,7 +17704,10 @@ function renderDetailPanel() {
   detailCopyTeamLinkBtn.disabled = !node.isTeamNode
   detailAddRelationBtn.disabled = !nodeEditorActions
   detailEditBtn.disabled = !nodeEditorActions
+  detailEditBtn.hidden = !nodeEditorActions
   detailDeleteBtn.disabled = !nodeEditorActions
+  detailDeleteBtn.hidden = !nodeEditorActions
+  detailAddRelationBtn.hidden = !nodeEditorActions
 
   const advancedActions = [
     detailHistoryBtn,
@@ -18856,6 +18750,29 @@ mapSurface.addEventListener(
 )
 
 // Interface event bindings
+document.addEventListener('toggle', (event) => {
+  const card = event.target
+  if (!card.matches?.('details[data-roadmap-id]') || !card.isConnected) return
+  const key = `${card.dataset.roadmapTeamId}:${card.dataset.roadmapId}`
+  if (card.open) openTeamRoadmaps.add(key)
+  else openTeamRoadmaps.delete(key)
+}, true)
+
+document.addEventListener('change', (event) => {
+  const input = event.target.closest?.('input[data-node-read]')
+  if (!input) return
+  const id = Number(input.dataset.nodeRead)
+  if (!teamNodes.some((node) => Number(node.id) === id)) return
+  nodeReads.setRead(id, input.checked).catch((error) => {
+    console.error('Node read update failed:', error)
+  }).finally(() => refreshNodeReadUI())
+})
+
+document.addEventListener('click', (event) => {
+  if (!event.target.closest?.('[data-retry-node-reads]')) return
+  nodeReads.load().catch((error) => console.error('Node reads reload failed:', error))
+})
+
 createBtn.addEventListener('click', () => {
   ;(async () => {
     if (!(await confirmUnsavedLayoutBeforeLeaving())) return
@@ -19897,18 +19814,6 @@ publicHubPanel?.addEventListener('click', (event) => {
     return
   }
 
-  const teamProgressButton = event.target.closest?.(
-    '[data-team-roadmap-progress-roadmap]'
-  )
-
-  if (teamProgressButton) {
-    toggleTeamRoadmapProgress(
-      Number(teamProgressButton.dataset.teamRoadmapProgressRoadmap),
-      Number(teamProgressButton.dataset.teamRoadmapProgressNode)
-    )
-    return
-  }
-
   const teamRoadmapNodeButton = event.target.closest?.(
     '[data-team-roadmap-node-id]'
   )
@@ -20550,6 +20455,8 @@ supabase.auth.onAuthStateChange((event, session) => {
     }
 
     roadmapProgress = new Set()
+    nodeReads.reset()
+    teamAtlasLoadSequence += 1
     bookmarkRows = readLocalBookmarkRows()
     rebuildBookmarkKeySet()
     teamMemberships = []
@@ -20690,3 +20597,4 @@ console.log('BOOT SESSION =', bootSession?.session)
 
 const { data: bootUser, error: bootUserError } = await supabase.auth.getUser()
 console.log('BOOT USER =', bootUser?.user, 'ERR =', bootUserError)
+
