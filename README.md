@@ -607,6 +607,14 @@ FTC-Programming-Atlas/
 
 Database migrations and maintenance SQL are managed separately from the public deployment files.
 
+### v122 — mobile reading and personal read markers
+
+The node reader and team roadmaps share one personal **Read / Unread** marker per node. Reading is explicit; opening or scrolling a document does not mark it read. A read node has a green border and checkmark. An edge turns green when both endpoints are read; editor selection remains distinct.
+
+The frontend requires `public.atlas_team_node_reads`, provisioned by Supabase migration `atlas_personal_node_reads_v122`. The migration preserves existing roadmap progress and copies existing checks once. SQL stays in the separately managed `local-sql/` archive. Older clients continue using the old progress table until refreshed.
+
+Run `npm test` for persistence, failure, account/team switching, shared-roadmap and viewport regressions, followed by `npm run release:check`. Rebuild and reinstall the native application after `npm run native:sync` to pick up the Capacitor zoom setting; an existing APK does not receive configuration changes from the website. Before release, verify pinch zoom, code/table horizontal scroll, keyboard opening, read/unread after refresh, and map gestures on Android/iOS.
+
 ---
 
 # Running Locally
@@ -780,3 +788,4 @@ Preserving programming knowledge, one node at a time.
 FTC Programming Atlas is an independent educational project and is not an official product of FIRST®.
 
 </div>
+

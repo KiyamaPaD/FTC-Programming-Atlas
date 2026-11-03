@@ -386,6 +386,7 @@ async function main() {
 
   for (const file of [
     'js/atlas-script.js',
+    'js/atlas-node-reads.js',
     'js/atlas-i18n.js',
     'scripts/build-mobile-web.mjs',
     'scripts/release-check.mjs',
@@ -403,3 +404,4 @@ main().catch((error) => {
   console.error(error.message || error)
   process.exitCode = 1
 })
+
