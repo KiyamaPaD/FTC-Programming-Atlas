@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=125" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=126" />
   <style>
     :root {
       --bg: #000000;
@@ -9154,7 +9154,7 @@
   }
 </style>
   <link rel="stylesheet" href="/js/vendor/katex-0.19.1/katex.min.css" />
-  <link rel="stylesheet" href="/js/atlas-math.css?v=125" />
+  <link rel="stylesheet" href="/js/atlas-math.css?v=126" />
 </head>
 <body>
   <div class="noise"></div>
@@ -9652,6 +9652,7 @@
               <button type="button" data-rich-command="insertUnorderedList" aria-label="Listă cu buline">•</button>
               <button type="button" data-rich-command="insertOrderedList" aria-label="Listă numerotată">1.</button>
               <button type="button" id="richLinkBtn" aria-label="Adaugă link">Link</button>
+              <button type="button" id="richMathBtn" aria-expanded="false" aria-controls="richMathPanel">∑ LaTeX</button>
 
               <details class="rich-editor-insert">
                 <summary>Inserează</summary>
@@ -9659,7 +9660,6 @@
                   <button type="button" id="richInsertCodeBtn">Cod</button>
                   <button type="button" id="richInsertMediaBtn">Media</button>
                   <button type="button" id="richInsertFileBtn">Fișier</button>
-                  <button type="button" id="richMathBtn">Formulă LaTeX</button>
                 </div>
               </details>
 
@@ -9673,6 +9673,31 @@
                 </div>
               </details>
             </div>
+
+            <section class="atlas-math-panel" id="richMathPanel" aria-labelledby="richMathPanelTitle" hidden>
+              <header class="atlas-math-panel-head">
+                <strong id="richMathPanelTitle">Formule LaTeX</strong>
+                <button type="button" class="btn" data-math-close>Închide</button>
+              </header>
+              <div class="atlas-math-panel-grid">
+                <label>Șablon<select data-math-preset></select></label>
+                <label>Afișare
+                  <select data-math-mode>
+                    <option value="inline">În text</option>
+                    <option value="block">Bloc separat</option>
+                  </select>
+                </label>
+              </div>
+              <div class="atlas-math-panel-grid" data-math-fields></div>
+              <div class="atlas-math-panel-preview" data-math-preview aria-label="Previzualizare formulă"></div>
+              <label>Sursă LaTeX<textarea data-math-source rows="2" readonly spellcheck="false" dir="ltr"></textarea></label>
+              <p class="atlas-math-panel-status" data-math-status role="status"></p>
+              <div class="atlas-math-panel-actions">
+                <button class="btn primary" type="button" data-math-insert disabled>Inserează formula</button>
+                <button class="btn" type="button" data-math-copy disabled>Copiază LaTeX</button>
+                <button class="btn" type="button" data-math-copy-atlas disabled>Copiază pentru Atlas</button>
+              </div>
+            </section>
 
             <div
               class="rich-editor"
@@ -10832,6 +10857,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=125"></script>
+  <script type="module" src="/js/atlas-script.js?v=126"></script>
 </body>
 </html>

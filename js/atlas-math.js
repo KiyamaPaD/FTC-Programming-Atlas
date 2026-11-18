@@ -73,6 +73,22 @@ function renderFormula(element, part, copyText, english) {
   return { formula, math, part }
 }
 
+export async function renderAtlasTex(tex, element, displayMode = false) {
+  engine ||= import('./vendor/katex-0.19.1/katex.mjs').catch(error => {
+    engine = undefined
+    throw error
+  })
+  const { render } = await engine
+  render(tex, element, {
+    displayMode,
+    trust: false,
+    strict: 'error',
+    throwOnError: true,
+    maxExpand: 256,
+    maxSize: 12
+  })
+}
+
 export async function hydrateAtlasMath(root, copyText) {
   if (!root) return
   const surfaces = root.matches?.(SURFACE) ? [root] : root.querySelectorAll(SURFACE)
@@ -102,27 +118,13 @@ export async function hydrateAtlasMath(root, copyText) {
       node.replaceWith(fragment)
     }
   }
-  if (!pending.length) return
-  try {
-    engine ||= import('./vendor/katex-0.19.1/katex.mjs')
-    const { render } = await engine
-    for (const { math, part } of pending) {
-      if (!math.isConnected) continue
-      try {
-        render(part.tex, math, {
-          displayMode: part.display,
-          trust: false,
-          strict: 'error',
-          throwOnError: true,
-          maxExpand: 256,
-          maxSize: 12
-        })
-      } catch {
-        math.textContent = part.tex
-        math.classList.add('atlas-formula-source')
-      }
+  await Promise.all(pending.map(async ({ math, part }) => {
+    if (!math.isConnected) return
+    try {
+      await renderAtlasTex(part.tex, math, part.display)
+    } catch {
+      math.textContent = part.tex
+      math.classList.add('atlas-formula-source')
     }
-  } catch {
-    engine = undefined
-  }
+  }))
 }
