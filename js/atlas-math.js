@@ -35,6 +35,10 @@ export function splitAtlasMath(text) {
   return parts
 }
 
+export function isAtlasMathSnippet(language, source) {
+  return language === 'text' && splitAtlasMath(String(source || '')).some(part => part.tex)
+}
+
 function renderFormula(element, part, copyText, english) {
   const doc = element.ownerDocument
   const formula = doc.createElement('span')

@@ -31,3 +31,11 @@ test('local KaTeX renders accessible math and does not allow HTML URLs', () => {
     assert.equal(error.name, 'ParseError')
   }
 })
+
+test('only explicitly marked text attachments are eligible for math rendering', async () => {
+  const { isAtlasMathSnippet } = await import('../js/atlas-math.js')
+  assert.equal(isAtlasMathSnippet('text', String.raw`Cost: \(J=e^2\)`), true)
+  assert.equal(isAtlasMathSnippet('text', 'x[k+1] = Ax[k] + Bu[k]'), false)
+  assert.equal(isAtlasMathSnippet('java', String.raw`// \(f(x)\)`), false)
+  assert.equal(isAtlasMathSnippet('bash', 'echo $$'), false)
+})
