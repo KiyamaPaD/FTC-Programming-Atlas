@@ -1,0 +1,45 @@
+.atlas-formula {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .32em;
+  max-width: 100%;
+  vertical-align: baseline;
+}
+.atlas-formula-value {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: .15em .05em;
+}
+.atlas-formula-block {
+  display: flex;
+  align-items: flex-start;
+  margin: .7em 0;
+  padding: .5em .65em;
+  border: 1px solid rgba(177, 76, 255, .24);
+  border-radius: 9px;
+  background: rgba(177, 76, 255, .055);
+}
+.atlas-formula-block > .atlas-formula-value { flex: 1; }
+.atlas-formula-block .katex-display { margin: .2em 0; }
+.atlas-formula-copy {
+  flex: none;
+  padding: .2em .4em;
+  border: 1px solid currentColor;
+  border-radius: 5px;
+  color: inherit;
+  background: transparent;
+  font: 600 .66rem/1.4 system-ui, sans-serif;
+  cursor: pointer;
+  opacity: .82;
+}
+.atlas-formula-copy:hover, .atlas-formula-copy:focus-visible { opacity: 1; }
+.atlas-formula-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.atlas-formula textarea:not([hidden]) { max-width: 100%; min-width: 7em; min-height: 2em; }
+.atlas-formula-source { font-family: ui-monospace, monospace; white-space: pre-wrap; }
