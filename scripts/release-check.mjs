@@ -177,14 +177,14 @@ async function main() {
   )
   assert(
     appScript.includes('async function loadActiveTeamAtlasNodes') &&
-      appScript.includes("'team-roadmaps',\n  'announcements'") && !appScript.includes("'resources'\n])"),
-    'Team Atlas loader or team-first section contract is missing'
+      appScript.includes("'team-roadmaps',\n  'global',\n  'global-roadmaps',\n  'announcements'") && !appScript.includes("'resources'\n])"),
+    'Team Atlas loader or public navigation is missing'
   )
   assert(
     !appScript.includes("activePublicSection = 'explore'") &&
       !appScript.includes(".from('atlas_resources')") &&
       !appScript.includes(".from('atlas_nodes')"),
-    'legacy global graph/resources runtime is still active'
+    'legacy resource loading is still active'
   )
   assert(
     index.includes('<h2 id="atlasStatusTitle">FTC Programming Atlas · se încarcă...</h2>') &&
