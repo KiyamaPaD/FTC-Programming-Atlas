@@ -1,4 +1,4 @@
-import { renderAtlasTex, splitAtlasMath } from './atlas-math.js?v=126'
+import { renderAtlasTex, splitAtlasMath } from './atlas-math.js?v=127'
 
 const slot = (name, ro, en, value) => ({ name, ro, en, value })
 

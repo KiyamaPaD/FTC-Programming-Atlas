@@ -98,3 +98,15 @@
   .atlas-math-panel-actions .btn { min-height: 44px; }
   .atlas-math-panel :is(input, select, textarea) { font-size: 16px; }
 }
+
+.atlas-math-snippet {
+  min-width: 0;
+  max-width: 100%;
+  margin-top: .45rem;
+  padding: .65rem .75rem;
+  border-radius: 8px;
+  background: rgba(177, 76, 255, .06);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.atlas-math-snippet .atlas-formula-block { white-space: normal; }

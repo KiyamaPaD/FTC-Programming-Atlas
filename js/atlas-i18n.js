@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v126 · LaTeX Editor Panel
+// v127 · LaTeX in Text Attachments
 //
 // Source language: Romanian
 // Secondary language: English

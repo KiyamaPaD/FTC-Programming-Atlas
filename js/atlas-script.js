@@ -1,11 +1,11 @@
-import { hydrateAtlasMath } from './atlas-math.js?v=126'
-import { installMathPanel } from './atlas-math-panel.js?v=126'
+import { hydrateAtlasMath, isAtlasMathSnippet } from './atlas-math.js?v=127'
+import { installMathPanel } from './atlas-math-panel.js?v=127'
 import { loadGlobalIndex, loadGlobalDetail } from './atlas-global.js?v=123'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
 import { createNodeReadStore } from './atlas-node-reads.js?v=122'
 
-console.log('ATLAS SCRIPT LOADED v126 · LATEX EDITOR PANEL')
+console.log('ATLAS SCRIPT LOADED v127 · LATEX IN TEXT ATTACHMENTS')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -8321,6 +8321,14 @@ function inlineEmbedLabel(node, type, id) {
   return `Fișier · ${item.title || item.originalName || 'fișier'}`
 }
 
+function renderSnippetBody(snippet) {
+  const source = escapeHtmlText(snippet.code)
+  if (isAtlasMathSnippet(snippet.language, snippet.code)) {
+    return `<div class="atlas-math-snippet" data-atlas-math-content>${source}</div>`
+  }
+  return `<div class="code-block-shell"><pre tabindex="0"><code>${source}</code></pre></div>`
+}
+
 function renderInlineEmbed(node, type, id) {
   const item = inlineEmbedItem(node, type, id)
 
@@ -8339,7 +8347,7 @@ function renderInlineEmbed(node, type, id) {
           <button class="btn code-copy-btn" type="button" data-copy-code-id="${Number(item.id)}">Copiază</button>
         </div>
         ${item.description ? `<p class="code-snippet-description">${escapeHtml(item.description)}</p>` : ''}
-        <div class="code-block-shell"><pre tabindex="0"><code>${escapeHtmlText(item.code)}</code></pre></div>
+        ${renderSnippetBody(item)}
       </article>
     `
   }
@@ -10087,7 +10095,7 @@ function renderNodeCodeSnippets(node) {
                         <button class="btn code-copy-btn" type="button" data-copy-code-id="${snippet.id}">Copiază</button>
                       </div>
                       ${snippet.description ? `<p class="code-snippet-description">${escapeHtml(snippet.description)}</p>` : ''}
-                      <div class="code-block-shell"><pre tabindex="0"><code>${escapeHtmlText(snippet.code)}</code></pre></div>
+                      ${renderSnippetBody(snippet)}
                     </article>
                   `)
                   .join('')}
