@@ -1,9 +1,10 @@
+import { hydrateAtlasMath } from './atlas-math.js?v=125'
 import { loadGlobalIndex, loadGlobalDetail } from './atlas-global.js?v=123'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
 import { createNodeReadStore } from './atlas-node-reads.js?v=122'
 
-console.log('ATLAS SCRIPT LOADED v124 · ATLAS NAVIGATION')
+console.log('ATLAS SCRIPT LOADED v125 · ATLAS MATH')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -2300,13 +2301,13 @@ function renderAnnouncementCards() {
 
               ${
                 item.summary
-                  ? `<p class="public-content-card-summary" data-atlas-i18n-entity="announcement" data-atlas-i18n-id="${Number(item.id)}" data-atlas-i18n-field="summary">${escapeHtml(item.summary)}</p>`
+                  ? `<p class="public-content-card-summary" data-atlas-math-content data-atlas-i18n-entity="announcement" data-atlas-i18n-id="${Number(item.id)}" data-atlas-i18n-field="summary">${escapeHtml(item.summary)}</p>`
                   : ''
               }
 
               ${
                 item.content
-                  ? `<p class="public-content-card-body" data-atlas-i18n-entity="announcement" data-atlas-i18n-id="${Number(item.id)}" data-atlas-i18n-field="content">${escapeHtml(item.content)}</p>`
+                  ? `<p class="public-content-card-body" data-atlas-math-content data-atlas-i18n-entity="announcement" data-atlas-i18n-id="${Number(item.id)}" data-atlas-i18n-field="content">${escapeHtml(item.content)}</p>`
                   : ''
               }
 
@@ -2940,7 +2941,7 @@ function renderTeamRoadmapCards() {
               <div class="roadmap-step-main">
                 <button class="roadmap-step-node" type="button" data-team-roadmap-node-id="${Number(node.id)}">${escapeHtmlText(node.title)}</button>
                 ${step.isOptional ? '<span class="roadmap-step-optional">Opțional</span>' : ''}
-                ${step.note ? `<p class="roadmap-step-note">${escapeHtmlText(step.note)}</p>` : ''}
+                ${step.note ? `<p class="roadmap-step-note" data-atlas-math-content>${escapeHtmlText(step.note)}</p>` : ''}
               </div>
               <span class="roadmap-step-index">${String(index + 1).padStart(2, '0')}</span>
             </div>`
@@ -3182,7 +3183,7 @@ function renderRoadmapCards() {
 
                           ${
                             step.note
-                              ? `<p class="roadmap-step-note" data-atlas-i18n-entity="roadmap" data-atlas-i18n-id="${Number(roadmap.id)}" data-atlas-i18n-field="step:${Number(step.nodeId)}:note">${escapeHtml(step.note)}</p>`
+                              ? `<p class="roadmap-step-note" data-atlas-math-content data-atlas-i18n-entity="roadmap" data-atlas-i18n-id="${Number(roadmap.id)}" data-atlas-i18n-field="step:${Number(step.nodeId)}:note">${escapeHtml(step.note)}</p>`
                               : ''
                           }
                         </div>
@@ -7665,6 +7666,7 @@ function renderPublicShell() {
       <p class="public-hub-description">Colecția Programming, explicată și îngrijită de InfotronX. Citești fără cont; autentifică-te pentru a salva progresul. Progresul echipelor rămâne separat.</p>
       ${renderRoadmapCards()}
     </div>`
+    void hydrateAtlasMath(publicHubPanel, copyTextToClipboard)
     return
   }
   if (isTeamRoadmaps) {
@@ -7683,6 +7685,7 @@ function renderPublicShell() {
         ${renderTeamRoadmapCards()}
       </div>
     `
+    void hydrateAtlasMath(publicHubPanel, copyTextToClipboard)
     return
   }
 
@@ -7695,6 +7698,7 @@ function renderPublicShell() {
       ${renderAnnouncementCards()}
     </div>
   `
+  void hydrateAtlasMath(publicHubPanel, copyTextToClipboard)
 }
 
 
@@ -8388,14 +8392,14 @@ function renderRichDocumentationWithEmbeds(node) {
 }
 
 function renderNodeDocumentation(node) {
-  if (!node) return '<div class="doc-text plain"></div>'
+  if (!node) return '<div class="doc-text plain" data-atlas-math-content></div>'
 
   if (node.contentFormat === 'html') {
     const safeHtml = renderRichDocumentationWithEmbeds(node)
-    return `<div class="doc-text rich">${safeHtml || '<p>Fără documentație încă.</p>'}</div>`
+    return `<div class="doc-text rich" data-atlas-math-content>${safeHtml || '<p>Fără documentație încă.</p>'}</div>`
   }
 
-  return `<div class="doc-text plain">${escapeHtml(node.content || 'Fără documentație încă.')}</div>`
+  return `<div class="doc-text plain" data-atlas-math-content>${escapeHtml(node.content || 'Fără documentație încă.')}</div>`
 }
 
 function hydrateRichEditorEmbeds(node) {
@@ -8604,6 +8608,13 @@ function initRichTextEditor() {
     })
   })
 
+  document.getElementById('richMathBtn')?.addEventListener('click', () => {
+    const input = window.prompt('LaTeX. Exemplu: \\(v=\\frac{d}{t}\\). Pentru un bloc, folosește \\[...\\].')
+    if (!input?.trim()) return
+    const tex = input.trim()
+    const wrapped = /^(?:\\\(|\\\[|\$\$)/.test(tex) ? tex : `\\(${tex}\\)`
+    runRichCommand('insertText', wrapped)
+  })
   richInsertCodeBtn?.addEventListener('click', () => openInlineAttachmentManager('code'))
   richInsertMediaBtn?.addEventListener('click', () => openInlineAttachmentManager('media'))
   richInsertFileBtn?.addEventListener('click', () => openInlineAttachmentManager('file'))
@@ -9995,6 +10006,13 @@ async function copyTeamNodeLink(node, button = null) {
     window.prompt('Copiază link-ul privat Team Atlas:', url)
   }
 }
+
+document.addEventListener('atlas:math-refresh', (event) => {
+  const surface = event.detail
+  if (surface instanceof Element && surface.matches('[data-atlas-math-content]')) {
+    void hydrateAtlasMath(surface, copyTextToClipboard)
+  }
+})
 
 async function copyTextToClipboard(text) {
   const value = String(text || '')
@@ -16227,14 +16245,14 @@ function revisionModelDepartments(model) {
 function renderRevisionContent(model) {
   if (model.contentFormat === 'html') {
     return `
-      <div class="doc-text rich">
+      <div class="doc-text rich" data-atlas-math-content>
         ${sanitizeRichHtml(model.content)}
       </div>
     `
   }
 
   return `
-    <div class="doc-text">
+    <div class="doc-text" data-atlas-math-content>
       ${escapeHtmlText(model.content).replace(/\n/g, '<br>')}
     </div>
   `
@@ -16474,6 +16492,7 @@ function renderRevisionHistory() {
       )}
     </div>
   `
+  void hydrateAtlasMath(revisionHistoryPreview, copyTextToClipboard)
 }
 
 async function loadRevisionHistory() {
@@ -17726,6 +17745,7 @@ function renderDetailPanel() {
   `
 
   detailPanel.classList.add('open')
+  void hydrateAtlasMath(detailPanel, copyTextToClipboard)
   emptyPanel.style.display = 'none'
 
   editBtn.disabled = !nodeEditorActions

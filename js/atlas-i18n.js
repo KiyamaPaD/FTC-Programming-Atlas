@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v124 · Atlas Navigation
+// v125 · Atlas Math
 //
 // Source language: Romanian
 // Secondary language: English
@@ -2436,6 +2436,18 @@ function applyEnglishClientSeo() {
   setMetaContent('meta[name="twitter:description"]', description)
 }
 
+const renderedMathTranslations = new WeakMap()
+
+function hasMathTranslation(element, translation) {
+  return element.hasAttribute('data-atlas-math-content') && renderedMathTranslations.get(element) === translation
+}
+
+function refreshTranslatedMath(element, translation) {
+  if (!element.hasAttribute('data-atlas-math-content')) return
+  renderedMathTranslations.set(element, translation)
+  document.dispatchEvent(new CustomEvent('atlas:math-refresh', { detail: element }))
+}
+
 function applyNodeTranslations() {
   if (language !== 'en') return
   if (!translationLoadFinished) return
@@ -2518,7 +2530,7 @@ function applyNodeTranslations() {
     '#detailPanel .doc-text'
   )
 
-  if (documentation && detailContentTranslation?.value) {
+  if (documentation && detailContentTranslation?.value && !hasMathTranslation(documentation, detailContentTranslation)) {
     if (detailContentTranslation.content_format === 'html') {
       const safeHtml = sanitizeTranslatedHtml(
         detailContentTranslation.value
@@ -2538,6 +2550,7 @@ function applyNodeTranslations() {
         documentation.classList.remove('rich')
       }
     }
+    refreshTranslatedMath(documentation, detailContentTranslation)
   }
 }
 
@@ -2653,11 +2666,12 @@ function applyDynamicEntityTranslations() {
         fieldName
       )
 
-      if (!translation?.value) return
+      if (!translation?.value || hasMathTranslation(element, translation)) return
 
       if (element.textContent !== translation.value) {
         element.textContent = translation.value
       }
+      refreshTranslatedMath(element, translation)
     })
 }
 
