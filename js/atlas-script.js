@@ -1,8 +1,9 @@
+import { loadGlobalIndex, loadGlobalDetail } from './atlas-global.js?v=123'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
 import { createNodeReadStore } from './atlas-node-reads.js?v=122'
 
-console.log('ATLAS SCRIPT LOADED v122 · MOBILE READING')
+console.log('ATLAS SCRIPT LOADED v123 · GLOBAL ATLAS')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -690,13 +691,15 @@ let privateDepartmentIds = new Set()
 const PUBLIC_SECTIONS = new Set([
   'team',
   'team-roadmaps',
+  'global',
+  'global-roadmaps',
   'announcements'
 ])
 
 const savedPrimarySection = localStorage.getItem(CACHE_KEYS.publicSection)
 let activePublicSection = PUBLIC_SECTIONS.has(savedPrimarySection)
   ? savedPrimarySection
-  : 'team'
+  : 'global'
 
 let tutorialContent = DEFAULT_TUTORIAL_CONTENT
 let publicContentManagerKind = 'announcements'
@@ -1649,7 +1652,7 @@ function nodeRoutePath(node) {
     return `${HOME_PATH}#team-${Number(node.teamId)}-node-${Number(node.id)}`
   }
 
-  return HOME_PATH
+  return `/node/${Number(node.id)}/${slugifyNodeTitle(node.title)}`
 }
 
 function nodeCanonicalUrl(node) {
@@ -1908,13 +1911,17 @@ async function applyRouteFromLocation({ canonicalize = true } = {}) {
     return null
   }
 
-  // Public/global nodes are no longer part of the product surface.
-  // Old public node URLs resolve back to the global announcements shell.
-  activePublicSection = 'announcements'
+  activePublicSection = 'global'
   syncActiveNodeCollection({ forceReset: true })
-  detailOpen = false
-  setHomeRoute({ push: false })
-  return null
+  const node = findNode(nodeId)
+  if (!node) { detailOpen = false; setHomeRoute({ push: false }); return null }
+  activateDepartmentForNode(node, { persist: false })
+  clearFiltersForDeepLink()
+  selectedId = node.id
+  detailOpen = true
+  if (canonicalize) setNodeRoute(node, { push: false })
+  queueTeamNodeDetailHydration(node)
+  return node
 }
 
 function openNodeDetail(nodeId, { pushHistory = true } = {}) {
@@ -2438,15 +2445,17 @@ function renderResourceCards() {
   `
 }
 
-async function openNodeFromPublicContent() {
-  // Legacy global-node links no longer open a graph node in v97.
-  activePublicSection = 'announcements'
-  localStorage.setItem(CACHE_KEYS.publicSection, activePublicSection)
-  syncActiveNodeCollection({ forceReset: true })
-  detailOpen = false
-  setHomeRoute({ push: true })
+async function openNodeFromPublicContent(nodeId) {
+  selectPublicSection('global')
+  const node = findNode(nodeId)
+  if (!node) return
+  activateDepartmentForNode(node, { persist: false })
+  clearFiltersForDeepLink()
+  openNodeDetail(node.id)
   renderAll()
+  requestAnimationFrame(() => centerOnNode(node))
 }
+
 
 function isPublicContentManagerOpen() {
   return Boolean(publicContentManagerBackdrop?.classList.contains('open'))
@@ -2970,8 +2979,14 @@ function roadmapProgressKey(roadmapId, nodeId) {
   return `${Number(roadmapId)}:${Number(nodeId)}`
 }
 
+function globalProgressRoadmapId(roadmapId) {
+  const roadmap = roadmaps.find(item => item.id === Number(roadmapId))
+  if (!roadmap?.slug?.startsWith('infotronx-programming-')) return Number(roadmapId)
+  return roadmaps.find(item => item.slug === 'infotronx-programming-complet')?.id || Number(roadmapId)
+}
+
 function isRoadmapStepCompleted(roadmapId, nodeId) {
-  return roadmapProgress.has(roadmapProgressKey(roadmapId, nodeId))
+  return roadmapProgress.has(roadmapProgressKey(globalProgressRoadmapId(roadmapId), nodeId))
 }
 
 function visibleRoadmaps() {
@@ -3004,14 +3019,26 @@ function roadmapProgressStats(roadmap) {
   }
 }
 
+let globalProgressLoad = 0
 async function loadRoadmapProgress({ rerender = false } = {}) {
-  // Global roadmaps are not part of the team-first product. Team roadmap progress is loaded
-  // with the active Team Atlas workspace instead.
+  const generation = ++globalProgressLoad
+  const userId = currentUser?.id
   roadmapProgress = new Set()
+  if (userId) {
+    const { data, error } = await supabase.from('atlas_roadmap_progress')
+      .select('roadmap_id,node_id').eq('project_id', PROJECT_ID).eq('user_id', userId)
+    if (generation !== globalProgressLoad || currentUser?.id !== userId) return
+    if (error) {
+      console.warn('Global roadmap progress unavailable:', error)
+      return
+    }
+    roadmapProgress = new Set((data || []).map(row => roadmapProgressKey(row.roadmap_id, row.node_id)))
+  }
   if (rerender) renderAll()
 }
 
 async function toggleRoadmapProgress(roadmapId, nodeId) {
+  roadmapId = globalProgressRoadmapId(roadmapId)
   const key = roadmapProgressKey(roadmapId, nodeId)
 
   if (!currentUser) {
@@ -3022,6 +3049,7 @@ async function toggleRoadmapProgress(roadmapId, nodeId) {
   if (roadmapProgressMutationKeys.has(key)) return
 
   roadmapProgressMutationKeys.add(key)
+  const progressUserId = currentUser.id
 
   try {
     if (roadmapProgress.has(key)) {
@@ -3030,33 +3058,37 @@ async function toggleRoadmapProgress(roadmapId, nodeId) {
         .delete()
         .eq('project_id', PROJECT_ID)
         .eq('roadmap_id', Number(roadmapId))
+        .eq('user_id', progressUserId)
         .eq('node_id', Number(nodeId))
 
       if (error) throw error
-      roadmapProgress.delete(key)
+      if (currentUser?.id === progressUserId) roadmapProgress.delete(key)
     } else {
       const { error } = await supabase.from('atlas_roadmap_progress').insert({
         project_id: PROJECT_ID,
         roadmap_id: Number(roadmapId),
         node_id: Number(nodeId),
-        user_id: currentUser.id
+        user_id: progressUserId
       })
 
       if (error) throw error
-      roadmapProgress.add(key)
+      if (currentUser?.id === progressUserId) roadmapProgress.add(key)
     }
 
-    renderAll()
   } catch (error) {
     console.error('Roadmap progress update failed:', error)
     alert(error?.message || 'Progresul nu a putut fi salvat.')
   } finally {
     roadmapProgressMutationKeys.delete(key)
+    renderAll()
   }
 }
 
 function renderRoadmapCards() {
   const items = visibleRoadmaps()
+  const openRoadmapIds = new Set(
+    [...publicHubPanel.querySelectorAll('[data-global-roadmap][open]')].map(card => card.dataset.globalRoadmap)
+  )
 
   if (items.length === 0) {
     return `
@@ -3083,8 +3115,8 @@ function renderRoadmapCards() {
           const department = getDepartmentById(roadmap.departmentId)
 
           return `
-            <article class="roadmap-card">
-              <div class="roadmap-card-head">
+            <details class="roadmap-card roadmap-card-collapsible" data-global-roadmap="${roadmap.id}" ${openRoadmapIds.has(String(roadmap.id)) ? 'open' : ''}>
+              <summary class="roadmap-card-head">
                 <div class="roadmap-card-main">
                   <span class="roadmap-card-label">${escapeHtmlText(
                     department?.short_name || department?.name || 'Roadmap'
@@ -3102,7 +3134,7 @@ function renderRoadmapCards() {
                 <span class="roadmap-progress-copy">
                   ${stats.completed} / ${stats.total} finalizate
                 </span>
-              </div>
+              </summary>
 
               <div class="roadmap-progress-track" aria-hidden="true">
                 <div class="roadmap-progress-fill" style="width:${stats.percent}%"></div>
@@ -3116,7 +3148,7 @@ function renderRoadmapCards() {
 
                     const completed = isRoadmapStepCompleted(roadmap.id, step.nodeId)
                     const busy = roadmapProgressMutationKeys.has(
-                      roadmapProgressKey(roadmap.id, step.nodeId)
+                      roadmapProgressKey(globalProgressRoadmapId(roadmap.id), step.nodeId)
                     )
 
                     return `
@@ -3180,7 +3212,7 @@ function renderRoadmapCards() {
                 }
                 <p>${stats.percent}%</p>
               </div>
-            </article>
+            </details>
           `
         })
         .join('')}
@@ -3993,14 +4025,14 @@ function canEditEdge(sourceId, targetId) {
 }
 
 function syncActiveNodeCollection({ forceReset = false } = {}) {
-  const nextScope = isTeamAtlasMode() ? 'team' : 'none'
+  const nextScope = isTeamAtlasMode() ? 'team' : (activePublicSection.startsWith('global') ? 'public' : 'none')
   const scopeChanged = nextScope !== activeNodeScope
 
   activeNodeScope = nextScope
-  nodes = nextScope === 'team' ? teamNodes : []
-  categories = nextScope === 'team' ? teamCategories : []
-  difficulties = nextScope === 'team' ? teamDifficulties : []
-  taxonomyTags = nextScope === 'team' ? teamTaxonomyTags : []
+  nodes = nextScope === 'team' ? teamNodes : nextScope === 'public' ? publicNodes : []
+  categories = nextScope === 'team' ? teamCategories : publicCategories
+  difficulties = nextScope === 'team' ? teamDifficulties : publicDifficulties
+  taxonomyTags = nextScope === 'team' ? teamTaxonomyTags : publicTaxonomyTags
 
   normalizeTaxonomyState()
 
@@ -4468,7 +4500,19 @@ async function loadTeamNodeContent(node, { force = false } = {}) {
 }
 
 function queueTeamNodeDetailHydration(node) {
-  if (!node?.isTeamNode) return
+  if (!node) return
+  if (!node.isTeamNode) {
+    if (node.contentLoaded || node.globalLoadPending || node.contentLoadError) return
+    node.globalLoadPending = true
+    loadGlobalDetail(supabase, PROJECT_ID, node)
+      .then(detail => Object.assign(node, detail))
+      .catch(error => { node.contentLoadError = error?.message || 'Încărcarea a eșuat.' })
+      .finally(() => {
+        node.globalLoadPending = false
+        if (detailOpen && selectedNode() === node) renderDetailPanel()
+      })
+    return
+  }
 
   const rerenderIfCurrent = () => {
     if (
@@ -5227,8 +5271,7 @@ async function loadTeamContext({ rerender = false } = {}) {
 
     await loadActiveTeamAtlasNodes()
   } else {
-    // Temporary global fallback. Do not overwrite the last explicit Team Atlas destination.
-    activePublicSection = 'announcements'
+    if (!['global', 'global-roadmaps', 'announcements'].includes(activePublicSection)) activePublicSection = 'global'
   }
 
   renderTeamInvites()
@@ -7531,6 +7574,8 @@ function publicSectionLabel(section) {
 }
 function publicSectionEyebrow(section) {
   const labels = {
+    global: 'Global · InfotronX #19119',
+    'global-roadmaps': 'Roadmaps globale · InfotronX #19119',
     team: 'Team Atlas',
     'team-roadmaps': 'Team Roadmaps',
     announcements: 'Announcements'
@@ -7565,29 +7610,33 @@ function selectPublicSection(section) {
   localStorage.setItem(CACHE_KEYS.publicSection, section)
 
   syncActiveNodeCollection({ forceReset: true })
+  normalizeDepartmentState()
+  if (section !== 'team' && (routeNodeIdFromLocation() != null || teamNodeRouteFromLocation())) setHomeRoute({ push: true })
   renderAll()
 
-  if (section === 'team') requestAnimationFrame(fitView)
+  if (section === 'team' || section === 'global') requestAnimationFrame(fitView)
 }
 
 function renderPublicShell() {
   if (!appRoot || !publicSectionTabs || !publicHubPanel) return
 
   const currentTeam = currentTeamRecord()
-  const renderedSection = !currentTeam && activePublicSection !== 'announcements'
-    ? 'announcements'
+  const renderedSection = !currentTeam && ['team', 'team-roadmaps'].includes(activePublicSection)
+    ? 'global'
     : activePublicSection
   const isTeamMap = renderedSection === 'team' && Boolean(currentTeam)
+  const isGlobalMap = renderedSection === 'global'
+  const isGlobalRoadmaps = renderedSection === 'global-roadmaps'
   const isTeamRoadmaps = renderedSection === 'team-roadmaps' && Boolean(currentTeam)
-  const isAnnouncements = renderedSection === 'announcements' || !currentTeam
+  const isAnnouncements = renderedSection === 'announcements'
   const department = getDepartmentById(activeDepartmentId)
   const departmentName = department?.name || 'Team Atlas'
   const departmentSection = document.querySelector('[data-ui-section="departments"]')
 
-  appRoot.classList.toggle('public-section-open', !isTeamMap)
+  appRoot.classList.toggle('public-section-open', !(isTeamMap || isGlobalMap))
   appRoot.dataset.publicSection = renderedSection
   atlasNavigation?.classList.toggle('global-section', isAnnouncements)
-  if (departmentSection) departmentSection.hidden = !isTeamMap
+  if (departmentSection) departmentSection.hidden = !(isTeamMap || isGlobalMap || isGlobalRoadmaps)
   if (teamAtlasPrimary) teamAtlasPrimary.hidden = !currentTeamRecord()
 
   if (currentTeam) {
@@ -7614,7 +7663,7 @@ function renderPublicShell() {
     atlasNavigationEyebrow.textContent = publicSectionEyebrow(renderedSection)
   }
 
-  if (isTeamMap) {
+  if (isTeamMap || isGlobalMap) {
     publicHubPanel.classList.remove('open')
     publicHubPanel.innerHTML = ''
     return
@@ -7622,6 +7671,15 @@ function renderPublicShell() {
 
   publicHubPanel.classList.add('open')
 
+  if (isGlobalRoadmaps) {
+    publicHubPanel.innerHTML = `<div class="public-hub-inner">
+      <p class="public-hub-kicker">Global · InfotronX #19119</p>
+      <h1 class="public-hub-title">Roadmaps globale</h1>
+      <p class="public-hub-description">Colecția Programming, explicată și îngrijită de InfotronX. Citești fără cont; autentifică-te pentru a salva progresul. Progresul echipelor rămâne separat.</p>
+      ${renderRoadmapCards()}
+    </div>`
+    return
+  }
   if (isTeamRoadmaps) {
     const team = currentTeamRecord()
     const teamName = team?.teamNumber
@@ -7788,10 +7846,9 @@ function selectDepartment(id) {
   activeDepartmentId = Number(department.id)
   localStorage.setItem(CACHE_KEYS.department, department.slug)
 
-  renderDepartmentNavigation()
-  renderGraphInteractionState({ normalize: true })
+  renderMapNavigationState()
 
-  if (activePublicSection === 'team') {
+  if (['team', 'global'].includes(activePublicSection)) {
     requestAnimationFrame(fitView)
   }
 }
@@ -10863,7 +10920,7 @@ async function loadAtlasWithUi() {
 
       requestAnimationFrame(() => {
         if (routedNode) centerOnNode(routedNode)
-        else if (activePublicSection === 'team' && nodes.length) fitView()
+        else if (['team', 'global'].includes(activePublicSection) && nodes.length) fitView()
       })
 
       atlasPerfRecord('boot.atlas-ready', perfStartedAt, {
@@ -11178,8 +11235,7 @@ async function redo() {
   await refreshHistoryButtons()
 }
 
-// Loads only the global shell data that still exists in the team-first shell.
-// Nodes, graph taxonomy, attachments and roadmaps now live exclusively in Team Atlas.
+// Load the shared public index; node documents and assets hydrate on demand.
 async function fetchAllData() {
   console.log('fetchAllData START · team-first shell')
 
@@ -11235,15 +11291,14 @@ async function fetchAllData() {
 
   tutorialContent = DEFAULT_TUTORIAL_CONTENT
 
-  // Legacy global datasets deliberately stay out of the active runtime.
-  // Their Supabase tables are kept as legacy data; this is a non-destructive product migration.
-  publicNodes = []
-  publicCategories = []
-  publicDifficulties = []
+  const globalIndex = await loadGlobalIndex(supabase, PROJECT_ID)
+  publicNodes = globalIndex.nodes
+  publicCategories = globalIndex.categories
+  publicDifficulties = globalIndex.difficulties
   publicTaxonomyTags = []
-  roadmaps = []
+  roadmaps = globalIndex.roadmaps
+  ensureWorldCapacityForNodes(publicNodes)
   resources = []
-  roadmapProgress = new Set()
 
   syncActiveNodeCollection()
   normalizeDepartmentState()
@@ -14212,7 +14267,7 @@ function openMediaManager(nodeId = selectedId) {
     return
   }
 
-    if (node.isTeamNode && !node.attachmentsLoaded) {
+    if (!node.attachmentsLoaded) {
     loadTeamNodeAttachments(node)
       .then(() => openMediaManager(nodeId))
       .catch((error) => {
@@ -14621,7 +14676,7 @@ function openFileManager(nodeId = selectedId) {
     return
   }
 
-    if (node.isTeamNode && !node.attachmentsLoaded) {
+    if (!node.attachmentsLoaded) {
     loadTeamNodeAttachments(node)
       .then(() => openFileManager(nodeId))
       .catch((error) => {
@@ -15167,7 +15222,7 @@ function openCodeManager(nodeId = selectedId) {
     return
   }
 
-    if (node.isTeamNode && !node.attachmentsLoaded) {
+    if (!node.attachmentsLoaded) {
     loadTeamNodeAttachments(node)
       .then(() => openCodeManager(nodeId))
       .catch((error) => {
@@ -17534,6 +17589,19 @@ async function deleteDocumentationReference(
   }
 }
 
+function renderGlobalReadFooter(node) {
+  const roadmap = roadmaps.find(item => item.slug === 'infotronx-programming-complet')
+  if (!roadmap?.steps.some(step => step.nodeId === node.id)) return ''
+  const read = isRoadmapStepCompleted(roadmap.id, node.id)
+  return `<footer class="node-read-footer ${read ? 'is-read' : ''}">
+    <p>Documentație publică · InfotronX #19119</p>
+    <button class="btn" type="button" id="detailGlobalReadBtn" data-roadmap-id="${roadmap.id}"
+      aria-pressed="${read}" ${roadmapProgressMutationKeys.has(roadmapProgressKey(roadmap.id, node.id)) ? 'disabled' : ''}>
+      ${read ? '✓ Citit' : currentUser ? 'Marchează ca citit' : 'Intră în cont pentru a salva progresul'}
+    </button>
+  </footer>`
+}
+
 function renderDetailPanel() {
   const node = selectedNode()
 
@@ -17550,7 +17618,7 @@ function renderDetailPanel() {
   const tagNames = nodeTagNames(node)
   const nodeEditorActions = canEditNode(node) && editorMode
 
-  if (node.isTeamNode && (!node.contentLoaded || !node.attachmentsLoaded)) {
+  if (!node.contentLoaded || !node.attachmentsLoaded) {
     queueTeamNodeDetailHydration(node)
   }
 
@@ -17618,7 +17686,7 @@ function renderDetailPanel() {
       <div class="detail-main-column">
         <div class="info-card detail-document-card">
           ${
-            node.isTeamNode && !node.contentLoaded
+            !node.contentLoaded
               ? '<div class="document-disclosure-empty">Se încarcă documentația acestui nod...</div>'
               : renderNodeDocumentation(node)
           }
@@ -17628,7 +17696,7 @@ function renderDetailPanel() {
               : ''
           }
           ${
-            node.isTeamNode && !node.attachmentsLoaded
+            !node.attachmentsLoaded
               ? '<div class="document-disclosure-empty">Se încarcă exemplele de cod și media acestui nod...</div>'
               : ''
           }
@@ -17677,7 +17745,7 @@ function renderDetailPanel() {
           ${renderNodeReadCheckbox(node.id, node.title)}
           <p>Bifa este personală și apare în toate roadmap-urile acestui nod.</p>
           ${renderReadStatus()}
-        </footer>` : ''}
+        </footer>` : renderGlobalReadFooter(node)}
       </div>
     </div>
   `
@@ -17715,6 +17783,10 @@ function renderDetailPanel() {
     detailDeleteBtn
   ]
   detailMoreMenu.hidden = !advancedActions.some((button) => !button.hidden)
+
+  document.getElementById('detailGlobalReadBtn')?.addEventListener('click', (event) => {
+    toggleRoadmapProgress(Number(event.currentTarget.dataset.roadmapId), node.id)
+  })
 
   detailBookmarkBtn.addEventListener('click', () => {
     toggleNodeBookmark(node).catch((error) => {

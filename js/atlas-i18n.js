@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v122 · mobile reading and personal read markers
+// v123 · Global Atlas
 //
 // Source language: Romanian
 // Secondary language: English
