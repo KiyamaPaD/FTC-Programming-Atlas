@@ -5,7 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
 import { createNodeReadStore } from './atlas-node-reads.js?v=122'
 
-console.log('ATLAS SCRIPT LOADED v127 · LATEX IN TEXT ATTACHMENTS')
+console.log('ATLAS SCRIPT LOADED v128 · HOMEPAGE SEO')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -15,7 +15,7 @@ const SITE_ORIGIN = 'https://ftcprogrammingatlas.com'
 const HOME_PATH = '/'
 const HOME_TITLE = 'FTC Programming Atlas | FTC Robotics Programming Guide'
 const HOME_DESCRIPTION =
-  'Interactive FTC programming guide for FTC SDK, Pedro Pathing, Road Runner, FTCLib, control loops, vision, autonomous programming, and debugging.'
+  'Learn FTC robotics programming with interactive maps, guided roadmaps, and hands-on Java examples.'
 const MEDIA_BUCKET = 'atlas-media'
 const FILE_BUCKET = 'atlas-files'
 const TEAM_MEDIA_BUCKET = 'atlas-team-media'

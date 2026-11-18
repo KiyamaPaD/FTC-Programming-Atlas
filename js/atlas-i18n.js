@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v127 · LaTeX in Text Attachments
+// v128 · Homepage SEO
 //
 // Source language: Romanian
 // Secondary language: English
@@ -2405,7 +2405,7 @@ function applyEnglishClientSeo() {
     const title =
       'FTC Programming Atlas | FTC Robotics Programming Guide'
     const description =
-      'Interactive FTC programming guide for FTC SDK, Pedro Pathing, Road Runner, FTCLib, control loops, vision, autonomous programming, and debugging.'
+      'Learn FTC robotics programming with interactive maps, guided roadmaps, and hands-on Java examples.'
 
     document.title = title
     setMetaContent('meta[name="description"]', description)

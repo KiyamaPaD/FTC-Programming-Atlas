@@ -1,4 +1,4 @@
-const ATLAS_RELEASE = 127
+const ATLAS_RELEASE = 128
 const LEGACY_I18N_RELEASE = 56
 const I18N_SCRIPT = `/js/atlas-i18n.js?v=${ATLAS_RELEASE}`
 const I18N_COVERAGE_SCRIPT = `/js/atlas-i18n-v${LEGACY_I18N_RELEASE}.js?v=${LEGACY_I18N_RELEASE}`
@@ -8,7 +8,7 @@ const HOME_TITLE =
   'FTC Programming Atlas | FTC Robotics Programming Guide'
 
 const HOME_DESCRIPTION =
-  'Interactive FTC programming guide for FTC SDK, PedroPathing, Road Runner, FTCLib, control loops, vision, debugging, and team documentation.'
+  'Learn FTC robotics programming with interactive maps, guided roadmaps, and hands-on Java examples.'
 
 const LOGO_URL =
   'https://ftcprogrammingatlas.com/img/FTCProgrammingAtlasLogo.png'

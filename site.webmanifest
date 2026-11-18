@@ -1,7 +1,7 @@
 {
   "name": "FTC Programming Atlas",
   "short_name": "FTC Atlas",
-  "description": "Interactive FTC programming guide for FTC SDK, PedroPathing, Road Runner, FTCLib, control loops, vision, debugging, and team documentation.",
+  "description": "Learn FTC robotics programming with interactive maps, guided roadmaps, and hands-on Java examples.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
