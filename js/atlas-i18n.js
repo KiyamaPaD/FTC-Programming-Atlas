@@ -1,5 +1,5 @@
 // FTC Programming Atlas
-// v125 · Atlas Math
+// v126 · LaTeX Editor Panel
 //
 // Source language: Romanian
 // Secondary language: English
@@ -25,6 +25,16 @@ const UI_EN = new Map(Object.entries({
   "Am citit acest nod": "I have read this node",
   "✓ Citit": "\u2713 Read",
   "Echipă": "Team",
+  "Formule LaTeX": "LaTeX formulas",
+  "Șablon": "Preset",
+  "Afișare": "Display",
+  "În text": "Inline",
+  "Bloc separat": "Display block",
+  "Sursă LaTeX": "LaTeX source",
+  "Previzualizare formulă": "Formula preview",
+  "Inserează formula": "Insert formula",
+  "Copiază LaTeX": "Copy LaTeX",
+  "Copiază pentru Atlas": "Copy for Atlas",
   "Tabel cu derulare orizontală": "Horizontally scrollable table",
   "Se încarcă bifele…": "Loading read markers\u2026",
   "Bifele nu au putut fi încărcate.": "Read markers could not be loaded.",

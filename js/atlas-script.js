@@ -1,10 +1,11 @@
-import { hydrateAtlasMath } from './atlas-math.js?v=125'
+import { hydrateAtlasMath } from './atlas-math.js?v=126'
+import { installMathPanel } from './atlas-math-panel.js?v=126'
 import { loadGlobalIndex, loadGlobalDetail } from './atlas-global.js?v=123'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
 import { createNodeReadStore } from './atlas-node-reads.js?v=122'
 
-console.log('ATLAS SCRIPT LOADED v125 · ATLAS MATH')
+console.log('ATLAS SCRIPT LOADED v126 · LATEX EDITOR PANEL')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -8413,6 +8414,8 @@ function hydrateRichEditorEmbeds(node) {
 }
 
 function setRichEditorHtml(value, node = null) {
+  mathEditorPanel?.reset()
+  richSelectionRange = null
   contentRichEditor.innerHTML = sanitizeRichHtml(value)
   if (node) hydrateRichEditorEmbeds(node)
 }
@@ -8441,6 +8444,7 @@ function getRichEditorHtml() {
 
 
 let richSelectionRange = null
+let mathEditorPanel = null
 
 function rememberRichSelection() {
   const selection = window.getSelection()
@@ -8456,7 +8460,7 @@ function rememberRichSelection() {
 }
 
 function restoreRichSelection() {
-  if (!richSelectionRange) return false
+  if (!richSelectionRange || !contentRichEditor.contains(richSelectionRange.commonAncestorContainer)) return false
 
   const selection = window.getSelection()
   if (!selection) return false
@@ -8546,6 +8550,7 @@ function runRichCommand(command, value = null) {
 }
 
 function setNodeContentEditorVisible(isNodeMode) {
+  if (!isNodeMode) mathEditorPanel?.close()
   richEditorShell.style.display = isNodeMode ? 'block' : 'none'
   richEditorHint.style.display = isNodeMode ? 'block' : 'none'
   contentInput.style.display = isNodeMode ? 'none' : 'block'
@@ -8608,12 +8613,30 @@ function initRichTextEditor() {
     })
   })
 
-  document.getElementById('richMathBtn')?.addEventListener('click', () => {
-    const input = window.prompt('LaTeX. Exemplu: \\(v=\\frac{d}{t}\\). Pentru un bloc, folosește \\[...\\].')
-    if (!input?.trim()) return
-    const tex = input.trim()
-    const wrapped = /^(?:\\\(|\\\[|\$\$)/.test(tex) ? tex : `\\(${tex}\\)`
-    runRichCommand('insertText', wrapped)
+  mathEditorPanel = installMathPanel({
+    panel: document.getElementById('richMathPanel'),
+    toggle: document.getElementById('richMathBtn'),
+    beforeOpen: rememberRichSelection,
+    insert: (value) => {
+      const literal = document.createElement('span')
+      literal.textContent = value
+      contentRichEditor.focus({ preventScroll: true })
+      if (!restoreRichSelection()) {
+        const range = document.createRange()
+        range.selectNodeContents(contentRichEditor)
+        range.collapse(false)
+        const selection = window.getSelection()
+        selection.removeAllRanges()
+        selection.addRange(range)
+      }
+      const inserted = document.execCommand('insertHTML', false, literal.outerHTML)
+      if (inserted) {
+        rememberRichSelection()
+        updateRichToolbarState()
+      }
+      return inserted
+    },
+    copyText: copyTextToClipboard
   })
   richInsertCodeBtn?.addEventListener('click', () => openInlineAttachmentManager('code'))
   richInsertMediaBtn?.addEventListener('click', () => openInlineAttachmentManager('media'))
@@ -18047,6 +18070,7 @@ function openModal(mode) {
 }
 
 function closeModal() {
+  mathEditorPanel?.close()
   modalBackdrop.classList.remove('open')
   editingId = null
   contentInput.readOnly = false

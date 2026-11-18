@@ -43,3 +43,58 @@
 }
 .atlas-formula textarea:not([hidden]) { max-width: 100%; min-width: 7em; min-height: 2em; }
 .atlas-formula-source { font-family: ui-monospace, monospace; white-space: pre-wrap; }
+
+.atlas-math-panel[hidden] { display: none !important; }
+.atlas-math-panel {
+  display: grid;
+  gap: .55rem;
+  min-width: 0;
+  padding: .75rem;
+  border-block-end: 1px solid rgba(177, 76, 255, .32);
+  background: rgba(177, 76, 255, .075);
+}
+.atlas-math-panel-head, .atlas-math-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .45rem;
+}
+.atlas-math-panel-head { justify-content: space-between; }
+.atlas-math-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .5rem;
+}
+.atlas-math-panel label { display: grid; gap: .2rem; min-width: 0; }
+.atlas-math-panel :is(input, select, textarea) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.15rem;
+  border: 1px solid rgba(177, 76, 255, .26);
+  border-radius: 7px;
+  background: #151219;
+  color: #f1edf4;
+  padding: .4rem .5rem;
+}
+.atlas-math-panel :is(input, textarea) { font-family: ui-monospace, monospace; }
+.atlas-math-panel textarea { min-height: 3.35rem; resize: vertical; }
+.atlas-math-panel-grid label:only-child { grid-column: 1 / -1; }
+.atlas-math-panel-preview {
+  min-height: 2rem;
+  min-width: 0;
+  overflow: auto;
+  padding: .35rem .6rem;
+  border: 1px solid rgba(177, 76, 255, .22);
+  border-radius: 8px;
+}
+.atlas-math-panel-preview .katex-display { margin: .35em 0; }
+.atlas-math-panel-status { margin: 0; font-size: .8rem; overflow-wrap: anywhere; }
+.atlas-math-panel-status:empty { display: none; }
+.atlas-math-panel-status.is-error { color: #ffb3bf; }
+.atlas-math-panel-actions .btn { min-height: 36px; }
+.atlas-math-panel-actions .btn:disabled { cursor: not-allowed; opacity: .48; }
+@media (max-width: 440px) {
+  .atlas-math-panel-actions .btn { min-height: 44px; }
+  .atlas-math-panel :is(input, select, textarea) { font-size: 16px; }
+}
