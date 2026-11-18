@@ -35,7 +35,7 @@
   <link rel="manifest" href="/site.webmanifest" />
   <link rel="preconnect" href="https://sznohntrlyynbhdigdgb.supabase.co" crossorigin />
   <link rel="preconnect" href="https://esm.sh" crossorigin />
-  <link rel="modulepreload" href="/js/atlas-script.js?v=123" />
+  <link rel="modulepreload" href="/js/atlas-script.js?v=124" />
   <style>
     :root {
       --bg: #000000;
@@ -8451,6 +8451,33 @@
 
 
   /* v102 — fully collapsible navigation rail */
+  .nav-workspaces, .nav-workspace-views {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .nav-workspaces:has(#navTeamSpace[hidden]) { grid-template-columns: 1fr; }
+  .nav-global-views { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .atlas-section-switcher [hidden] { display: none !important; }
+  .atlas-section-switcher .atlas-primary-tab { min-height: 42px; }
+  .nav-workspace-card {
+    min-width: 0;
+    padding: 11px;
+    border: 1px solid rgba(177,76,255,.22);
+    border-radius: 13px;
+    background: rgba(177,76,255,.045);
+  }
+  .nav-workspace-title { display: block; margin-bottom: 9px; font-size: .9rem; }
+  .nav-departments { margin-top: 11px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.09); }
+  .nav-department-label { display: block; margin-bottom: 7px; font-size: .73rem; color: #b7afbf; }
+  .atlas-navigation .nav-departments .department-tabs {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
+    overflow: visible;
+  }
+  .nav-departments .department-tab { width: 100%; min-width: 0; min-height: 40px; text-align: left; }
+  .atlas-section-switcher button:focus-visible { outline: 2px solid #d49aff; outline-offset: 2px; }
   .global-nav-collapse { margin: 0; }
   .global-nav-collapse > .ui-collapse-body { padding-top: 7px; }
   .navigation-editor-zone { padding-top: 0; }
@@ -9251,52 +9278,36 @@
           hidden
         ><span aria-hidden="true">👥</span><span>Echipă</span></button>
       </div>
-      <div class="atlas-section-switcher" id="publicSectionTabs" role="tablist" aria-label="Navigare principală">
-        <details class="team-atlas-primary" id="teamAtlasPrimary" data-ui-section="team-atlas" open>
-          <summary class="team-atlas-primary-summary">
-            <div class="team-atlas-primary-head">
-              <span>TEAM ATLAS</span>
-              <strong id="teamAtlasIdentity">Documentația echipei</strong>
-              <p id="teamAtlasContextLine">Harta și traseele de lucru ale echipei.</p>
-            </div>
-          </summary>
-          <div class="team-atlas-primary-body">
-            <div class="team-atlas-primary-tabs">
-              <button class="atlas-primary-tab team-primary-tab active" type="button" role="tab" data-public-section="team">Explore</button>
-              <button class="atlas-primary-tab team-primary-tab" type="button" role="tab" data-public-section="team-roadmaps">Roadmaps</button>
-            </div>
-          </div>
-        </details>
-
-        <details class="ui-collapse nav-collapse global-nav-collapse" data-ui-section="global" open>
-          <summary>
-            <span>Global</span>
-            <strong class="ui-collapse-meta">InfotronX #19119</strong>
-          </summary>
-          <div class="ui-collapse-body">
-            <button class="announcements-nav-button" type="button" role="tab" data-public-section="global"><span>Explore global</span><span class="announcements-nav-badge">PUBLIC</span></button>
-            <button class="announcements-nav-button" type="button" role="tab" data-public-section="global-roadmaps"><span>Roadmaps globale</span></button>
-            <button class="announcements-nav-button" type="button" role="tab" data-public-section="announcements">
-              <span>Announcements</span>
-              <span class="announcements-nav-badge">GLOBAL</span>
-            </button>
-          </div>
-        </details>
-      </div>
-
-      <details class="ui-collapse nav-collapse" data-ui-section="departments" open>
-        <summary>
-          <span>Departamente</span>
-          <strong class="ui-collapse-meta" id="activeDepartmentTitle">Programming</strong>
-        </summary>
-        <div class="ui-collapse-body">
-          <span id="atlasNavigationEyebrow" hidden>Explorează Atlasul</span>
-          <span id="departmentContext" hidden>departament</span>
-          <div class="department-tabs" id="departmentTabs" role="tablist" aria-label="Departamente FTC">
-            <span class="department-tabs-loading">Se încarcă departamentele...</span>
-          </div>
+      <div class="atlas-section-switcher" id="publicSectionTabs">
+        <div class="nav-workspaces" role="group" aria-label="Spațiu Atlas">
+          <button class="atlas-primary-tab" id="navTeamSpace" type="button" data-nav-space="team" aria-pressed="false" hidden>Echipă</button>
+          <button class="atlas-primary-tab" id="navGlobalSpace" type="button" data-nav-space="global" aria-pressed="true">Global</button>
         </div>
-      </details>
+
+        <section class="nav-workspace-card">
+          <div id="teamAtlasPrimary" data-ui-section="team-atlas" hidden>
+            <strong class="nav-workspace-title" id="teamAtlasIdentity">Documentația echipei</strong>
+            <div class="nav-workspace-views" role="group" aria-label="Secțiuni echipă">
+              <button class="atlas-primary-tab" type="button" data-public-section="team" aria-pressed="false">Explore</button>
+              <button class="atlas-primary-tab" type="button" data-public-section="team-roadmaps" aria-pressed="false">Roadmaps</button>
+            </div>
+          </div>
+          <div id="globalAtlasPrimary" data-ui-section="global">
+            <strong class="nav-workspace-title">Atlas Global</strong>
+            <div class="nav-workspace-views nav-global-views" role="group" aria-label="Secțiuni globale">
+              <button class="atlas-primary-tab" type="button" data-public-section="global" aria-pressed="false">Explore</button>
+              <button class="atlas-primary-tab" type="button" data-public-section="global-roadmaps" aria-pressed="false">Roadmaps</button>
+              <button class="atlas-primary-tab" type="button" data-public-section="announcements" aria-pressed="false">Anunțuri</button>
+            </div>
+          </div>
+          <div class="nav-departments" data-ui-section="departments">
+            <span class="nav-department-label" id="navDepartmentLabel">Departamente</span>
+            <div class="department-tabs" id="departmentTabs" role="group" aria-labelledby="navDepartmentLabel">
+              <span class="department-tabs-loading">Se încarcă departamentele...</span>
+            </div>
+          </div>
+        </section>
+      </div>
 
       <details class="ui-collapse nav-collapse navigation-editor-zone" data-ui-section="editor-zone" hidden open>
         <summary>
@@ -10818,6 +10829,6 @@
     </div>
   </div>
 
-  <script type="module" src="/js/atlas-script.js?v=123"></script>
+  <script type="module" src="/js/atlas-script.js?v=124"></script>
 </body>
 </html>

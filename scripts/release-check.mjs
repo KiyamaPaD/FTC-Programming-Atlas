@@ -196,18 +196,18 @@ async function main() {
   assert(
     index.includes('id="teamAtlasPrimary" data-ui-section="team-atlas"') &&
       index.includes('id="teamAtlasIdentity"') &&
-      index.includes('class="team-atlas-primary-tabs"') &&
-      index.includes('class="announcements-nav-button"') &&
+      index.includes('id="navTeamSpace"') &&
+      index.includes('id="globalAtlasPrimary"') &&
       index.includes('class="atlas-section-switcher"') &&
       index.includes('id="teamAdminBackdrop"') &&
       index.includes('id="teamAdminList"') &&
       index.includes('Echipe și acces'),
-    'v100 collapsible Team Atlas / team identity hierarchy is missing'
+    'Atlas workspace switch or team identity is missing'
   )
   assert(
     !index.includes('team-atlas-global-row') &&
       !index.includes('global-primary-tab') &&
-      appScript.includes('teamAtlasPrimary.hidden = !currentTeamRecord()'),
+      appScript.includes('navTeamSpace.hidden = !currentTeam'),
     'legacy/broken Global tab layout is still present'
   )
   const navStart = index.indexOf('id="atlasNavigation"')
@@ -261,7 +261,7 @@ async function main() {
     'Platform Admin role preview is missing'
   )
   assert(
-    appScript.includes("teamAtlasIdentity.textContent = teamName") &&
+    appScript.includes("teamAtlasIdentity.textContent = currentTeam.teamNumber") &&
       appScript.includes('function readableTeamDepartmentIds()') &&
       appScript.includes('function currentViewDepartments()'),
     'team identity / role-scoped Team Atlas view is missing'
@@ -298,7 +298,7 @@ async function main() {
       index.includes('data-ui-section="global"') &&
       index.includes('data-ui-section="departments"') &&
       index.includes('data-ui-section="editor-zone"'),
-    'v102 navigation zones are not fully collapsible'
+    'Contextual navigation groups are missing'
   )
   assert(
     !index.includes('id="statusSection"') &&

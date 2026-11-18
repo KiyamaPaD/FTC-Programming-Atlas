@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.112.3'
 
 import { createNodeReadStore } from './atlas-node-reads.js?v=122'
 
-console.log('ATLAS SCRIPT LOADED v123 · GLOBAL ATLAS')
+console.log('ATLAS SCRIPT LOADED v124 · ATLAS NAVIGATION')
 
 // Project configuration and application limits
 const SUPABASE_URL = 'https://sznohntrlyynbhdigdgb.supabase.co'
@@ -667,6 +667,7 @@ let teamTaxonomyTags = []
 
 let departments = []
 let activeDepartmentId = null
+let activeDepartmentScope = null
 let announcements = []
 let resources = []
 let roadmaps = []
@@ -821,7 +822,9 @@ const closeTeamDrawerBtn = document.getElementById('closeTeamDrawerBtn')
 const publicSectionTabs = document.getElementById('publicSectionTabs')
 const teamAtlasPrimary = document.getElementById('teamAtlasPrimary')
 const publicHubPanel = document.getElementById('publicHubPanel')
-const atlasNavigationEyebrow = document.getElementById('atlasNavigationEyebrow')
+const globalAtlasPrimary = document.getElementById('globalAtlasPrimary')
+const navTeamSpace = document.getElementById('navTeamSpace')
+const navGlobalSpace = document.getElementById('navGlobalSpace')
 
 const teamImportBackdrop = document.getElementById('teamImportBackdrop')
 const closeTeamImportBtn = document.getElementById('closeTeamImportBtn')
@@ -842,8 +845,6 @@ const detailPanel = document.getElementById('detailPanel')
 const emptyPanel = document.getElementById('emptyPanel')
 const searchInput = document.getElementById('searchInput')
 const departmentTabs = document.getElementById('departmentTabs')
-const activeDepartmentTitle = document.getElementById('activeDepartmentTitle')
-const departmentContext = document.getElementById('departmentContext')
 const categoryFilter = document.getElementById('categoryFilter')
 const difficultyFilter = document.getElementById('difficultyFilter')
 const tagFilterChips = document.getElementById('tagFilterChips')
@@ -894,7 +895,6 @@ const editorEdgeLayoutTools = document.getElementById('editorEdgeLayoutTools')
 const editorHistorySection = document.getElementById('editorHistorySection')
 const editorAdminSection = document.getElementById('editorAdminSection')
 const teamAtlasIdentity = document.getElementById('teamAtlasIdentity')
-const teamAtlasContextLine = document.getElementById('teamAtlasContextLine')
 const rolePreviewBanner = document.getElementById('rolePreviewBanner')
 const rolePreviewBannerText = document.getElementById('rolePreviewBannerText')
 const exitRolePreviewBtn = document.getElementById('exitRolePreviewBtn')
@@ -6786,7 +6786,8 @@ function startAdminRolePreview() {
     departmentIds: scopedDepartment ? [departmentId] : []
   }
 
-  if (scopedDepartment) {
+  if (scopedDepartment && isTeamAtlasMode()) {
+    activeDepartmentScope = currentDepartmentScope()
     activeDepartmentId = departmentId
   } else {
     normalizeDepartmentState()
@@ -7572,17 +7573,6 @@ function publicSectionLabel(section) {
 
   return labels[section] || 'Explore'
 }
-function publicSectionEyebrow(section) {
-  const labels = {
-    global: 'Global · InfotronX #19119',
-    'global-roadmaps': 'Roadmaps globale · InfotronX #19119',
-    team: 'Team Atlas',
-    'team-roadmaps': 'Team Roadmaps',
-    announcements: 'Announcements'
-  }
-
-  return labels[section] || labels.team
-}
 function selectPublicSection(section) {
   if (!PUBLIC_SECTIONS.has(section)) return
 
@@ -7606,12 +7596,14 @@ function selectPublicSection(section) {
   closeMediaManager()
   closeFileManager()
 
+  const sectionChanged = activePublicSection !== section
   activePublicSection = section
   localStorage.setItem(CACHE_KEYS.publicSection, section)
 
   syncActiveNodeCollection({ forceReset: true })
   normalizeDepartmentState()
-  if (section !== 'team' && (routeNodeIdFromLocation() != null || teamNodeRouteFromLocation())) setHomeRoute({ push: true })
+  if (sectionChanged) clearFiltersForDeepLink()
+  if (routeNodeIdFromLocation() != null || teamNodeRouteFromLocation()) setHomeRoute({ push: true })
   renderAll()
 
   if (section === 'team' || section === 'global') requestAnimationFrame(fitView)
@@ -7636,32 +7628,27 @@ function renderPublicShell() {
   appRoot.classList.toggle('public-section-open', !(isTeamMap || isGlobalMap))
   appRoot.dataset.publicSection = renderedSection
   atlasNavigation?.classList.toggle('global-section', isAnnouncements)
-  if (departmentSection) departmentSection.hidden = !(isTeamMap || isGlobalMap || isGlobalRoadmaps)
-  if (teamAtlasPrimary) teamAtlasPrimary.hidden = !currentTeamRecord()
+  const inTeam = isTeamMap || isTeamRoadmaps
+  if (departmentSection) departmentSection.hidden = isAnnouncements
+  if (teamAtlasPrimary) teamAtlasPrimary.hidden = !inTeam
+  if (globalAtlasPrimary) globalAtlasPrimary.hidden = inTeam
+  navTeamSpace.hidden = !currentTeam
+  navTeamSpace.classList.toggle('active', inTeam)
+  navTeamSpace.setAttribute('aria-pressed', String(inTeam))
+  navGlobalSpace.classList.toggle('active', !inTeam)
+  navGlobalSpace.setAttribute('aria-pressed', String(!inTeam))
 
-  if (currentTeam) {
-    const teamName = currentTeam.teamNumber
+  if (currentTeam && teamAtlasIdentity) {
+    teamAtlasIdentity.textContent = currentTeam.teamNumber
       ? `${currentTeam.name} #${currentTeam.teamNumber}`
       : currentTeam.name
-    if (teamAtlasIdentity) teamAtlasIdentity.textContent = teamName
-    if (teamAtlasContextLine) teamAtlasContextLine.textContent = 'Documentația echipei · Explore și Roadmaps'
-  } else {
-    if (teamAtlasIdentity) teamAtlasIdentity.textContent = 'Documentația echipei'
-    if (teamAtlasContextLine) teamAtlasContextLine.textContent = 'Harta și traseele de lucru ale echipei.'
   }
 
   publicSectionTabs.querySelectorAll('[data-public-section]').forEach((button) => {
-    const section = button.dataset.publicSection
-    const requiresTeam = section === 'team' || section === 'team-roadmaps'
-    button.hidden = requiresTeam && !currentTeamRecord()
-    const selected = section === renderedSection
+    const selected = button.dataset.publicSection === renderedSection
     button.classList.toggle('active', selected)
-    button.setAttribute('aria-selected', selected ? 'true' : 'false')
+    button.setAttribute('aria-pressed', String(selected))
   })
-
-  if (atlasNavigationEyebrow) {
-    atlasNavigationEyebrow.textContent = publicSectionEyebrow(renderedSection)
-  }
 
   if (isTeamMap || isGlobalMap) {
     publicHubPanel.classList.remove('open')
@@ -7768,41 +7755,35 @@ function nodeDepartmentNames(node) {
 
 function currentViewDepartments() {
   const active = departments.filter((item) => item.is_active !== false)
+  if (isTeamAtlasMode()) {
+    const readable = new Set(readableTeamDepartmentIds())
+    return active.filter((item) => readable.has(Number(item.id)))
+  }
 
-  if (!isTeamAtlasMode()) return active
+  const published = new Set(publicNodes.flatMap(nodeDepartmentIds))
+  for (const roadmap of roadmaps) {
+    if (roadmap.isActive && roadmap.departmentId != null) published.add(roadmap.departmentId)
+  }
+  return published.size ? active.filter((item) => published.has(Number(item.id))) : active
+}
 
-  const readable = new Set(readableTeamDepartmentIds())
-  return active.filter((item) => readable.has(Number(item.id)))
+function currentDepartmentScope() {
+  return isTeamAtlasMode() ? `team-${activeTeamId}` : 'global'
 }
 
 function normalizeDepartmentState() {
-  const activeDepartments = currentViewDepartments()
+  const scope = currentDepartmentScope()
+  const active = currentViewDepartments()
+  const sameScope = activeDepartmentScope === scope
+  activeDepartmentScope = scope
 
-  if (activeDepartments.length === 0) {
-    activeDepartmentId = null
-    return
-  }
+  if (sameScope && active.some(item => Number(item.id) === activeDepartmentId)) return
 
-  const requestedSlug = localStorage.getItem(CACHE_KEYS.department)
-  const requested = requestedSlug
-    ? activeDepartments.find((item) => item.slug === requestedSlug)
-    : null
-
-  if (requested) {
-    activeDepartmentId = Number(requested.id)
-    return
-  }
-
-  const currentStillExists = activeDepartments.some(
-    (item) => Number(item.id) === Number(activeDepartmentId)
-  )
-
-  if (currentStillExists) return
-
-  // Programming remains the default landing department during the migration.
-  // Universal becomes the broader entry point as its content is expanded.
-  const programming = activeDepartments.find((item) => item.slug === 'programming')
-  activeDepartmentId = Number((programming || activeDepartments[0]).id)
+  const savedSlug = localStorage.getItem(`${CACHE_KEYS.department}:${scope}`)
+  const remembered = active.find(item => item.slug === savedSlug)
+  const programming = active.find(item => item.slug === 'programming')
+  const department = remembered || programming || active[0]
+  activeDepartmentId = department ? Number(department.id) : null
 }
 
 function matchesDepartment(node) {
@@ -7820,6 +7801,7 @@ function getDepartmentNodes() {
 function activateDepartmentForNode(node, { persist = false } = {}) {
   if (!node) return
 
+  normalizeDepartmentState()
   const ids = nodeDepartmentIds(node)
   if (ids.length === 0) return
 
@@ -7830,7 +7812,7 @@ function activateDepartmentForNode(node, { persist = false } = {}) {
   if (persist) {
     const department = getDepartmentById(activeDepartmentId)
     if (department) {
-      localStorage.setItem(CACHE_KEYS.department, department.slug)
+      localStorage.setItem(`${CACHE_KEYS.department}:${currentDepartmentScope()}`, department.slug)
     }
   }
 }
@@ -7839,14 +7821,23 @@ function selectDepartment(id) {
   const department = getDepartmentById(id)
   if (!department || department.is_active === false) return
 
-  if (isTeamAtlasMode() && !currentViewDepartments().some((item) => Number(item.id) === Number(id))) {
+  if (!currentViewDepartments().some((item) => Number(item.id) === Number(id))) {
     return
   }
 
+  if (activeDepartmentId !== Number(department.id)) {
+    clearFiltersForDeepLink()
+    if (detailOpen) {
+      detailOpen = false
+      setHomeRoute({ push: true })
+    }
+  }
   activeDepartmentId = Number(department.id)
-  localStorage.setItem(CACHE_KEYS.department, department.slug)
+  activeDepartmentScope = currentDepartmentScope()
+  localStorage.setItem(`${CACHE_KEYS.department}:${activeDepartmentScope}`, department.slug)
 
   renderMapNavigationState()
+  departmentTabs.querySelector(`[data-department-id="${activeDepartmentId}"]`)?.focus({ preventScroll: true })
 
   if (['team', 'global'].includes(activePublicSection)) {
     requestAnimationFrame(fitView)
@@ -7859,19 +7850,9 @@ function renderDepartmentNavigation() {
   const active = currentViewDepartments()
     .sort((a, b) => Number(a.sort_order || 0) - Number(b.sort_order || 0))
 
-  const current = getDepartmentById(activeDepartmentId)
-
-  if (activeDepartmentTitle) {
-    activeDepartmentTitle.textContent = current?.name || 'Atlas'
-  }
-
-  if (departmentContext) {
-    departmentContext.textContent = current?.slug === 'universal' ? 'universal' : 'departament'
-  }
-
   if (active.length === 0) {
     departmentTabs.innerHTML =
-      '<span class="department-tabs-loading">Nu există departamente active.</span>'
+      '<span class="department-tabs-loading">Nu sunt departamente disponibile pentru acest spațiu.</span>'
     return
   }
 
@@ -7887,8 +7868,7 @@ function renderDepartmentNavigation() {
         <button
           class="department-tab ${selected ? 'active' : ''}"
           type="button"
-          role="tab"
-          aria-selected="${selected ? 'true' : 'false'}"
+          aria-pressed="${selected ? 'true' : 'false'}"
           data-department-id="${Number(department.id)}"
         >
           <span class="department-tab-name">${escapeHtml(
@@ -7900,11 +7880,6 @@ function renderDepartmentNavigation() {
     })
     .join('')
 
-  departmentTabs.querySelectorAll('[data-department-id]').forEach((button) => {
-    button.addEventListener('click', () => {
-      selectDepartment(Number(button.dataset.departmentId))
-    })
-  })
 }
 
 function normalizeTaxonomyState() {
@@ -17950,6 +17925,7 @@ function renderMapNavigationState({ normalize = true } = {}) {
 function renderAll() {
   const perfStartedAt = atlasPerfNow()
   syncActiveNodeCollection()
+  normalizeDepartmentState()
   normalizeSelectionAfterFilters()
   renderTaxonomyControls()
   renderDepartmentNavigation()
@@ -19983,6 +19959,19 @@ publicSectionTabs?.querySelectorAll('[data-public-section]').forEach((button) =>
   button.addEventListener('click', () => {
     selectPublicSection(button.dataset.publicSection)
   })
+})
+
+navTeamSpace?.addEventListener('click', () => {
+  if (!isTeamAtlasMode()) selectPublicSection('team')
+})
+
+navGlobalSpace?.addEventListener('click', () => {
+  if (isTeamAtlasMode()) selectPublicSection('global')
+})
+
+departmentTabs?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-department-id]')
+  if (button) selectDepartment(Number(button.dataset.departmentId))
 })
 
 accountBtn?.addEventListener('click', (event) => {
