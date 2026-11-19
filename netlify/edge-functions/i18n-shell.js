@@ -11,7 +11,7 @@ const HOME_DESCRIPTION =
   'Learn FTC robotics programming with interactive maps, guided roadmaps, and hands-on Java examples.'
 
 const LOGO_URL =
-  'https://ftcprogrammingatlas.com/img/FTCProgrammingAtlasLogo.png'
+  'https://ftcprogrammingatlas.com/img/atlas-mark-four-branches.png'
 
 function replaceMeta(html, matcher, replacement) {
   if (matcher.test(html)) {
