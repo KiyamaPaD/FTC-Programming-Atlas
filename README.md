@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="./img/FTCProgrammingAtlasLogo.png" alt="FTC Programming Atlas logo" width="150" />
+<img src="./img/atlas-mark-four-branches.png" alt="FTC Programming Atlas logo with four branches inside curly braces" width="120" />
 
 # FTC Programming Atlas
 
 **An interactive, node-based documentation platform for FTC programming and long-term team knowledge.**
 
-[Live Website](https://ftcprogrammingatlas.com) · [Android v2.1.1](./downloads/FTC-Programming-Atlas-2.1.1.apk?raw=1) · [Windows v2.1.1](https://github.com/KiyamaPaD/FTC-Programming-Atlas/releases/tag/v2.1.1) · [InfotronX #19119](https://itx.infoel.ro)
+[Live Website](https://ftcprogrammingatlas.com) · [Android v2.1.0](./downloads/FTC-Programming-Atlas-2.1.0.apk?raw=1) · [Windows releases](https://github.com/KiyamaPaD/FTC-Programming-Atlas/releases) · [InfotronX #19119](https://itx.infoel.ro)
 
 </div>
 
@@ -32,7 +32,9 @@ Typical topics include:
 - TeleOp
 - Control Hub / Expansion Hub troubleshooting
 
-The goal is not only to document *what* something is, but also to show **how concepts relate to each other**.
+Start in **Global Atlas** to explore the public map or follow a learning roadmap without an account. **Team Atlas** gives signed-in members access to their team's documentation and roadmaps by department.
+
+For a practical walkthrough, open [Prima autonomie completă](https://ftcprogrammingatlas.com/node/999591). It covers the same route with Pedro Pathing and Road Runner, with previews in Pedro Pathing Visualizer and MeepMeep.
 
 ---
 
@@ -48,9 +50,9 @@ The Android app uses the same Supabase backend as the public website, so documen
 
 ### Download
 
-**[Download FTC Programming Atlas v2.1.1 for Android](./downloads/FTC-Programming-Atlas-2.1.1.apk?raw=1)**
+**[Download FTC Programming Atlas v2.1.0 for Android](./downloads/FTC-Programming-Atlas-2.1.0.apk?raw=1)**
 
-The v2 Android app packages the current Team-first Atlas UI and uses the same Supabase project as the website. Build artifacts are produced from the current `www/` bundle, so the APK no longer carries the legacy v52 interface.
+The linked APK is v2.1.0. Build from the current source to package newer web UI changes into the native app.
 
 To build a signed release APK, copy `android/keystore.properties.example` to `android/keystore.properties`, fill in the local signing credentials, then run:
 
@@ -88,7 +90,7 @@ The desktop app uses the same Supabase backend as the website and Android app, s
 
 ### Download
 
-**[FTC Programming Atlas v2.1.1 for Windows (x64)](https://github.com/KiyamaPaD/FTC-Programming-Atlas/releases/tag/v2.1.1)**
+**[Windows x64 downloads on GitHub Releases](https://github.com/KiyamaPaD/FTC-Programming-Atlas/releases)**
 
 The Windows build is distributed as an installer. It creates Start Menu and Desktop shortcuts and keeps the application installed like a normal Windows app.
 
@@ -155,10 +157,10 @@ It is both:
 Example deep link:
 
 ```text
-https://ftcprogrammingatlas.com/node/12/pedropathing
+https://ftcprogrammingatlas.com/node/999591
 ```
 
-Node routes remain stable through the database ID while also keeping a human-readable slug.
+Public node links use a stable database ID. The site also supports an optional human-readable slug.
 
 ---
 
@@ -182,6 +184,10 @@ The built-in editor supports:
 - sanitized rich HTML rendering
 
 The public viewer renders formatted documentation while protecting the page from unsafe embedded markup.
+
+### Math and formulas
+
+Atlas renders inline and display LaTeX with KaTeX in node documentation and supported text attachments. Readers can copy the LaTeX source. The editor includes formula presets and a live preview.
 
 ### Code snippets
 
@@ -254,7 +260,7 @@ Visitors can:
 - download attached files
 - open direct node URLs
 
-No account is required for normal reading.
+No account is required to read Global Atlas. Team members can mark lessons as read or unread and see that progress in their team roadmaps.
 
 ## Editor Mode
 
@@ -453,10 +459,6 @@ Implemented protections include:
 - restricted authentication workflow
 - separate public and editor permissions
 
-The project also includes a public:
-
-[Privacy Policy](https://ftcprogrammingatlas.com/privacy.html)
-
 The site does not intentionally use advertising or marketing tracking cookies.
 
 ---
@@ -472,6 +474,7 @@ Implemented features include:
 - canonical URLs
 - Open Graph metadata
 - Twitter / social preview metadata
+- favicon and structured logo metadata
 - `robots.txt`
 - XML sitemap
 - direct crawlable node links
@@ -575,11 +578,11 @@ FTC-Programming-Atlas/
 │   └── splash.png
 │
 ├── downloads/
-│   └── FTC-Programming-Atlas-2.1.1.apk
+│   └── FTC-Programming-Atlas-2.1.0.apk
 │
 ├── img/
-│   ├── FTCProgrammingAtlasLogo.png
-│   └── FTCProgrammingAtlasFavicon.png
+│   ├── atlas-mark-four-branches.png
+│   └── tutorials/
 │
 ├── js/
 │   ├── atlas-script.js
@@ -691,7 +694,6 @@ The platform currently includes:
 - direct node URLs
 - responsive desktop and mobile interactions
 - security hardening
-- Privacy Policy
 - SEO metadata
 - dynamic sitemap
 - Google indexing support
@@ -713,14 +715,11 @@ The main ongoing work is now **content expansion**: documenting more FTC systems
 Potential future improvements include:
 
 - Java and multi-language syntax highlighting
-- structured learning paths
 - prerequisite relationships
 - FTC SDK / framework version compatibility data
 - troubleshooting decision trees
-- bookmarks
-- reader progress tracking
 - offline-first / cached mobile documentation
-- multilingual content
+- broader translation coverage for lessons
 - contribution review workflows
 - search analytics and no-result analytics
 - traffic analytics
