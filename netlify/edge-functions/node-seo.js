@@ -3,7 +3,7 @@ const SUPABASE_KEY = 'sb_publishable_Qv7L9k8PD2zN1LKuXXHzMQ_FfGDR_e4'
 const PROJECT_ID = 'ftc-main'
 const SITE_ORIGIN = 'https://ftcprogrammingatlas.com'
 const DEFAULT_IMAGE =
-  `${SITE_ORIGIN}/img/atlas-mark.png`
+  `${SITE_ORIGIN}/img/FTCProgrammingAtlasLogo.png`
 
 function slugify(value) {
   return String(value || '')
