@@ -7,6 +7,7 @@ public class AtlasJavaBasicsDemo {
     public static void main(String[] args) {
         int count = 3;
         double power = 0.75;
+
         boolean ready = true;
         String label = "READY";
 
